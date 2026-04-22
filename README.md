@@ -1,96 +1,172 @@
-bng-journey-tests
+# BNG Metric Journey Tests
 
-The template to create a service that runs WDIO tests against an environment.
+End-to-end regression suite for the [Biodiversity Net Gain Metric Tool](https://github.com/DEFRA/bng-metric-frontend).
 
-- [Local](#local)
-  - [Requirements](#requirements)
-    - [Node.js](#nodejs)
-  - [Setup](#setup)
-  - [Running local tests](#running-local-tests)
-  - [Debugging local tests](#debugging-local-tests)
-- [Production](#production)
-  - [Debugging tests](#debugging-tests)
-- [Licence](#licence)
-  - [About the licence](#about-the-licence)
+Built with [Playwright Test](https://playwright.dev). Runs on DEFRA's CDP Portal.
 
-## Local Development
+---
 
-### Requirements
+## Prerequisites
 
-#### Node.js
+- Node.js >= 22 (use `nvm use` to switch to the version in `.nvmrc`)
+- Docker and Docker Compose (for full-stack local testing and CI mode)
+- Sibling repos cloned alongside this one:
+  - `../bng-metric-frontend`
+  - `../bng-metric-backend`
 
-Please install [Node.js](http://nodejs.org/) `>= v20` and [npm](https://nodejs.org/) `>= v9`. You will find it
-easier to use the Node Version Manager [nvm](https://github.com/creationix/nvm)
+---
 
-To use the correct version of Node.js for this application, via nvm:
+## Quick start
 
-```bash
-nvm use
-```
-
-### Setup
-
-Install application dependencies:
-
-```bash
+```sh
 npm install
+npx playwright install --with-deps chromium   # one-time browser install
 ```
 
-### Running local tests
+---
 
-Start application you are testing on the url specified in `baseUrl` [wdio.local.conf.js](wdio.local.conf.js)
+## Running tests
 
-```bash
+### Local — services already running
+
+Start the frontend and backend on your machine using their own dev scripts, then:
+
+```sh
 npm run test:local
 ```
 
-### Debugging local tests
+The frontend must be reachable at `http://localhost:3000` (its default).
 
-```bash
-npm run test:local:debug
+Override options:
+
+```sh
+HEADED=true npm run test:local          # headed browser (visible window)
+BROWSER=firefox npm run test:local      # use Firefox or webkit
+PROFILE=@smoke npm run test:local       # filter by tag
 ```
 
-## Production
+### Local — full stack via Docker Compose
 
-### Running the tests
+Closest approximation of CI. Builds frontend and backend from source.
 
-Tests are run from the CDP-Portal under the Test Suites section. Before any changes can be run, a new docker image must be built, this will happen automatically when a pull request is merged into the `main` branch.
-You can check the progress of the build under the actions section of this repository. Builds typically take around 1-2 minutes.
+```sh
+docker compose pull
+docker compose up --wait -d
+npm run test:github
+```
 
-The results of the test run are made available in the portal.
+To pin specific image versions:
 
-## Requirements of CDP Environment Tests
+```sh
+BNG_METRIC_FRONTEND_TAG=abc123 BNG_METRIC_BACKEND_TAG=abc123 docker compose up --wait -d
+npm run test:github
+```
 
-1. Your service builds as a docker container using the `.github/workflows/publish.yml`
-   The workflow tags the docker images allowing the CDP Portal to identify how the container should be run on the platform.
-   It also ensures its published to the correct docker repository.
+Playwright report opens at `playwright-report/index.html` after the run.
 
-2. The Dockerfile's entrypoint script should return exit code of 0 if the test suite passes or 1/>0 if it fails
+### CDP Platform (against deployed services)
 
-3. Test reports should be published to S3 using the script in `./bin/publish-tests.sh`
+```sh
+ENVIRONMENT=dev npm run test:e2e
+ENVIRONMENT=test npm run test:e2e
+```
 
-## Running on GitHub
+---
 
-Alternatively you can run the test suite as a GitHub workflow.
-Test runs on GitHub are not able to connect to the CDP Test environments. Instead, they run the tests agains a version of the services running in docker.
-A docker compose `compose.yml` is included as a starting point, which includes the databases (mongodb, redis) and infrastructure (localstack) pre-setup.
+## Folder structure
 
-Steps:
+```
+test/
+  specs/      — test files
+  pages/      — Page Objects (UI interaction per page)
+  flows/      — multi-step user journeys
+  fixtures/   — test.extend() DI — always import test/expect from here
+  utils/      — pure helpers (env vars, etc.)
+```
 
-1. Edit the compose.yml to include your services.
-2. Modify the scripts in docker/scripts to pre-populate the database, if required and create any localstack resources.
-3. Test the setup locally with `docker compose up` and `npm run test:github`
-4. Set up the workflow trigger in `.github/workflows/journey-tests`.
+Always import `test` and `expect` from `@fixtures`, not directly from `@playwright/test`.
 
-By default, the provided workflow will run when triggered manually from GitHub or when triggered by another workflow.
+See [AGENTS.md](AGENTS.md) and [`.ai/coding-rules.md`](.ai/coding-rules.md) for full conventions.
 
-If you want to use the repository exclusively for running docker composed based test suites consider displaying the publish.yml workflow.
+---
 
-## BrowserStack
+## Adding tests
 
-Two wdio configuration files are provided to help run the tests using BrowserStack in both a GitHub workflow (`wdio.github.browserstack.conf.js`) and from the CDP Portal (`wdio.browserstack.conf.js`).
-They can be run from npm using the `npm run test:browserstack` (for running via portal) and `npm run test:github:browserstack` (from GitHib runner).
-See the CDP Documentation for more details.
+1. Fill in [feature-input.md](feature-input.md).
+2. Tell the agent **"New feature input given"** — it will run a coverage-gap analysis.
+3. Wait for analysis approval before writing test code.
+4. Follow the checklist in [AGENTS.md](AGENTS.md#adding-a-new-test--checklist).
+
+For step-by-step guidance on writing a page object, flow, or spec, see [`.ai/skills/ui-test/SKILL.md`](.ai/skills/ui-test/SKILL.md).
+
+---
+
+## GitHub workflow — branch selection
+
+Dispatch the `journey-tests.yml` workflow with branch inputs to test against non-default code:
+
+```
+GitHub → Actions → Run Journey Tests on GitHub → Run workflow
+  journey-tests-branch: main           (or your branch)
+  frontend-branch: feature/my-feature  (or main)
+  backend-branch: main
+  browser: chromium
+```
+
+### Depends-On in PR descriptions
+
+When raising a PR that depends on a specific frontend or backend branch, add `Depends-On` lines to the PR description:
+
+```
+Depends-On: DEFRA/bng-metric-frontend#feature/my-feature
+Depends-On: DEFRA/bng-metric-backend#feature/my-api-change
+```
+
+The `journey-tests.yml` workflow parses these lines and checks out those branches automatically.
+
+---
+
+## Triggering from service repos
+
+Service repos can run this suite against their PR code using the composite action at the repo root:
+
+```yaml
+- uses: DEFRA/bng-metric-journey-tests@main
+  with:
+    bng-metric-frontend-tag: ${{ github.sha }}
+    bng-metric-backend-tag: latest
+```
+
+Input names (`bng-metric-frontend-tag`, `bng-metric-backend-tag`) match the Docker Compose override env vars (`BNG_METRIC_FRONTEND_TAG`, `BNG_METRIC_BACKEND_TAG`).
+
+---
+
+## CDP Portal
+
+1. Confirm the latest build is green in GitHub Actions (Actions → Publish).
+2. Log into the CDP Portal → Test Suites → **bng-metric-journey-tests**.
+3. Select environment, optionally set `PROFILE` (e.g. `@smoke`), choose configuration, click **Run**.
+4. Results and the HTML report are available from the run page.
+
+**Proxy:** outbound HTTP uses `localhost:3128` — already configured in `playwright.config.js`.
+
+**Timeout:** the Portal hard-kills runs at 2 hours. Keep the suite well under this.
+
+---
+
+## Environment variables
+
+| Variable      | Default     | Description                                                     |
+| ------------- | ----------- | --------------------------------------------------------------- |
+| `RUN_MODE`    | `local`     | `local` / `github` / `e2e` — selects base URL                   |
+| `ENVIRONMENT` | `dev`       | CDP environment name (used when `RUN_MODE=e2e`)                 |
+| `BASE_URL`    | _(derived)_ | Override the target URL directly                                |
+| `BROWSER`     | `chromium`  | `chromium` / `firefox` / `webkit`                               |
+| `HEADED`      | _(unset)_   | Set to `true` for headed browser                                |
+| `PROFILE`     | _(unset)_   | Playwright grep pattern, e.g. `@smoke`                          |
+| `HTTP_PROXY`  | _(unset)_   | Proxy for outbound HTTP (set to `http://localhost:3128` on CDP) |
+
+---
 
 ## Licence
 
@@ -98,14 +174,4 @@ THIS INFORMATION IS LICENSED UNDER THE CONDITIONS OF THE OPEN GOVERNMENT LICENCE
 
 <http://www.nationalarchives.gov.uk/doc/open-government-licence/version/3>
 
-The following attribution statement MUST be cited in your products and applications when using this information.
-
 > Contains public sector information licensed under the Open Government licence v3
-
-### About the licence
-
-The Open Government Licence (OGL) was developed by the Controller of Her Majesty's Stationery Office (HMSO) to enable
-information providers in the public sector to license the use and re-use of their information under a common open
-licence.
-
-It is designed to encourage use and re-use of information freely and flexibly, with only a few conditions.

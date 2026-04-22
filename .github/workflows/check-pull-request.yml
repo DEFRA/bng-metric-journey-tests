@@ -12,25 +12,27 @@ on:
       - ready_for_review
 
 jobs:
-  cdp-workflows:
-    name: Run Pull Request Checks
+  lint-and-format:
+    name: Lint and format check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Test code and Create Test Coverage Reports
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: npm
+
       - run: npm ci
       - run: npm run format:check
       - run: npm run lint
-
-# Uncomment this to run the tests in your test suite
-#  tests:
+# Uncomment to run the full journey test suite on every PR (requires Docker Compose build time).
+# For faster feedback, service repos trigger journey tests via the root action.yml on their own PRs.
+#  journey-tests:
 #    name: Run Journey Tests
-#    runs-on: ubuntu-latest
-#    steps:
-#      - uses: DEFRA/cdp-node-journey-test-suite-template/run-journey-tests@main
+#    uses: ./.github/workflows/journey-tests.yml
+#    with:
+#      frontend-branch: main
+#      backend-branch: main

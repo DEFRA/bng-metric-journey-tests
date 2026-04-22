@@ -1,0 +1,17 @@
+{
+  "folders": [
+    {
+      "name": "bng-metric-journey-tests",
+      "path": "."
+    },
+    {
+      "name": "bng-metric-frontend",
+      "path": "../bng-metric-frontend"
+    },
+    {
+      "name": "bng-metric-backend",
+      "path": "../bng-metric-backend"
+    }
+  ],
+  "settings": {}
+}

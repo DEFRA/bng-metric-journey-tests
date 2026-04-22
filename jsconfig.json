@@ -4,8 +4,10 @@
     "baseUrl": "./",
     "paths": {
       "~/*": ["./*"],
-      "page-objects/*": ["./test/page-objects/*"],
-      "components/*": ["./test/components/*"]
+      "@pages/*": ["./test/pages/*"],
+      "@flows/*": ["./test/flows/*"],
+      "@fixtures": ["./test/fixtures/index.js"],
+      "@utils/*": ["./test/utils/*"]
     }
   },
   "exclude": ["node_modules", "build", "docker"]

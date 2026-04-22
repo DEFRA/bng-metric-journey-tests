@@ -6,10 +6,154 @@ permissions:
 
 on:
   workflow_dispatch:
+    inputs:
+      journey-tests-branch:
+        description: Branch of bng-metric-journey-tests to run
+        required: false
+        default: main
+      frontend-branch:
+        description: Branch of bng-metric-frontend to build
+        required: false
+        default: main
+      backend-branch:
+        description: Branch of bng-metric-backend to build
+        required: false
+        default: main
+      browser:
+        description: Browser to run tests against
+        required: false
+        default: chromium
+        type: choice
+        options:
+          - chromium
+          - firefox
+          - webkit
+
   workflow_call:
+    inputs:
+      journey-tests-branch:
+        required: false
+        type: string
+        default: main
+      frontend-branch:
+        required: false
+        type: string
+        default: main
+      backend-branch:
+        required: false
+        type: string
+        default: main
+      browser:
+        required: false
+        type: string
+        default: chromium
+
 jobs:
-  build:
+  # Parses Depends-On lines from the PR body (workflow_call context).
+  # Falls back to workflow_dispatch inputs when not triggered from a PR.
+  parse-depends-on:
+    name: Resolve branch dependencies
+    runs-on: ubuntu-latest
+    outputs:
+      frontend-branch: ${{ steps.resolve.outputs.frontend-branch }}
+      backend-branch: ${{ steps.resolve.outputs.backend-branch }}
+    steps:
+      - name: Resolve branches from PR body or inputs
+        id: resolve
+        env:
+          PR_BODY: ${{ github.event.pull_request.body || '' }}
+          INPUT_FRONTEND: ${{ inputs.frontend-branch || 'main' }}
+          INPUT_BACKEND: ${{ inputs.backend-branch || 'main' }}
+        run: |
+          # Extract Depends-On lines, e.g.:
+          #   Depends-On: DEFRA/bng-metric-frontend#feature/my-branch
+          frontend_dep=$(echo "$PR_BODY" | grep -oP '(?<=Depends-On: DEFRA/bng-metric-frontend#)\S+' | head -1)
+          backend_dep=$(echo "$PR_BODY" | grep -oP '(?<=Depends-On: DEFRA/bng-metric-backend#)\S+' | head -1)
+
+          frontend_branch="${frontend_dep:-$INPUT_FRONTEND}"
+          backend_branch="${backend_dep:-$INPUT_BACKEND}"
+
+          echo "frontend-branch=$frontend_branch" >> "$GITHUB_OUTPUT"
+          echo "backend-branch=$backend_branch" >> "$GITHUB_OUTPUT"
+
+          echo "Resolved frontend branch: $frontend_branch"
+          echo "Resolved backend branch:  $backend_branch"
+
+  run-tests:
     name: Run Journey Tests
     runs-on: ubuntu-latest
+    needs: parse-depends-on
+    env:
+      BROWSER: ${{ inputs.browser || 'chromium' }}
     steps:
-      - uses: DEFRA/cdp-node-journey-test-suite-template/run-journey-tests@main
+      - name: Check out journey-tests
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.journey-tests-branch || 'main' }}
+
+      - name: Check out bng-metric-frontend
+        uses: actions/checkout@v4
+        with:
+          repository: DEFRA/bng-metric-frontend
+          ref: ${{ needs.parse-depends-on.outputs.frontend-branch }}
+          path: bng-metric-frontend
+
+      - name: Check out bng-metric-backend
+        uses: actions/checkout@v4
+        with:
+          repository: DEFRA/bng-metric-backend
+          ref: ${{ needs.parse-depends-on.outputs.backend-branch }}
+          path: bng-metric-backend
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install test dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Build frontend image
+        run: |
+          docker build \
+            --platform linux/amd64 \
+            -t defradigital/bng-metric-frontend:${{ github.sha }} \
+            ./bng-metric-frontend
+
+      - name: Build backend image
+        run: |
+          docker build \
+            --platform linux/amd64 \
+            -t defradigital/bng-metric-backend:${{ github.sha }} \
+            ./bng-metric-backend
+
+      - name: Start Docker Compose stack
+        env:
+          BNG_METRIC_FRONTEND_TAG: ${{ github.sha }}
+          BNG_METRIC_BACKEND_TAG: ${{ github.sha }}
+        run: docker compose up --wait --wait-timeout 120 -d
+
+      - name: Run Playwright tests
+        run: npm run test:github
+
+      - name: Collect Docker Compose logs
+        if: always()
+        run: docker compose logs > logs.txt
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: ./playwright-report
+
+      - name: Upload Docker Compose logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-compose-logs
+          path: ./logs.txt

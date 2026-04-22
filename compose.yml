@@ -1,47 +1,51 @@
 ################################################################################
-# Docker Compose file for starting up the service for testing in GitHub workflow
-# This template provides comparable infrastructure to the real environment.
-#   - mongodb
-#   - redis
-#   - localstack (s3, sqs, sns)
+# Docker Compose file for starting up the full BNG Metric stack for testing.
 #
-# Both mongo and localstack have init scripts included for setting up resources
-# on startup. These scripts are in docker/scripts.
+# Infrastructure:
+#   - mongodb, redis, localstack (s3, sqs, sns)
 #
-# It also includes a selenium-chrome container for running the browser headless.
+# Application services:
+#   - bng-metric-frontend  (port 3000)
+#   - bng-metric-backend   (port 3001)
 #
-# The services being tested can either be started up here using the latest
-# builds from dockerhub.
-# In the example each service has a .env config file in docker/config/
-# Services can reference each other by their container names.
-# e.g. http://cdp-example-node-backend:3001/
+# Init scripts in docker/scripts/ pre-populate LocalStack resources on startup.
+# Per-service env config is in docker/config/.
+# All services share the bng-journey-tests network and resolve each other by name.
+#
+# Run:
+#   docker compose pull
+#   docker compose up --wait
+#   npm run test:github
+#
+# To pin a specific image version:
+#   BNG_METRIC_FRONTEND_TAG=abc123 BNG_METRIC_BACKEND_TAG=abc123 docker compose up
 #
 ################################################################################
+networks:
+  bng-journey-tests:
+    driver: bridge
+
 services:
-
-################################################################################
-# Headless browser, used by the test suite to actually run the tests against the
-# containers.
-  selenium-chrome:
-    image: selenium/standalone-chrome:123.0
-    ports:
-      - 4444:4444
-
-################################################################################
+  ################################################################################
   mongodb:
     image: mongo:6
+    networks:
+      - bng-journey-tests
     volumes:
       - ./docker/scripts/mongodb:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.hello().ok"]
+      test: ['CMD', 'mongosh', '--eval', 'db.hello().ok']
       interval: 5s
       start_period: 5s
       retries: 3
-################################################################################
+
+  ################################################################################
   localstack:
     image: localstack/localstack:3.2.0
+    networks:
+      - bng-journey-tests
     environment:
-      - LOCALSTACK_HOST=127.0.0.1
+      - LOCALSTACK_HOST=localstack
       - SERVICES=s3,sqs,sns,dynamodb
       - LS_LOG=WARN
     env_file:
@@ -49,60 +53,108 @@ services:
     volumes:
       - ./docker/scripts/localstack:/etc/localstack/init/ready.d
     healthcheck:
-      test: ["CMD", "curl", "localhost:4566"]
+      test: ['CMD', 'curl', 'localhost:4566']
       interval: 5s
       start_period: 5s
       retries: 3
 
-################################################################################
+  ################################################################################
   redis:
     image: redis:7
+    networks:
+      - bng-journey-tests
     restart: always
     healthcheck:
-      test: [ "CMD", "redis-cli", "PING" ]
+      test: ['CMD', 'redis-cli', 'PING']
       interval: 5s
       start_period: 2s
       retries: 5
 
+  ################################################################################
+  bng-metric-backend:
+    image: defradigital/bng-metric-backend:${BNG_METRIC_BACKEND_TAG:-latest}
+    networks:
+      - bng-journey-tests
+    env_file:
+      - ./docker/config/defaults.env
+      - ./docker/config/bng-metric-backend.env
+    environment:
+      - PORT=3001
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3001/health']
+      interval: 5s
+      start_period: 10s
+      retries: 5
 
+  ################################################################################
+  bng-metric-frontend:
+    image: defradigital/bng-metric-frontend:${BNG_METRIC_FRONTEND_TAG:-latest}
+    networks:
+      - bng-journey-tests
+    env_file:
+      - ./docker/config/defaults.env
+      - ./docker/config/bng-metric-frontend.env
+    environment:
+      - PORT=3000
+    ports:
+      - 3000:3000
+    depends_on:
+      bng-metric-backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
+      interval: 5s
+      start_period: 10s
+      retries: 5
 ################################################################################
 #
-# Add the services you want to test below.
+# Template: add a new service by copying this block and adjusting values.
 #
 ################################################################################
-#  cdp-example-node-frontend:
-#    image: defradigital/cdp-example-node-frontend:${CDP_EXAMPLE_NODE_FRONTEND:-latest}
+#  your-frontend-service:
+#    image: defradigital/your-frontend-service:${YOUR_FRONTEND_TAG:-latest}
+#    networks:
+#      - bng-journey-tests
 #    env_file:
 #      - ./docker/config/defaults.env
-#      - ./docker/config/example-frontend.env
+#      - ./docker/config/your-frontend-service.env
 #    environment:
 #      - PORT=3000
 #    depends_on:
-#      cdp-example-node-backend:
-#        condition: service_started
+#      your-backend-service:
+#        condition: service_healthy
 #      redis:
 #        condition: service_healthy
 #    ports:
 #      - 3000:3000
 #    healthcheck:
-#      test: ["CMD", "curl", "http://localhost:3000/health"]
-#      interval: 3s
-#      start_period: 2s
-#      retries: 3
+#      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+#      interval: 5s
+#      start_period: 10s
+#      retries: 5
 
 ################################################################################
-# cdp-example-node-backend:
-#   image: defradigital/cdp-example-node-backend:${CDP_EXAMPLE_NODE_BACKEND:-latest}
-#   env_file:
-#     - ./docker/config/defaults.env
-#     - ./docker/config/example-backend.env
-#   environment:
-#     - PORT=3001
-#   depends_on:
-#     mongodb:
-#       condition: service_healthy
-#   healthcheck:
-#     test: ["CMD", "curl", "http://localhost:3001/health"]
-#     interval: 3s
-#     start_period: 2s
-#     retries: 3
+#  your-backend-service:
+#    image: defradigital/your-backend-service:${YOUR_BACKEND_TAG:-latest}
+#    networks:
+#      - bng-journey-tests
+#    env_file:
+#      - ./docker/config/defaults.env
+#      - ./docker/config/your-backend-service.env
+#    environment:
+#      - PORT=3001
+#    depends_on:
+#      mongodb:
+#        condition: service_healthy
+#    healthcheck:
+#      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+#      interval: 5s
+#      start_period: 10s
+#      retries: 5
