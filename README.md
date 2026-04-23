@@ -119,7 +119,7 @@ GitHub → Actions → Run Journey Tests on GitHub → Run workflow
 
 ### Depends-On in PR descriptions
 
-When raising a PR that depends on a specific frontend or backend branch, add `Depends-On` lines to the PR description:
+When raising a PR that depends on a specific frontend or backend branch, add `Depends-On` lines to the PR description in the following syntax:
 
 ```
 Depends-On: DEFRA/bng-metric-frontend#feature/my-feature
