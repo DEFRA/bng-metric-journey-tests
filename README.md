@@ -37,6 +37,8 @@ npm run test:local
 
 The frontend must be reachable at `http://localhost:3000` (its default).
 
+> **LocalStack:** not required for journeys that only hit the frontend (e.g. the home page smoke test). Required for journeys that involve file uploads, S3, SQS, or SNS — start it separately with `docker compose up localstack -d` if needed.
+
 Override options:
 
 ```sh
@@ -47,7 +49,7 @@ PROFILE=@smoke npm run test:local       # filter by tag
 
 ### Local — full stack via Docker Compose
 
-Closest approximation of CI. Builds frontend and backend from source.
+Closest approximation of CI. LocalStack, Redis, MongoDB, frontend and backend all start automatically.
 
 ```sh
 docker compose pull
@@ -70,6 +72,8 @@ Playwright report opens at `playwright-report/index.html` after the run.
 ENVIRONMENT=dev npm run test:e2e
 ENVIRONMENT=test npm run test:e2e
 ```
+
+Triggered from the Portal: Log in → Test Suites → select this suite → select environment → set `PROFILE` if needed → choose configuration → Run. Portal returns pass/fail and a report link.
 
 ---
 
@@ -107,9 +111,9 @@ Dispatch the `journey-tests.yml` workflow with branch inputs to test against non
 
 ```
 GitHub → Actions → Run Journey Tests on GitHub → Run workflow
-  journey-tests-branch: main           (or your branch)
-  frontend-branch: feature/my-feature  (or main)
-  backend-branch: main
+  Use workflow from: <select branch of journey-tests to run>
+  frontend-branch: main  (or a feature branch)
+  backend-branch: main   (or a feature branch)
   browser: chromium
 ```
 
@@ -128,16 +132,67 @@ The `journey-tests.yml` workflow parses these lines and checks out those branche
 
 ## Triggering from service repos
 
-Service repos can run this suite against their PR code using the composite action at the repo root:
+### What this is for
+
+When a developer raises a PR in `bng-metric-frontend` or `bng-metric-backend`, you want confidence that their change doesn't break the end-to-end journeys — before it merges. This is done by having the service repo's own CI trigger the journey-test suite against the PR's Docker image, so the full stack is tested with the new code in place.
+
+Without this, journey tests only run after a merge, which is too late.
+
+### How it works
+
+1. The service repo builds a Docker image from the PR branch and tags it with `github.sha`.
+2. It calls the composite action at the root of this repo, passing that image tag as an input.
+3. The action starts the Docker Compose stack, swapping in the PR image for that service while pulling the rest at `latest`.
+4. Playwright runs against the live stack.
+
+### Adding it to a service repo
+
+In `bng-metric-frontend` or `bng-metric-backend`, add a workflow step after the Docker build:
 
 ```yaml
-- uses: DEFRA/bng-metric-journey-tests@main
-  with:
-    bng-metric-frontend-tag: ${{ github.sha }}
-    bng-metric-backend-tag: latest
+jobs:
+  journey-tests:
+    name: Run Journey Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t defradigital/bng-metric-frontend:${{ github.sha }} .
+
+      - name: Run journey tests
+        uses: DEFRA/bng-metric-journey-tests@main
+        with:
+          bng-metric-frontend-tag: ${{ github.sha }}
+          # bng-metric-backend-tag defaults to latest — omit unless you need to pin it
 ```
 
-Input names (`bng-metric-frontend-tag`, `bng-metric-backend-tag`) match the Docker Compose override env vars (`BNG_METRIC_FRONTEND_TAG`, `BNG_METRIC_BACKEND_TAG`).
+For `bng-metric-backend`, swap the input:
+
+```yaml
+- name: Run journey tests
+  uses: DEFRA/bng-metric-journey-tests@main
+  with:
+    bng-metric-backend-tag: ${{ github.sha }}
+```
+
+Alternatively, use the `run-journey-tests/` path if the service repo already references that:
+
+```yaml
+- uses: DEFRA/bng-metric-journey-tests/run-journey-tests@main
+  with:
+    bng-metric-frontend-tag: ${{ github.sha }}
+```
+
+Both call paths are supported and behave identically.
+
+### When to trigger it
+
+| Trigger               | Recommended approach                                                        |
+| --------------------- | --------------------------------------------------------------------------- |
+| On every PR           | Add as a required check in the service repo's branch protection rules       |
+| After merge to `main` | Use `workflow_run` triggered by the service repo's `Publish` workflow       |
+| Manually              | Dispatch `journey-tests.yml` from the Actions tab with the desired branches |
 
 ---
 

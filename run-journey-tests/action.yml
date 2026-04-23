@@ -1,4 +1,5 @@
 name: Run BNG Metric Journey Tests (via run-journey-tests path)
+description: Delegates to the root action.yml for running BNG Metric Journey Tests
 
 # Kept so service repos can call:
 #   uses: DEFRA/bng-metric-journey-tests/run-journey-tests@main

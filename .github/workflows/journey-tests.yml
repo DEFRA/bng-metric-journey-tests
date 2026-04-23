@@ -7,10 +7,6 @@ permissions:
 on:
   workflow_dispatch:
     inputs:
-      journey-tests-branch:
-        description: Branch of bng-metric-journey-tests to run
-        required: false
-        default: main
       frontend-branch:
         description: Branch of bng-metric-frontend to build
         required: false
@@ -31,10 +27,6 @@ on:
 
   workflow_call:
     inputs:
-      journey-tests-branch:
-        required: false
-        type: string
-        default: main
       frontend-branch:
         required: false
         type: string
@@ -88,8 +80,6 @@ jobs:
     steps:
       - name: Check out journey-tests
         uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.journey-tests-branch || 'main' }}
 
       - name: Check out bng-metric-frontend
         uses: actions/checkout@v4
