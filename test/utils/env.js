@@ -10,4 +10,6 @@ const baseUrls = {
 }
 
 export const baseUrl =
-  process.env.BASE_URL ?? baseUrls[runMode] ?? baseUrls.local
+  runMode === 'e2e'
+    ? baseUrls.e2e
+    : (process.env.BASE_URL ?? baseUrls[runMode] ?? baseUrls.local)

@@ -9,7 +9,12 @@ const baseUrls = {
   e2e: `https://bng-metric-frontend.${environment}.cdp-int.defra.cloud`
 }
 
-const baseURL = process.env.BASE_URL ?? baseUrls[runMode] ?? baseUrls.local
+// In e2e mode the CDP Portal injects BASE_URL pointing to the portal gateway,
+// not the service — ignore it and always use the constructed service URL.
+const baseURL =
+  runMode === 'e2e'
+    ? baseUrls.e2e
+    : (process.env.BASE_URL ?? baseUrls[runMode] ?? baseUrls.local)
 
 export default defineConfig({
   testDir: './test',
