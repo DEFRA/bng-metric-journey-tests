@@ -119,14 +119,16 @@ GitHub → Actions → Run Journey Tests on GitHub → Run workflow
 
 ### Depends-On in PR descriptions
 
-When raising a PR that depends on a specific frontend or backend branch, add `Depends-On` lines to the PR description in the following syntax:
+When raising a PR in **bng-metric-frontend** or **bng-metric-backend**, add `Depends-On` lines to the PR description to test against a specific branch of another service:
 
 ```
 Depends-On: DEFRA/bng-metric-frontend#feature/my-feature
 Depends-On: DEFRA/bng-metric-backend#feature/my-api-change
 ```
 
-The `journey-tests.yml` workflow parses these lines and checks out those branches automatically.
+When a service repo's CI calls `journey-tests.yml` via `workflow_call` (triggered by a pull request), the `parse-depends-on` job reads the PR body and checks out the declared branches instead of `main`.
+
+> **Note:** This only works once the service repos have the journey test trigger wired up (see [Triggering from service repos](#triggering-from-service-repos)). Adding `Depends-On` lines to a PR in this repo has no effect.
 
 ---
 
