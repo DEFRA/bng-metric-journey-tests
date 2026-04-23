@@ -5,7 +5,7 @@ const environment = process.env.ENVIRONMENT ?? 'dev'
 
 const baseUrls = {
   local: 'http://localhost:3000',
-  github: 'http://bng-metric-frontend:3000',
+  github: 'http://localhost:3000',
   e2e: `https://bng-metric-frontend.${environment}.cdp-int.defra.cloud`
 }
 

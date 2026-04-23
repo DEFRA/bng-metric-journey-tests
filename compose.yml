@@ -2,7 +2,7 @@
 # Docker Compose file for starting up the full BNG Metric stack for testing.
 #
 # Infrastructure:
-#   - mongodb, redis, localstack (s3, sqs, sns)
+#   - postgres, mongodb, redis, localstack (s3, sqs, sns)
 #
 # Application services:
 #   - bng-metric-frontend  (port 3000)
@@ -26,6 +26,21 @@ networks:
     driver: bridge
 
 services:
+  ################################################################################
+  postgres:
+    image: postgres:16
+    networks:
+      - bng-journey-tests
+    environment:
+      - POSTGRES_DB=bng_metric_backend
+      - POSTGRES_USER=dev
+      - POSTGRES_PASSWORD=dev
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-U', 'dev', '-d', 'bng_metric_backend']
+      interval: 5s
+      start_period: 5s
+      retries: 5
+
   ################################################################################
   mongodb:
     image: mongo:6
@@ -81,7 +96,7 @@ services:
     environment:
       - PORT=3001
     depends_on:
-      mongodb:
+      postgres:
         condition: service_healthy
       localstack:
         condition: service_healthy

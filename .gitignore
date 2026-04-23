@@ -6,3 +6,4 @@ npm-debug.log
 .cache
 playwright-report/
 test-results/
+PROGRESS.md
