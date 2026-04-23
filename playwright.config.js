@@ -33,11 +33,6 @@ export default defineConfig({
     headless: process.env.HEADED !== 'true',
     browserName: /** @type {any} */ (process.env.BROWSER ?? 'chromium'),
 
-    // CDP Portal outbound proxy (HTTP, no auth). Set HTTP_PROXY=http://localhost:3128 in portal runs.
-    ...(process.env.HTTP_PROXY && {
-      proxy: { server: process.env.HTTP_PROXY }
-    }),
-
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     trace: 'retain-on-failure'

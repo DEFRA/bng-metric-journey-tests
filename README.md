@@ -211,15 +211,14 @@ Both call paths are supported and behave identically.
 
 ## Environment variables
 
-| Variable      | Default     | Description                                                     |
-| ------------- | ----------- | --------------------------------------------------------------- |
-| `RUN_MODE`    | `local`     | `local` / `github` / `e2e` — selects base URL                   |
-| `ENVIRONMENT` | `dev`       | CDP environment name (used when `RUN_MODE=e2e`)                 |
-| `BASE_URL`    | _(derived)_ | Override the target URL directly                                |
-| `BROWSER`     | `chromium`  | `chromium` / `firefox` / `webkit`                               |
-| `HEADED`      | _(unset)_   | Set to `true` for headed browser                                |
-| `PROFILE`     | _(unset)_   | Playwright grep pattern, e.g. `@smoke`                          |
-| `HTTP_PROXY`  | _(unset)_   | Proxy for outbound HTTP (set to `http://localhost:3128` on CDP) |
+| Variable      | Default     | Description                                     |
+| ------------- | ----------- | ----------------------------------------------- |
+| `RUN_MODE`    | `local`     | `local` / `github` / `e2e` — selects base URL   |
+| `ENVIRONMENT` | `dev`       | CDP environment name (used when `RUN_MODE=e2e`) |
+| `BASE_URL`    | _(derived)_ | Override the target URL directly                |
+| `BROWSER`     | `chromium`  | `chromium` / `firefox` / `webkit`               |
+| `HEADED`      | _(unset)_   | Set to `true` for headed browser                |
+| `PROFILE`     | _(unset)_   | Playwright grep pattern, e.g. `@smoke`          |
 
 ---
 

@@ -106,7 +106,7 @@ Then:
 - Tests are Dockerised and published to DEFRA Dockerhub on merge to `main`.
 - The CDP Portal runs the latest published image. Confirm the build is green in GitHub Actions before triggering a Portal run.
 - **2-hour hard timeout** — the Portal kills runs ungracefully at 2h. Keep the suite well under this.
-- Outbound HTTP proxy at `localhost:3128` (no auth) — already wired in `playwright.config.js` via `HTTP_PROXY`.
+- No proxy configuration needed — Playwright connects directly to the deployed service URL.
 - Report: Playwright HTML reporter writes `playwright-report/index.html`. `bin/publish-tests.sh` uploads this to S3. The CDP Portal renders the `index.html` entry point.
 - `PROFILE` env var filters tests by grep pattern (e.g. `PROFILE=@smoke`).
 
