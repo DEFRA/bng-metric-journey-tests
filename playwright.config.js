@@ -21,6 +21,7 @@ export default defineConfig({
   // CDP Portal hard-kills runs at 2 hours
   globalTimeout: 2 * 60 * 60 * 1000,
   timeout: 60 * 1000,
+  expect: { timeout: 15 * 1000 },
 
   reporter: [
     ['html', { outputFolder: 'playwright-report', open: 'never' }],
