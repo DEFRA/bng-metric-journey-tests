@@ -105,7 +105,7 @@ jobs:
         run: npm ci
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps ${{ env.BROWSER }}
+        run: npx playwright install --with-deps ${{ inputs.browser || 'chromium' }}
 
       - name: Build frontend image
         run: |
