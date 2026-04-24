@@ -1,4 +1,5 @@
 name: Run BNG Metric Journey Tests
+description: End-to-end regression suite for the Biodiversity Net Gain Metric Tool
 
 inputs:
   bng-metric-frontend-tag:
