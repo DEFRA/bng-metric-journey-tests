@@ -117,85 +117,6 @@ GitHub → Actions → Run Journey Tests on GitHub → Run workflow
   browser: chromium
 ```
 
-### Depends-On in PR descriptions
-
-When raising a PR in **bng-metric-frontend** or **bng-metric-backend**, add `Depends-On` lines to the PR description to test against a specific branch of another service:
-
-```
-Depends-On: DEFRA/bng-metric-frontend#feature/my-feature
-Depends-On: DEFRA/bng-metric-backend#feature/my-api-change
-```
-
-When a service repo's CI calls `journey-tests.yml` via `workflow_call` (triggered by a pull request), the `parse-depends-on` job reads the PR body and checks out the declared branches instead of `main`.
-
-> **Note:** This only works once the service repos have the journey test trigger wired up (see [Triggering from service repos](#triggering-from-service-repos)). Adding `Depends-On` lines to a PR in this repo has no effect.
-
----
-
-## Triggering from service repos
-
-### What this is for
-
-When a developer raises a PR in `bng-metric-frontend` or `bng-metric-backend`, you want confidence that their change doesn't break the end-to-end journeys — before it merges. This is done by having the service repo's own CI trigger the journey-test suite against the PR's Docker image, so the full stack is tested with the new code in place.
-
-Without this, journey tests only run after a merge, which is too late.
-
-### How it works
-
-1. The service repo builds a Docker image from the PR branch and tags it with `github.sha`.
-2. It calls the composite action at the root of this repo, passing that image tag as an input.
-3. The action starts the Docker Compose stack, swapping in the PR image for that service while pulling the rest at `latest`.
-4. Playwright runs against the live stack.
-
-### Adding it to a service repo
-
-In `bng-metric-frontend` or `bng-metric-backend`, add a workflow step after the Docker build:
-
-```yaml
-jobs:
-  journey-tests:
-    name: Run Journey Tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build image
-        run: docker build -t defradigital/bng-metric-frontend:${{ github.sha }} .
-
-      - name: Run journey tests
-        uses: DEFRA/bng-metric-journey-tests@main
-        with:
-          bng-metric-frontend-tag: ${{ github.sha }}
-          # bng-metric-backend-tag defaults to latest — omit unless you need to pin it
-```
-
-For `bng-metric-backend`, swap the input:
-
-```yaml
-- name: Run journey tests
-  uses: DEFRA/bng-metric-journey-tests@main
-  with:
-    bng-metric-backend-tag: ${{ github.sha }}
-```
-
-Alternatively, use the `run-journey-tests/` path if the service repo already references that:
-
-```yaml
-- uses: DEFRA/bng-metric-journey-tests/run-journey-tests@main
-  with:
-    bng-metric-frontend-tag: ${{ github.sha }}
-```
-
-Both call paths are supported and behave identically.
-
-### When to trigger it
-
-| Trigger               | Recommended approach                                                        |
-| --------------------- | --------------------------------------------------------------------------- |
-| On every PR           | Add as a required check in the service repo's branch protection rules       |
-| After merge to `main` | Use `workflow_run` triggered by the service repo's `Publish` workflow       |
-| Manually              | Dispatch `journey-tests.yml` from the Actions tab with the desired branches |
-
 ---
 
 ## CDP Portal
@@ -204,10 +125,6 @@ Both call paths are supported and behave identically.
 2. Log into the CDP Portal → Test Suites → **bng-metric-journey-tests**.
 3. Select environment, optionally set `PROFILE` (e.g. `@smoke`), choose configuration, click **Run**.
 4. Results and the HTML report are available from the run page.
-
-**Proxy:** outbound HTTP uses `localhost:3128` — already configured in `playwright.config.js`.
-
-**Timeout:** the Portal hard-kills runs at 2 hours. Keep the suite well under this.
 
 ---
 
