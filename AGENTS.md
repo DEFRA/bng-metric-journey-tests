@@ -14,6 +14,7 @@ The suite runs on DEFRA's CDP Portal. Tests are packaged in a Docker image and r
 
 - `../bng-metric-frontend` — Hapi.js frontend on port 3000, GOV.UK Frontend + Nunjucks
 - `../bng-metric-backend` — Hapi.js API on port 3001, PostgreSQL + Drizzle ORM
+- `../bng-metric-harness` — meta-repo that orchestrates frontend + backend; owns integration tests in `tests/`
 
 ---
 
@@ -21,7 +22,7 @@ The suite runs on DEFRA's CDP Portal. Tests are packaged in a Docker image and r
 
 1. Read `test/flows/README.md` and the relevant journey flow file(s).
 2. Cross-reference against `../bng-metric-frontend/src` routes and templates to check for drift.
-3. Check `feature-input.md` — if a feature is described there, run the coverage-gap analysis before writing any test code.
+3. Check `feature-input.md` — if a feature is described there, run the coverage-gap analysis before writing any test code. Integration test coverage lives in `../bng-metric-harness/tests/`.
 4. Flag any route that is `[PLANNED]` or `[BLOCKED]` in a flow file but now appears implemented in source.
 
 ---
@@ -73,7 +74,7 @@ Always import `test` and `expect` from `@fixtures`, never directly from `@playwr
 Before writing any test code:
 
 1. Check `feature-input.md` describes the feature with ACs.
-2. Run coverage-gap analysis: read `../bng-metric-frontend` and `../bng-metric-backend` integration tests. Recommend Write E2E / Descope / Enhance per AC.
+2. Run coverage-gap analysis: read `../bng-metric-harness/tests/` integration tests (frontend and backend coverage lives there). Recommend Write E2E / Descope / Enhance per AC.
 3. Wait for gap analysis approval.
 4. Update the relevant flow file (`test/flows/<journey>.flow.md`) with status markers before touching test code.
 
@@ -105,7 +106,6 @@ Then:
 
 - Tests are Dockerised and published to DEFRA Dockerhub on merge to `main`.
 - The CDP Portal runs the latest published image. Confirm the build is green in GitHub Actions before triggering a Portal run.
-- **2-hour hard timeout** — the Portal kills runs ungracefully at 2h. Keep the suite well under this.
 - No proxy configuration needed — Playwright connects directly to the deployed service URL.
 - Report: Playwright HTML reporter writes `playwright-report/index.html`. `bin/publish-tests.sh` uploads this to S3. The CDP Portal renders the `index.html` entry point.
 - `PROFILE` env var filters tests by grep pattern (e.g. `PROFILE=@smoke`).

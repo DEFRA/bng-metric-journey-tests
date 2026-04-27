@@ -129,12 +129,12 @@ Tag smoke tests with `@smoke` in the test title. This allows `PROFILE=@smoke` fi
 
 ## Coverage-Gap Analysis Template
 
-Before writing E2E tests, check if the feature is already covered at integration level. For each AC:
+Before writing E2E tests, check if the feature is already covered at integration level. Integration tests live in `../bng-metric-harness/tests/` — look there for both frontend and backend coverage. For each AC:
 
-| AC  | Frontend test covers it? | Backend test covers it? | Recommendation           |
-| --- | ------------------------ | ----------------------- | ------------------------ |
-| AC1 | Yes (controller.test.js) | —                       | Descope from E2E         |
-| AC2 | No                       | No                      | Write E2E                |
-| AC3 | No                       | Yes (route.test.js)     | Enhance integration test |
+| AC  | Frontend test covers it?            | Backend test covers it?            | Recommendation           |
+| --- | ----------------------------------- | ---------------------------------- | ------------------------ |
+| AC1 | Yes (harness/tests/frontend/foo.js) | —                                  | Descope from E2E         |
+| AC2 | No                                  | No                                 | Write E2E                |
+| AC3 | No                                  | Yes (harness/tests/backend/bar.js) | Enhance integration test |
 
 Only `Write E2E` items need test code.

@@ -13,6 +13,7 @@ Built with [Playwright Test](https://playwright.dev). Runs on DEFRA's CDP Portal
 - Sibling repos cloned alongside this one:
   - `../bng-metric-frontend`
   - `../bng-metric-backend`
+  - `../bng-metric-harness` (needed for coverage-gap analysis — integration tests live in `tests/` there)
 
 ---
 
@@ -29,13 +30,19 @@ npx playwright install --with-deps chromium   # one-time browser install
 
 ### Local — services already running
 
-Start the frontend and backend on your machine using their own dev scripts, then:
+Start the frontend and backend using the harness (recommended):
+
+```sh
+cd ../bng-metric-harness
+npm run install:all   # one-time: installs deps in harness + both siblings
+npm run dev
+```
+
+Or start them individually using their own dev scripts. Either way, the frontend must be reachable at `http://localhost:3000` before running:
 
 ```sh
 npm run test:local
 ```
-
-The frontend must be reachable at `http://localhost:3000` (its default).
 
 > **LocalStack:** not required for journeys that only hit the frontend (e.g. the home page smoke test). Required for journeys that involve file uploads, S3, SQS, or SNS — start it separately with `docker compose up localstack -d` if needed.
 
