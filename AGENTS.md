@@ -22,7 +22,7 @@ The suite runs on DEFRA's CDP Portal. Tests are packaged in a Docker image and r
 
 1. Read `test/flows/README.md` and the relevant journey flow file(s).
 2. Cross-reference against `../bng-metric-frontend/src` routes and templates to check for drift.
-3. Check `feature-input.md` — if a feature is described there, run the coverage-gap analysis before writing any test code. Integration test coverage lives in `../bng-metric-harness/tests/`.
+3. Check `feature-input.md` — if a feature is described there, run `/new-feature` (or follow the same steps manually) before writing any test code. The full sequence is in `.claude/commands/new-feature.md`.
 4. Flag any route that is `[PLANNED]` or `[BLOCKED]` in a flow file but now appears implemented in source.
 
 ---

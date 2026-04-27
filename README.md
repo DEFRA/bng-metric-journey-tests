@@ -104,7 +104,7 @@ See [AGENTS.md](AGENTS.md) and [`.ai/coding-rules.md`](.ai/coding-rules.md) for 
 ## Adding tests
 
 1. Fill in [feature-input.md](feature-input.md).
-2. Tell the agent **"New feature input given"** — it will run a coverage-gap analysis.
+2. Run `/new-feature` — the agent reads the input, analyses integration coverage in `../bng-metric-harness/tests/`, and produces a coverage-gap table.
 3. Wait for analysis approval before writing test code.
 4. Follow the checklist in [AGENTS.md](AGENTS.md#adding-a-new-test--checklist).
 
