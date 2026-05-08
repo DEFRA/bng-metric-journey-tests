@@ -12,4 +12,6 @@ Once confirmed, read `.ai/instructions/analyse-user-flow.md` and follow all step
 
 The user flow to analyse is: $ARGUMENTS
 
+This may be a kebab-case flow name (e.g. `create-project`) or a brief natural language description (e.g. "user enters a project name and is redirected to the dashboard"). Both are valid — use it as a hint to identify the relevant routes in `router.js`.
+
 Do not write any files until the analysis is approved.

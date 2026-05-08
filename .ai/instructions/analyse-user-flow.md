@@ -6,28 +6,37 @@ Produce or update a `test/flows/<flow-name>.flow.md` file that reflects the curr
 
 ---
 
-## Step 1 — Resolve the flow name to source directories
+## Step 1 — Interpret the argument and identify routes
 
-The flow name argument is kebab-case (e.g. `create-project`, `upload-baseline`). Use it to locate the relevant directories:
+The argument may be a kebab-case name (e.g. `create-project`) or a natural language description (e.g. "user enters a project name and is redirected to the dashboard"). Both are valid. Treat it as a hint, not a directory path.
 
-1. Read `../bng-metric-frontend/src/server/router.js` — identify every route that belongs to this flow. A flow groups all the routes a user traverses to complete one task (e.g. all routes involved in creating a project).
-2. List the route handler directories at `../bng-metric-frontend/src/server/` that correspond to those routes.
-3. For each directory, read:
+1. Read `../bng-metric-frontend/src/server/router.js` in full. Use the argument to identify every route that belongs to the requested flow. A flow groups all the routes a user traverses to complete one task — think about the user's journey, not just one route.
+2. If the argument is ambiguous or could match multiple distinct flows, list the candidates and ask the user to confirm which one before proceeding.
+3. List the route handler directories at `../bng-metric-frontend/src/server/` that correspond to the matched routes.
+4. For each directory, read:
    - `index.js` — route handler (reveals auth requirements, validation, backend calls)
    - `index.njk` — Nunjucks template (reveals form fields, links to next step, error messages)
-4. Read `../bng-metric-backend/src/routes/` — identify any backend API endpoints the frontend handler calls during this flow.
+5. Read `../bng-metric-backend/src/routes/` — identify any backend API endpoints the frontend handler calls during this flow.
 
 Do **not** read frontend unit tests, frontend integration tests, or any test files. Source routes and templates only.
 
 ---
 
-## Step 2 — Read the existing flow doc (if present)
+## Step 2 — Determine the flow file name
+
+If the argument is already a kebab-case name (e.g. `create-project`), use it as the flow file name.
+
+If the argument is a natural language description, derive a concise kebab-case name from the routes and user goal identified in Step 1 (e.g. `define-project-name`, `upload-baseline`, `sign-in`). Propose the name to the user and confirm before proceeding — the file name is the stable identifier used by all other commands.
+
+---
+
+## Step 3 — Read the existing flow doc (if present)
 
 Check if `test/flows/<flow-name>.flow.md` already exists. If it does, note which steps are already documented and what their current markers are. You will be updating, not replacing, existing content where possible.
 
 ---
 
-## Step 3 — Assign status markers
+## Step 4 — Assign status markers
 
 For each route/step identified in Step 1:
 
@@ -39,7 +48,7 @@ For each route/step identified in Step 1:
 
 ---
 
-## Step 4 — Produce the flow doc
+## Step 5 — Produce the flow doc
 
 Use this structure for `test/flows/<flow-name>.flow.md`:
 
@@ -84,7 +93,7 @@ Rules:
 
 ---
 
-## Step 5 — Approval gate
+## Step 6 — Approval gate
 
 Present the proposed flow doc (or a diff if updating an existing one) and explain any marker changes. **Stop here.** Do not write to `test/flows/<flow-name>.flow.md` until the user explicitly approves.
 
