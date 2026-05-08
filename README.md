@@ -12,8 +12,7 @@ Built with [Playwright Test](https://playwright.dev). Runs on DEFRA's CDP Portal
 - Docker and Docker Compose (for full-stack local testing and CI mode)
 - Sibling repos cloned alongside this one:
   - `../bng-metric-frontend`
-  - `../bng-metric-backend`
-  - `../bng-metric-harness` (needed for coverage-gap analysis — integration tests live in `tests/` there)
+  - `../bng-metric-backend` (integration tests live in `integration-tests/` there)
 
 ---
 
@@ -30,15 +29,7 @@ npx playwright install --with-deps chromium   # one-time browser install
 
 ### Local — services already running
 
-Start the frontend and backend using the harness (recommended):
-
-```sh
-cd ../bng-metric-harness
-npm run install:all   # one-time: installs deps in harness + both siblings
-npm run dev
-```
-
-Or start them individually using their own dev scripts. Either way, the frontend must be reachable at `http://localhost:3000` before running:
+Start the frontend and backend individually using their own dev scripts. The frontend must be reachable at `http://localhost:3000` before running:
 
 ```sh
 npm run test:local
@@ -101,14 +92,19 @@ See [AGENTS.md](AGENTS.md) and [`.ai/coding-rules.md`](.ai/coding-rules.md) for 
 
 ---
 
-## Adding tests
+## Slash commands
 
-1. Fill in [feature-input.md](feature-input.md).
-2. Run `/new-feature` — the agent reads the input, analyses integration coverage in `../bng-metric-harness/tests/`, and produces a coverage-gap table.
-3. Wait for analysis approval before writing test code.
-4. Follow the checklist in [AGENTS.md](AGENTS.md#adding-a-new-test--checklist).
+Each command is independent — use whichever fits your current task.
 
-For step-by-step guidance on writing a page object, flow, or spec, see [`.ai/skills/ui-test/SKILL.md`](.ai/skills/ui-test/SKILL.md).
+| Command                               | When to use                                                                                                  | Requires                                                     |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
+| `/analyse-user-flow <flow>`           | After pulling latest frontend or backend changes — syncs `test/flows/<flow>.flow.md` with the current source | Nothing pre-filled                                           |
+| `/discover-user-journey <flow>`       | To find gaps in journey test coverage for a flow and discover edge cases                                     | An up-to-date flow doc in `test/flows/`                      |
+| `/validate-ac-automated`              | To check whether specific ACs are covered by existing journey tests                                          | `feature-input.md` filled with ACs                           |
+| `/validate-ac-manual`                 | To run ACs in a headless browser and capture screenshot evidence                                             | `feature-input.md` filled with ACs; frontend running locally |
+| `/verify-integration-coverage <flow>` | To find gaps in backend integration test coverage for a flow                                                 | An up-to-date flow doc in `test/flows/`                      |
+
+For step-by-step guidance on writing a page object, flow, or spec once a gap is identified, see [`.ai/skills/ui-test/SKILL.md`](.ai/skills/ui-test/SKILL.md) and the checklist in [AGENTS.md](AGENTS.md#adding-a-new-test--checklist).
 
 ---
 

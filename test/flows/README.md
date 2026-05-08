@@ -16,7 +16,22 @@ Flows encapsulate **multi-step user journeys** that span more than one page. The
 
 ## File naming
 
-One file per user journey: `tests/flows/<journey-name>.flow.js`
+Each flow has two files:
+
+| File                                | Purpose                                                                                    |
+| ----------------------------------- | ------------------------------------------------------------------------------------------ |
+| `test/flows/<journey-name>.flow.md` | Living doc — step-by-step description with status markers; updated by `/analyse-user-flow` |
+| `test/flows/<journey-name>.flow.js` | JavaScript flow class — orchestrates page objects for that journey                         |
+
+## Keeping flow docs up to date
+
+After pulling the latest changes to `../bng-metric-frontend` or `../bng-metric-backend`, run:
+
+```
+/analyse-user-flow <flow-name>
+```
+
+This reads the current source and updates (or creates) the `.flow.md` file with accurate `[IMPLEMENTED]`, `[PLANNED]`, and `[BLOCKED]` markers. The `.flow.md` is the contract used by `/discover-user-journey` and `/verify-integration-coverage` — keep it current.
 
 ## Status markers (journey flow docs)
 
@@ -32,21 +47,58 @@ When documenting a journey's steps, use these markers in the flow doc:
 
 ---
 
-## Example skeleton
+## Example flow doc skeleton
+
+```markdown
+# Create Project User Flow
+
+## Overview
+
+The user creates a new project by entering a project name. On success they are returned to the project dashboard where the new project appears.
+
+## Steps
+
+### Step 1 — View project name form `[IMPLEMENTED]`
+
+- **Route:** `GET /define-project-name`
+- **Template:** `src/server/define-project-name/index.njk`
+- **Auth required:** Yes
+- **Backend endpoint:** None
+- **Description:** User navigates to the form to enter a new project name.
+- **Validation:** None (display-only)
+- **On success:** Renders the form
+- **On error:** N/A
+
+### Step 2 — Submit project name `[IMPLEMENTED]`
+
+- **Route:** `POST /define-project-name`
+- **Template:** `src/server/define-project-name/index.njk`
+- **Auth required:** Yes
+- **Backend endpoint:** `POST /projects/new`
+- **Description:** User submits the project name form.
+- **Validation:** Project name required; max 1,000 characters; no control characters or Unicode surrogates
+- **On success:** Redirects to `/project-dashboard`
+- **On error:** Re-renders form with GOV.UK error summary and inline field error
+```
+
+---
+
+## Example flow class skeleton
 
 ```javascript
-// tests/flows/home.flow.js
-import { HomePage } from '@pages/home.page.js'
+// test/flows/create-project.flow.js
+import { DefineProjectNamePage } from '@pages/define-project-name.page.js'
 
-export class HomeFlow {
+export class CreateProjectFlow {
   constructor(page) {
     this.page = page
-    this.homePage = new HomePage(page)
+    this.defineProjectNamePage = new DefineProjectNamePage(page)
   }
 
-  async visitUnauthenticated() {
-    await this.homePage.open()
-    return this.homePage
+  async createProject(name) {
+    await this.defineProjectNamePage.open()
+    await this.defineProjectNamePage.enterProjectName(name)
+    await this.defineProjectNamePage.submit()
   }
 }
 ```
@@ -55,6 +107,6 @@ export class HomeFlow {
 
 ## Journey Status
 
-| Journey                               | Flow file | Status      |
-| ------------------------------------- | --------- | ----------- |
-| _(TBC — first journey not yet ready)_ | —         | `[PLANNED]` |
+| Journey                               | Flow doc | Flow class | Status      |
+| ------------------------------------- | -------- | ---------- | ----------- |
+| _(TBC — first journey not yet ready)_ | —        | —          | `[PLANNED]` |

@@ -18,7 +18,7 @@ Fill in this template and tell the agent **"New feature input given"**. The agen
 
 ## Acceptance criteria
 
-<!-- ACs from the ticket — the agent will cross-reference against integration tests in ../bng-metric-harness/tests/ -->
+<!-- ACs from the ticket — the agent will cross-reference against existing journey tests in test/specs/ -->
 
 1.
 2.
