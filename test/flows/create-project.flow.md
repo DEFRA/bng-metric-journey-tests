@@ -1,0 +1,61 @@
+# Create Project User Flow
+
+## Overview
+
+The user creates a new Biodiversity Net Gain project by entering a project name on the project dashboard, and is then directed to the project task list to begin filling in project details.
+
+## Steps
+
+### Step 1 — View project dashboard `[IMPLEMENTED]`
+
+- **Route:** `GET /project-dashboard`
+- **Template:** `src/server/projects/index.njk`
+- **Auth required:** Yes (session + BNG Completer role)
+- **Backend endpoint:** `GET /users/{userId}/projects`
+- **Description:** The user sees a table of their existing projects (sorted by `updated_at desc` by default) and a "Create project" button linking to `/define-project-name`. If there are no projects, a "No projects started." message is displayed.
+- **Validation:** None (display-only)
+- **On success:** Renders the project dashboard
+- **On error:** Throws `Boom.badGateway` (502) if the backend call fails
+
+---
+
+### Step 2 — View project name form `[IMPLEMENTED]`
+
+- **Route:** `GET /define-project-name`
+- **Template:** `src/server/define-project-name/index.njk`
+- **Auth required:** Yes (session + BNG Completer role)
+- **Backend endpoint:** None
+- **Description:** The user sees a single text input for a project name with a hint ("Give your project a unique name so you can find it later"), a "Back" link to `/project-dashboard`, and a "Save and continue" button.
+- **Validation:** None (display-only)
+- **On success:** Renders the project name form
+- **On error:** N/A
+
+---
+
+### Step 3 — Submit project name `[IMPLEMENTED]`
+
+- **Route:** `POST /define-project-name`
+- **Template:** `src/server/define-project-name/index.njk`
+- **Auth required:** Yes (session + BNG Completer role)
+- **Backend endpoint:** `POST /projects/new`
+- **Description:** The user submits the project name. The frontend validates it locally before calling the backend to create the project, passing the name and the authenticated user's `sub` as `userId`.
+- **Validation:**
+  - `projectName` required; empty or whitespace-only rejected — "Enter a project name"
+  - Max 1000 characters — "Project name must be 1000 characters or fewer"
+  - No control characters (codepoints `< 0x20`, `= 0x7F`, or surrogate range `0xD800–0xDFFF`) — "Project name must only contain valid characters"
+  - Leading/trailing whitespace is trimmed before validation
+- **On success:** Redirects to `/project-dashboard`
+- **On error:** Re-renders the form with GOV.UK error summary and inline field error; pre-fills the input with the submitted value
+
+---
+
+### Step 4 — View project task list `[IMPLEMENTED]`
+
+- **Route:** `GET /project-task-list/{id}`
+- **Template:** `src/server/projects/task-list.njk`
+- **Auth required:** Yes (session + BNG Completer role)
+- **Backend endpoint:** `GET /projects/{id}`
+- **Description:** The user clicks the project name link on the dashboard and sees a GOV.UK task list with four items: "Project Name" (Completed), "Project Details" (Not yet started), "On-site baseline habitats" (Not yet started), and "On-site post intervention habitats" (Cannot start yet). The project name appears as a caption.
+- **Validation:** `id` path parameter must be a valid UUID
+- **On success:** Renders the task list with the project name as caption
+- **On error:** If the backend returns 404 (`data.statusCode === 404`), renders the page heading only — the task list body is hidden via `{% if not error %}`

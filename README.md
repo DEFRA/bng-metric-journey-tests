@@ -49,6 +49,8 @@ PROFILE=@smoke npm run test:local       # filter by tag
 
 Closest approximation of CI. LocalStack, Redis, MongoDB, frontend and backend all start automatically.
 
+> **Requires `../bng-metric-backend` to be cloned as a sibling directory.** The compose stack runs Liquibase migrations on startup by mounting the backend's `changelog/` directory. If the backend repo is not present, the `db-migrations` service will fail and the backend will not start.
+
 ```sh
 docker compose pull
 docker compose up --wait -d

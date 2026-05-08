@@ -17,6 +17,7 @@ const baseURL =
     : (process.env.BASE_URL ?? baseUrls[runMode] ?? baseUrls.local)
 
 export default defineConfig({
+  globalSetup: './test/setup/auth.setup.js',
   testDir: './test',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
