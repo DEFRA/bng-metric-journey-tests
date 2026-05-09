@@ -26,3 +26,13 @@ export const STORAGE_STATE = path.join(
   projectRoot,
   'playwright/.auth/user.json'
 )
+
+export const NO_ROLE_STORAGE_STATE = path.join(
+  projectRoot,
+  'playwright/.auth/user-no-role.json'
+)
+
+export const NO_PROJECTS_STORAGE_STATE = path.join(
+  projectRoot,
+  'playwright/.auth/user-no-projects.json'
+)

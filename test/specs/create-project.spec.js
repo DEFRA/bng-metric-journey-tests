@@ -1,5 +1,5 @@
 import { test, expect } from '@fixtures'
-import { STORAGE_STATE } from '@utils/env.js'
+import { STORAGE_STATE, NO_PROJECTS_STORAGE_STATE } from '@utils/env.js'
 
 // ─── Authenticated tests ─────────────────────────────────────────────────────
 // These require the cdp-defra-id-stub (see compose.yml). Run with:
@@ -18,6 +18,10 @@ test.describe('Create project — project dashboard', () => {
     await expect(projectDashboardPage.heading).toBeVisible()
     await expect(projectDashboardPage.createProjectButton).toBeVisible()
   })
+})
+
+test.describe('Create project — project dashboard (empty state)', () => {
+  test.use({ storageState: NO_PROJECTS_STORAGE_STATE })
 
   test('dashboard shows "No projects started." when user has no projects', async ({
     projectDashboardPage
@@ -104,6 +108,15 @@ test.describe('Create project — happy path @smoke', () => {
 
     await expect(page).toHaveURL(/\/project-dashboard/)
     await expect(projectDashboardPage.projectLink(projectName)).toBeVisible()
+
+    const createdCell = page
+      .getByTestId('projects-table')
+      .getByRole('row')
+      .filter({ hasText: projectName })
+      .getByRole('cell')
+      .nth(2)
+
+    await expect(createdCell).toContainText(/\d{1,2} \w+ \d{4}/)
   })
 
   test('clicking project name opens task list with 4 tasks and project name as caption', async ({
@@ -136,8 +149,7 @@ test.describe('Create project — task list error state', () => {
   test.use({ storageState: STORAGE_STATE })
 
   test('unknown project UUID hides the task list body', async ({
-    projectTaskListPage,
-    page
+    projectTaskListPage
   }) => {
     await projectTaskListPage.open('00000000-0000-0000-0000-000000000000')
 

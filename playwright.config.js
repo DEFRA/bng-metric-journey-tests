@@ -19,6 +19,7 @@ const baseURL =
 export default defineConfig({
   globalSetup: './test/setup/auth.setup.js',
   testDir: './test',
+  testIgnore: '**/evidence/**',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
