@@ -125,7 +125,7 @@ jobs:
         env:
           BNG_METRIC_FRONTEND_TAG: ${{ github.sha }}
           BNG_METRIC_BACKEND_TAG: ${{ github.sha }}
-          BNG_METRIC_BACKEND_PATH: bng-metric-backend
+          BNG_METRIC_BACKEND_PATH: ./bng-metric-backend
         run: docker compose up --wait --wait-timeout 120 -d
 
       - name: Run Playwright tests
