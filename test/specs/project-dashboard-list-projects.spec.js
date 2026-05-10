@@ -1,6 +1,8 @@
 import { test, expect } from '@fixtures'
 import { STORAGE_STATE, NO_ROLE_STORAGE_STATE } from '@utils/env.js'
 
+const HTTP_BAD_REQUEST = 400
+
 // ─── Sort order ───────────────────────────────────────────────────────────────
 
 test.describe('Project dashboard — default sort order', () => {
@@ -54,7 +56,7 @@ test.describe('Project task list — invalid route parameter', () => {
   test('non-UUID id path param returns 400', async ({ page }) => {
     const response = await page.goto('/project-task-list/not-a-uuid')
 
-    expect(response.status()).toBe(400)
+    expect(response.status()).toBe(HTTP_BAD_REQUEST)
   })
 })
 

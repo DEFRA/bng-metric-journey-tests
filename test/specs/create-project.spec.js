@@ -1,6 +1,8 @@
 import { test, expect } from '@fixtures'
 import { STORAGE_STATE, NO_PROJECTS_STORAGE_STATE } from '@utils/env.js'
 
+const PROJECT_NAME_MAX_LENGTH = 1000
+
 // ─── Authenticated tests ─────────────────────────────────────────────────────
 // These require the cdp-defra-id-stub (see compose.yml). Run with:
 //   docker compose up --wait && npm run test:github
@@ -73,7 +75,9 @@ test.describe('Create project — project name form', () => {
     defineProjectNamePage
   }) => {
     await defineProjectNamePage.open()
-    await defineProjectNamePage.enterProjectName('a'.repeat(1001))
+    await defineProjectNamePage.enterProjectName(
+      'a'.repeat(PROJECT_NAME_MAX_LENGTH + 1)
+    )
     await defineProjectNamePage.submit()
 
     await defineProjectNamePage.assertNameError(
