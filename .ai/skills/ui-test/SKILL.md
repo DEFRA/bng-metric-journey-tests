@@ -129,7 +129,7 @@ Tag smoke tests with `@smoke` in the test title. This allows `PROFILE=@smoke` fi
 
 ## Coverage-Gap Analysis Template
 
-Before writing E2E tests, run `/discover-user-journey <flow>` or `/validate-ac-automated` to evaluate existing journey test coverage. For each AC:
+Before writing E2E tests, run `/discover-journey-tests <flow>` or `/validate-ac-automated` to evaluate existing journey test coverage. For each AC:
 
 | AC  | Journey test covers it?            | Recommendation   |
 | --- | ---------------------------------- | ---------------- |

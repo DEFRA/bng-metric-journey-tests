@@ -31,7 +31,7 @@ After pulling the latest changes to `../bng-metric-frontend` or `../bng-metric-b
 /analyse-user-flow <flow-name>
 ```
 
-This reads the current source and updates (or creates) the `.flow.md` file with accurate `[IMPLEMENTED]`, `[PLANNED]`, and `[BLOCKED]` markers. The `.flow.md` is the contract used by `/discover-user-journey` and `/verify-integration-coverage` — keep it current.
+This reads the current source and updates (or creates) the `.flow.md` file with accurate `[IMPLEMENTED]`, `[PLANNED]`, and `[BLOCKED]` markers. The `.flow.md` is the contract used by `/discover-journey-tests` and `/verify-integration-coverage` — keep it current.
 
 ## Status markers (journey flow docs)
 

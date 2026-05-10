@@ -4,6 +4,8 @@ description: Analyse frontend and backend source for a named user flow and creat
 
 A user flow analysis has been requested.
 
+If `$ARGUMENTS` is empty, ask the user: **"Which flow would you like to analyse? Provide a kebab-case name (e.g. `create-project`) or a brief description of the user journey."** Do not proceed until they reply.
+
 Before doing anything else, ask the user to confirm: **"Have you pulled the latest changes on the `main` branch of both `bng-metric-frontend` and `bng-metric-backend`?"**
 
 If the answer is no, stop and ask them to pull first. Do not proceed until confirmed.
