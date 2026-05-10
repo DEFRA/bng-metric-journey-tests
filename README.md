@@ -29,13 +29,23 @@ npx playwright install --with-deps chromium   # one-time browser install
 
 ### Local — services already running
 
-Start the frontend and backend individually using their own dev scripts. The frontend must be reachable at `http://localhost:3000` before running:
+Use this when you are actively developing the frontend or backend and want to run tests against your local changes without rebuilding Docker images.
+
+Start infrastructure first (Postgres, Redis, auth stub — not exposed on the host outside of Docker Compose), then the application services:
 
 ```sh
+# 1. Start infrastructure
+docker compose up postgres redis cdp-defra-id-stub db-migrations -d
+
+# 2. Start the application services locally
+cd ../bng-metric-backend && npm run dev
+cd ../bng-metric-frontend && npm run dev
+
+# 3. Run tests
 npm run test:local
 ```
 
-> **LocalStack:** not required for journeys that only hit the frontend (e.g. the home page smoke test). Required for journeys that involve file uploads, S3, SQS, or SNS — start it separately with `docker compose up localstack -d` if needed.
+> **LocalStack:** only needed for journeys that involve file uploads, S3, SQS, or SNS. If your tests require it, add `localstack` to the `docker compose up` command in step 1.
 
 Override options:
 
