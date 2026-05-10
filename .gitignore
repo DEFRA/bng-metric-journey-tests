@@ -8,4 +8,5 @@ npm-debug.log
 playwright-report/
 playwright/.auth/
 test-results/
+test/evidence/
 feature-input.md
