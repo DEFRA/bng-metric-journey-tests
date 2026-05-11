@@ -91,11 +91,13 @@ Triggered from the Portal: Log in → Test Suites → select this suite → sele
 
 ```
 test/
-  specs/      — test files
-  pages/      — Page Objects (UI interaction per page)
-  flows/      — multi-step user journeys
-  fixtures/   — test.extend() DI — always import test/expect from here
-  utils/      — pure helpers (env vars, etc.)
+  specs/
+    <domain>/   — test files grouped by domain (e.g. project-management/)
+  pages/        — Page Objects (UI interaction per page)
+  flows/
+    <domain>/   — flow docs and flow classes grouped by domain (e.g. project-management/)
+  fixtures/     — test.extend() DI — always import test/expect from here
+  utils/        — pure helpers (env vars, etc.)
 ```
 
 Always import `test` and `expect` from `@fixtures`, not directly from `@playwright/test`.
