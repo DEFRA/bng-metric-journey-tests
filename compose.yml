@@ -86,6 +86,32 @@ services:
       retries: 5
 
   ################################################################################
+  # Runs Liquibase migrations against Postgres before the backend starts.
+  # BNG_METRIC_BACKEND_PATH controls where the changelog is mounted from:
+  #   - CI (backend checked out to ./bng-metric-backend):  BNG_METRIC_BACKEND_PATH=./bng-metric-backend
+  #   - Local (sibling repo):                              BNG_METRIC_BACKEND_PATH=../bng-metric-backend (default)
+  db-migrations:
+    image: liquibase/liquibase
+    networks:
+      - bng-journey-tests
+    volumes:
+      - ${BNG_METRIC_BACKEND_PATH:-../bng-metric-backend}/changelog:/liquibase/changelog
+    command:
+      - sh
+      - -c
+      - >
+        lpm add postgresql --global &&
+        liquibase
+        --changelog-file=changelog/db.changelog.xml
+        --url=jdbc:postgresql://postgres:5432/bng_metric_backend
+        --username=dev
+        --password=dev
+        update
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  ################################################################################
   bng-metric-backend:
     image: defradigital/bng-metric-backend:${BNG_METRIC_BACKEND_TAG:-latest}
     networks:
@@ -100,11 +126,41 @@ services:
         condition: service_healthy
       localstack:
         condition: service_healthy
+      db-migrations:
+        condition: service_completed_successfully
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:3001/health']
       interval: 5s
       start_period: 10s
       retries: 5
+
+  ################################################################################
+  cdp-defra-id-stub:
+    image: defradigital/cdp-defra-id-stub:latest
+    networks:
+      bng-journey-tests:
+        aliases:
+          - localhost
+    environment:
+      PORT: 3200
+      NODE_ENV: development
+      REDIS_HOST: redis
+      USE_SINGLE_INSTANCE_CACHE: 'true'
+      # Canonical base URL used in OIDC discovery and redirect construction.
+      # Must use the Docker service name so the frontend server can reach the
+      # token endpoint container-to-container.  The browser reaches the stub
+      # via the route interceptor in auth.setup.js which rewrites this to localhost.
+      APP_BASE_URL: 'http://cdp-defra-id-stub:3200'
+    ports:
+      - '3200:3200'
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3200/health']
+      interval: 5s
+      start_period: 5s
+      retries: 3
 
   ################################################################################
   bng-metric-frontend:
@@ -122,6 +178,8 @@ services:
       bng-metric-backend:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      cdp-defra-id-stub:
         condition: service_healthy
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']

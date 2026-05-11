@@ -1,6 +1,6 @@
 # Feature Input
 
-Fill in this template and tell the agent **"New feature input given"**. The agent will run a coverage-gap analysis before writing any test code.
+Fill in this template, then run `/validate-ac-automated` to check coverage and get recommendations, or `/validate-ac-manual` to run ACs in a browser and capture evidence.
 
 ---
 
@@ -18,7 +18,7 @@ Fill in this template and tell the agent **"New feature input given"**. The agen
 
 ## Acceptance criteria
 
-<!-- ACs from the ticket — the agent will cross-reference against existing journey tests in test/specs/ -->
+<!-- ACs from the ticket — the agent will cross-reference against existing integration tests -->
 
 1.
 2.

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Produce or update a `test/flows/<flow-name>.flow.md` file that reflects the current state of the named user flow in the frontend and backend source. Flow docs are the single source of truth consumed by `/discover-user-journey` and `/verify-integration-coverage`.
+Produce or update a `test/flows/<flow-name>.flow.md` file that reflects the current state of the named user flow in the frontend and backend source. Flow docs are the single source of truth consumed by `/discover-journey-tests` and `/verify-integration-coverage`.
 
 ---
 
@@ -87,8 +87,8 @@ Use this structure for `test/flows/<flow-name>.flow.md`:
 Rules:
 
 - Include both the GET (display) and POST (submit) for every form step — each is its own numbered step.
-- Populate **Validation** from the Joi schema or validation helper in the route handler. List every distinct rule as it determines the edge cases that `/discover-user-journey` will recommend testing.
-- Populate **On success** and **On error** from the controller's redirect and view calls. These tell `/discover-user-journey` what journeys to assert and tell `/verify-integration-coverage` what response codes and behaviours to check in integration tests.
+- Populate **Validation** from the Joi schema or validation helper in the route handler. List every distinct rule as it determines the edge cases that `/discover-journey-tests` will recommend testing.
+- Populate **On success** and **On error** from the controller's redirect and view calls. These tell `/discover-journey-tests` what journeys to assert and tell `/verify-integration-coverage` what response codes and behaviours to check in integration tests.
 - For `[PLANNED]` or `[BLOCKED]` steps, fill in as much as is known from the router declaration; leave unknown fields as `Unknown`.
 
 ---

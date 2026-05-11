@@ -28,11 +28,9 @@ jobs:
       - run: npm ci
       - run: npm run format:check
       - run: npm run lint
-# Uncomment to run the full journey test suite on every PR (requires Docker Compose build time).
-# For faster feedback, service repos trigger journey tests via the root action.yml on their own PRs.
-#  journey-tests:
-#    name: Run Journey Tests
-#    uses: ./.github/workflows/journey-tests.yml
-#    with:
-#      frontend-branch: main
-#      backend-branch: main
+  journey-tests:
+    name: Run Journey Tests
+    uses: ./.github/workflows/journey-tests.yml
+    with:
+      frontend-branch: main
+      backend-branch: main

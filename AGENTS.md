@@ -21,7 +21,7 @@ The suite runs on DEFRA's CDP Portal. Tests are packaged in a Docker image and r
 
 1. Read `test/flows/README.md` and the relevant journey flow file(s).
 2. Cross-reference against `../bng-metric-frontend/src` routes and templates to check for drift.
-3. Check `feature-input.md` — if a feature is described there, run `/validate-ac-automated` to evaluate AC coverage, or `/discover-user-journey <flow>` to analyse the full flow coverage before writing any test code.
+3. Check `feature-input.md` — if a feature is described there, run `/validate-ac-automated` to evaluate AC coverage, or `/discover-journey-tests <flow>` to analyse the full flow coverage before writing any test code.
 4. Flag any route that is `[PLANNED]` or `[BLOCKED]` in a flow file but now appears implemented in source.
 
 ---
@@ -31,7 +31,7 @@ The suite runs on DEFRA's CDP Portal. Tests are packaged in a Docker image and r
 | Command                                    | What it does                                                                                                                         |
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `/analyse-user-flow <flow-name>`           | Reads frontend and backend source for the named flow; creates or updates `test/flows/<flow-name>.flow.md`                            |
-| `/discover-user-journey <flow-name>`       | Analyses journey test coverage for the named flow; recommends new tests or enhancements including edge cases                         |
+| `/discover-journey-tests <flow-name>`      | Analyses journey test coverage for the named flow; recommends new tests or enhancements including edge cases                         |
 | `/validate-ac-automated`                   | Checks whether ACs in `feature-input.md` are covered by existing journey tests; recommends gaps to close                             |
 | `/validate-ac-manual`                      | Runs ACs from `feature-input.md` in a headless browser; captures screenshot evidence and produces a pass/fail report                 |
 | `/verify-integration-coverage <flow-name>` | Analyses backend integration test coverage for the named flow; recommends enhancements in `../bng-metric-backend/integration-tests/` |
@@ -39,7 +39,7 @@ The suite runs on DEFRA's CDP Portal. Tests are packaged in a Docker image and r
 **Ownership boundaries:**
 
 - `/analyse-user-flow` writes to `test/flows/` only — no test code.
-- `/discover-user-journey`, `/validate-ac-automated` write to `test/` only, after approval.
+- `/discover-journey-tests`, `/validate-ac-automated` write to `test/` only, after approval.
 - `/validate-ac-manual` writes to `test/evidence/` only (temp spec + screenshots).
 - `/verify-integration-coverage` is the **only** command that may write to sibling repos (`../bng-metric-backend/integration-tests/`). It must not touch `../bng-metric-frontend/`.
 
@@ -93,7 +93,7 @@ Always import `test` and `expect` from `@fixtures`, never directly from `@playwr
 Before writing any test code:
 
 1. Check `feature-input.md` describes the feature with ACs.
-2. Run `/discover-user-journey <flow>` or `/validate-ac-automated` to produce a coverage-gap analysis. Read `test/specs/` for existing journey test coverage. Recommend Write E2E / Enhance per AC.
+2. Run `/discover-journey-tests <flow>` or `/validate-ac-automated` to produce a coverage-gap analysis. Read `test/specs/` for existing journey test coverage. Recommend Write E2E / Enhance per AC.
 3. Wait for gap analysis approval.
 4. Update the relevant flow file (`test/flows/<journey>.flow.md`) with status markers before touching test code.
 
