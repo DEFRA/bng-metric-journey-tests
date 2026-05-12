@@ -6,24 +6,28 @@ Fill in this template, then run `/validate-ac-automated` to check coverage and g
 
 ## Feature title
 
-<!-- Jira ticket reference and title, e.g. BNG-123: Add project name step -->
+BNG-XXX: Change project name
 
 ## Journey
 
-<!-- Which flow file this belongs to, e.g. test/flows/create-project.flow.js -->
+test/flows/project-management/change-project-name.flow.md
 
 ## What it does
 
-<!-- Observable user behaviour — no implementation detail. What does the user see and do? -->
+An authenticated user with the BNG completer role can change the name of an existing project from the task list. The form is pre-populated with the current name. On success the user is returned to the project task list. Validation prevents empty, too-long, and invalid names.
 
 ## Acceptance criteria
 
-<!-- ACs from the ticket — the agent will cross-reference against existing integration tests -->
-
-1.
-2.
-3.
+1. Authenticated user with BNG completer role can view the change project name form, pre-populated with the current project name
+2. Valid name update redirects the user to the project task list
+3. Submitting an empty name shows "Enter a project name" error
+4. Submitting a name over 1000 characters shows "Project name must be 1000 characters or fewer" error
+5. Submitting a name with control characters shows "Project name must only contain valid characters" error
+6. Unauthenticated user visiting `/change-project-name/{id}` is redirected to sign-in
+7. Authenticated user without BNG completer role is redirected to `/auth/forbidden`
 
 ## Notes
 
-<!-- Optional: known exclusions, affected routes, design references, data requirements -->
+- Routes: `GET /change-project-name/{id}` and `POST /change-project-name/{id}`
+- `{id}` is a UUID — the route param is validated
+- Backend endpoints: `GET /projects/{id}` (fetch current name), `PATCH /projects/{id}` (update name)
