@@ -10,7 +10,6 @@ export class ProjectDashboardPage extends BasePage {
       name: 'Create project'
     })
     this.projectsTable = page.getByTestId('projects-table')
-    this.noProjectsMessage = page.getByTestId('no-projects')
   }
 
   async open() {
