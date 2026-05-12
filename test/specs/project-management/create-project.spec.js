@@ -178,7 +178,9 @@ test.describe('Create project — task list error state', () => {
 // ─── Unauthenticated tests ────────────────────────────────────────────────────
 
 test.describe('Create project — unauthenticated access', () => {
-  test('GET /project-dashboard redirects to sign-in', async ({ page }) => {
+  test('GET /project-dashboard redirects to sign-in @smoke', async ({
+    page
+  }) => {
     await page.goto('/project-dashboard')
 
     await expect(page).not.toHaveURL(/\/project-dashboard/)
