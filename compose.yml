@@ -28,7 +28,7 @@ networks:
 services:
   ################################################################################
   postgres:
-    image: postgres:16
+    image: postgis/postgis:16-3.4
     networks:
       - bng-journey-tests
     environment:
@@ -96,11 +96,11 @@ services:
       - bng-journey-tests
     volumes:
       - ${BNG_METRIC_BACKEND_PATH:-../bng-metric-backend}/changelog:/liquibase/changelog
+      - ./docker/liquibase-drivers/postgresql-42.7.8.jar:/liquibase/lib/postgresql-42.7.8.jar
     command:
       - sh
       - -c
       - >
-        lpm add postgresql --global &&
         liquibase
         --changelog-file=changelog/db.changelog.xml
         --url=jdbc:postgresql://postgres:5432/bng_metric_backend
