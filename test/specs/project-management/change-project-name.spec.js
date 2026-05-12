@@ -151,7 +151,7 @@ test.describe('Change project name — role enforcement', () => {
 // ─── Unauthenticated access ───────────────────────────────────────────────────
 
 test.describe('Change project name — unauthenticated access', () => {
-  test('GET /change-project-name/{id} redirects to sign-in', async ({
+  test('GET /change-project-name/{id} redirects to sign-in @smoke', async ({
     page
   }) => {
     await page.goto('/change-project-name/00000000-0000-0000-0000-000000000000')
