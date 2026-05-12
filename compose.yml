@@ -91,7 +91,7 @@ services:
   #   - CI (backend checked out to ./bng-metric-backend):  BNG_METRIC_BACKEND_PATH=./bng-metric-backend
   #   - Local (sibling repo):                              BNG_METRIC_BACKEND_PATH=../bng-metric-backend (default)
   db-migrations:
-    image: liquibase/liquibase
+    image: liquibase/liquibase:5.0.2
     networks:
       - bng-journey-tests
     volumes:
