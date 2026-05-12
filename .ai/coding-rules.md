@@ -54,8 +54,8 @@ Never use:
 ## File Naming
 
 - Page objects: `test/pages/<name>.page.js`
-- Flows: `test/flows/<name>.flow.js`
-- Specs: `test/specs/<name>.spec.js`
+- Flows: `test/flows/<domain>/<name>.flow.js` and `test/flows/<domain>/<name>.flow.md`
+- Specs: `test/specs/<domain>/<name>.spec.js`
 - Fixtures: extend `test/fixtures/index.js` in place — one fixture file.
 
 ## What to Avoid

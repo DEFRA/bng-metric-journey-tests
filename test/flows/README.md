@@ -18,10 +18,10 @@ Flows encapsulate **multi-step user journeys** that span more than one page. The
 
 Each flow has two files:
 
-| File                                | Purpose                                                                                    |
-| ----------------------------------- | ------------------------------------------------------------------------------------------ |
-| `test/flows/<journey-name>.flow.md` | Living doc — step-by-step description with status markers; updated by `/analyse-user-flow` |
-| `test/flows/<journey-name>.flow.js` | JavaScript flow class — orchestrates page objects for that journey                         |
+| File                                         | Purpose                                                                                    |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `test/flows/<domain>/<journey-name>.flow.md` | Living doc — step-by-step description with status markers; updated by `/analyse-user-flow` |
+| `test/flows/<domain>/<journey-name>.flow.js` | JavaScript flow class — orchestrates page objects for that journey                         |
 
 ## Keeping flow docs up to date
 
@@ -86,7 +86,7 @@ The user creates a new project by entering a project name. On success they are r
 ## Example flow class skeleton
 
 ```javascript
-// test/flows/create-project.flow.js
+// test/flows/project-management/create-project.flow.js
 import { DefineProjectNamePage } from '@pages/define-project-name.page.js'
 
 export class CreateProjectFlow {

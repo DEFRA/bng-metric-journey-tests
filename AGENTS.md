@@ -100,9 +100,9 @@ Before writing any test code:
 Then:
 
 1. Add or update the Page Object in `test/pages/` for any new UI interactions.
-2. Add or update the Flow in `test/flows/` if the test spans multiple pages.
+2. Add or update the Flow in `test/flows/<domain>/` if the test spans multiple pages.
 3. Add the fixture to `test/fixtures/index.js` if a new page object needs DI.
-4. Write the spec in `test/specs/`.
+4. Write the spec in `test/specs/<domain>/`.
 5. Run `npm run test:local` to confirm the test passes locally.
 6. Run `npm run lint` and `npm run format:check`.
 

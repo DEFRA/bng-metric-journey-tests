@@ -11,10 +11,11 @@ test.describe('Create project — project dashboard', () => {
   test.use({ storageState: STORAGE_STATE })
 
   test('authenticated user sees dashboard with "Create project" button @smoke', async ({
+    createProjectFlow,
     projectDashboardPage,
     page
   }) => {
-    await projectDashboardPage.open()
+    await createProjectFlow.createProject(`Dashboard smoke test ${Date.now()}`)
 
     await expect(page).toHaveTitle('Projects - Biodiversity Net Gain')
     await expect(projectDashboardPage.heading).toBeVisible()
@@ -25,12 +26,13 @@ test.describe('Create project — project dashboard', () => {
 test.describe('Create project — project dashboard (empty state)', () => {
   test.use({ storageState: NO_PROJECTS_STORAGE_STATE })
 
-  test('dashboard shows "No projects started." when user has no projects', async ({
-    projectDashboardPage
+  test('user with no projects is redirected from dashboard to /define-project-name', async ({
+    projectDashboardPage,
+    page
   }) => {
     await projectDashboardPage.open()
 
-    await expect(projectDashboardPage.noProjectsMessage).toBeVisible()
+    await expect(page).toHaveURL(/\/define-project-name/)
   })
 })
 
