@@ -3,6 +3,7 @@ import { STORAGE_STATE, NO_ROLE_STORAGE_STATE, runMode } from '@utils/env.js'
 
 const PROJECT_NAME_MAX_LENGTH = 1000
 const HTTP_BAD_REQUEST = 400
+const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 
 async function setupProject(createProjectFlow, projectDashboardPage) {
   const name = `Change name test ${Date.now()}`
@@ -16,7 +17,7 @@ async function setupProject(createProjectFlow, projectDashboardPage) {
 
 test.describe('Change project name — form display', () => {
   test.use({ storageState: STORAGE_STATE })
-  test.skip(runMode === 'e2e', 'Requires stub auth — not available in e2e mode')
+  test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
   test('form renders pre-populated with existing project name @smoke', async ({
     createProjectFlow,
@@ -43,7 +44,7 @@ test.describe('Change project name — form display', () => {
 
 test.describe('Change project name — validation', () => {
   test.use({ storageState: STORAGE_STATE })
-  test.skip(runMode === 'e2e', 'Requires stub auth — not available in e2e mode')
+  test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
   test('submitting empty name shows "Enter a project name" error @smoke', async ({
     createProjectFlow,
@@ -112,7 +113,7 @@ test.describe('Change project name — validation', () => {
 
 test.describe('Change project name — happy path @smoke', () => {
   test.use({ storageState: STORAGE_STATE })
-  test.skip(runMode === 'e2e', 'Requires stub auth — not available in e2e mode')
+  test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
   test('valid name updates project and redirects to task list', async ({
     createProjectFlow,
@@ -136,7 +137,7 @@ test.describe('Change project name — happy path @smoke', () => {
 
 test.describe('Change project name — role enforcement', () => {
   test.use({ storageState: NO_ROLE_STORAGE_STATE })
-  test.skip(runMode === 'e2e', 'Requires stub auth — not available in e2e mode')
+  test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
   test('authenticated user without bng completer role is redirected to /auth/forbidden', async ({
     page
@@ -164,7 +165,7 @@ test.describe('Change project name — unauthenticated access', () => {
 
 test.describe('Change project name — route parameter validation', () => {
   test.use({ storageState: STORAGE_STATE })
-  test.skip(runMode === 'e2e', 'Requires stub auth — not available in e2e mode')
+  test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
   test('non-UUID id path param returns 400', async ({ page }) => {
     const response = await page.goto('/change-project-name/not-a-uuid')
