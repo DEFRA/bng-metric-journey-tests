@@ -3,10 +3,14 @@ import path from 'path'
 import { chromium } from '@playwright/test'
 import {
   baseUrl,
+  runMode,
   STORAGE_STATE,
   NO_ROLE_STORAGE_STATE,
   NO_PROJECTS_STORAGE_STATE
 } from '../utils/env.js'
+
+// Unauthenticated state: used in e2e mode where the stub is not available.
+const EMPTY_STATE = JSON.stringify({ cookies: [], origins: [] })
 
 async function registerAndLogin(page, email, { withBngCompleterRole }) {
   // Navigate to login — frontend redirects to the stub's authorize endpoint.
@@ -62,6 +66,21 @@ async function registerAndLogin(page, email, { withBngCompleterRole }) {
 
 export default async function globalSetup() {
   await fs.mkdir(path.dirname(STORAGE_STATE), { recursive: true })
+
+  // In e2e mode the suite runs against a deployed environment that uses real
+  // Defra ID authentication — the cdp-defra-id-stub registration flow only
+  // works against the local Docker stack. Write empty storage-state files so
+  // test workers don't crash on startup; tests that require an authenticated
+  // session will fail at the assertion level rather than aborting the suite.
+  // Run with PROFILE=@smoke on the CDP portal to limit to unauthenticated tests.
+  if (runMode === 'e2e') {
+    await Promise.all([
+      fs.writeFile(STORAGE_STATE, EMPTY_STATE),
+      fs.writeFile(NO_ROLE_STORAGE_STATE, EMPTY_STATE),
+      fs.writeFile(NO_PROJECTS_STORAGE_STATE, EMPTY_STATE)
+    ])
+    return
+  }
 
   const browser = await chromium.launch({
     args: [
