@@ -33,7 +33,7 @@ test.describe('Create project — project dashboard (empty state)', () => {
   test.use({ storageState: NO_PROJECTS_STORAGE_STATE })
   test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
-  test('user with no projects is redirected from dashboard to /define-project-name', async ({
+  test('user with no projects is redirected from dashboard to /define-project-name @smoke', async ({
     projectDashboardPage,
     page
   }) => {

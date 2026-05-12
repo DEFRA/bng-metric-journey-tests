@@ -108,6 +108,54 @@ Then:
 
 ---
 
+## Run Modes and e2e Skip Pattern
+
+Tests run in three modes controlled by `RUN_MODE` (exported from `test/utils/env.js`):
+
+- `local` — against a locally running frontend on `localhost:3000`
+- `github` — against the Docker Compose stack (CI)
+- `e2e` — against a deployed CDP environment (no stub auth available)
+
+**Authenticated tests must be skipped in e2e mode.** The `cdp-defra-id-stub` registration flow only works in the Docker stack. In e2e mode, real Defra ID OIDC is used, which is not reachable from test runners, and storage state files are written as empty.
+
+Pattern for every `describe` block that uses `storageState`:
+
+```js
+import { STORAGE_STATE, runMode } from '@utils/env.js'
+
+const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
+
+test.describe('Feature — some describe', () => {
+  test.use({ storageState: STORAGE_STATE })
+  test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+  // ...
+})
+```
+
+Unauthenticated describes (no `storageState`) must **not** receive `test.skip` — they are the only tests that run on the CDP portal without a profile filter.
+
+---
+
+## @smoke Tagging
+
+The CDP portal runs `PROFILE=@smoke` in e2e mode. The `PROFILE` env var is applied as a grep regex against the full test title (describe + test name), so `@smoke` can appear in either the describe or the test name.
+
+Tag a test `@smoke` when it is:
+
+- The **happy path** for a feature (core user journey, end-to-end)
+- The **key unauthenticated redirect** for a protected route (verifies auth is wired up in deployed env)
+- The **key role-enforcement redirect** for an access-controlled route (verifies RBAC boundary)
+- **One representative validation error** per form (e.g. empty input) — not every variant
+
+Do **not** tag `@smoke`:
+
+- Exhaustive validation variants (whitespace, max length, control characters)
+- Sort order / ordering tests
+- Error states and edge cases
+- Route parameter validation (400 on non-UUID)
+
+---
+
 ## Run Commands
 
 | Command                              | What it does                                                        |

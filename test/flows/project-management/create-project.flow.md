@@ -12,7 +12,7 @@ The user creates a new Biodiversity Net Gain project by entering a project name 
 - **Template:** `src/server/projects/index.njk`
 - **Auth required:** Yes (session + BNG Completer role)
 - **Backend endpoint:** `GET /users/{userId}/projects`
-- **Description:** The user sees a table of their existing projects (sorted by `updated_at desc` by default) and a "Create project" button linking to `/define-project-name`. If there are no projects, a "No projects started." message is displayed.
+- **Description:** The user sees a table of their existing projects (sorted by `updated_at desc` by default) and a "Create project" button linking to `/define-project-name`. If the user has no projects, the dashboard redirects immediately to `/define-project-name` instead of rendering the table.
 - **Validation:** None (display-only)
 - **On success:** Renders the project dashboard
 - **On error:** Throws `Boom.badGateway` (502) if the backend call fails
