@@ -58,6 +58,26 @@ Never use:
 - Specs: `test/specs/<domain>/<name>.spec.js`
 - Fixtures: extend `test/fixtures/index.js` in place — one fixture file.
 
+## e2e Mode and Authenticated Describes
+
+Every `describe` block that uses `storageState` must include a skip guard so it does not run on the CDP portal (where stub auth is unavailable):
+
+```js
+const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
+
+test.describe('Feature — some describe', () => {
+  test.use({ storageState: STORAGE_STATE })
+  test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+})
+```
+
+- Define `E2E_SKIP_REASON` as a file-level constant (avoids SonarCloud duplicate-literal violations).
+- Unauthenticated describes (no `storageState`) must **not** receive `test.skip`.
+
+## @smoke Tagging
+
+Tag tests `@smoke` for: happy path, key unauthenticated redirect per protected route, key role-enforcement redirect, one representative validation error per form. Do not tag exhaustive validation variants, sort-order tests, or error-state edge cases. See `AGENTS.md` for the full rule.
+
 ## What to Avoid
 
 - No `test.only` in committed code.
