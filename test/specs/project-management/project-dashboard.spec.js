@@ -34,7 +34,7 @@ test.describe('Project dashboard — role enforcement', () => {
   test.use({ storageState: NO_ROLE_STORAGE_STATE })
   test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
-  test('authenticated user without bng completer role is redirected to /auth/forbidden', async ({
+  test('authenticated user without bng completer role is redirected to /auth/forbidden @smoke', async ({
     page
   }) => {
     await page.goto('/project-dashboard')
