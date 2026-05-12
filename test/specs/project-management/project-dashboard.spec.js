@@ -1,12 +1,14 @@
 import { test, expect } from '@fixtures'
-import { STORAGE_STATE, NO_ROLE_STORAGE_STATE } from '@utils/env.js'
+import { STORAGE_STATE, NO_ROLE_STORAGE_STATE, runMode } from '@utils/env.js'
 
 const HTTP_BAD_REQUEST = 400
+const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 
 // ─── Sort order ───────────────────────────────────────────────────────────────
 
 test.describe('Project dashboard — default sort order', () => {
   test.use({ storageState: STORAGE_STATE })
+  test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
   test('projects are sorted by last modified descending', async ({
     createProjectFlow,
@@ -30,6 +32,7 @@ test.describe('Project dashboard — default sort order', () => {
 
 test.describe('Project dashboard — role enforcement', () => {
   test.use({ storageState: NO_ROLE_STORAGE_STATE })
+  test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
   test('authenticated user without bng completer role is redirected to /auth/forbidden', async ({
     page
@@ -52,6 +55,7 @@ test.describe('Project dashboard — role enforcement', () => {
 
 test.describe('Project task list — invalid route parameter', () => {
   test.use({ storageState: STORAGE_STATE })
+  test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
   test('non-UUID id path param returns 400', async ({ page }) => {
     const response = await page.goto('/project-task-list/not-a-uuid')

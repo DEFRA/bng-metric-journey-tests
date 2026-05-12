@@ -1,7 +1,12 @@
 import { test, expect } from '@fixtures'
-import { STORAGE_STATE, NO_PROJECTS_STORAGE_STATE } from '@utils/env.js'
+import {
+  STORAGE_STATE,
+  NO_PROJECTS_STORAGE_STATE,
+  runMode
+} from '@utils/env.js'
 
 const PROJECT_NAME_MAX_LENGTH = 1000
+const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 
 // ─── Authenticated tests ─────────────────────────────────────────────────────
 // These require the cdp-defra-id-stub (see compose.yml). Run with:
@@ -9,6 +14,7 @@ const PROJECT_NAME_MAX_LENGTH = 1000
 
 test.describe('Create project — project dashboard', () => {
   test.use({ storageState: STORAGE_STATE })
+  test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
   test('authenticated user sees dashboard with "Create project" button @smoke', async ({
     createProjectFlow,
@@ -25,6 +31,7 @@ test.describe('Create project — project dashboard', () => {
 
 test.describe('Create project — project dashboard (empty state)', () => {
   test.use({ storageState: NO_PROJECTS_STORAGE_STATE })
+  test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
   test('user with no projects is redirected from dashboard to /define-project-name', async ({
     projectDashboardPage,
@@ -38,6 +45,7 @@ test.describe('Create project — project dashboard (empty state)', () => {
 
 test.describe('Create project — project name form', () => {
   test.use({ storageState: STORAGE_STATE })
+  test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
   test('form renders with input, hint, back link, and submit button @smoke', async ({
     defineProjectNamePage,
@@ -102,6 +110,7 @@ test.describe('Create project — project name form', () => {
 
 test.describe('Create project — happy path @smoke', () => {
   test.use({ storageState: STORAGE_STATE })
+  test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
   test('valid name creates project and redirects to dashboard with project listed', async ({
     createProjectFlow,
@@ -153,6 +162,7 @@ test.describe('Create project — happy path @smoke', () => {
 
 test.describe('Create project — task list error state', () => {
   test.use({ storageState: STORAGE_STATE })
+  test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
   test('unknown project UUID hides the task list body', async ({
     projectTaskListPage
