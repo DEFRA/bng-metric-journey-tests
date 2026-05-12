@@ -12,7 +12,11 @@ export class CreateProjectFlow {
 
   async createProject(name) {
     await this.dashboard.open()
-    await this.dashboard.createProjectButton.click()
+    // When the user has no projects, /project-dashboard redirects straight to
+    // /define-project-name — skip the button click in that case.
+    if (!this.page.url().includes('/define-project-name')) {
+      await this.dashboard.createProjectButton.click()
+    }
     await this.defineProjectNamePage.enterProjectName(name)
     await this.defineProjectNamePage.submit()
   }

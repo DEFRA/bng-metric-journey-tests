@@ -78,7 +78,7 @@ export default async function globalSetup() {
     await registerAndLogin(page1, `bng-test-${Date.now()}@example.com`, {
       withBngCompleterRole: true
     })
-    await page1.waitForURL(/\/project-dashboard/)
+    await page1.waitForURL(/\/project-dashboard|\/define-project-name/)
     await context1.storageState({ path: STORAGE_STATE })
     await context1.close()
 
@@ -101,7 +101,7 @@ export default async function globalSetup() {
     await registerAndLogin(page3, `bng-noprojects-${Date.now()}@example.com`, {
       withBngCompleterRole: true
     })
-    await page3.waitForURL(/\/project-dashboard/)
+    await page3.waitForURL(/\/project-dashboard|\/define-project-name/)
     await context3.storageState({ path: NO_PROJECTS_STORAGE_STATE })
     await context3.close()
   } finally {
