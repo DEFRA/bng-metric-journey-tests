@@ -19,25 +19,29 @@ test.describe('Change project name — form display', () => {
   test.use({ storageState: STORAGE_STATE })
   test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
-  test('form renders pre-populated with existing project name @smoke', async ({
-    createProjectFlow,
-    projectDashboardPage,
-    changeProjectNamePage,
-    page
-  }) => {
-    const { id, name } = await setupProject(
+  test(
+    'form renders pre-populated with existing project name',
+    { tag: '@smoke' },
+    async ({
       createProjectFlow,
-      projectDashboardPage
-    )
+      projectDashboardPage,
+      changeProjectNamePage,
+      page
+    }) => {
+      const { id, name } = await setupProject(
+        createProjectFlow,
+        projectDashboardPage
+      )
 
-    await changeProjectNamePage.open(id)
+      await changeProjectNamePage.open(id)
 
-    await expect(page).toHaveTitle('Project Name - Biodiversity Net Gain')
-    await expect(changeProjectNamePage.nameInput).toBeVisible()
-    await expect(changeProjectNamePage.nameInput).toHaveValue(name)
-    await expect(changeProjectNamePage.backLink).toBeVisible()
-    await expect(changeProjectNamePage.saveAndContinueButton).toBeVisible()
-  })
+      await expect(page).toHaveTitle('Project Name - Biodiversity Net Gain')
+      await expect(changeProjectNamePage.nameInput).toBeVisible()
+      await expect(changeProjectNamePage.nameInput).toHaveValue(name)
+      await expect(changeProjectNamePage.backLink).toBeVisible()
+      await expect(changeProjectNamePage.saveAndContinueButton).toBeVisible()
+    }
+  )
 })
 
 // ─── Validation ───────────────────────────────────────────────────────────────
@@ -46,22 +50,26 @@ test.describe('Change project name — validation', () => {
   test.use({ storageState: STORAGE_STATE })
   test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
-  test('submitting empty name shows "Enter a project name" error @smoke', async ({
-    createProjectFlow,
-    projectDashboardPage,
-    changeProjectNamePage,
-    page
-  }) => {
-    const { id } = await setupProject(createProjectFlow, projectDashboardPage)
-    await changeProjectNamePage.open(id)
-    await changeProjectNamePage.enterName('')
-    await changeProjectNamePage.submit()
+  test(
+    'submitting empty name shows "Enter a project name" error',
+    { tag: '@smoke' },
+    async ({
+      createProjectFlow,
+      projectDashboardPage,
+      changeProjectNamePage,
+      page
+    }) => {
+      const { id } = await setupProject(createProjectFlow, projectDashboardPage)
+      await changeProjectNamePage.open(id)
+      await changeProjectNamePage.enterName('')
+      await changeProjectNamePage.submit()
 
-    await expect(page).toHaveTitle(
-      'Error: Project Name - Biodiversity Net Gain'
-    )
-    await changeProjectNamePage.assertNameError('Enter a project name')
-  })
+      await expect(page).toHaveTitle(
+        'Error: Project Name - Biodiversity Net Gain'
+      )
+      await changeProjectNamePage.assertNameError('Enter a project name')
+    }
+  )
 
   test('submitting whitespace-only name shows "Enter a project name" error', async ({
     createProjectFlow,
@@ -111,7 +119,7 @@ test.describe('Change project name — validation', () => {
 
 // ─── Happy path ───────────────────────────────────────────────────────────────
 
-test.describe('Change project name — happy path @smoke', () => {
+test.describe('Change project name — happy path', { tag: '@smoke' }, () => {
   test.use({ storageState: STORAGE_STATE })
   test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
@@ -151,14 +159,18 @@ test.describe('Change project name — role enforcement', () => {
 // ─── Unauthenticated access ───────────────────────────────────────────────────
 
 test.describe('Change project name — unauthenticated access', () => {
-  test('GET /change-project-name/{id} redirects to sign-in @smoke', async ({
-    page
-  }) => {
-    await page.goto('/change-project-name/00000000-0000-0000-0000-000000000000')
+  test(
+    'GET /change-project-name/{id} redirects to sign-in',
+    { tag: '@smoke' },
+    async ({ page }) => {
+      await page.goto(
+        '/change-project-name/00000000-0000-0000-0000-000000000000'
+      )
 
-    await expect(page).not.toHaveURL(/\/change-project-name/)
-    await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
-  })
+      await expect(page).not.toHaveURL(/\/change-project-name/)
+      await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
+    }
+  )
 })
 
 // ─── Route parameter validation ───────────────────────────────────────────────

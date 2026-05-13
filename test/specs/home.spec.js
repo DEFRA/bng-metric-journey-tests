@@ -1,19 +1,20 @@
 import { test, expect } from '@fixtures'
 
 test.describe('Home page', () => {
-  test('unauthenticated visitor sees sign-in button @smoke', async ({
-    homePage,
-    page
-  }) => {
-    await homePage.open()
+  test(
+    'unauthenticated visitor sees sign-in button',
+    { tag: '@smoke' },
+    async ({ homePage, page }) => {
+      await homePage.open()
 
-    await expect(page).toHaveTitle('Home - Biodiversity Net Gain')
-    await expect(homePage.heading).toBeVisible()
-    await expect(homePage.pageBody).toBeVisible()
-    await expect(homePage.signInButton).toBeVisible()
-  })
+      await expect(page).toHaveTitle('Home - Biodiversity Net Gain')
+      await expect(homePage.heading).toBeVisible()
+      await expect(homePage.pageBody).toBeVisible()
+      await expect(homePage.signInButton).toBeVisible()
+    }
+  )
 
-  test.skip('authenticated user sees project dashboard link @smoke', async ({
+  test.skip('authenticated user sees project dashboard link', async ({
     homePage
   }) => {
     // Auth setup not yet implemented — skipped until OIDC session fixture is added

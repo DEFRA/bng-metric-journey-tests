@@ -52,7 +52,8 @@ Override options:
 ```sh
 HEADED=true npm run test:local          # headed browser (visible window)
 BROWSER=firefox npm run test:local      # use Firefox or webkit
-PROFILE=@smoke npm run test:local       # filter by tag
+PROFILE=@smoke npm run test:local       # run only @smoke-tagged tests
+PROFILE=@upload-file npm run test:local # any tag works
 ```
 
 ### Local — full stack via Docker Compose
@@ -113,7 +114,7 @@ Each command is independent — use whichever fits your current task.
 | Command                               | When to use                                                                                                  | Requires                                                     |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
 | `/analyse-user-flow <flow>`           | After pulling latest frontend or backend changes — syncs `test/flows/<flow>.flow.md` with the current source | Nothing pre-filled                                           |
-| `/discover-journey-tests <flow>`      | To find gaps in journey test coverage for a flow and discover edge cases                                     | An up-to-date flow doc in `test/flows/`                      |
+| `/discover-journey-tests <flow>`      | To find gaps in jourtagney test coverage for a flow and discover edge cases                                  | An up-to-date flow doc in `test/flows/`                      |
 | `/validate-ac-automated`              | To check whether specific ACs are covered by existing journey tests                                          | `feature-input.md` filled with ACs                           |
 | `/validate-ac-manual`                 | To run ACs in a headless browser and capture screenshot evidence                                             | `feature-input.md` filled with ACs; frontend running locally |
 | `/verify-integration-coverage <flow>` | To find gaps in backend integration test coverage for a flow                                                 | An up-to-date flow doc in `test/flows/`                      |
@@ -147,14 +148,14 @@ GitHub → Actions → Run Journey Tests on GitHub → Run workflow
 
 ## Environment variables
 
-| Variable      | Default     | Description                                     |
-| ------------- | ----------- | ----------------------------------------------- |
-| `RUN_MODE`    | `local`     | `local` / `github` / `e2e` — selects base URL   |
-| `ENVIRONMENT` | `dev`       | CDP environment name (used when `RUN_MODE=e2e`) |
-| `BASE_URL`    | _(derived)_ | Override the target URL directly                |
-| `BROWSER`     | `chromium`  | `chromium` / `firefox` / `webkit`               |
-| `HEADED`      | _(unset)_   | Set to `true` for headed browser                |
-| `PROFILE`     | _(unset)_   | Playwright grep pattern, e.g. `@smoke`          |
+| Variable      | Default     | Description                                                                         |
+| ------------- | ----------- | ----------------------------------------------------------------------------------- |
+| `RUN_MODE`    | `local`     | `local` / `github` / `e2e` — selects base URL                                       |
+| `ENVIRONMENT` | `dev`       | CDP environment name (used when `RUN_MODE=e2e`)                                     |
+| `BASE_URL`    | _(derived)_ | Override the target URL directly                                                    |
+| `BROWSER`     | `chromium`  | `chromium` / `firefox` / `webkit`                                                   |
+| `HEADED`      | _(unset)_   | Set to `true` for headed browser                                                    |
+| `PROFILE`     | _(unset)_   | Tag filter, e.g. `@smoke` or `@upload-file`. Uses Playwright `{ tag }` annotations. |
 
 ---
 

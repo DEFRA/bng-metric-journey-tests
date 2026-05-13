@@ -136,11 +136,35 @@ Unauthenticated describes (no `storageState`) must **not** receive `test.skip` �
 
 ---
 
-## @smoke Tagging
+## Test Tagging
 
-The CDP portal runs `PROFILE=@smoke` in e2e mode. The `PROFILE` env var is applied as a grep regex against the full test title (describe + test name), so `@smoke` can appear in either the describe or the test name.
+Use Playwright's `{ tag }` annotation to attach tags to individual tests or entire describe blocks. Tags are separate from the test title — names stay descriptive, tags are metadata.
 
-Tag a test `@smoke` when it is:
+```js
+// Single test
+test('form renders pre-populated with existing project name', { tag: '@smoke' }, async () => {})
+
+// Entire describe (all tests inside inherit the tag)
+test.describe('Create project — happy path', { tag: '@smoke' }, () => { ... })
+
+// Multiple tags on one test
+test('uploads a metric file', { tag: ['@smoke', '@upload-file'] }, async () => {})
+```
+
+Run by tag against any stack:
+
+```sh
+PROFILE=@smoke npm run test:local     # local services
+PROFILE=@smoke npm run test:github    # Docker Compose stack
+PROFILE=@smoke npm run test:e2e       # CDP portal
+PROFILE=@upload-file npm run test:github
+```
+
+`PROFILE` is applied as `grep: new RegExp(PROFILE)` in `playwright.config.js`. Playwright includes tag annotations in the full title when matching grep, so `{ tag: '@smoke' }` is matched by `PROFILE=@smoke` exactly as a title-embedded `@smoke` would be.
+
+### @smoke — what to tag
+
+Tag `@smoke` when a test is:
 
 - The **happy path** for a feature (core user journey, end-to-end)
 - The **key unauthenticated redirect** for a protected route (verifies auth is wired up in deployed env)
@@ -158,14 +182,16 @@ Do **not** tag `@smoke`:
 
 ## Run Commands
 
-| Command                              | What it does                                                        |
-| ------------------------------------ | ------------------------------------------------------------------- |
-| `npm run test:local`                 | Playwright against locally-running frontend (http://localhost:3000) |
-| `npm run test:github`                | Playwright against Docker Compose stack (used in CI)                |
-| `npm run test:e2e`                   | Playwright against CDP deployed env — set `ENVIRONMENT=dev\|test`   |
-| `HEADED=true npm run test:local`     | Headed browser for debugging                                        |
-| `BROWSER=firefox npm run test:local` | Override browser                                                    |
-| `PROFILE=@smoke npm run test:e2e`    | Run only tests tagged `@smoke`                                      |
+| Command                                    | What it does                                                        |
+| ------------------------------------------ | ------------------------------------------------------------------- |
+| `npm run test:local`                       | Playwright against locally-running frontend (http://localhost:3000) |
+| `npm run test:github`                      | Playwright against Docker Compose stack (used in CI)                |
+| `npm run test:e2e`                         | Playwright against CDP deployed env — set `ENVIRONMENT=dev\|test`   |
+| `HEADED=true npm run test:local`           | Headed browser for debugging                                        |
+| `BROWSER=firefox npm run test:local`       | Override browser                                                    |
+| `PROFILE=@smoke npm run test:github`       | Run only `@smoke`-tagged tests against Docker Compose stack         |
+| `PROFILE=@smoke npm run test:e2e`          | Run only `@smoke`-tagged tests on the CDP portal                    |
+| `PROFILE=@upload-file npm run test:github` | Run tests tagged `@upload-file` (any tag works)                     |
 
 ---
 
@@ -175,7 +201,7 @@ Do **not** tag `@smoke`:
 - The CDP Portal runs the latest published image. Confirm the build is green in GitHub Actions before triggering a Portal run.
 - No proxy configuration needed — Playwright connects directly to the deployed service URL.
 - Report: Playwright HTML reporter writes `playwright-report/index.html`. `bin/publish-tests.sh` uploads this to S3. The CDP Portal renders the `index.html` entry point.
-- `PROFILE` env var filters tests by grep pattern (e.g. `PROFILE=@smoke`).
+- `PROFILE` env var filters tests by tag (e.g. `PROFILE=@smoke`). Uses Playwright `{ tag }` annotations — see **Test Tagging** above.
 
 ---
 

@@ -16,60 +16,66 @@ test.describe('Create project — project dashboard', () => {
   test.use({ storageState: STORAGE_STATE })
   test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
-  test('authenticated user sees dashboard with "Create project" button @smoke', async ({
-    createProjectFlow,
-    projectDashboardPage,
-    page
-  }) => {
-    await createProjectFlow.createProject(`Dashboard smoke test ${Date.now()}`)
+  test(
+    'authenticated user sees dashboard with "Create project" button',
+    { tag: '@smoke' },
+    async ({ createProjectFlow, projectDashboardPage, page }) => {
+      await createProjectFlow.createProject(
+        `Dashboard smoke test ${Date.now()}`
+      )
 
-    await expect(page).toHaveTitle('Projects - Biodiversity Net Gain')
-    await expect(projectDashboardPage.heading).toBeVisible()
-    await expect(projectDashboardPage.createProjectButton).toBeVisible()
-  })
+      await expect(page).toHaveTitle('Projects - Biodiversity Net Gain')
+      await expect(projectDashboardPage.heading).toBeVisible()
+      await expect(projectDashboardPage.createProjectButton).toBeVisible()
+    }
+  )
 })
 
 test.describe('Create project — project dashboard (empty state)', () => {
   test.use({ storageState: NO_PROJECTS_STORAGE_STATE })
   test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
-  test('user with no projects is redirected from dashboard to /define-project-name @smoke', async ({
-    projectDashboardPage,
-    page
-  }) => {
-    await projectDashboardPage.open()
+  test(
+    'user with no projects is redirected from dashboard to /define-project-name',
+    { tag: '@smoke' },
+    async ({ projectDashboardPage, page }) => {
+      await projectDashboardPage.open()
 
-    await expect(page).toHaveURL(/\/define-project-name/)
-  })
+      await expect(page).toHaveURL(/\/define-project-name/)
+    }
+  )
 })
 
 test.describe('Create project — project name form', () => {
   test.use({ storageState: STORAGE_STATE })
   test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
-  test('form renders with input, hint, back link, and submit button @smoke', async ({
-    defineProjectNamePage,
-    page
-  }) => {
-    await defineProjectNamePage.open()
+  test(
+    'form renders with input, hint, back link, and submit button',
+    { tag: '@smoke' },
+    async ({ defineProjectNamePage, page }) => {
+      await defineProjectNamePage.open()
 
-    await expect(page).toHaveTitle(
-      'Define Project Name - Biodiversity Net Gain'
-    )
-    await expect(defineProjectNamePage.nameInput).toBeVisible()
-    await expect(defineProjectNamePage.nameHint).toBeVisible()
-    await expect(defineProjectNamePage.backLink).toBeVisible()
-    await expect(defineProjectNamePage.saveAndContinueButton).toBeVisible()
-  })
+      await expect(page).toHaveTitle(
+        'Define Project Name - Biodiversity Net Gain'
+      )
+      await expect(defineProjectNamePage.nameInput).toBeVisible()
+      await expect(defineProjectNamePage.nameHint).toBeVisible()
+      await expect(defineProjectNamePage.backLink).toBeVisible()
+      await expect(defineProjectNamePage.saveAndContinueButton).toBeVisible()
+    }
+  )
 
-  test('submitting empty name shows "Enter a project name" error @smoke', async ({
-    defineProjectNamePage
-  }) => {
-    await defineProjectNamePage.open()
-    await defineProjectNamePage.submit()
+  test(
+    'submitting empty name shows "Enter a project name" error',
+    { tag: '@smoke' },
+    async ({ defineProjectNamePage }) => {
+      await defineProjectNamePage.open()
+      await defineProjectNamePage.submit()
 
-    await defineProjectNamePage.assertNameError('Enter a project name')
-  })
+      await defineProjectNamePage.assertNameError('Enter a project name')
+    }
+  )
 
   test('submitting whitespace-only name shows "Enter a project name" error', async ({
     defineProjectNamePage
@@ -108,7 +114,7 @@ test.describe('Create project — project name form', () => {
   })
 })
 
-test.describe('Create project — happy path @smoke', () => {
+test.describe('Create project — happy path', { tag: '@smoke' }, () => {
   test.use({ storageState: STORAGE_STATE })
   test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
@@ -178,14 +184,16 @@ test.describe('Create project — task list error state', () => {
 // ─── Unauthenticated tests ────────────────────────────────────────────────────
 
 test.describe('Create project — unauthenticated access', () => {
-  test('GET /project-dashboard redirects to sign-in @smoke', async ({
-    page
-  }) => {
-    await page.goto('/project-dashboard')
+  test(
+    'GET /project-dashboard redirects to sign-in',
+    { tag: '@smoke' },
+    async ({ page }) => {
+      await page.goto('/project-dashboard')
 
-    await expect(page).not.toHaveURL(/\/project-dashboard/)
-    await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
-  })
+      await expect(page).not.toHaveURL(/\/project-dashboard/)
+      await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
+    }
+  )
 
   test('GET /define-project-name redirects to sign-in', async ({ page }) => {
     await page.goto('/define-project-name')

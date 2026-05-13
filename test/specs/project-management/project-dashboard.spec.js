@@ -34,13 +34,15 @@ test.describe('Project dashboard — role enforcement', () => {
   test.use({ storageState: NO_ROLE_STORAGE_STATE })
   test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
-  test('authenticated user without bng completer role is redirected to /auth/forbidden @smoke', async ({
-    page
-  }) => {
-    await page.goto('/project-dashboard')
+  test(
+    'authenticated user without bng completer role is redirected to /auth/forbidden',
+    { tag: '@smoke' },
+    async ({ page }) => {
+      await page.goto('/project-dashboard')
 
-    await expect(page).toHaveURL(/\/auth\/forbidden/)
-  })
+      await expect(page).toHaveURL(/\/auth\/forbidden/)
+    }
+  )
 
   test('authenticated user without bng completer role visiting task list is redirected to /auth/forbidden', async ({
     page

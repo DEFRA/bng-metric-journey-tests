@@ -74,9 +74,24 @@ test.describe('Feature — some describe', () => {
 - Define `E2E_SKIP_REASON` as a file-level constant (avoids SonarCloud duplicate-literal violations).
 - Unauthenticated describes (no `storageState`) must **not** receive `test.skip`.
 
-## @smoke Tagging
+## Test Tagging
 
-Tag tests `@smoke` for: happy path, key unauthenticated redirect per protected route, key role-enforcement redirect, one representative validation error per form. Do not tag exhaustive validation variants, sort-order tests, or error-state edge cases. See `AGENTS.md` for the full rule.
+Use Playwright's `{ tag }` annotation — never embed tags in test or describe titles:
+
+```js
+// Individual test
+test('form renders pre-populated', { tag: '@smoke' }, async () => {})
+
+// Entire describe block (all tests inside inherit the tag)
+test.describe('Create project — happy path', { tag: '@smoke' }, () => { ... })
+
+// Multiple tags
+test('uploads a metric file', { tag: ['@smoke', '@upload-file'] }, async () => {})
+```
+
+Run by tag: `PROFILE=@smoke npm run test:github` — works with any run mode.
+
+`@smoke` criteria: happy path, key unauthenticated redirect per protected route, key role-enforcement redirect, one representative validation error per form. Not exhaustive validation variants, sort-order tests, or error-state edge cases. See `AGENTS.md` for the full rule.
 
 ## What to Avoid
 
