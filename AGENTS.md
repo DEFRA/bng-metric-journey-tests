@@ -279,6 +279,7 @@ PROFILE=@project-management npm run test:github
 - No proxy configuration needed — Playwright connects directly to the deployed service URL.
 - Report: Playwright HTML reporter writes `playwright-report/index.html`. `bin/publish-tests.sh` uploads this to S3. The CDP Portal renders the `index.html` entry point.
 - `PROFILE` env var filters tests by tag (e.g. `PROFILE=@smoke`). Uses Playwright `{ tag }` annotations — see **Test Tagging** above.
+- The **Run Journey Tests** GitHub workflow accepts an optional `profile` input (`@smoke`, `@project-management`, etc.). Leave it blank to run all tests.
 
 ---
 
