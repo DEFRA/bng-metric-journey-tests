@@ -24,6 +24,11 @@ on:
           - chromium
           - firefox
           - webkit
+      profile:
+        description: 'Tag filter (e.g. @smoke, @project-management). Leave blank to run all tests.'
+        required: false
+        default: ''
+        type: string
 
   workflow_call:
     inputs:
@@ -39,6 +44,10 @@ on:
         required: false
         type: string
         default: chromium
+      profile:
+        required: false
+        type: string
+        default: ''
 
 jobs:
   # Parses Depends-On lines from the PR body (workflow_call context).
@@ -129,6 +138,8 @@ jobs:
         run: docker compose up --wait --wait-timeout 120 -d
 
       - name: Run Playwright tests
+        env:
+          PROFILE: ${{ inputs.profile }}
         run: npm run test:github
 
       - name: Collect Docker Compose logs

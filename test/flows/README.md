@@ -107,6 +107,8 @@ export class CreateProjectFlow {
 
 ## Journey Status
 
-| Journey                               | Flow doc | Flow class | Status      |
-| ------------------------------------- | -------- | ---------- | ----------- |
-| _(TBC — first journey not yet ready)_ | —        | —          | `[PLANNED]` |
+| Journey                                  | Flow doc                                         | Flow class                                  | Status          |
+| ---------------------------------------- | ------------------------------------------------ | ------------------------------------------- | --------------- |
+| project-management / create-project      | `project-management/create-project.flow.md`      | `project-management/create-project.flow.js` | `[IMPLEMENTED]` |
+| project-management / project-dashboard   | `project-management/project-dashboard.flow.md`   | —                                           | `[IMPLEMENTED]` |
+| project-management / change-project-name | `project-management/change-project-name.flow.md` | —                                           | `[IMPLEMENTED]` |

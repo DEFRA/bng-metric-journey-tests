@@ -52,8 +52,9 @@ Override options:
 ```sh
 HEADED=true npm run test:local          # headed browser (visible window)
 BROWSER=firefox npm run test:local      # use Firefox or webkit
-PROFILE=@smoke npm run test:local       # run only @smoke-tagged tests
-PROFILE=@upload-file npm run test:local # any tag works
+PROFILE=@smoke npm run test:local              # run only @smoke-tagged tests
+PROFILE=@project-management npm run test:local # run all tests for a domain
+PROFILE=@upload-file npm run test:local        # any tag works
 ```
 
 ### Local — full stack via Docker Compose
@@ -148,14 +149,14 @@ GitHub → Actions → Run Journey Tests on GitHub → Run workflow
 
 ## Environment variables
 
-| Variable      | Default     | Description                                                                         |
-| ------------- | ----------- | ----------------------------------------------------------------------------------- |
-| `RUN_MODE`    | `local`     | `local` / `github` / `e2e` — selects base URL                                       |
-| `ENVIRONMENT` | `dev`       | CDP environment name (used when `RUN_MODE=e2e`)                                     |
-| `BASE_URL`    | _(derived)_ | Override the target URL directly                                                    |
-| `BROWSER`     | `chromium`  | `chromium` / `firefox` / `webkit`                                                   |
-| `HEADED`      | _(unset)_   | Set to `true` for headed browser                                                    |
-| `PROFILE`     | _(unset)_   | Tag filter, e.g. `@smoke` or `@upload-file`. Uses Playwright `{ tag }` annotations. |
+| Variable      | Default     | Description                                                                                                 |
+| ------------- | ----------- | ----------------------------------------------------------------------------------------------------------- |
+| `RUN_MODE`    | `local`     | `local` / `github` / `e2e` — selects base URL                                                               |
+| `ENVIRONMENT` | `dev`       | CDP environment name (used when `RUN_MODE=e2e`)                                                             |
+| `BASE_URL`    | _(derived)_ | Override the target URL directly                                                                            |
+| `BROWSER`     | `chromium`  | `chromium` / `firefox` / `webkit`                                                                           |
+| `HEADED`      | _(unset)_   | Set to `true` for headed browser                                                                            |
+| `PROFILE`     | _(unset)_   | Tag filter, e.g. `@smoke`, `@project-management`, or `@upload-file`. Uses Playwright `{ tag }` annotations. |
 
 ---
 

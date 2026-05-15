@@ -1,0 +1,195 @@
+import { test, expect } from '@fixtures'
+import { STORAGE_STATE, NO_ROLE_STORAGE_STATE, runMode } from '@utils/env.js'
+
+const HTTP_BAD_REQUEST = 400
+const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
+const TASK_PROJECT_NAME = 'Project Name'
+const TASK_PROJECT_DETAILS = 'Project Details'
+const TASK_BASELINE_HABITATS = 'On-site baseline habitats'
+
+async function setupProject(createProjectFlow, projectDashboardPage) {
+  const name = `Task list test ${Date.now()}`
+  await createProjectFlow.createProject(name)
+  const href = await projectDashboardPage.projectLink(name).getAttribute('href')
+  const id = href.split('/').pop()
+  return { id, name }
+}
+
+test.describe('project-management', { tag: '@project-management' }, () => {
+  // ─── Page content ───────────────────────────────────────────────────────────
+
+  test.describe('Project task list — page content', () => {
+    test.use({ storageState: STORAGE_STATE })
+    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+
+    test(
+      'task list shows heading, caption, 4 task items with correct hrefs and statuses',
+      { tag: '@smoke' },
+      async ({
+        createProjectFlow,
+        projectDashboardPage,
+        projectTaskListPage,
+        page
+      }) => {
+        const { id, name } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage
+        )
+
+        await projectTaskListPage.open(id)
+
+        await expect(page).toHaveURL(new RegExp(`/project-task-list/${id}`))
+        await expect(projectTaskListPage.heading).toBeVisible()
+        await expect(page.getByText(name)).toBeVisible()
+        await expect(projectTaskListPage.informationParagraph).toBeVisible()
+        await expect(projectTaskListPage.taskList).toBeVisible()
+        await expect(
+          projectTaskListPage.taskItem(TASK_PROJECT_NAME)
+        ).toBeVisible()
+        await expect(
+          projectTaskListPage.taskItem(TASK_PROJECT_NAME)
+        ).toHaveAttribute('href', /\/change-project-name\//)
+        await expect(
+          projectTaskListPage.taskItem(TASK_PROJECT_DETAILS)
+        ).toBeVisible()
+        await expect(
+          projectTaskListPage.taskItem(TASK_PROJECT_DETAILS)
+        ).toHaveAttribute('href', /\/project-details\//)
+        await expect(
+          projectTaskListPage.taskItem(TASK_BASELINE_HABITATS)
+        ).toBeVisible()
+        await expect(
+          projectTaskListPage.taskItem(TASK_BASELINE_HABITATS)
+        ).toHaveAttribute('href', /\/projects\/.*\/upload-baseline-file/)
+        await expect(
+          projectTaskListPage.taskStatus('Not yet started')
+        ).toHaveCount(2)
+        await expect(
+          projectTaskListPage.taskStatus('Cannot start yet')
+        ).toBeVisible()
+      }
+    )
+  })
+
+  // ─── Task item navigation ────────────────────────────────────────────────────
+
+  test.describe(
+    'Project task list — task item navigation',
+    { tag: '@smoke' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+
+      test('clicking "Project Name" task item navigates to the change project name page', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        projectTaskListPage,
+        page
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage
+        )
+        await projectTaskListPage.open(id)
+        await projectTaskListPage.taskItem(TASK_PROJECT_NAME).click()
+
+        await expect(page).toHaveURL(/\/change-project-name\//)
+      })
+
+      test('clicking "Project Details" task item navigates to the project details page', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        projectTaskListPage,
+        page
+      }) => {
+        test.skip(
+          true,
+          '/project-details/{id} route not yet registered in router.js — remove this skip once the BMD-276 placeholder route is implemented'
+        )
+
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage
+        )
+        await projectTaskListPage.open(id)
+        await projectTaskListPage.taskItem(TASK_PROJECT_DETAILS).click()
+
+        await expect(page).toHaveURL(/\/project-details\//)
+      })
+
+      test('clicking "On-site baseline habitats" task item navigates to the baseline upload page', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        projectTaskListPage,
+        page
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage
+        )
+        await projectTaskListPage.open(id)
+        await projectTaskListPage.taskItem(TASK_BASELINE_HABITATS).click()
+
+        await expect(page).toHaveURL(/\/upload-baseline-file/)
+      })
+    }
+  )
+
+  // ─── Error state ─────────────────────────────────────────────────────────────
+
+  test.describe('Project task list — error state', () => {
+    test.use({ storageState: STORAGE_STATE })
+    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+
+    test('unknown project UUID hides the task list body', async ({
+      projectTaskListPage
+    }) => {
+      await projectTaskListPage.open('00000000-0000-0000-0000-000000000000')
+
+      await expect(projectTaskListPage.heading).toBeVisible()
+      await expect(projectTaskListPage.informationParagraph).not.toBeVisible()
+      await expect(projectTaskListPage.taskList).not.toBeVisible()
+    })
+  })
+
+  // ─── Role enforcement ────────────────────────────────────────────────────────
+
+  test.describe('Project task list — role enforcement', () => {
+    test.use({ storageState: NO_ROLE_STORAGE_STATE })
+    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+
+    test('authenticated user without bng completer role is redirected to /auth/forbidden', async ({
+      page
+    }) => {
+      await page.goto('/project-task-list/00000000-0000-0000-0000-000000000000')
+
+      await expect(page).toHaveURL(/\/auth\/forbidden/)
+    })
+  })
+
+  // ─── Route parameter validation ──────────────────────────────────────────────
+
+  test.describe('Project task list — route parameter validation', () => {
+    test.use({ storageState: STORAGE_STATE })
+    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+
+    test('non-UUID id path param returns 400', async ({ page }) => {
+      const response = await page.goto('/project-task-list/not-a-uuid')
+
+      expect(response.status()).toBe(HTTP_BAD_REQUEST)
+    })
+  })
+
+  // ─── Unauthenticated access ──────────────────────────────────────────────────
+
+  test.describe('Project task list — unauthenticated access', () => {
+    test('GET /project-task-list/{id} redirects to sign-in', async ({
+      page
+    }) => {
+      await page.goto('/project-task-list/00000000-0000-0000-0000-000000000000')
+
+      await expect(page).not.toHaveURL(/\/project-task-list/)
+      await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
+    })
+  })
+})

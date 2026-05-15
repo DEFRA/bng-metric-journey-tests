@@ -68,6 +68,51 @@ Always import `test` and `expect` from `@fixtures`, never directly from `@playwr
 
 ---
 
+## Spec File Organisation
+
+Each domain in `test/specs/<domain>/` follows a **one file per page/route** pattern, plus one thin flow file for the end-to-end happy path.
+
+### File naming
+
+| File                   | Covers                                                                                        |
+| ---------------------- | --------------------------------------------------------------------------------------------- |
+| `<route-name>.spec.js` | All tests for a single page/route (e.g. `project-dashboard.spec.js` for `/project-dashboard`) |
+| `<flow-name>.spec.js`  | The end-to-end happy path that spans multiple pages (e.g. `create-project.spec.js`)           |
+| `header.spec.js`       | Shared header/navigation — one file per domain, tested once                                   |
+| `footer.spec.js`       | Shared footer — one file per domain, tested once                                              |
+
+### What each page spec covers
+
+A page spec should contain a describe block for each of these concerns that applies to the route. Not every block is needed for every route — include only what is relevant.
+
+| Describe block                 | What to assert                                                                  |
+| ------------------------------ | ------------------------------------------------------------------------------- |
+| `— form display`               | Page title, input fields, hint text, back link, submit button                   |
+| `— validation`                 | One test per validation rule; `@smoke` on the empty/required case only          |
+| `— happy path`                 | Successful submission outcome (redirect, updated data)                          |
+| `— back link`                  | Back link target URL                                                            |
+| `— role enforcement`           | Authenticated user without required role is redirected to `/auth/forbidden`     |
+| `— unauthenticated access`     | Unauthenticated `GET` redirects to sign-in; `@smoke` on the most critical route |
+| `— route parameter validation` | Non-UUID path param returns 400                                                 |
+| `— error state`                | Edge cases such as unknown UUID hiding page content                             |
+
+### Flow spec
+
+The flow spec (e.g. `create-project.spec.js`) covers only the **end-to-end happy path** — the minimal sequence of steps that spans multiple pages and confirms the full journey produces the right outcome. It does not repeat page-level assertions that belong in the individual page specs.
+
+### Example structure for a new flow
+
+```
+test/specs/my-domain/
+  my-flow.spec.js              ← E2E happy path only
+  first-page.spec.js           ← all tests for /first-page
+  second-page.spec.js          ← all tests for /second-page/{id}
+  header.spec.js               ← shared header (if not already covered)
+  footer.spec.js               ← shared footer (if not already covered)
+```
+
+---
+
 ## Selectors — Priority Order
 
 1. `page.getByRole(...)` — ARIA role + accessible name
@@ -178,6 +223,38 @@ Do **not** tag `@smoke`:
 - Error states and edge cases
 - Route parameter validation (400 on non-UUID)
 
+### @\<domain\> — what to tag
+
+Every spec file belongs to exactly one **user-flow domain** (e.g. `project-management`). Tag all tests in the file with the domain name using a named outer `test.describe` with a `tag` option:
+
+```js
+// Wraps the entire file — all inner describes and tests inherit the tag
+test.describe('project-management', { tag: '@project-management' }, () => {
+  test.describe('Project dashboard — page content', () => {
+    test('...', async () => { ... })
+  })
+
+  test.describe('Project dashboard — unauthenticated access', () => {
+    test('...', async () => { ... })
+  })
+})
+```
+
+The title `'project-management'` appears as a prefix in test names in reports (e.g. `project-management › Project dashboard — page content › ...`), which makes domain context visible without any extra markup.
+
+> **Note:** do not use the anonymous form `test.describe({ tag }, fn)` — Playwright treats the options object as the title (serialising it as `[object Object]`) and the tag is not propagated to child tests for `grep` filtering.
+
+Rules:
+
+- **One domain tag per file.** The outer named describe carries it; do not repeat it on individual tests or inner describes.
+- **Module-level helpers** (e.g. `setupProject`) live outside the outer describe at the top of the module — they are not tests.
+- **The domain tag matches the spec folder name** under `test/specs/` (e.g. files in `test/specs/project-management/` all use `@project-management`).
+- This lets you run all tests for a domain without knowing individual file names:
+
+```sh
+PROFILE=@project-management npm run test:github
+```
+
 ---
 
 ## Run Commands
@@ -202,6 +279,7 @@ Do **not** tag `@smoke`:
 - No proxy configuration needed — Playwright connects directly to the deployed service URL.
 - Report: Playwright HTML reporter writes `playwright-report/index.html`. `bin/publish-tests.sh` uploads this to S3. The CDP Portal renders the `index.html` entry point.
 - `PROFILE` env var filters tests by tag (e.g. `PROFILE=@smoke`). Uses Playwright `{ tag }` annotations — see **Test Tagging** above.
+- The **Run Journey Tests** GitHub workflow accepts an optional `profile` input (`@smoke`, `@project-management`, etc.). Leave it blank to run all tests.
 
 ---
 

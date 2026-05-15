@@ -32,6 +32,11 @@ export class DefineProjectNamePage extends BasePage {
 
   async assertNameError(text) {
     await expect(this.errorSummary).toBeVisible()
-    await expect(this.page.getByRole('link', { name: text })).toBeVisible()
+    await expect(
+      this.errorSummary.getByRole('heading', { name: 'There is a problem' })
+    ).toBeVisible()
+    const errorLink = this.errorSummary.getByRole('link', { name: text })
+    await expect(errorLink).toBeVisible()
+    await expect(errorLink).toHaveAttribute('href', '#project-name')
   }
 }
