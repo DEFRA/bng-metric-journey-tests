@@ -9,6 +9,9 @@ export class ChangeProjectNamePage extends BasePage {
       name: 'Save and continue'
     })
     this.backLink = page.getByRole('link', { name: 'Back' })
+    this.nameHint = page.getByText(
+      'Enter a descriptive name to help you find your project later'
+    )
     this.errorSummary = page.getByRole('alert')
   }
 

@@ -38,6 +38,7 @@ test.describe('Change project name — form display', () => {
       await expect(page).toHaveTitle('Project Name - Biodiversity Net Gain')
       await expect(changeProjectNamePage.nameInput).toBeVisible()
       await expect(changeProjectNamePage.nameInput).toHaveValue(name)
+      await expect(changeProjectNamePage.nameHint).toBeVisible()
       await expect(changeProjectNamePage.backLink).toBeVisible()
       await expect(changeProjectNamePage.saveAndContinueButton).toBeVisible()
     }
@@ -67,6 +68,7 @@ test.describe('Change project name — validation', () => {
       await expect(page).toHaveTitle(
         'Error: Project Name - Biodiversity Net Gain'
       )
+      await expect(page).toHaveURL(new RegExp(`/change-project-name/${id}`))
       await changeProjectNamePage.assertNameError('Enter a project name')
     }
   )
@@ -138,6 +140,35 @@ test.describe('Change project name — happy path', { tag: '@smoke' }, () => {
 
     await expect(page).toHaveURL(new RegExp(`/project-task-list/${id}`))
     await expect(page.getByText(newName)).toBeVisible()
+
+    await projectDashboardPage.open()
+    const projectRow = page
+      .getByTestId('projects-table')
+      .getByRole('row')
+      .filter({ hasText: newName })
+    await expect(projectRow.getByRole('cell').nth(1)).toContainText(
+      /\d{1,2} \w+ \d{4} at \d{1,2}:\d{2}(am|pm)/
+    )
+  })
+})
+
+// ─── Back link ────────────────────────────────────────────────────────────────
+
+test.describe('Change project name — back link', () => {
+  test.use({ storageState: STORAGE_STATE })
+  test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+
+  test('clicking "Back" navigates to the project task list', async ({
+    createProjectFlow,
+    projectDashboardPage,
+    changeProjectNamePage,
+    page
+  }) => {
+    const { id } = await setupProject(createProjectFlow, projectDashboardPage)
+    await changeProjectNamePage.open(id)
+    await changeProjectNamePage.backLink.click()
+
+    await expect(page).toHaveURL(new RegExp(`/project-task-list/${id}`))
   })
 })
 

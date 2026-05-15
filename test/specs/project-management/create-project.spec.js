@@ -29,6 +29,36 @@ test.describe('Create project — project dashboard', () => {
       await expect(projectDashboardPage.createProjectButton).toBeVisible()
     }
   )
+
+  test('clicking "Create project" button navigates to /define-project-name', async ({
+    createProjectFlow,
+    projectDashboardPage,
+    page
+  }) => {
+    await createProjectFlow.createProject(`Setup ${Date.now()}`)
+    await projectDashboardPage.open()
+    await projectDashboardPage.createProjectButton.click()
+
+    await expect(page).toHaveURL(/\/define-project-name/)
+  })
+
+  test('projects table has "Project name", "Last modified", and "Date created" column headings', async ({
+    createProjectFlow,
+    page
+  }) => {
+    await createProjectFlow.createProject(`Column headings test ${Date.now()}`)
+
+    const table = page.getByTestId('projects-table')
+    await expect(
+      table.getByRole('columnheader', { name: 'Project name' })
+    ).toBeVisible()
+    await expect(
+      table.getByRole('columnheader', { name: 'Last modified' })
+    ).toBeVisible()
+    await expect(
+      table.getByRole('columnheader', { name: 'Date created' })
+    ).toBeVisible()
+  })
 })
 
 test.describe('Create project — project dashboard (empty state)', () => {
@@ -112,6 +142,29 @@ test.describe('Create project — project name form', () => {
       'Project name must only contain valid characters'
     )
   })
+
+  test('input enforces 1000-character limit via maxlength attribute', async ({
+    defineProjectNamePage
+  }) => {
+    await defineProjectNamePage.open()
+
+    await expect(defineProjectNamePage.nameInput).toHaveAttribute(
+      'maxlength',
+      '1000'
+    )
+  })
+
+  test('clicking "Back" link navigates to /project-dashboard', async ({
+    createProjectFlow,
+    defineProjectNamePage,
+    page
+  }) => {
+    await createProjectFlow.createProject(`Back link test ${Date.now()}`)
+    await defineProjectNamePage.open()
+    await defineProjectNamePage.backLink.click()
+
+    await expect(page).toHaveURL(/\/project-dashboard/)
+  })
 })
 
 test.describe('Create project — happy path', { tag: '@smoke' }, () => {
@@ -129,15 +182,22 @@ test.describe('Create project — happy path', { tag: '@smoke' }, () => {
 
     await expect(page).toHaveURL(/\/project-dashboard/)
     await expect(projectDashboardPage.projectLink(projectName)).toBeVisible()
+    await expect(projectDashboardPage.projectLink(projectName)).toHaveAttribute(
+      'href',
+      /\/project-task-list\//
+    )
 
-    const createdCell = page
+    const projectRow = page
       .getByTestId('projects-table')
       .getByRole('row')
       .filter({ hasText: projectName })
-      .getByRole('cell')
-      .nth(2)
 
-    await expect(createdCell).toContainText(/\d{1,2} \w+ \d{4}/)
+    await expect(projectRow.getByRole('cell').nth(1)).toContainText(
+      /\d{1,2} \w+ \d{4} at \d{1,2}:\d{2}(am|pm)/
+    )
+    await expect(projectRow.getByRole('cell').nth(2)).toContainText(
+      /\d{1,2} \w+ \d{4}/
+    )
   })
 
   test('clicking project name opens task list with 4 tasks and project name as caption', async ({
@@ -154,15 +214,79 @@ test.describe('Create project — happy path', { tag: '@smoke' }, () => {
     await expect(page).toHaveURL(/\/project-task-list\//)
     await expect(projectTaskListPage.heading).toBeVisible()
     await expect(page.getByText(projectName)).toBeVisible()
+    await expect(projectTaskListPage.informationParagraph).toBeVisible()
     await expect(projectTaskListPage.taskList).toBeVisible()
     await expect(projectTaskListPage.taskItem('Project Name')).toBeVisible()
+    await expect(projectTaskListPage.taskItem('Project Name')).toHaveAttribute(
+      'href',
+      /\/change-project-name\//
+    )
     await expect(projectTaskListPage.taskItem('Project Details')).toBeVisible()
+    await expect(
+      projectTaskListPage.taskItem('Project Details')
+    ).toHaveAttribute('href', /\/project-details\//)
     await expect(
       projectTaskListPage.taskItem('On-site baseline habitats')
     ).toBeVisible()
     await expect(
+      projectTaskListPage.taskItem('On-site baseline habitats')
+    ).toHaveAttribute('href', /\/projects\/.*\/upload-baseline-file/)
+    await expect(projectTaskListPage.taskStatus('Not yet started')).toHaveCount(
+      2
+    )
+    await expect(
       projectTaskListPage.taskStatus('Cannot start yet')
     ).toBeVisible()
+  })
+
+  test('clicking "Project Name" task item navigates to the change project name page', async ({
+    createProjectFlow,
+    projectDashboardPage,
+    projectTaskListPage,
+    page
+  }) => {
+    const projectName = `Task list nav test ${Date.now()}`
+
+    await createProjectFlow.createProject(projectName)
+    await projectDashboardPage.projectLink(projectName).click()
+    await projectTaskListPage.taskItem('Project Name').click()
+
+    await expect(page).toHaveURL(/\/change-project-name\//)
+  })
+
+  test('clicking "Project Details" task item navigates to the project details page', async ({
+    createProjectFlow,
+    projectDashboardPage,
+    projectTaskListPage,
+    page
+  }) => {
+    test.skip(
+      true,
+      '/project-details/{id} route not yet registered in router.js — remove this skip once the BMD-276 placeholder route is implemented'
+    )
+
+    const projectName = `Project details nav test ${Date.now()}`
+
+    await createProjectFlow.createProject(projectName)
+    await projectDashboardPage.projectLink(projectName).click()
+    await projectTaskListPage.taskItem('Project Details').click()
+
+    await expect(page).toHaveURL(/\/project-details\//)
+  })
+
+  test('clicking "On-site baseline habitats" task item navigates to the baseline upload page', async ({
+    createProjectFlow,
+    projectDashboardPage,
+    projectTaskListPage,
+    page
+  }) => {
+    const projectName = `Baseline habitats nav test ${Date.now()}`
+
+    await createProjectFlow.createProject(projectName)
+    await projectDashboardPage.projectLink(projectName).click()
+    await projectTaskListPage.taskItem('On-site baseline habitats').click()
+
+    await expect(page).toHaveURL(/\/upload-baseline-file/)
   })
 })
 
