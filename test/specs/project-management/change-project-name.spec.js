@@ -13,48 +13,156 @@ async function setupProject(createProjectFlow, projectDashboardPage) {
   return { id, name }
 }
 
-// ─── Form display ─────────────────────────────────────────────────────────────
+test.describe('project-management', { tag: '@project-management' }, () => {
+  // ─── Form display ────────────────────────────────────────────────────────────
 
-test.describe('Change project name — form display', () => {
-  test.use({ storageState: STORAGE_STATE })
-  test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+  test.describe('Change project name — form display', () => {
+    test.use({ storageState: STORAGE_STATE })
+    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
-  test(
-    'form renders pre-populated with existing project name',
-    { tag: '@smoke' },
-    async ({
+    test(
+      'form renders pre-populated with existing project name',
+      { tag: '@smoke' },
+      async ({
+        createProjectFlow,
+        projectDashboardPage,
+        changeProjectNamePage,
+        page
+      }) => {
+        const { id, name } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage
+        )
+
+        await changeProjectNamePage.open(id)
+
+        await expect(page).toHaveTitle('Project Name - Biodiversity Net Gain')
+        await expect(changeProjectNamePage.nameInput).toBeVisible()
+        await expect(changeProjectNamePage.nameInput).toHaveValue(name)
+        await expect(changeProjectNamePage.nameHint).toBeVisible()
+        await expect(changeProjectNamePage.backLink).toBeVisible()
+        await expect(changeProjectNamePage.saveAndContinueButton).toBeVisible()
+      }
+    )
+  })
+
+  // ─── Validation ──────────────────────────────────────────────────────────────
+
+  test.describe('Change project name — validation', () => {
+    test.use({ storageState: STORAGE_STATE })
+    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+
+    test(
+      'submitting empty name shows "Enter a project name" error',
+      { tag: '@smoke' },
+      async ({
+        createProjectFlow,
+        projectDashboardPage,
+        changeProjectNamePage,
+        page
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage
+        )
+        await changeProjectNamePage.open(id)
+        await changeProjectNamePage.enterName('')
+        await changeProjectNamePage.submit()
+
+        await expect(page).toHaveTitle(
+          'Error: Project Name - Biodiversity Net Gain'
+        )
+        await expect(page).toHaveURL(new RegExp(`/change-project-name/${id}`))
+        await changeProjectNamePage.assertNameError('Enter a project name')
+      }
+    )
+
+    test('submitting whitespace-only name shows "Enter a project name" error', async ({
+      createProjectFlow,
+      projectDashboardPage,
+      changeProjectNamePage
+    }) => {
+      const { id } = await setupProject(createProjectFlow, projectDashboardPage)
+      await changeProjectNamePage.open(id)
+      await changeProjectNamePage.enterName('   ')
+      await changeProjectNamePage.submit()
+
+      await changeProjectNamePage.assertNameError('Enter a project name')
+    })
+
+    test('submitting name over 1000 characters shows length error', async ({
+      createProjectFlow,
+      projectDashboardPage,
+      changeProjectNamePage
+    }) => {
+      const { id } = await setupProject(createProjectFlow, projectDashboardPage)
+      await changeProjectNamePage.open(id)
+      await changeProjectNamePage.enterName(
+        'a'.repeat(PROJECT_NAME_MAX_LENGTH + 1)
+      )
+      await changeProjectNamePage.submit()
+
+      await changeProjectNamePage.assertNameError(
+        'Project name must be 1000 characters or fewer'
+      )
+    })
+
+    test('submitting name with control characters shows invalid characters error', async ({
+      createProjectFlow,
+      projectDashboardPage,
+      changeProjectNamePage
+    }) => {
+      const { id } = await setupProject(createProjectFlow, projectDashboardPage)
+      await changeProjectNamePage.open(id)
+      await changeProjectNamePage.enterName('Project\x00Name')
+      await changeProjectNamePage.submit()
+
+      await changeProjectNamePage.assertNameError(
+        'Project name must only contain valid characters'
+      )
+    })
+  })
+
+  // ─── Happy path ──────────────────────────────────────────────────────────────
+
+  test.describe('Change project name — happy path', { tag: '@smoke' }, () => {
+    test.use({ storageState: STORAGE_STATE })
+    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+
+    test('valid name updates project and redirects to task list', async ({
       createProjectFlow,
       projectDashboardPage,
       changeProjectNamePage,
       page
     }) => {
-      const { id, name } = await setupProject(
-        createProjectFlow,
-        projectDashboardPage
-      )
+      const { id } = await setupProject(createProjectFlow, projectDashboardPage)
+      const newName = `Renamed project ${Date.now()}`
 
       await changeProjectNamePage.open(id)
+      await changeProjectNamePage.enterName(newName)
+      await changeProjectNamePage.submit()
 
-      await expect(page).toHaveTitle('Project Name - Biodiversity Net Gain')
-      await expect(changeProjectNamePage.nameInput).toBeVisible()
-      await expect(changeProjectNamePage.nameInput).toHaveValue(name)
-      await expect(changeProjectNamePage.nameHint).toBeVisible()
-      await expect(changeProjectNamePage.backLink).toBeVisible()
-      await expect(changeProjectNamePage.saveAndContinueButton).toBeVisible()
-    }
-  )
-})
+      await expect(page).toHaveURL(new RegExp(`/project-task-list/${id}`))
+      await expect(page.getByText(newName)).toBeVisible()
 
-// ─── Validation ───────────────────────────────────────────────────────────────
+      await projectDashboardPage.open()
+      const projectRow = page
+        .getByTestId('projects-table')
+        .getByRole('row')
+        .filter({ hasText: newName })
+      await expect(projectRow.getByRole('cell').nth(1)).toContainText(
+        /\d{1,2} \w+ \d{4} at \d{1,2}:\d{2}(am|pm)/
+      )
+    })
+  })
 
-test.describe('Change project name — validation', () => {
-  test.use({ storageState: STORAGE_STATE })
-  test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+  // ─── Back link ───────────────────────────────────────────────────────────────
 
-  test(
-    'submitting empty name shows "Enter a project name" error',
-    { tag: '@smoke' },
-    async ({
+  test.describe('Change project name — back link', () => {
+    test.use({ storageState: STORAGE_STATE })
+    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+
+    test('clicking "Back" navigates to the project task list', async ({
       createProjectFlow,
       projectDashboardPage,
       changeProjectNamePage,
@@ -62,157 +170,56 @@ test.describe('Change project name — validation', () => {
     }) => {
       const { id } = await setupProject(createProjectFlow, projectDashboardPage)
       await changeProjectNamePage.open(id)
-      await changeProjectNamePage.enterName('')
-      await changeProjectNamePage.submit()
+      await changeProjectNamePage.backLink.click()
 
-      await expect(page).toHaveTitle(
-        'Error: Project Name - Biodiversity Net Gain'
-      )
-      await expect(page).toHaveURL(new RegExp(`/change-project-name/${id}`))
-      await changeProjectNamePage.assertNameError('Enter a project name')
-    }
-  )
-
-  test('submitting whitespace-only name shows "Enter a project name" error', async ({
-    createProjectFlow,
-    projectDashboardPage,
-    changeProjectNamePage
-  }) => {
-    const { id } = await setupProject(createProjectFlow, projectDashboardPage)
-    await changeProjectNamePage.open(id)
-    await changeProjectNamePage.enterName('   ')
-    await changeProjectNamePage.submit()
-
-    await changeProjectNamePage.assertNameError('Enter a project name')
+      await expect(page).toHaveURL(new RegExp(`/project-task-list/${id}`))
+    })
   })
 
-  test('submitting name over 1000 characters shows length error', async ({
-    createProjectFlow,
-    projectDashboardPage,
-    changeProjectNamePage
-  }) => {
-    const { id } = await setupProject(createProjectFlow, projectDashboardPage)
-    await changeProjectNamePage.open(id)
-    await changeProjectNamePage.enterName(
-      'a'.repeat(PROJECT_NAME_MAX_LENGTH + 1)
-    )
-    await changeProjectNamePage.submit()
+  // ─── Role enforcement ────────────────────────────────────────────────────────
 
-    await changeProjectNamePage.assertNameError(
-      'Project name must be 1000 characters or fewer'
-    )
-  })
+  test.describe('Change project name — role enforcement', () => {
+    test.use({ storageState: NO_ROLE_STORAGE_STATE })
+    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
-  test('submitting name with control characters shows invalid characters error', async ({
-    createProjectFlow,
-    projectDashboardPage,
-    changeProjectNamePage
-  }) => {
-    const { id } = await setupProject(createProjectFlow, projectDashboardPage)
-    await changeProjectNamePage.open(id)
-    await changeProjectNamePage.enterName('Project\x00Name')
-    await changeProjectNamePage.submit()
-
-    await changeProjectNamePage.assertNameError(
-      'Project name must only contain valid characters'
-    )
-  })
-})
-
-// ─── Happy path ───────────────────────────────────────────────────────────────
-
-test.describe('Change project name — happy path', { tag: '@smoke' }, () => {
-  test.use({ storageState: STORAGE_STATE })
-  test.skip(runMode === 'e2e', E2E_SKIP_REASON)
-
-  test('valid name updates project and redirects to task list', async ({
-    createProjectFlow,
-    projectDashboardPage,
-    changeProjectNamePage,
-    page
-  }) => {
-    const { id } = await setupProject(createProjectFlow, projectDashboardPage)
-    const newName = `Renamed project ${Date.now()}`
-
-    await changeProjectNamePage.open(id)
-    await changeProjectNamePage.enterName(newName)
-    await changeProjectNamePage.submit()
-
-    await expect(page).toHaveURL(new RegExp(`/project-task-list/${id}`))
-    await expect(page.getByText(newName)).toBeVisible()
-
-    await projectDashboardPage.open()
-    const projectRow = page
-      .getByTestId('projects-table')
-      .getByRole('row')
-      .filter({ hasText: newName })
-    await expect(projectRow.getByRole('cell').nth(1)).toContainText(
-      /\d{1,2} \w+ \d{4} at \d{1,2}:\d{2}(am|pm)/
-    )
-  })
-})
-
-// ─── Back link ────────────────────────────────────────────────────────────────
-
-test.describe('Change project name — back link', () => {
-  test.use({ storageState: STORAGE_STATE })
-  test.skip(runMode === 'e2e', E2E_SKIP_REASON)
-
-  test('clicking "Back" navigates to the project task list', async ({
-    createProjectFlow,
-    projectDashboardPage,
-    changeProjectNamePage,
-    page
-  }) => {
-    const { id } = await setupProject(createProjectFlow, projectDashboardPage)
-    await changeProjectNamePage.open(id)
-    await changeProjectNamePage.backLink.click()
-
-    await expect(page).toHaveURL(new RegExp(`/project-task-list/${id}`))
-  })
-})
-
-// ─── Role enforcement ─────────────────────────────────────────────────────────
-
-test.describe('Change project name — role enforcement', () => {
-  test.use({ storageState: NO_ROLE_STORAGE_STATE })
-  test.skip(runMode === 'e2e', E2E_SKIP_REASON)
-
-  test('authenticated user without bng completer role is redirected to /auth/forbidden', async ({
-    page
-  }) => {
-    await page.goto('/change-project-name/00000000-0000-0000-0000-000000000000')
-
-    await expect(page).toHaveURL(/\/auth\/forbidden/)
-  })
-})
-
-// ─── Unauthenticated access ───────────────────────────────────────────────────
-
-test.describe('Change project name — unauthenticated access', () => {
-  test(
-    'GET /change-project-name/{id} redirects to sign-in',
-    { tag: '@smoke' },
-    async ({ page }) => {
+    test('authenticated user without bng completer role is redirected to /auth/forbidden', async ({
+      page
+    }) => {
       await page.goto(
         '/change-project-name/00000000-0000-0000-0000-000000000000'
       )
 
-      await expect(page).not.toHaveURL(/\/change-project-name/)
-      await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
-    }
-  )
-})
+      await expect(page).toHaveURL(/\/auth\/forbidden/)
+    })
+  })
 
-// ─── Route parameter validation ───────────────────────────────────────────────
+  // ─── Unauthenticated access ──────────────────────────────────────────────────
 
-test.describe('Change project name — route parameter validation', () => {
-  test.use({ storageState: STORAGE_STATE })
-  test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+  test.describe('Change project name — unauthenticated access', () => {
+    test(
+      'GET /change-project-name/{id} redirects to sign-in',
+      { tag: '@smoke' },
+      async ({ page }) => {
+        await page.goto(
+          '/change-project-name/00000000-0000-0000-0000-000000000000'
+        )
 
-  test('non-UUID id path param returns 400', async ({ page }) => {
-    const response = await page.goto('/change-project-name/not-a-uuid')
+        await expect(page).not.toHaveURL(/\/change-project-name/)
+        await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
+      }
+    )
+  })
 
-    expect(response.status()).toBe(HTTP_BAD_REQUEST)
+  // ─── Route parameter validation ──────────────────────────────────────────────
+
+  test.describe('Change project name — route parameter validation', () => {
+    test.use({ storageState: STORAGE_STATE })
+    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+
+    test('non-UUID id path param returns 400', async ({ page }) => {
+      const response = await page.goto('/change-project-name/not-a-uuid')
+
+      expect(response.status()).toBe(HTTP_BAD_REQUEST)
+    })
   })
 })
