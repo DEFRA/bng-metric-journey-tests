@@ -3,6 +3,9 @@ import { STORAGE_STATE, NO_ROLE_STORAGE_STATE, runMode } from '@utils/env.js'
 
 const HTTP_BAD_REQUEST = 400
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
+const TASK_PROJECT_NAME = 'Project Name'
+const TASK_PROJECT_DETAILS = 'Project Details'
+const TASK_BASELINE_HABITATS = 'On-site baseline habitats'
 
 async function setupProject(createProjectFlow, projectDashboardPage) {
   const name = `Task list test ${Date.now()}`
@@ -40,21 +43,23 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expect(page.getByText(name)).toBeVisible()
         await expect(projectTaskListPage.informationParagraph).toBeVisible()
         await expect(projectTaskListPage.taskList).toBeVisible()
-        await expect(projectTaskListPage.taskItem('Project Name')).toBeVisible()
         await expect(
-          projectTaskListPage.taskItem('Project Name')
+          projectTaskListPage.taskItem(TASK_PROJECT_NAME)
+        ).toBeVisible()
+        await expect(
+          projectTaskListPage.taskItem(TASK_PROJECT_NAME)
         ).toHaveAttribute('href', /\/change-project-name\//)
         await expect(
-          projectTaskListPage.taskItem('Project Details')
+          projectTaskListPage.taskItem(TASK_PROJECT_DETAILS)
         ).toBeVisible()
         await expect(
-          projectTaskListPage.taskItem('Project Details')
+          projectTaskListPage.taskItem(TASK_PROJECT_DETAILS)
         ).toHaveAttribute('href', /\/project-details\//)
         await expect(
-          projectTaskListPage.taskItem('On-site baseline habitats')
+          projectTaskListPage.taskItem(TASK_BASELINE_HABITATS)
         ).toBeVisible()
         await expect(
-          projectTaskListPage.taskItem('On-site baseline habitats')
+          projectTaskListPage.taskItem(TASK_BASELINE_HABITATS)
         ).toHaveAttribute('href', /\/projects\/.*\/upload-baseline-file/)
         await expect(
           projectTaskListPage.taskStatus('Not yet started')
@@ -86,7 +91,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           projectDashboardPage
         )
         await projectTaskListPage.open(id)
-        await projectTaskListPage.taskItem('Project Name').click()
+        await projectTaskListPage.taskItem(TASK_PROJECT_NAME).click()
 
         await expect(page).toHaveURL(/\/change-project-name\//)
       })
@@ -107,7 +112,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           projectDashboardPage
         )
         await projectTaskListPage.open(id)
-        await projectTaskListPage.taskItem('Project Details').click()
+        await projectTaskListPage.taskItem(TASK_PROJECT_DETAILS).click()
 
         await expect(page).toHaveURL(/\/project-details\//)
       })
@@ -123,7 +128,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           projectDashboardPage
         )
         await projectTaskListPage.open(id)
-        await projectTaskListPage.taskItem('On-site baseline habitats').click()
+        await projectTaskListPage.taskItem(TASK_BASELINE_HABITATS).click()
 
         await expect(page).toHaveURL(/\/upload-baseline-file/)
       })
