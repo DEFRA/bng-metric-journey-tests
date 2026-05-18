@@ -11,6 +11,9 @@
     {
       "name": "bng-metric-backend",
       "path": "../bng-metric-backend"
+    },
+    {
+      "path": "../bng-metric-harness"
     }
   ],
   "settings": {}
