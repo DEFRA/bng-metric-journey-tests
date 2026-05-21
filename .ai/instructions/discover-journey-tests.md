@@ -6,6 +6,8 @@ Identify gaps in E2E test coverage for a named user flow and recommend new tests
 
 The flow file is the contract. Do **not** read integration tests — that is the responsibility of `/verify-integration-coverage`.
 
+**File upload tests:** When recommending tests that involve file uploads (e.g. steps whose route is `/upload-baseline-file` or any step that requires a `.gpkg` file), source fixtures from `../bng-metric-harness/example-files/`. The file must be copied into `test/example-files/` in this repo before the test is written — this ensures it is available for repeated local and CI runs. Use the file that matches the scenario (happy path, specific validation error, invalid format). If the right file is ambiguous, ask the user before finalising the recommendation.
+
 ---
 
 ## Step 1 — Read the flow doc
