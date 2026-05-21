@@ -13,7 +13,7 @@ export class ProjectTaskListPage extends BasePage {
   }
 
   async open(id) {
-    await super.open(`/project-task-list/${id}`)
+    await super.open(`/add-project-details/${id}`)
   }
 
   taskItem(name) {

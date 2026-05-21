@@ -38,7 +38,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
         await projectTaskListPage.open(id)
 
-        await expect(page).toHaveURL(new RegExp(`/project-task-list/${id}`))
+        await expect(page).toHaveURL(new RegExp(`/add-project-details/${id}`))
         await expect(projectTaskListPage.heading).toBeVisible()
         await expect(page.getByText(name)).toBeVisible()
         await expect(projectTaskListPage.informationParagraph).toBeVisible()
@@ -161,7 +161,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     test('authenticated user without bng completer role is redirected to /auth/forbidden', async ({
       page
     }) => {
-      await page.goto('/project-task-list/00000000-0000-0000-0000-000000000000')
+      await page.goto(
+        '/add-project-details/00000000-0000-0000-0000-000000000000'
+      )
 
       await expect(page).toHaveURL(/\/auth\/forbidden/)
     })
@@ -174,7 +176,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
     test('non-UUID id path param returns 400', async ({ page }) => {
-      const response = await page.goto('/project-task-list/not-a-uuid')
+      const response = await page.goto('/add-project-details/not-a-uuid')
 
       expect(response.status()).toBe(HTTP_BAD_REQUEST)
     })
@@ -183,12 +185,14 @@ test.describe('project-management', { tag: '@project-management' }, () => {
   // ─── Unauthenticated access ──────────────────────────────────────────────────
 
   test.describe('Project task list — unauthenticated access', () => {
-    test('GET /project-task-list/{id} redirects to sign-in', async ({
+    test('GET /add-project-details/{id} redirects to sign-in', async ({
       page
     }) => {
-      await page.goto('/project-task-list/00000000-0000-0000-0000-000000000000')
+      await page.goto(
+        '/add-project-details/00000000-0000-0000-0000-000000000000'
+      )
 
-      await expect(page).not.toHaveURL(/\/project-task-list/)
+      await expect(page).not.toHaveURL(/\/add-project-details/)
       await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
     })
   })
