@@ -1,0 +1,114 @@
+import { test, expect } from '@fixtures'
+import { STORAGE_STATE, runMode } from '@utils/env.js'
+
+const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
+
+// CDP Uploader must be running; meta-refresh polling can take up to 120 s in
+// the worst case, so these tests use the full per-test timeout.
+const UPLOAD_TIMEOUT = 60_000
+
+async function setupProject(createProjectFlow, projectDashboardPage) {
+  const name = `Upload baseline flow test ${Date.now()}`
+  await createProjectFlow.createProject(name)
+  const href = await projectDashboardPage.projectLink(name).getAttribute('href')
+  const id = href.split('/').pop()
+  return { id }
+}
+
+test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
+  // ─── E2E happy path ───────────────────────────────────────────────────────────
+
+  test.describe('Upload baseline — happy path', { tag: '@smoke' }, () => {
+    test.use({ storageState: STORAGE_STATE })
+    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+
+    test('uploading a valid .gpkg file reaches the success page', async ({
+      createProjectFlow,
+      projectDashboardPage,
+      uploadBaselineFileFlow,
+      uploadResultPage,
+      page
+    }) => {
+      const { id } = await setupProject(createProjectFlow, projectDashboardPage)
+
+      await uploadBaselineFileFlow.uploadFile(
+        id,
+        'Baseline - complete with area refs.gpkg'
+      )
+
+      await page.waitForURL(new RegExp(`/projects/${id}/upload-result`), {
+        timeout: UPLOAD_TIMEOUT
+      })
+
+      await expect(uploadResultPage.heading).toBeVisible()
+      await expect(uploadResultPage.returnToProjectLink).toBeVisible()
+      await expect(uploadResultPage.returnToProjectLink).toHaveAttribute(
+        'href',
+        `/add-project-details/${id}`
+      )
+    })
+  })
+
+  // ─── Format error ─────────────────────────────────────────────────────────────
+
+  test.describe('Upload baseline — format error', () => {
+    test.use({ storageState: STORAGE_STATE })
+    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+
+    test('uploading a non-GeoPackage file shows flash error on the upload form', async ({
+      createProjectFlow,
+      projectDashboardPage,
+      uploadBaselineFileFlow,
+      uploadBaselineFilePage,
+      page
+    }) => {
+      const { id } = await setupProject(createProjectFlow, projectDashboardPage)
+
+      await uploadBaselineFileFlow.uploadFile(id, 'Not a valid geopackage.gpkg')
+
+      await page.waitForURL(
+        new RegExp(`/projects/${id}/upload-baseline-file`),
+        { timeout: UPLOAD_TIMEOUT }
+      )
+
+      await expect(uploadBaselineFilePage.errorSummary).toBeVisible()
+      await expect(uploadBaselineFilePage.errorSummary).toContainText(
+        'The selected file must be a GeoPackage (.gpkg)'
+      )
+    })
+  })
+
+  // ─── Structural validation errors ─────────────────────────────────────────────
+
+  test.describe('Upload baseline — structural validation errors', () => {
+    test.use({ storageState: STORAGE_STATE })
+    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+
+    test('uploading a .gpkg file with content errors shows error summary on the error-file page', async ({
+      createProjectFlow,
+      projectDashboardPage,
+      uploadBaselineFileFlow,
+      errorFilePage,
+      page
+    }) => {
+      const { id } = await setupProject(createProjectFlow, projectDashboardPage)
+
+      await uploadBaselineFileFlow.uploadFile(
+        id,
+        'Baseline - overlapping parcels.gpkg'
+      )
+
+      await page.waitForURL('/error-file', { timeout: UPLOAD_TIMEOUT })
+
+      await expect(errorFilePage.errorSummary).toBeVisible()
+      await expect(errorFilePage.errorSummary).toContainText(
+        'There is a problem with your file'
+      )
+      await expect(errorFilePage.uploadDifferentFileLink).toBeVisible()
+      await expect(errorFilePage.uploadDifferentFileLink).toHaveAttribute(
+        'href',
+        `/projects/${id}/upload-baseline-file`
+      )
+    })
+  })
+})
