@@ -97,7 +97,7 @@ export default async function globalSetup() {
     await registerAndLogin(page1, `bng-test-${Date.now()}@example.com`, {
       withBngCompleterRole: true
     })
-    await page1.waitForURL(/\/project-dashboard|\/define-project-name/)
+    await page1.waitForURL(/\/manage-projects|\/project-name/)
     await context1.storageState({ path: STORAGE_STATE })
     await context1.close()
 
@@ -109,7 +109,7 @@ export default async function globalSetup() {
     })
     // Without the bng completer role the post-login redirect to /project-dashboard
     // is intercepted by requireBngCompleterRole, which redirects to /auth/forbidden.
-    await page2.waitForURL(/\/auth\/forbidden|\/project-dashboard/)
+    await page2.waitForURL(/\/auth\/forbidden|\/manage-projects/)
     await context2.storageState({ path: NO_ROLE_STORAGE_STATE })
     await context2.close()
 
@@ -120,7 +120,7 @@ export default async function globalSetup() {
     await registerAndLogin(page3, `bng-noprojects-${Date.now()}@example.com`, {
       withBngCompleterRole: true
     })
-    await page3.waitForURL(/\/project-dashboard|\/define-project-name/)
+    await page3.waitForURL(/\/manage-projects|\/project-name/)
     await context3.storageState({ path: NO_PROJECTS_STORAGE_STATE })
     await context3.close()
   } finally {

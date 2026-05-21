@@ -19,11 +19,11 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       await createProjectFlow.createProject(projectName)
 
-      await expect(page).toHaveURL(/\/project-dashboard/)
+      await expect(page).toHaveURL(/\/manage-projects/)
       await expect(projectDashboardPage.projectLink(projectName)).toBeVisible()
       await expect(
         projectDashboardPage.projectLink(projectName)
-      ).toHaveAttribute('href', /\/project-task-list\//)
+      ).toHaveAttribute('href', /\/add-project-details\//)
 
       const projectRow = page
         .getByTestId('projects-table')

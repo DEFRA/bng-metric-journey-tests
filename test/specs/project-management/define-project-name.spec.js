@@ -99,7 +99,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     test.use({ storageState: STORAGE_STATE })
     test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
-    test('clicking "Back" link navigates to /project-dashboard', async ({
+    test('clicking "Back" link navigates to /manage-projects', async ({
       createProjectFlow,
       defineProjectNamePage,
       page
@@ -108,17 +108,17 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       await defineProjectNamePage.open()
       await defineProjectNamePage.backLink.click()
 
-      await expect(page).toHaveURL(/\/project-dashboard/)
+      await expect(page).toHaveURL(/\/manage-projects/)
     })
   })
 
   // ─── Unauthenticated access ──────────────────────────────────────────────────
 
   test.describe('Define project name — unauthenticated access', () => {
-    test('GET /define-project-name redirects to sign-in', async ({ page }) => {
-      await page.goto('/define-project-name')
+    test('GET /project-name redirects to sign-in', async ({ page }) => {
+      await page.goto('/project-name')
 
-      await expect(page).not.toHaveURL(/\/define-project-name/)
+      await expect(page).not.toHaveURL(/\/project-name/)
       await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
     })
   })

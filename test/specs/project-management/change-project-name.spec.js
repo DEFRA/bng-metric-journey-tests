@@ -142,7 +142,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       await changeProjectNamePage.enterName(newName)
       await changeProjectNamePage.submit()
 
-      await expect(page).toHaveURL(new RegExp(`/project-task-list/${id}`))
+      await expect(page).toHaveURL(new RegExp(`/add-project-details/${id}`))
       await expect(page.getByText(newName)).toBeVisible()
 
       await projectDashboardPage.open()
@@ -172,7 +172,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       await changeProjectNamePage.open(id)
       await changeProjectNamePage.backLink.click()
 
-      await expect(page).toHaveURL(new RegExp(`/project-task-list/${id}`))
+      await expect(page).toHaveURL(new RegExp(`/add-project-details/${id}`))
     })
   })
 
