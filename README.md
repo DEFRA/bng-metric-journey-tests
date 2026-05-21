@@ -119,6 +119,7 @@ Each command is independent — use whichever fits your current task.
 | `/validate-ac-automated`              | To check whether specific ACs are covered by existing journey tests                                          | `feature-input.md` filled with ACs                           |
 | `/validate-ac-manual`                 | To run ACs in a headless browser and capture screenshot evidence                                             | `feature-input.md` filled with ACs; frontend running locally |
 | `/verify-integration-coverage <flow>` | To find gaps in backend integration test coverage for a flow                                                 | An up-to-date flow doc in `test/flows/`                      |
+| `/triage-failure <failure-log>`       | To investigate a failing journey test — checks flow doc for drift before diagnosing the test                 | A failure log or description of the failing test             |
 
 For step-by-step guidance on writing a page object, flow, or spec once a gap is identified, see [`.ai/skills/ui-test/SKILL.md`](.ai/skills/ui-test/SKILL.md) and the checklist in [AGENTS.md](AGENTS.md#adding-a-new-test--checklist).
 

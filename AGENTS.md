@@ -36,6 +36,7 @@ The suite runs on DEFRA's CDP Portal. Tests are packaged in a Docker image and r
 | `/validate-ac-automated`                   | Checks whether ACs in `feature-input.md` are covered by existing journey tests; recommends gaps to close                             |
 | `/validate-ac-manual`                      | Runs ACs from `feature-input.md` in a headless browser; captures screenshot evidence and produces a pass/fail report                 |
 | `/verify-integration-coverage <flow-name>` | Analyses backend integration test coverage for the named flow; recommends enhancements in `../bng-metric-backend/integration-tests/` |
+| `/triage-failure <failure-log>`            | Investigates a failing journey test — checks the related flow doc for drift before diagnosing and proposing a fix                    |
 
 **Ownership boundaries:**
 
