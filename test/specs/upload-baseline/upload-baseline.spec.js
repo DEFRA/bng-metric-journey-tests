@@ -3,18 +3,15 @@ import { STORAGE_STATE, runMode } from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
+const PROJECT_LABEL = 'Upload baseline flow test'
 
 // CDP Uploader must be running; meta-refresh polling can take up to 120 s in
 // the worst case, so these tests use the full per-test timeout.
 const UPLOAD_TIMEOUT = 60_000
 
-test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
-  // Serial mode: all three flow tests mutate the same shared Redis session
-  // (pendingUploadId). Running them in parallel causes session contamination.
-  test.describe.configure({ mode: 'serial' })
+// ─── E2E happy path ─────────────────────────────────────────────────────────
 
-  // ─── E2E happy path ───────────────────────────────────────────────────────────
-
+function describeHappyPath() {
   test.describe('Upload baseline — happy path', { tag: '@smoke' }, () => {
     test.use({ storageState: STORAGE_STATE })
     test.skip(runMode === 'e2e', E2E_SKIP_REASON)
@@ -29,7 +26,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       const { id } = await setupProject(
         createProjectFlow,
         projectDashboardPage,
-        'Upload baseline flow test'
+        PROJECT_LABEL
       )
 
       await uploadBaselineFileFlow.uploadFile(
@@ -49,9 +46,11 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       )
     })
   })
+}
 
-  // ─── Format error ─────────────────────────────────────────────────────────────
+// ─── Format error ────────────────────────────────────────────────────────────
 
+function describeFormatError() {
   test.describe('Upload baseline — format error', () => {
     test.use({ storageState: STORAGE_STATE })
     test.skip(runMode === 'e2e', E2E_SKIP_REASON)
@@ -66,7 +65,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       const { id } = await setupProject(
         createProjectFlow,
         projectDashboardPage,
-        'Upload baseline flow test'
+        PROJECT_LABEL
       )
 
       await uploadBaselineFileFlow.uploadFile(id, 'Not a valid geopackage.gpkg')
@@ -82,9 +81,11 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       )
     })
   })
+}
 
-  // ─── Structural validation errors ─────────────────────────────────────────────
+// ─── Structural validation errors ────────────────────────────────────────────
 
+function describeStructuralErrors() {
   test.describe('Upload baseline — structural validation errors', () => {
     test.use({ storageState: STORAGE_STATE })
     test.skip(runMode === 'e2e', E2E_SKIP_REASON)
@@ -99,7 +100,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       const { id } = await setupProject(
         createProjectFlow,
         projectDashboardPage,
-        'Upload baseline flow test'
+        PROJECT_LABEL
       )
 
       await uploadBaselineFileFlow.uploadFile(
@@ -120,9 +121,11 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       )
     })
   })
+}
 
-  // ─── SLIVERS_OUTSIDE_REDLINE suppression ──────────────────────────────────────
+// ─── SLIVERS_OUTSIDE_REDLINE suppression ─────────────────────────────────────
 
+function describeSuppression() {
   test.describe('Upload baseline — SLIVERS_OUTSIDE_REDLINE suppression', () => {
     test.use({ storageState: STORAGE_STATE })
     test.skip(runMode === 'e2e', E2E_SKIP_REASON)
@@ -137,7 +140,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       const { id } = await setupProject(
         createProjectFlow,
         projectDashboardPage,
-        'Upload baseline flow test'
+        PROJECT_LABEL
       )
 
       await uploadBaselineFileFlow.uploadFile(
@@ -161,4 +164,17 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       )
     })
   })
+}
+
+// ─── Suite ───────────────────────────────────────────────────────────────────
+
+test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
+  // Serial mode: all flow tests mutate the same shared Redis session
+  // (pendingUploadId). Running them in parallel causes session contamination.
+  test.describe.configure({ mode: 'serial' })
+
+  describeHappyPath()
+  describeFormatError()
+  describeStructuralErrors()
+  describeSuppression()
 })
