@@ -1,15 +1,12 @@
 import { test, expect } from '@fixtures'
-import { STORAGE_STATE, NO_ROLE_STORAGE_STATE, runMode } from '@utils/env.js'
+import { STORAGE_STATE, runMode } from '@utils/env.js'
+import { setupProject } from '@utils/project-helpers.js'
+import {
+  describeRoleEnforcement,
+  describeUnauthenticatedAccess
+} from '@utils/access-checks.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
-
-async function setupProject(createProjectFlow, projectDashboardPage) {
-  const name = `Upload baseline test ${Date.now()}`
-  await createProjectFlow.createProject(name)
-  const href = await projectDashboardPage.projectLink(name).getAttribute('href')
-  const id = href.split('/').pop()
-  return { id, name }
-}
 
 test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
   // ─── Form display ────────────────────────────────────────────────────────────
@@ -28,7 +25,8 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       }) => {
         const { id } = await setupProject(
           createProjectFlow,
-          projectDashboardPage
+          projectDashboardPage,
+          'Upload baseline test'
         )
         await uploadBaselineFilePage.open(id)
 
@@ -43,37 +41,11 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
 
   // ─── Role enforcement ────────────────────────────────────────────────────────
 
-  test.describe('Upload baseline file — role enforcement', () => {
-    test.use({ storageState: NO_ROLE_STORAGE_STATE })
-    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
-
-    test(
-      'authenticated user without BNG Completer role is redirected to /auth/forbidden',
-      { tag: '@smoke' },
-      async ({ page }) => {
-        await page.goto(
-          '/projects/00000000-0000-0000-0000-000000000000/upload-baseline-file'
-        )
-
-        await expect(page).toHaveURL(/\/auth\/forbidden/)
-      }
-    )
+  describeRoleEnforcement('Upload baseline file', 'upload-baseline-file', {
+    smoke: true
   })
 
   // ─── Unauthenticated access ──────────────────────────────────────────────────
 
-  test.describe('Upload baseline file — unauthenticated access', () => {
-    test(
-      'GET /projects/{id}/upload-baseline-file redirects to sign-in',
-      { tag: '@smoke' },
-      async ({ page }) => {
-        await page.goto(
-          '/projects/00000000-0000-0000-0000-000000000000/upload-baseline-file'
-        )
-
-        await expect(page).not.toHaveURL(/\/upload-baseline-file/)
-        await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
-      }
-    )
-  })
+  describeUnauthenticatedAccess('Upload baseline file', 'upload-baseline-file')
 })

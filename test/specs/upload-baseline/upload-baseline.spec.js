@@ -1,19 +1,12 @@
 import { test, expect } from '@fixtures'
 import { STORAGE_STATE, runMode } from '@utils/env.js'
+import { setupProject } from '@utils/project-helpers.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 
 // CDP Uploader must be running; meta-refresh polling can take up to 120 s in
 // the worst case, so these tests use the full per-test timeout.
 const UPLOAD_TIMEOUT = 60_000
-
-async function setupProject(createProjectFlow, projectDashboardPage) {
-  const name = `Upload baseline flow test ${Date.now()}`
-  await createProjectFlow.createProject(name)
-  const href = await projectDashboardPage.projectLink(name).getAttribute('href')
-  const id = href.split('/').pop()
-  return { id }
-}
 
 test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
   // Serial mode: all three flow tests mutate the same shared Redis session
@@ -33,7 +26,11 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       uploadResultPage,
       page
     }) => {
-      const { id } = await setupProject(createProjectFlow, projectDashboardPage)
+      const { id } = await setupProject(
+        createProjectFlow,
+        projectDashboardPage,
+        'Upload baseline flow test'
+      )
 
       await uploadBaselineFileFlow.uploadFile(
         id,
@@ -66,7 +63,11 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       uploadBaselineFilePage,
       page
     }) => {
-      const { id } = await setupProject(createProjectFlow, projectDashboardPage)
+      const { id } = await setupProject(
+        createProjectFlow,
+        projectDashboardPage,
+        'Upload baseline flow test'
+      )
 
       await uploadBaselineFileFlow.uploadFile(id, 'Not a valid geopackage.gpkg')
 
@@ -95,7 +96,11 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       errorFilePage,
       page
     }) => {
-      const { id } = await setupProject(createProjectFlow, projectDashboardPage)
+      const { id } = await setupProject(
+        createProjectFlow,
+        projectDashboardPage,
+        'Upload baseline flow test'
+      )
 
       await uploadBaselineFileFlow.uploadFile(
         id,
@@ -129,7 +134,11 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       errorFilePage,
       page
     }) => {
-      const { id } = await setupProject(createProjectFlow, projectDashboardPage)
+      const { id } = await setupProject(
+        createProjectFlow,
+        projectDashboardPage,
+        'Upload baseline flow test'
+      )
 
       await uploadBaselineFileFlow.uploadFile(
         id,
