@@ -29,7 +29,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       }
     )
 
-    test('clicking "Create project" button navigates to /define-project-name', async ({
+    test('clicking "Create project" button navigates to /project-name', async ({
       createProjectFlow,
       projectDashboardPage,
       page
@@ -38,7 +38,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       await projectDashboardPage.open()
       await projectDashboardPage.createProjectButton.click()
 
-      await expect(page).toHaveURL(/\/define-project-name/)
+      await expect(page).toHaveURL(/\/project-name/)
     })
 
     test('projects table has "Project name", "Last modified", and "Date created" column headings', async ({
@@ -69,12 +69,12 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
     test(
-      'user with no projects is redirected from dashboard to /define-project-name',
+      'user with no projects is redirected from dashboard to /project-name',
       { tag: '@smoke' },
       async ({ projectDashboardPage, page }) => {
         await projectDashboardPage.open()
 
-        await expect(page).toHaveURL(/\/define-project-name/)
+        await expect(page).toHaveURL(/\/project-name/)
       }
     )
   })
@@ -113,7 +113,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       'authenticated user without bng completer role is redirected to /auth/forbidden',
       { tag: '@smoke' },
       async ({ page }) => {
-        await page.goto('/project-dashboard')
+        await page.goto('/manage-projects')
 
         await expect(page).toHaveURL(/\/auth\/forbidden/)
       }
@@ -124,12 +124,12 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   test.describe('Project dashboard — unauthenticated access', () => {
     test(
-      'GET /project-dashboard redirects to sign-in',
+      'GET /manage-projects redirects to sign-in',
       { tag: '@smoke' },
       async ({ page }) => {
-        await page.goto('/project-dashboard')
+        await page.goto('/manage-projects')
 
-        await expect(page).not.toHaveURL(/\/project-dashboard/)
+        await expect(page).not.toHaveURL(/\/manage-projects/)
         await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
       }
     )

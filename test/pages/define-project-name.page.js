@@ -18,7 +18,7 @@ export class DefineProjectNamePage extends BasePage {
   }
 
   async open() {
-    await super.open('/define-project-name')
+    await super.open('/project-name')
   }
 
   async enterProjectName(name) {

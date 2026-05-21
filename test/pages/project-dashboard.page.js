@@ -13,7 +13,7 @@ export class ProjectDashboardPage extends BasePage {
   }
 
   async open() {
-    await super.open('/project-dashboard')
+    await super.open('/manage-projects')
   }
 
   projectLink(name) {

@@ -35,9 +35,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await page.goto('/')
         await layoutPage.projectsNavLink.click()
 
-        await expect(page).toHaveURL(
-          /\/(project-dashboard|define-project-name)/
-        )
+        await expect(page).toHaveURL(/\/(manage-projects|project-name)/)
       }
     )
   })
