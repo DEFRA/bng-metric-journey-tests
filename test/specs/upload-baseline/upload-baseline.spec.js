@@ -16,6 +16,10 @@ async function setupProject(createProjectFlow, projectDashboardPage) {
 }
 
 test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
+  // Serial mode: all three flow tests mutate the same shared Redis session
+  // (pendingUploadId). Running them in parallel causes session contamination.
+  test.describe.configure({ mode: 'serial' })
+
   // ─── E2E happy path ───────────────────────────────────────────────────────────
 
   test.describe('Upload baseline — happy path', { tag: '@smoke' }, () => {
@@ -103,6 +107,43 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       await expect(errorFilePage.errorSummary).toBeVisible()
       await expect(errorFilePage.errorSummary).toContainText(
         'There is a problem with your file'
+      )
+      await expect(errorFilePage.uploadDifferentFileLink).toBeVisible()
+      await expect(errorFilePage.uploadDifferentFileLink).toHaveAttribute(
+        'href',
+        `/projects/${id}/upload-baseline-file`
+      )
+    })
+  })
+
+  // ─── SLIVERS_OUTSIDE_REDLINE suppression ──────────────────────────────────────
+
+  test.describe('Upload baseline — SLIVERS_OUTSIDE_REDLINE suppression', () => {
+    test.use({ storageState: STORAGE_STATE })
+    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+
+    test('when AREA_PARCELS_OUTSIDE_REDLINE is present, SLIVERS_OUTSIDE_REDLINE is suppressed on the error-file page', async ({
+      createProjectFlow,
+      projectDashboardPage,
+      uploadBaselineFileFlow,
+      errorFilePage,
+      page
+    }) => {
+      const { id } = await setupProject(createProjectFlow, projectDashboardPage)
+
+      await uploadBaselineFileFlow.uploadFile(
+        id,
+        'Baseline - parcel outside redline.gpkg'
+      )
+
+      await page.waitForURL('/error-file', { timeout: UPLOAD_TIMEOUT })
+
+      await expect(errorFilePage.errorSummary).toBeVisible()
+      await expect(errorFilePage.errorSummary).toContainText(
+        'One or more area habitat polygons are not entirely within the redline boundary'
+      )
+      await expect(errorFilePage.errorSummary).not.toContainText(
+        'Baseline file contains habitat parcel parts outside the redline boundary'
       )
       await expect(errorFilePage.uploadDifferentFileLink).toBeVisible()
       await expect(errorFilePage.uploadDifferentFileLink).toHaveAttribute(

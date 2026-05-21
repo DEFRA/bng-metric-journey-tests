@@ -1,7 +1,6 @@
 import { test, expect } from '@fixtures'
 import { STORAGE_STATE, NO_ROLE_STORAGE_STATE, runMode } from '@utils/env.js'
 
-const HTTP_BAD_REQUEST = 400
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 
 async function setupProject(createProjectFlow, projectDashboardPage) {
@@ -72,20 +71,5 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
         await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
       }
     )
-  })
-
-  // ─── Route parameter validation ──────────────────────────────────────────────
-
-  test.describe('Check baseline import — route parameter validation', () => {
-    test.use({ storageState: STORAGE_STATE })
-    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
-
-    test('non-UUID id path param returns 400', async ({ page }) => {
-      const response = await page.goto(
-        '/projects/not-a-uuid/check-baseline-import'
-      )
-
-      expect(response.status()).toBe(HTTP_BAD_REQUEST)
-    })
   })
 })

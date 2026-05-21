@@ -7,7 +7,7 @@ export class ErrorFilePage extends BasePage {
     this.genericHeading = page.getByRole('heading', {
       name: 'There is a problem with your file'
     })
-    this.uploadDifferentFileLink = page.getByRole('link', {
+    this.uploadDifferentFileLink = page.getByRole('button', {
       name: 'Upload a different file'
     })
     this.backToStartLink = page.getByRole('link', { name: 'Back to start' })
