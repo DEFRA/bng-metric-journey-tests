@@ -13,9 +13,6 @@ const UPLOAD_TIMEOUT = 60_000
 
 function describeHappyPath() {
   test.describe('Upload baseline — happy path', { tag: '@smoke' }, () => {
-    test.use({ storageState: STORAGE_STATE })
-    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
-
     test('uploading a valid .gpkg file reaches the success page', async ({
       createProjectFlow,
       projectDashboardPage,
@@ -52,9 +49,6 @@ function describeHappyPath() {
 
 function describeFormatError() {
   test.describe('Upload baseline — format error', () => {
-    test.use({ storageState: STORAGE_STATE })
-    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
-
     test('uploading a non-GeoPackage file shows flash error on the upload form', async ({
       createProjectFlow,
       projectDashboardPage,
@@ -87,9 +81,6 @@ function describeFormatError() {
 
 function describeStructuralErrors() {
   test.describe('Upload baseline — structural validation errors', () => {
-    test.use({ storageState: STORAGE_STATE })
-    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
-
     test('uploading a .gpkg file with content errors shows error summary on the error-file page', async ({
       createProjectFlow,
       projectDashboardPage,
@@ -127,9 +118,6 @@ function describeStructuralErrors() {
 
 function describeSuppression() {
   test.describe('Upload baseline — SLIVERS_OUTSIDE_REDLINE suppression', () => {
-    test.use({ storageState: STORAGE_STATE })
-    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
-
     test('when AREA_PARCELS_OUTSIDE_REDLINE is present, SLIVERS_OUTSIDE_REDLINE is suppressed on the error-file page', async ({
       createProjectFlow,
       projectDashboardPage,
@@ -172,6 +160,8 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
   // Serial mode: all flow tests mutate the same shared Redis session
   // (pendingUploadId). Running them in parallel causes session contamination.
   test.describe.configure({ mode: 'serial' })
+  test.use({ storageState: STORAGE_STATE })
+  test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
   describeHappyPath()
   describeFormatError()
