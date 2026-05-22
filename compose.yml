@@ -58,7 +58,10 @@ services:
   localstack:
     image: localstack/localstack:3.2.0
     networks:
-      - bng-journey-tests
+      bng-journey-tests:
+        aliases:
+          - sqs.us-east-1.localstack
+          - sqs.eu-west-2.localstack
     environment:
       - LOCALSTACK_HOST=localstack
       - SERVICES=s3,sqs,sns,dynamodb
@@ -130,6 +133,41 @@ services:
         condition: service_completed_successfully
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:3001/health']
+      interval: 5s
+      start_period: 10s
+      retries: 5
+
+  ################################################################################
+  # CDP Uploader — handles multipart file uploads, virus scanning (mocked in
+  # development), and S3 storage.  APP_BASE_URL must use localhost so the upload
+  # URL embedded in the form action is reachable from the test browser on the host.
+  cdp-uploader:
+    image: defradigital/cdp-uploader:latest
+    networks:
+      - bng-journey-tests
+    environment:
+      PORT: 7337
+      NODE_ENV: development
+      APP_BASE_URL: 'http://localhost:7337'
+      REDIS_HOST: redis
+      USE_SINGLE_INSTANCE_CACHE: 'true'
+      S3_ENDPOINT: 'http://localstack:4566'
+      SQS_ENDPOINT: 'http://localstack:4566'
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      CONSUMER_BUCKETS: baseline-files
+      S3_CDP_QUARANTINE_BUCKET: cdp-uploader-quarantine
+      MOCK_VIRUS_SCAN_ENABLED: 'true'
+    ports:
+      - '7337:7337'
+    depends_on:
+      localstack:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:7337/health']
       interval: 5s
       start_period: 10s
       retries: 5
