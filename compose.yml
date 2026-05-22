@@ -58,7 +58,10 @@ services:
   localstack:
     image: localstack/localstack:3.2.0
     networks:
-      - bng-journey-tests
+      bng-journey-tests:
+        aliases:
+          - sqs.us-east-1.localstack
+          - sqs.eu-west-2.localstack
     environment:
       - LOCALSTACK_HOST=localstack
       - SERVICES=s3,sqs,sns,dynamodb
