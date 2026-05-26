@@ -1,4 +1,5 @@
 import { test, expect } from '@fixtures'
+import { STORAGE_STATE, runMode } from '@utils/env.js'
 
 test.describe('Home page', () => {
   test(
@@ -14,12 +15,24 @@ test.describe('Home page', () => {
     }
   )
 
-  test.skip('authenticated user sees project dashboard link', async ({
-    homePage
-  }) => {
-    // Auth setup not yet implemented — skipped until OIDC session fixture is added
-    await homePage.open()
+  test.describe('authenticated user', () => {
+    test.use({ storageState: STORAGE_STATE })
+    test.skip(
+      runMode === 'e2e',
+      'Requires stub auth — not available in e2e mode'
+    )
 
-    await expect(homePage.signedInAs).toBeVisible()
+    test(
+      'sees project dashboard link',
+      { tag: '@smoke' },
+      async ({ homePage, page }) => {
+        await homePage.open()
+
+        await expect(homePage.signedInAs).toBeVisible()
+        await expect(
+          page.getByRole('link', { name: 'View all projects' })
+        ).toBeVisible()
+      }
+    )
   })
 })
