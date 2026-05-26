@@ -157,39 +157,43 @@ function describeSuppression() {
 // ─── High distinctiveness validation error ────────────────────────────────────
 
 function describeDistinctivenessError() {
-  test.describe('Upload baseline — high distinctiveness habitat', () => {
-    test('uploading a file with High/Very High distinctiveness habitat shows error with habitat reference on error-file page', async ({
-      createProjectFlow,
-      projectDashboardPage,
-      uploadBaselineFileFlow,
-      errorFilePage,
-      page
-    }) => {
-      const { id } = await setupProject(
+  test.describe(
+    'Upload baseline — high distinctiveness habitat',
+    { tag: '@smoke' },
+    () => {
+      test('uploading a file with High/Very High distinctiveness habitat shows error with habitat reference on error-file page', async ({
         createProjectFlow,
         projectDashboardPage,
-        PROJECT_LABEL
-      )
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
+        )
 
-      await uploadBaselineFileFlow.uploadFile(
-        id,
-        'Baseline - habitat distinctiveness out of scope.gpkg'
-      )
+        await uploadBaselineFileFlow.uploadFile(
+          id,
+          'Baseline - habitat distinctiveness out of scope.gpkg'
+        )
 
-      await page.waitForURL('/error-file', { timeout: UPLOAD_TIMEOUT })
+        await page.waitForURL('/error-file', { timeout: UPLOAD_TIMEOUT })
 
-      await expect(errorFilePage.errorSummary).toBeVisible()
-      await expect(errorFilePage.errorSummary).toContainText(
-        'One or more habitats have a distinctiveness that is out of scope'
-      )
-      await expect(page.getByText(/Feature Ref/).first()).toBeVisible()
-      await expect(errorFilePage.uploadDifferentFileLink).toBeVisible()
-      await expect(errorFilePage.uploadDifferentFileLink).toHaveAttribute(
-        'href',
-        `/projects/${id}/upload-baseline-file`
-      )
-    })
-  })
+        await expect(errorFilePage.errorSummary).toBeVisible()
+        await expect(errorFilePage.errorSummary).toContainText(
+          'One or more habitats have a distinctiveness that is out of scope'
+        )
+        await expect(page.getByText(/Feature Ref/).first()).toBeVisible()
+        await expect(errorFilePage.uploadDifferentFileLink).toBeVisible()
+        await expect(errorFilePage.uploadDifferentFileLink).toHaveAttribute(
+          'href',
+          `/projects/${id}/upload-baseline-file`
+        )
+      })
+    }
+  )
 }
 
 // ─── Suite ───────────────────────────────────────────────────────────────────
