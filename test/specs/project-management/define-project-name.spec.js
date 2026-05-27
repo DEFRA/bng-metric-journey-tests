@@ -1,5 +1,5 @@
 import { test, expect } from '@fixtures'
-import { STORAGE_STATE, runMode } from '@utils/env.js'
+import { STORAGE_STATE, NO_ROLE_STORAGE_STATE, runMode } from '@utils/env.js'
 
 const PROJECT_NAME_MAX_LENGTH = 1000
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
@@ -81,6 +81,17 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       )
     })
 
+    test('on validation error the input is pre-filled with the submitted value', async ({
+      defineProjectNamePage
+    }) => {
+      const oversizedName = 'a'.repeat(PROJECT_NAME_MAX_LENGTH + 1)
+      await defineProjectNamePage.open()
+      await defineProjectNamePage.enterProjectName(oversizedName)
+      await defineProjectNamePage.submit()
+
+      await expect(defineProjectNamePage.nameInput).toHaveValue(oversizedName)
+    })
+
     test('input enforces 1000-character limit via maxlength attribute', async ({
       defineProjectNamePage
     }) => {
@@ -110,6 +121,23 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       await expect(page).toHaveURL(/\/manage-projects/)
     })
+  })
+
+  // ─── Role enforcement ────────────────────────────────────────────────────────
+
+  test.describe('Define project name — role enforcement', () => {
+    test.use({ storageState: NO_ROLE_STORAGE_STATE })
+    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+
+    test(
+      'authenticated user without bng completer role is redirected to /auth/forbidden',
+      { tag: '@smoke' },
+      async ({ page }) => {
+        await page.goto('/project-name')
+
+        await expect(page).toHaveURL(/\/auth\/forbidden/)
+      }
+    )
   })
 
   // ─── Unauthenticated access ──────────────────────────────────────────────────

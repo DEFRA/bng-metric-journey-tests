@@ -1,0 +1,63 @@
+import { test, expect } from '@fixtures'
+import { STORAGE_STATE, NO_ROLE_STORAGE_STATE, runMode } from '@utils/env.js'
+
+const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
+const HTTP_BAD_REQUEST = 400
+const STUB_UUID = '00000000-0000-0000-0000-000000000000'
+
+test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
+  // ─── Query parameter validation ───────────────────────────────────────────────
+
+  test.describe('Baseline habitat details — query parameter validation', () => {
+    test.use({ storageState: STORAGE_STATE })
+    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+
+    test('missing habitatId query param returns 400', async ({ page }) => {
+      const response = await page.goto(
+        `/baseline-habitat-details?projectId=${STUB_UUID}`
+      )
+      expect(response.status()).toBe(HTTP_BAD_REQUEST)
+    })
+
+    test('missing projectId query param returns 400', async ({ page }) => {
+      const response = await page.goto(
+        `/baseline-habitat-details?habitatId=${STUB_UUID}`
+      )
+      expect(response.status()).toBe(HTTP_BAD_REQUEST)
+    })
+  })
+
+  // ─── Role enforcement ────────────────────────────────────────────────────────
+
+  test.describe('Baseline habitat details — role enforcement', () => {
+    test.use({ storageState: NO_ROLE_STORAGE_STATE })
+    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+
+    test(
+      'authenticated user without BNG Completer role is redirected to /auth/forbidden',
+      { tag: '@smoke' },
+      async ({ page }) => {
+        await page.goto(
+          `/baseline-habitat-details?projectId=${STUB_UUID}&habitatId=${STUB_UUID}`
+        )
+        await expect(page).toHaveURL(/\/auth\/forbidden/)
+      }
+    )
+  })
+
+  // ─── Unauthenticated access ──────────────────────────────────────────────────
+
+  test.describe('Baseline habitat details — unauthenticated access', () => {
+    test(
+      'GET /baseline-habitat-details redirects to sign-in',
+      { tag: '@smoke' },
+      async ({ page }) => {
+        await page.goto(
+          `/baseline-habitat-details?projectId=${STUB_UUID}&habitatId=${STUB_UUID}`
+        )
+        await expect(page).not.toHaveURL(/\/baseline-habitat-details/)
+        await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
+      }
+    )
+  })
+})

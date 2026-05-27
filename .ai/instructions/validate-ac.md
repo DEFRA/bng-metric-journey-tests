@@ -4,6 +4,25 @@ Shared reference for `/validate-ac-automated` and `/validate-ac-manual`.
 
 ---
 
+## Pre-flight check
+
+Before doing anything else, ask the user to confirm **both** of the following:
+
+1. "Have you run `docker compose pull` to pull the latest service images?"
+2. "Have you run the full test suite (`docker compose up --wait` → `npm run test:github`) against those images and confirmed all tests pass with no failures?"
+
+If the answer to either is **no**, stop and ask the user to complete the pre-flight first:
+
+```sh
+docker compose pull
+docker compose up --wait
+npm run test:github
+```
+
+Only proceed once the user confirms both steps are done and all tests passed.
+
+---
+
 ## Extracting ACs from feature-input.md
 
 Read `feature-input.md` in full. The key fields are:

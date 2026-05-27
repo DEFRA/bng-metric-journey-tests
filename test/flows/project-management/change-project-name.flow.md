@@ -29,6 +29,6 @@ The user navigates to the change-name form for an existing project, which is pre
   - Max 1,000 characters: "Project name must be 1000 characters or fewer"
   - No control characters (code points < U+0020), no DEL (U+007F), no Unicode surrogates (U+D800–U+DFFF): "Project name must only contain valid characters"
   - Trimmed before validation (leading/trailing whitespace stripped)
-- **On success:** Redirects to `/project-task-list/{id}`
+- **On success:** Redirects to `/add-project-details/{id}`
 - **On error (validation):** Re-renders form with GOV.UK error summary and inline field error on `#project-name`; page title prefixed with "Error:"
 - **On error (backend 4xx):** Throws Boom.badGateway — not shown inline
