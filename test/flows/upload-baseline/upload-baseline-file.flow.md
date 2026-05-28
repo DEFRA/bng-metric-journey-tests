@@ -65,7 +65,7 @@ a success confirmation or a structured error dropout page.
 - **Template:** `src/server/upload-result/upload-result.njk`
 - **Auth required:** Yes (session + BNG Completer role)
 - **Backend endpoint:** None
-- **Description:** Confirms the file was uploaded and passed validation. Renders "File uploaded successfully" with a "Return to project" link to `/add-project-details/{id}` and a back link to the upload form.
+- **Description:** Confirms the file was uploaded and passed validation. Renders "File uploaded successfully" with a "Check your on-site baseline data" link to `/projects/{id}/check-baseline-import` and a back link to the upload form.
 - **Validation:** None (display-only)
 - **On success:** Renders the confirmation page
 - **On error:** N/A
