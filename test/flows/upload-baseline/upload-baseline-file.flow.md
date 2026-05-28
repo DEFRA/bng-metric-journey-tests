@@ -92,8 +92,51 @@ a success confirmation or a structured error dropout page.
 - **Route:** `GET /projects/{id}/check-baseline-import`
 - **Template:** `src/server/check-baseline-import/check-baseline-import.njk`
 - **Auth required:** Yes (session + BNG Completer role)
-- **Backend endpoint:** `GET /projects/{id}` — fetches project name for caption
-- **Description:** Intended to display a summary of the imported baseline (Site Details: Red Line Boundary, Area Habitats, Map View; File Details: filename, Layers). The filename is sourced from `request.yar.get('baseline')?.filename`, but **no handler in the current upload flow populates `yar.set('baseline', …)`**, so the filename always renders empty and the other rows contain no data. The route is not reachable via the normal upload happy path; it appears to be implemented ahead of the wiring that feeds it.
+- **Backend endpoint:** `GET /projects/{id}` — fetches project including baseline data
+- **Description:** Displays a summary of the imported baseline. Reachable via the "Check your on-site baseline data" link on the upload-result page. Site Details section includes Red Line Boundary, Area Habitats (rows from `project?.project?.baseline?.habitats`), and Map View. Area Habitat rows link to `/baseline-habitat-details?projectId={id}&habitatId={featureId}`. File Details section includes the filename (sourced from `request.yar.get('baseline')?.filename` — not currently populated by the upload flow, so it renders empty) and Layers. Renders "Upload a different file" button to the upload form. Note: also has a temporary direct-navigation entry point used for BMD-315 testing.
 - **Validation:** None (display-only)
-- **On success:** Renders the check baseline import page (currently with mostly empty data)
+- **On success:** Renders the check baseline import page
 - **On error:** N/A
+
+---
+
+### Step 6 — View habitat list `[IMPLEMENTED]`
+
+- **Route:** `GET /projects/{id}/habitat-list`
+- **Template:** `src/server/habitat-list/habitat-list.njk`
+- **Auth required:** Yes (session + BNG Completer role)
+- **Backend endpoint:** `GET /projects/{id}` — fetches project including baseline habitats
+- **Description:** Renders a summary table and GOV.UK tabs (Areas, Hedgerows, Watercourses) listing the imported baseline habitats. Habitat rows are sourced from `project.project.baseline.habitats`. Back link navigates to `/projects/{id}/check-baseline-import`. Page includes a "Continue" button (placeholder href `#`) and an "Upload a different file" link back to the upload form.
+- **Validation:**
+  - `id` must be a valid UUID v4 — returns 400 if invalid
+- **On success:** Renders the habitat list page
+- **On error:** 400 for invalid UUID path param
+- **Known issue:** Habitat row links are generated as `/baseline-habitat-details/${habitat.featureId}` (path-style) but the route expects query params `?projectId=…&habitatId=…`; direct clicks on habitat rows will 400 until this is corrected.
+
+---
+
+### Step 7 — Edit baseline habitat detail `[IMPLEMENTED]`
+
+- **Route:** `GET /baseline-habitat-details` (display) · `POST /baseline-habitat-details` (update)
+- **Template:** `src/server/baseline-habitat-details/baseline-habitat-details.njk`
+- **Auth required:** Yes (session + BNG Completer role)
+- **Backend endpoints (GET):**
+  - `GET /projects/{projectId}/habitats/{habitatId}` — fetches the specific habitat record
+  - Cached static reference data (broad habitat list, habitat type list)
+  - `GET /reference/conditions?habitatType=…` — fetches condition options for the selected habitat type
+- **Backend endpoints (POST):**
+  - `PUT /projects/{projectId}/habitats/{featureId}` — persists the edited habitat fields
+- **Description:** Displays read-only and editable fields for a single baseline habitat record. Read-only fields: Reference, Area (ha), Distinctiveness (updated client-side via JS when habitat type changes), Strategic Significance (fixed "Low (1)"), Trading rules (updated client-side via JS), Habitat units. Editable fields: Broad habitat (dropdown), Habitat type (dropdown filtered by broad habitat selection), Condition (dropdown, options loaded from reference endpoint based on habitat type). Back link navigates to `/projects/{projectId}/habitat-list`. Cancel link navigates to `/projects/{projectId}/habitat-list#habitat-{featureId}`.
+- **Validation (GET):**
+  - `habitatId` query param required and must be a valid UUID v4 — returns 400 if missing or invalid
+  - `projectId` query param required and must be a valid UUID v4 — returns 400 if missing or invalid
+  - Habitat not found → `Boom.notFound`
+- **Validation (POST):**
+  - `projectId` body field required and must be a valid UUID v4
+  - `featureId` body field required and must be a valid UUID v4
+  - `broadHabitat`, `habitatType`, `condition` optional
+  - PUT failure → `Boom.badGateway`
+- **On success (GET):** Renders the habitat detail edit form
+- **On success (POST):** Redirects to `/projects/{projectId}/habitat-list#habitat-{featureId}`
+- **On error (GET):** 400 for invalid/missing query params; 404 if habitat not found
+- **On error (POST):** 400 for invalid/missing body params; 502 if backend PUT fails

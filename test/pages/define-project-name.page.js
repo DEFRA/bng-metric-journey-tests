@@ -4,9 +4,7 @@ import { BasePage } from './base.page.js'
 export class DefineProjectNamePage extends BasePage {
   constructor(page) {
     super(page)
-    this.nameInput = page.getByLabel(
-      'Add a name for your Biodiversity Net Gain project'
-    )
+    this.nameInput = page.getByRole('textbox')
     this.saveAndContinueButton = page.getByRole('button', {
       name: 'Save and continue'
     })

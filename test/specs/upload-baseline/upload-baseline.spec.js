@@ -2,6 +2,8 @@ import { test, expect } from '@fixtures'
 import { STORAGE_STATE, runMode } from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
 
+const TASK_BASELINE_HABITATS = 'On-site baseline habitats'
+
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const PROJECT_LABEL = 'Upload baseline flow test'
 
@@ -13,11 +15,12 @@ const UPLOAD_TIMEOUT = 60_000
 
 function describeHappyPath() {
   test.describe('Upload baseline — happy path', { tag: '@smoke' }, () => {
-    test('uploading a valid .gpkg file reaches the success page', async ({
+    test('uploading a valid .gpkg file reaches the success page and marks task list item as Completed', async ({
       createProjectFlow,
       projectDashboardPage,
       uploadBaselineFileFlow,
       uploadResultPage,
+      projectTaskListPage,
       page
     }) => {
       const { id } = await setupProject(
@@ -41,6 +44,16 @@ function describeHappyPath() {
         'href',
         `/projects/${id}/check-baseline-import`
       )
+
+      await projectTaskListPage.open(id)
+
+      await expect(
+        projectTaskListPage.taskItem(TASK_BASELINE_HABITATS)
+      ).toHaveAttribute('href', `/projects/${id}/habitat-list`)
+      await expect(projectTaskListPage.taskStatus('Completed')).toHaveCount(2)
+      await expect(
+        projectTaskListPage.taskStatus('Not yet started')
+      ).toHaveCount(1)
     })
   })
 }
