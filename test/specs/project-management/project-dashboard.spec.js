@@ -87,7 +87,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
     test('projects are sorted by last modified descending', async ({
       createProjectFlow,
-      page
+      projectDashboardPage
     }) => {
       const nameA = `Sort-A ${Date.now()}`
       await createProjectFlow.createProject(nameA)
@@ -95,7 +95,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       const nameB = `Sort-B ${Date.now()}`
       await createProjectFlow.createProject(nameB)
 
-      const projectLinks = page.getByTestId('projects-table').getByRole('link')
+      await projectDashboardPage.open()
+      const projectLinks = projectDashboardPage.projectsTable.getByRole('link')
       const names = await projectLinks.allTextContents()
       const indexA = names.findIndex((n) => n.includes('Sort-A'))
       const indexB = names.findIndex((n) => n.includes('Sort-B'))
