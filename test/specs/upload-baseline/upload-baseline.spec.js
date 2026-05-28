@@ -15,11 +15,11 @@ const UPLOAD_TIMEOUT = 60_000
 
 function describeHappyPath() {
   test.describe('Upload baseline — happy path', { tag: '@smoke' }, () => {
-    test('uploading a valid .gpkg file reaches the success page and marks task list item as Completed', async ({
+    test('uploading a valid .gpkg file reaches the habitat list and marks task list item as Completed', async ({
       createProjectFlow,
       projectDashboardPage,
       uploadBaselineFileFlow,
-      uploadResultPage,
+      habitatListPage,
       projectTaskListPage,
       page
     }) => {
@@ -34,16 +34,11 @@ function describeHappyPath() {
         'Baseline - complete with area refs.gpkg'
       )
 
-      await page.waitForURL(new RegExp(`/projects/${id}/upload-result`), {
+      await page.waitForURL(new RegExp(`/projects/${id}/habitat-list`), {
         timeout: UPLOAD_TIMEOUT
       })
 
-      await expect(uploadResultPage.heading).toBeVisible()
-      await expect(uploadResultPage.checkBaselineDataLink).toBeVisible()
-      await expect(uploadResultPage.checkBaselineDataLink).toHaveAttribute(
-        'href',
-        `/projects/${id}/check-baseline-import`
-      )
+      await expect(habitatListPage.heading).toBeVisible()
 
       await projectTaskListPage.open(id)
 
