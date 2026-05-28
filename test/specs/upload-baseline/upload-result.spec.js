@@ -16,7 +16,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
     test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
     test(
-      'page renders success heading and "Return to project" link',
+      'page renders success heading and "Check your on-site baseline data" link',
       { tag: '@smoke' },
       async ({ createProjectFlow, projectDashboardPage, uploadResultPage }) => {
         const { id } = await setupProject(
@@ -27,10 +27,10 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
         await uploadResultPage.open(id)
 
         await expect(uploadResultPage.heading).toBeVisible()
-        await expect(uploadResultPage.returnToProjectLink).toBeVisible()
-        await expect(uploadResultPage.returnToProjectLink).toHaveAttribute(
+        await expect(uploadResultPage.checkBaselineDataLink).toBeVisible()
+        await expect(uploadResultPage.checkBaselineDataLink).toHaveAttribute(
           'href',
-          `/add-project-details/${id}`
+          `/projects/${id}/check-baseline-import`
         )
       }
     )

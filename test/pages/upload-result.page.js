@@ -6,8 +6,8 @@ export class UploadResultPage extends BasePage {
     this.heading = page.getByRole('heading', {
       name: 'File uploaded successfully'
     })
-    this.returnToProjectLink = page.getByRole('link', {
-      name: 'Return to project'
+    this.checkBaselineDataLink = page.getByRole('link', {
+      name: 'Check your on-site baseline data'
     })
   }
 

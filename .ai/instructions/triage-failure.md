@@ -94,3 +94,32 @@ Present the exact change needed to the failing test (or page object if the selec
 **Stop here. Do not modify any test file until the user explicitly approves.**
 
 On approval: apply the fix and confirm which files were changed.
+
+---
+
+## Step 7 — Identify the culprit commit
+
+After the fix is applied (or confirmed as already applied), search the service repositories for the commit that introduced the breaking change.
+
+1. Identify which repo(s) are relevant — `../bng-metric-frontend` or `../bng-metric-backend` — based on what drifted (template change → frontend; API/validation change → backend; both if both drifted).
+2. For each relevant repo, run `git log --oneline --follow -- <file>` on the file(s) that changed (e.g. the template or controller identified in Step 3).
+3. Find the commit whose diff matches the breaking change. Run `git show <hash> -- <file>` to confirm.
+
+Output a summary block in this format:
+
+---
+
+**Culprit commit**
+
+| Field   | Value                                                                           |
+| ------- | ------------------------------------------------------------------------------- |
+| Hash    | `<short hash>`                                                                  |
+| Repo    | `bng-metric-frontend` / `bng-metric-backend`                                    |
+| Author  | `<name>`                                                                        |
+| Date    | `<date>`                                                                        |
+| Message | `<commit message>`                                                              |
+| Change  | One-sentence description of exactly what the commit changed that broke the test |
+
+---
+
+Always produce this block, even if the failure was caused by a test bug rather than a service change — in that case, note "No service commit responsible — the test was incorrect" in the Change field.

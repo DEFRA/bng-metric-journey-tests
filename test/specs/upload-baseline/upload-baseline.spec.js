@@ -36,10 +36,10 @@ function describeHappyPath() {
       })
 
       await expect(uploadResultPage.heading).toBeVisible()
-      await expect(uploadResultPage.returnToProjectLink).toBeVisible()
-      await expect(uploadResultPage.returnToProjectLink).toHaveAttribute(
+      await expect(uploadResultPage.checkBaselineDataLink).toBeVisible()
+      await expect(uploadResultPage.checkBaselineDataLink).toHaveAttribute(
         'href',
-        `/add-project-details/${id}`
+        `/projects/${id}/check-baseline-import`
       )
     })
   })
