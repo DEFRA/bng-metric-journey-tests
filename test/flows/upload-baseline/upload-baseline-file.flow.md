@@ -51,28 +51,15 @@ a success confirmation or a structured error dropout page.
   - Status `rejected` → clear session keys, set empty `baselineValidationErrors`, redirect to `GET /error-file`
   - Status `ready` + validation invalid + error code is `GPKG_INVALID_FILE` or `GPKG_NOT_A_GEOPACKAGE` → set `uploadError` flash "The selected file must be a GeoPackage (.gpkg)" → redirect to upload form
   - Status `ready` + validation invalid + other error codes → store structured `baselineValidationErrors` and `baselineValidationErrorsProjectId` in session → redirect to `GET /error-file`
-  - Status `ready` + validation passes → redirect to `GET /projects/{id}/upload-result`
+  - Status `ready` + validation passes → redirect to `GET /projects/{id}/habitat-list`
   - Elapsed > 120 seconds → clear session keys, set `uploadError` flash "The file check timed out. Please try again." → redirect to upload form
   - Any other status (e.g. `pending`, `unknown`) → re-render the polling page
-- **On success:** Redirects to `GET /projects/{id}/upload-result`
+- **On success:** Redirects to `GET /projects/{id}/habitat-list`
 - **On error:** Redirects to `GET /error-file` (structured errors) or `GET /projects/{id}/upload-baseline-file` (format / timeout flash errors)
 
 ---
 
-### Step 4a — View upload success `[IMPLEMENTED]`
-
-- **Route:** `GET /projects/{id}/upload-result`
-- **Template:** `src/server/upload-result/upload-result.njk`
-- **Auth required:** Yes (session + BNG Completer role)
-- **Backend endpoint:** None
-- **Description:** Confirms the file was uploaded and passed validation. Renders "File uploaded successfully" with a "Check your on-site baseline data" link to `/projects/{id}/check-baseline-import` and a back link to the upload form.
-- **Validation:** None (display-only)
-- **On success:** Renders the confirmation page
-- **On error:** N/A
-
----
-
-### Step 4b — View validation error dropout page `[IMPLEMENTED]`
+### Step 4 — View validation error dropout page `[IMPLEMENTED]`
 
 - **Route:** `GET /error-file`
 - **Template:** `src/server/error-file/index.njk`
@@ -87,26 +74,13 @@ a success confirmation or a structured error dropout page.
 
 ---
 
-### Step 5 — Review uploaded baseline data `[IMPLEMENTED]`
-
-- **Route:** `GET /projects/{id}/check-baseline-import`
-- **Template:** `src/server/check-baseline-import/check-baseline-import.njk`
-- **Auth required:** Yes (session + BNG Completer role)
-- **Backend endpoint:** `GET /projects/{id}` — fetches project including baseline data
-- **Description:** Displays a summary of the imported baseline. Reachable via the "Check your on-site baseline data" link on the upload-result page. Site Details section includes Red Line Boundary, Area Habitats (rows from `project?.project?.baseline?.habitats`), and Map View. Area Habitat rows link to `/baseline-habitat-details?projectId={id}&habitatId={featureId}`. File Details section includes the filename (sourced from `request.yar.get('baseline')?.filename` — not currently populated by the upload flow, so it renders empty) and Layers. Renders "Upload a different file" button to the upload form. Note: also has a temporary direct-navigation entry point used for BMD-315 testing.
-- **Validation:** None (display-only)
-- **On success:** Renders the check baseline import page
-- **On error:** N/A
-
----
-
-### Step 6 — View habitat list `[IMPLEMENTED]`
+### Step 5 — View habitat list `[IMPLEMENTED]`
 
 - **Route:** `GET /projects/{id}/habitat-list`
 - **Template:** `src/server/habitat-list/habitat-list.njk`
 - **Auth required:** Yes (session + BNG Completer role)
 - **Backend endpoint:** `GET /projects/{id}` — fetches project including baseline habitats
-- **Description:** Renders a summary table and GOV.UK tabs (Areas, Hedgerows, Watercourses) listing the imported baseline habitats. Habitat rows are sourced from `project.project.baseline.habitats`. Back link navigates to `/projects/{id}/check-baseline-import`. Page includes a "Continue" button (placeholder href `#`) and an "Upload a different file" link back to the upload form.
+- **Description:** Landing page after a successful upload. Renders a summary table and GOV.UK tabs (Areas, Hedgerows, Watercourses) listing the imported baseline habitats. Habitat rows are sourced from `project.project.baseline.habitats`. Page includes a "Continue" button (placeholder href `#`) and an "Upload a different file" link back to the upload form.
 - **Validation:**
   - `id` must be a valid UUID v4 — returns 400 if invalid
 - **On success:** Renders the habitat list page
@@ -115,7 +89,7 @@ a success confirmation or a structured error dropout page.
 
 ---
 
-### Step 7 — Edit baseline habitat detail `[IMPLEMENTED]`
+### Step 6 — Edit baseline habitat detail `[IMPLEMENTED]`
 
 - **Route:** `GET /baseline-habitat-details` (display) · `POST /baseline-habitat-details` (update)
 - **Template:** `src/server/baseline-habitat-details/baseline-habitat-details.njk`

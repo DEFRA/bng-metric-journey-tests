@@ -7,9 +7,7 @@ import { ProjectTaskListPage } from '@pages/project-task-list.page.js'
 import { ChangeProjectNamePage } from '@pages/change-project-name.page.js'
 import { UploadBaselineFilePage } from '@pages/upload-baseline-file.page.js'
 import { UploadReceivedPage } from '@pages/upload-received.page.js'
-import { UploadResultPage } from '@pages/upload-result.page.js'
 import { ErrorFilePage } from '@pages/error-file.page.js'
-import { CheckBaselineImportPage } from '@pages/check-baseline-import.page.js'
 import { HabitatListPage } from '@pages/habitat-list.page.js'
 import { BaselineHabitatDetailsPage } from '@pages/baseline-habitat-details.page.js'
 import { CreateProjectFlow } from '@flows/project-management/create-project.flow.js'
@@ -40,14 +38,8 @@ export const test = base.extend({
   uploadReceivedPage: async ({ page }, use) => {
     await use(new UploadReceivedPage(page))
   },
-  uploadResultPage: async ({ page }, use) => {
-    await use(new UploadResultPage(page))
-  },
   errorFilePage: async ({ page }, use) => {
     await use(new ErrorFilePage(page))
-  },
-  checkBaselineImportPage: async ({ page }, use) => {
-    await use(new CheckBaselineImportPage(page))
   },
   habitatListPage: async ({ page }, use) => {
     await use(new HabitatListPage(page))
