@@ -10,6 +10,7 @@ const PROJECT_LABEL = 'Upload baseline flow test'
 // CDP Uploader must be running; meta-refresh polling can take up to 120 s in
 // the worst case, so these tests use the full per-test timeout.
 const UPLOAD_TIMEOUT = 60_000
+const COMPLETE_BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
 
 // ─── E2E happy path ─────────────────────────────────────────────────────────
 
@@ -29,10 +30,7 @@ function describeHappyPath() {
         PROJECT_LABEL
       )
 
-      await uploadBaselineFileFlow.uploadFile(
-        id,
-        'Baseline - complete with area refs.gpkg'
-      )
+      await uploadBaselineFileFlow.uploadFile(id, COMPLETE_BASELINE_FILE)
 
       await page.waitForURL(new RegExp(`/projects/${id}/habitat-list`), {
         timeout: UPLOAD_TIMEOUT
@@ -224,10 +222,7 @@ function describeBaselineHabitatDetailsFlow() {
         PROJECT_LABEL
       )
 
-      await uploadBaselineFileFlow.uploadFile(
-        id,
-        'Baseline - complete with area refs.gpkg'
-      )
+      await uploadBaselineFileFlow.uploadFile(id, COMPLETE_BASELINE_FILE)
 
       await page.waitForURL(new RegExp(`/projects/${id}/habitat-list`), {
         timeout: UPLOAD_TIMEOUT
@@ -267,10 +262,7 @@ function describeBaselineHabitatDetailsFlow() {
         PROJECT_LABEL
       )
 
-      await uploadBaselineFileFlow.uploadFile(
-        id,
-        'Baseline - complete with area refs.gpkg'
-      )
+      await uploadBaselineFileFlow.uploadFile(id, COMPLETE_BASELINE_FILE)
 
       await page.waitForURL(new RegExp(`/projects/${id}/habitat-list`), {
         timeout: UPLOAD_TIMEOUT
