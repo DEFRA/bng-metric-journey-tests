@@ -39,6 +39,8 @@ function describeHappyPath() {
       })
 
       await expect(habitatListPage.heading).toBeVisible()
+      await expect(habitatListPage.firstAreaHabitatLink).toBeVisible()
+      await expect(habitatListPage.firstCompleteStatus).toBeVisible()
 
       await projectTaskListPage.open(id)
 
@@ -204,6 +206,92 @@ function describeDistinctivenessError() {
   )
 }
 
+// ─── Baseline habitat details flow ───────────────────────────────────────────
+
+function describeBaselineHabitatDetailsFlow() {
+  test.describe('Baseline habitat details — after upload', () => {
+    test('page renders with heading, form fields, and navigation links', async ({
+      createProjectFlow,
+      projectDashboardPage,
+      uploadBaselineFileFlow,
+      habitatListPage,
+      baselineHabitatDetailsPage,
+      page
+    }) => {
+      const { id } = await setupProject(
+        createProjectFlow,
+        projectDashboardPage,
+        PROJECT_LABEL
+      )
+
+      await uploadBaselineFileFlow.uploadFile(
+        id,
+        'Baseline - complete with area refs.gpkg'
+      )
+
+      await page.waitForURL(new RegExp(`/projects/${id}/habitat-list`), {
+        timeout: UPLOAD_TIMEOUT
+      })
+
+      const href =
+        await habitatListPage.firstAreaHabitatLink.getAttribute('href')
+      const habitatId = new URL(`http://localhost${href}`).searchParams.get(
+        'habitatId'
+      )
+
+      await baselineHabitatDetailsPage.open(id, habitatId)
+
+      await expect(baselineHabitatDetailsPage.heading).toBeVisible()
+      await expect(
+        baselineHabitatDetailsPage.baselineDetailsHeading
+      ).toBeVisible()
+      await expect(baselineHabitatDetailsPage.broadHabitatSelect).toBeVisible()
+      await expect(baselineHabitatDetailsPage.habitatTypeSelect).toBeVisible()
+      await expect(baselineHabitatDetailsPage.conditionSelect).toBeVisible()
+      await expect(baselineHabitatDetailsPage.saveButton).toBeVisible()
+      await expect(baselineHabitatDetailsPage.backLink).toBeVisible()
+      await expect(baselineHabitatDetailsPage.cancelLink).toBeVisible()
+    })
+
+    test('saving habitat details redirects to habitat list with habitat anchor', async ({
+      createProjectFlow,
+      projectDashboardPage,
+      uploadBaselineFileFlow,
+      habitatListPage,
+      baselineHabitatDetailsPage,
+      page
+    }) => {
+      const { id } = await setupProject(
+        createProjectFlow,
+        projectDashboardPage,
+        PROJECT_LABEL
+      )
+
+      await uploadBaselineFileFlow.uploadFile(
+        id,
+        'Baseline - complete with area refs.gpkg'
+      )
+
+      await page.waitForURL(new RegExp(`/projects/${id}/habitat-list`), {
+        timeout: UPLOAD_TIMEOUT
+      })
+
+      const href =
+        await habitatListPage.firstAreaHabitatLink.getAttribute('href')
+      const habitatId = new URL(`http://localhost${href}`).searchParams.get(
+        'habitatId'
+      )
+
+      await baselineHabitatDetailsPage.open(id, habitatId)
+      await baselineHabitatDetailsPage.saveButton.click()
+
+      await expect(page).toHaveURL(
+        new RegExp(`/projects/${id}/habitat-list#habitat-${habitatId}`)
+      )
+    })
+  })
+}
+
 // ─── Suite ───────────────────────────────────────────────────────────────────
 
 test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
@@ -218,4 +306,5 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
   describeStructuralErrors()
   describeSuppression()
   describeDistinctivenessError()
+  describeBaselineHabitatDetailsFlow()
 })
