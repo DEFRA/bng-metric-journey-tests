@@ -10,6 +10,7 @@ const PROJECT_LABEL = 'Upload baseline flow test'
 // CDP Uploader must be running; meta-refresh polling can take up to 120 s in
 // the worst case, so these tests use the full per-test timeout.
 const UPLOAD_TIMEOUT = 60_000
+const COMPLETE_BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
 
 // ─── E2E happy path ─────────────────────────────────────────────────────────
 
@@ -29,16 +30,15 @@ function describeHappyPath() {
         PROJECT_LABEL
       )
 
-      await uploadBaselineFileFlow.uploadFile(
-        id,
-        'Baseline - complete with area refs.gpkg'
-      )
+      await uploadBaselineFileFlow.uploadFile(id, COMPLETE_BASELINE_FILE)
 
       await page.waitForURL(new RegExp(`/projects/${id}/habitat-list`), {
         timeout: UPLOAD_TIMEOUT
       })
 
       await expect(habitatListPage.heading).toBeVisible()
+      await expect(habitatListPage.firstAreaHabitatLink).toBeVisible()
+      await expect(habitatListPage.firstCompleteStatus).toBeVisible()
 
       await projectTaskListPage.open(id)
 
@@ -204,6 +204,73 @@ function describeDistinctivenessError() {
   )
 }
 
+// ─── Baseline habitat details flow ───────────────────────────────────────────
+
+function describeBaselineHabitatDetailsFlow() {
+  test.describe('Baseline habitat details — after upload', () => {
+    let projectId
+    let habitatId
+
+    test.beforeEach(
+      async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        habitatListPage,
+        baselineHabitatDetailsPage,
+        page
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
+        )
+        projectId = id
+
+        await uploadBaselineFileFlow.uploadFile(id, COMPLETE_BASELINE_FILE)
+
+        await page.waitForURL(new RegExp(`/projects/${id}/habitat-list`), {
+          timeout: UPLOAD_TIMEOUT
+        })
+
+        const href =
+          await habitatListPage.firstAreaHabitatLink.getAttribute('href')
+        habitatId = new URL(`http://localhost${href}`).searchParams.get(
+          'habitatId'
+        )
+
+        await baselineHabitatDetailsPage.open(id, habitatId)
+      }
+    )
+
+    test('page renders with heading, form fields, and navigation links', async ({
+      baselineHabitatDetailsPage
+    }) => {
+      await expect(baselineHabitatDetailsPage.heading).toBeVisible()
+      await expect(
+        baselineHabitatDetailsPage.baselineDetailsHeading
+      ).toBeVisible()
+      await expect(baselineHabitatDetailsPage.broadHabitatSelect).toBeVisible()
+      await expect(baselineHabitatDetailsPage.habitatTypeSelect).toBeVisible()
+      await expect(baselineHabitatDetailsPage.conditionSelect).toBeVisible()
+      await expect(baselineHabitatDetailsPage.saveButton).toBeVisible()
+      await expect(baselineHabitatDetailsPage.backLink).toBeVisible()
+      await expect(baselineHabitatDetailsPage.cancelLink).toBeVisible()
+    })
+
+    test('saving habitat details redirects to habitat list with habitat anchor', async ({
+      baselineHabitatDetailsPage,
+      page
+    }) => {
+      await baselineHabitatDetailsPage.saveButton.click()
+
+      await expect(page).toHaveURL(
+        new RegExp(`/projects/${projectId}/habitat-list#habitat-${habitatId}`)
+      )
+    })
+  })
+}
+
 // ─── Suite ───────────────────────────────────────────────────────────────────
 
 test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
@@ -218,4 +285,5 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
   describeStructuralErrors()
   describeSuppression()
   describeDistinctivenessError()
+  describeBaselineHabitatDetailsFlow()
 })

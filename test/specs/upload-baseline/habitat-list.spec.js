@@ -33,6 +33,15 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       await expect(habitatListPage.areasTab).toBeVisible()
       await expect(habitatListPage.hedgerowsTab).toBeVisible()
       await expect(habitatListPage.watercoursesTab).toBeVisible()
+      await expect(habitatListPage.backLink).toHaveAttribute(
+        'href',
+        `/add-project-details/${id}`
+      )
+      await expect(habitatListPage.uploadDifferentFileLink).toBeVisible()
+      await expect(habitatListPage.uploadDifferentFileLink).toHaveAttribute(
+        'href',
+        `/projects/${id}/upload-baseline-file`
+      )
     })
   })
 

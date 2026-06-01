@@ -3,7 +3,9 @@ import { STORAGE_STATE, NO_ROLE_STORAGE_STATE, runMode } from '@utils/env.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const HTTP_BAD_REQUEST = 400
+const HTTP_NOT_FOUND = 404
 const STUB_UUID = '00000000-0000-0000-0000-000000000000'
+const VALID_UUID_V4 = 'aaaaaaaa-bbbb-4ccc-bddd-eeeeeeeeeeee'
 
 test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
   // ─── Query parameter validation ───────────────────────────────────────────────
@@ -24,6 +26,29 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
         `/baseline-habitat-details?habitatId=${STUB_UUID}`
       )
       expect(response.status()).toBe(HTTP_BAD_REQUEST)
+    })
+
+    test('non-UUID habitatId query param returns 400', async ({ page }) => {
+      const response = await page.goto(
+        `/baseline-habitat-details?projectId=${STUB_UUID}&habitatId=not-a-uuid`
+      )
+      expect(response.status()).toBe(HTTP_BAD_REQUEST)
+    })
+  })
+
+  // ─── Habitat not found ───────────────────────────────────────────────────────
+
+  test.describe('Baseline habitat details — habitat not found', () => {
+    test.use({ storageState: STORAGE_STATE })
+    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+
+    test('valid UUIDs for non-existent habitat returns 404', async ({
+      page
+    }) => {
+      const response = await page.goto(
+        `/baseline-habitat-details?projectId=${VALID_UUID_V4}&habitatId=${VALID_UUID_V4}`
+      )
+      expect(response.status()).toBe(HTTP_NOT_FOUND)
     })
   })
 

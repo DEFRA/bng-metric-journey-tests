@@ -4,8 +4,8 @@
 
 A BNG Completer uploads a GeoPackage (.gpkg) file containing the on-site baseline habitat
 data for a project. The file is submitted directly to the CDP Uploader service; the app
-then polls for upload status, validates the file via the backend, and routes the user to
-a success confirmation or a structured error dropout page.
+then polls for upload status, validates the file via the backend, and routes the user
+directly to the habitat list on success, or a structured error dropout page on failure.
 
 ## Steps
 
@@ -48,7 +48,7 @@ a success confirmation or a structured error dropout page.
 - **Description:** The template renders a "Checking your file" message with a `<meta http-equiv="refresh" content="5">` tag so the browser re-hits the handler every 5 seconds. On each request the handler checks `pendingUploadId` from the session, polls upload status, and tracks elapsed time in `uploadStartedAt`. Once status is `ready` it calls baseline validation and clears both session keys. Possible outcomes are listed below.
 - **Validation / branching:**
   - `pendingUploadId` missing → redirect to `GET /projects/{id}/upload-baseline-file`
-  - Status `rejected` → clear session keys, set empty `baselineValidationErrors`, redirect to `GET /error-file`
+  - Status `rejected` → clear session keys, set empty `baselineValidationErrors` and `baselineValidationErrorsProjectId` in session, redirect to `GET /error-file`
   - Status `ready` + validation invalid + error code is `GPKG_INVALID_FILE` or `GPKG_NOT_A_GEOPACKAGE` → set `uploadError` flash "The selected file must be a GeoPackage (.gpkg)" → redirect to upload form
   - Status `ready` + validation invalid + other error codes → store structured `baselineValidationErrors` and `baselineValidationErrorsProjectId` in session → redirect to `GET /error-file`
   - Status `ready` + validation passes → redirect to `GET /projects/{id}/habitat-list`
@@ -80,12 +80,11 @@ a success confirmation or a structured error dropout page.
 - **Template:** `src/server/habitat-list/habitat-list.njk`
 - **Auth required:** Yes (session + BNG Completer role)
 - **Backend endpoint:** `GET /projects/{id}` — fetches project including baseline habitats
-- **Description:** Landing page after a successful upload. Renders a summary table and GOV.UK tabs (Areas, Hedgerows, Watercourses) listing the imported baseline habitats. Habitat rows are sourced from `project.project.baseline.habitats`. Page includes a "Continue" button (placeholder href `#`) and an "Upload a different file" link back to the upload form.
+- **Description:** Landing page after a successful upload. Renders a summary table and GOV.UK tabs (Areas, Hedgerows, Watercourses) listing the imported baseline habitats. Habitat rows are sourced from `project.project.baseline.habitats`. Back link navigates to `/add-project-details/{projectId}`. Page includes a "Continue" button (placeholder href `#`) and an "Upload a different file" link back to the upload form.
 - **Validation:**
   - `id` must be a valid UUID v4 — returns 400 if invalid
 - **On success:** Renders the habitat list page
 - **On error:** 400 for invalid UUID path param
-- **Known issue:** Habitat row links are generated as `/baseline-habitat-details/${habitat.featureId}` (path-style) but the route expects query params `?projectId=…&habitatId=…`; direct clicks on habitat rows will 400 until this is corrected.
 
 ---
 
@@ -96,10 +95,12 @@ a success confirmation or a structured error dropout page.
 - **Auth required:** Yes (session + BNG Completer role)
 - **Backend endpoints (GET):**
   - `GET /projects/{projectId}/habitats/{habitatId}` — fetches the specific habitat record
-  - Cached static reference data (broad habitat list, habitat type list)
+  - `GET /reference/habitat-types-by-broad` — fetches habitat types grouped by broad habitat (cached in-process after first load)
+  - `GET /reference/trading-rules` — fetches trading rules by distinctiveness band (cached in-process after first load)
   - `GET /reference/conditions?habitatType=…` — fetches condition options for the selected habitat type
 - **Backend endpoints (POST):**
   - `PUT /projects/{projectId}/habitats/{featureId}` — persists the edited habitat fields
+- **Supporting frontend route:** `GET /api/reference/conditions?habitatType=…` — frontend proxy that forwards condition lookups for client-side JS (triggered when the habitat type dropdown changes); requires session + BNG Completer role
 - **Description:** Displays read-only and editable fields for a single baseline habitat record. Read-only fields: Reference, Area (ha), Distinctiveness (updated client-side via JS when habitat type changes), Strategic Significance (fixed "Low (1)"), Trading rules (updated client-side via JS), Habitat units. Editable fields: Broad habitat (dropdown), Habitat type (dropdown filtered by broad habitat selection), Condition (dropdown, options loaded from reference endpoint based on habitat type). Back link navigates to `/projects/{projectId}/habitat-list`. Cancel link navigates to `/projects/{projectId}/habitat-list#habitat-{featureId}`.
 - **Validation (GET):**
   - `habitatId` query param required and must be a valid UUID v4 — returns 400 if missing or invalid
