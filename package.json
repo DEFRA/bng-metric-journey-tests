@@ -11,7 +11,7 @@
   "scripts": {
     "clean": "rm -rf playwright-report && rm -rf playwright-results",
     "test:local": "RUN_MODE=local playwright test",
-    "test:github": "RUN_MODE=github playwright test",
+    "test:github": "CI=true RUN_MODE=github playwright test",
     "test:e2e": "RUN_MODE=e2e playwright test",
     "format": "prettier --write 'test/**/*.js' '**/*.{js,md,json,config.js}'",
     "format:check": "prettier --check 'test/**/*.js' '**/*.{js,md,json,config.js}'",

@@ -6,10 +6,50 @@ export class HabitatListPage extends BasePage {
     this.heading = page.getByRole('heading', {
       name: 'On-site baseline habitats'
     })
+    this.summaryHeading = page.getByRole('heading', {
+      name: 'Summary',
+      level: 2
+    })
+    this.habitatDetailsHeading = page.getByRole('heading', {
+      name: 'Habitat details',
+      level: 2
+    })
+    this.summaryTable = page.getByRole('table').first()
+    this.areaHabitatSizeCell = this.summaryTable
+      .getByRole('row')
+      .filter({ hasText: 'Area habitats' })
+      .getByRole('cell')
+      .nth(1)
+    this.hedgerowSizeCell = this.summaryTable
+      .getByRole('row')
+      .filter({ hasText: 'Hedgerows' })
+      .getByRole('cell')
+      .nth(1)
+    this.watercourseSizeCell = this.summaryTable
+      .getByRole('row')
+      .filter({ hasText: 'Watercourses' })
+      .getByRole('cell')
+      .nth(1)
+    this.areaHabitatUnitsCell = this.summaryTable
+      .getByRole('row')
+      .filter({ hasText: 'Area habitats' })
+      .getByRole('cell')
+      .nth(2)
+    this.hedgerowUnitsCell = this.summaryTable
+      .getByRole('row')
+      .filter({ hasText: 'Hedgerows' })
+      .getByRole('cell')
+      .nth(2)
+    this.watercourseUnitsCell = this.summaryTable
+      .getByRole('row')
+      .filter({ hasText: 'Watercourses' })
+      .getByRole('cell')
+      .nth(2)
+    this.showMapButton = page.getByRole('button', { name: 'Show map' })
+    this.continueButton = page.getByRole('button', { name: 'Continue' })
     this.areasTab = page.getByRole('tab', { name: 'Areas' })
     this.hedgerowsTab = page.getByRole('tab', { name: 'Hedgerows' })
     this.watercoursesTab = page.getByRole('tab', { name: 'Watercourses' })
-    this.continueButton = page.getByRole('link', { name: 'Continue' })
     this.uploadDifferentFileLink = page.getByRole('button', {
       name: 'Upload a different file'
     })
@@ -21,6 +61,7 @@ export class HabitatListPage extends BasePage {
     this.firstCompleteStatus = page
       .getByRole('cell', { name: 'Complete' })
       .first()
+    this.areaHabitatsTable = page.locator('#area-habitats').getByRole('table')
   }
 
   async open(id) {
