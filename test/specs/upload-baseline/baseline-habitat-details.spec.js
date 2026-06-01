@@ -3,6 +3,7 @@ import { STORAGE_STATE, NO_ROLE_STORAGE_STATE, runMode } from '@utils/env.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const HTTP_BAD_REQUEST = 400
+const HTTP_NOT_FOUND = 404
 const STUB_UUID = '00000000-0000-0000-0000-000000000000'
 const VALID_UUID_V4 = 'aaaaaaaa-bbbb-4ccc-bddd-eeeeeeeeeeee'
 
@@ -47,7 +48,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       const response = await page.goto(
         `/baseline-habitat-details?projectId=${VALID_UUID_V4}&habitatId=${VALID_UUID_V4}`
       )
-      expect(response.status()).toBe(404)
+      expect(response.status()).toBe(HTTP_NOT_FOUND)
     })
   })
 
