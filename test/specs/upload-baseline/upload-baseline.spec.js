@@ -268,6 +268,39 @@ function describeBaselineHabitatDetailsFlow() {
         new RegExp(`/projects/${projectId}/habitat-list#habitat-${habitatId}`)
       )
     })
+
+    test('changing habitat type triggers conditions proxy and updates condition options', async ({
+      baselineHabitatDetailsPage,
+      page
+    }) => {
+      // Select the first real broad habitat option (index 1 skips "Choose broad habitat")
+      await baselineHabitatDetailsPage.broadHabitatSelect.selectOption({
+        index: 1
+      })
+
+      // Client-side JS updates habitat type options from embedded reference data;
+      // wait for at least one selectable option to appear
+      await expect(
+        baselineHabitatDetailsPage.habitatTypeSelect.locator('option').nth(1)
+      ).toBeAttached()
+
+      // Set up response watcher before selecting habitat type
+      const conditionsResponse = page.waitForResponse(
+        /\/api\/reference\/conditions/
+      )
+
+      // Selecting a habitat type fires a fetch to the conditions proxy
+      await baselineHabitatDetailsPage.habitatTypeSelect.selectOption({
+        index: 1
+      })
+
+      await conditionsResponse
+
+      // Condition select must have at least one selectable option beyond the default
+      await expect(
+        baselineHabitatDetailsPage.conditionSelect.locator('option').nth(1)
+      ).toBeAttached()
+    })
   })
 }
 
