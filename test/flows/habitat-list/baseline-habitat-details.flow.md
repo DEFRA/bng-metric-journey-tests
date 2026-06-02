@@ -15,13 +15,13 @@ to the habitat list anchored to the edited row.
 - **Template:** `src/server/baseline-habitat-details/baseline-habitat-details.njk`
 - **Auth required:** Yes (session + BNG Completer role)
 - **Backend endpoints:**
-  - `GET /projects/{projectId}/habitats/{habitatId}` — fetches the specific habitat record; 404 if not found
+  - `GET /projects/{projectId}/features/{featureId}` — fetches the specific feature record; 404 if not found
   - `GET /reference/habitat-types-by-broad` — fetches all habitat types grouped by broad habitat (cached in-process after first load)
   - `GET /reference/trading-rules` — fetches trading rules by distinctiveness band (cached in-process after first load)
   - `GET /reference/conditions?habitatType={broadType} - {type}` — fetches condition options for the current habitat type (only when both broadType and type are set)
 - **Description:** Renders a summary list in a two-column layout. Read-only rows: Reference, Area (ha), Distinctiveness (updated by client JS on dropdown change), Strategic Significance (fixed "Low (1)"), Trading rules (updated by client JS), Habitat units. Editable rows: Broad habitat (select), Habitat type (select, filtered client-side by broad habitat selection), Condition (select, options loaded from reference endpoint). A JSON script tag (`#bhd-reference-data`) embeds all static reference data for client-side JS. Back link navigates to `/projects/{projectId}/habitat-list`. Cancel link navigates to `/projects/{projectId}/habitat-list#habitat-{featureId}`.
 - **Validation (query params):**
-  - `habitatId` required, must be a valid UUID → 400 if missing or invalid
+  - `featureId` required, must be a valid UUID → 400 if missing or invalid
   - `projectId` required, must be a valid UUID → 400 if missing or invalid
   - BNG Completer role required → redirects to `/auth/forbidden` if missing
   - Unauthenticated → redirects to sign-in

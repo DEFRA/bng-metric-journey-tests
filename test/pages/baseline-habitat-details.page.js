@@ -16,9 +16,9 @@ export class BaselineHabitatDetailsPage extends BasePage {
     this.backLink = page.getByRole('link', { name: 'Back' })
   }
 
-  async open(projectId, habitatId) {
+  async open(projectId, featureId) {
     await super.open(
-      `/baseline-habitat-details?projectId=${projectId}&habitatId=${habitatId}`
+      `/baseline-habitat-details?projectId=${projectId}&featureId=${featureId}`
     )
   }
 }

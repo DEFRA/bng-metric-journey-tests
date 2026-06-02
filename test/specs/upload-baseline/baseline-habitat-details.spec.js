@@ -54,7 +54,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       page
     }) => {
       const response = await page.goto(
-        `/baseline-habitat-details?projectId=${VALID_UUID_V4}&habitatId=${VALID_UUID_V4}`
+        `/baseline-habitat-details?projectId=${VALID_UUID_V4}&featureId=${VALID_UUID_V4}`
       )
       expect(response.status()).toBe(HTTP_NOT_FOUND)
     })
@@ -71,7 +71,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       { tag: '@smoke' },
       async ({ page }) => {
         await page.goto(
-          `/baseline-habitat-details?projectId=${STUB_UUID}&habitatId=${STUB_UUID}`
+          `/baseline-habitat-details?projectId=${STUB_UUID}&featureId=${STUB_UUID}`
         )
         await expect(page).toHaveURL(/\/auth\/forbidden/)
       }
@@ -86,7 +86,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       { tag: '@smoke' },
       async ({ page }) => {
         await page.goto(
-          `/baseline-habitat-details?projectId=${STUB_UUID}&habitatId=${STUB_UUID}`
+          `/baseline-habitat-details?projectId=${STUB_UUID}&featureId=${STUB_UUID}`
         )
         await expect(page).not.toHaveURL(/\/baseline-habitat-details/)
         await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
