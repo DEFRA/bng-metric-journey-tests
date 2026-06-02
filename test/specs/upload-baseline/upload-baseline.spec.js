@@ -209,7 +209,7 @@ function describeDistinctivenessError() {
 function describeBaselineHabitatDetailsFlow() {
   test.describe('Baseline habitat details — after upload', () => {
     let projectId
-    let habitatId
+    let featureId
 
     test.beforeEach(
       async ({
@@ -235,11 +235,11 @@ function describeBaselineHabitatDetailsFlow() {
 
         const href =
           await habitatListPage.firstAreaHabitatLink.getAttribute('href')
-        habitatId = new URL(`http://localhost${href}`).searchParams.get(
-          'habitatId'
+        featureId = new URL(`http://localhost${href}`).searchParams.get(
+          'featureId'
         )
 
-        await baselineHabitatDetailsPage.open(id, habitatId)
+        await baselineHabitatDetailsPage.open(id, featureId)
       }
     )
 
@@ -265,7 +265,7 @@ function describeBaselineHabitatDetailsFlow() {
       await baselineHabitatDetailsPage.saveButton.click()
 
       await expect(page).toHaveURL(
-        new RegExp(`/projects/${projectId}/habitat-list#habitat-${habitatId}`)
+        new RegExp(`/projects/${projectId}/habitat-list#habitat-${featureId}`)
       )
     })
 

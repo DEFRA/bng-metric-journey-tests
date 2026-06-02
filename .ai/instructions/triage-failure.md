@@ -51,23 +51,45 @@ Flag any discrepancy as **drift**.
 
 ---
 
-## Step 4 — Update flow doc if drifted _(approval gate)_
+## Step 4 — Present findings and wait for approval _(approval gate)_
 
-**If drift was found:**
+Immediately after Step 3, output all findings in one block, then stop. Do not update any file until the user explicitly approves.
 
-Present a clear diff of the proposed changes to the flow doc — what the doc currently says vs what the source now says. Explain which change in the service likely caused the test to fail.
+**If drift was found**, the block must contain:
 
-**Stop here. Do not update the flow doc until the user explicitly approves.**
+1. **Drift summary** — a table showing what the flow doc currently says vs what the source now says (one row per discrepancy).
 
-On approval: update the flow doc with accurate fields and markers.
+2. **Culprit commit** — identify which repo(s) are relevant, run `git log --oneline --follow -- <file>` on each drifted file, then `git show <hash> -- <file>` to confirm the breaking change. Output in this format:
+
+   **"&lt;commit message&gt;"**
+
+   | Field  | Value                                                                                                                                             |
+   | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+   | Hash   | `<short hash>`                                                                                                                                    |
+   | Repo   | `bng-metric-frontend` / `bng-metric-backend`                                                                                                      |
+   | Author | `<name>`                                                                                                                                          |
+   | Date   | `<day DD Mon YYYY HH:MM>`                                                                                                                         |
+   | Change | One sentence describing exactly which file changed and what was renamed/removed/added that broke the test. Quote the old value and the new value. |
+
+3. **Proposed flow doc diff** — the exact before/after lines that would be updated in the flow doc.
+
+4. **Approval prompt** — end with: _"Approve to update the flow doc and proceed to fix the tests?"_
+
+**Stop here unconditionally. Do not update the flow doc, do not diagnose the test fix, and do not modify any file until the user replies.**
 
 **If no drift was found:**
 
-State clearly: _"The flow doc is current — the failure is not caused by service drift."_ Proceed to Step 5.
+State clearly: _"The flow doc is current — the failure is not caused by service drift."_ Then proceed directly to Step 5 (no approval needed to continue).
+
+For the culprit commit when no drift: output the block with `"No service commit responsible — the test was incorrect"` in the Change field.
 
 ---
 
-## Step 5 — Diagnose the test failure
+## Step 5 — Update flow doc _(on approval)_
+
+On approval from Step 4: update the flow doc with the approved changes only. Confirm which lines changed.
+
+## Step 6 — Diagnose the test failure
 
 With the (now current) flow doc as reference, identify the root cause of the failure. Common causes:
 
@@ -83,7 +105,7 @@ State the diagnosis clearly before proposing a fix.
 
 ---
 
-## Step 6 — Propose and apply fix _(approval gate)_
+## Step 7 — Propose and apply fix _(approval gate)_
 
 Present the exact change needed to the failing test (or page object if the selector lives there). Include:
 
@@ -94,32 +116,3 @@ Present the exact change needed to the failing test (or page object if the selec
 **Stop here. Do not modify any test file until the user explicitly approves.**
 
 On approval: apply the fix and confirm which files were changed.
-
----
-
-## Step 7 — Identify the culprit commit
-
-After the fix is applied (or confirmed as already applied), search the service repositories for the commit that introduced the breaking change.
-
-1. Identify which repo(s) are relevant — `../bng-metric-frontend` or `../bng-metric-backend` — based on what drifted (template change → frontend; API/validation change → backend; both if both drifted).
-2. For each relevant repo, run `git log --oneline --follow -- <file>` on the file(s) that changed (e.g. the template or controller identified in Step 3).
-3. Find the commit whose diff matches the breaking change. Run `git show <hash> -- <file>` to confirm.
-
-Output a summary block in this format:
-
----
-
-**Culprit commit**
-
-| Field   | Value                                                                           |
-| ------- | ------------------------------------------------------------------------------- |
-| Hash    | `<short hash>`                                                                  |
-| Repo    | `bng-metric-frontend` / `bng-metric-backend`                                    |
-| Author  | `<name>`                                                                        |
-| Date    | `<date>`                                                                        |
-| Message | `<commit message>`                                                              |
-| Change  | One-sentence description of exactly what the commit changed that broke the test |
-
----
-
-Always produce this block, even if the failure was caused by a test bug rather than a service change — in that case, note "No service commit responsible — the test was incorrect" in the Change field.
