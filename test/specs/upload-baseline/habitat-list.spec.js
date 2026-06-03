@@ -500,6 +500,99 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
     })
   })
 
+  // ─── Hedgerow habitats table ──────────────────────────────────────────────────
+
+  test.describe('Habitat list — hedgerow habitats table', () => {
+    test.use({ storageState: STORAGE_STATE })
+    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+    test.describe.configure({ mode: 'serial' })
+
+    let projectId
+
+    test('hedgerow habitats section heading and 7 column headings are displayed after upload', async ({
+      createProjectFlow,
+      projectDashboardPage,
+      uploadBaselineFileFlow,
+      habitatListPage,
+      page
+    }) => {
+      const { id } = await setupProject(
+        createProjectFlow,
+        projectDashboardPage,
+        PROJECT_LABEL
+      )
+      projectId = id
+
+      await uploadBaselineFileFlow.uploadFile(id, COMPLETE_BASELINE_FILE)
+      await page.waitForURL(new RegExp(`/projects/${id}/habitat-list`), {
+        timeout: UPLOAD_TIMEOUT
+      })
+
+      await habitatListPage.hedgerowsTab.click()
+      await expect(habitatListPage.hedgerowsTab).toHaveAttribute(
+        'aria-selected',
+        'true'
+      )
+
+      await expect(
+        page.locator('#hedgerows').getByRole('heading', { name: 'Hedgerows' })
+      ).toBeVisible()
+      await expect(
+        habitatListPage.hedgerowHabitatsTable.getByRole('columnheader', {
+          name: 'Ref'
+        })
+      ).toBeVisible()
+      await expect(
+        habitatListPage.hedgerowHabitatsTable.getByRole('columnheader', {
+          name: 'Habitat type'
+        })
+      ).toBeVisible()
+      await expect(
+        habitatListPage.hedgerowHabitatsTable.getByRole('columnheader', {
+          name: 'Length (km)'
+        })
+      ).toBeVisible()
+      await expect(
+        habitatListPage.hedgerowHabitatsTable.getByRole('columnheader', {
+          name: 'Distinctiveness'
+        })
+      ).toBeVisible()
+      await expect(
+        habitatListPage.hedgerowHabitatsTable.getByRole('columnheader', {
+          name: 'Condition'
+        })
+      ).toBeVisible()
+      await expect(
+        habitatListPage.hedgerowHabitatsTable.getByRole('columnheader', {
+          name: 'Units'
+        })
+      ).toBeVisible()
+      await expect(
+        habitatListPage.hedgerowHabitatsTable.getByRole('columnheader', {
+          name: 'Status'
+        })
+      ).toBeVisible()
+      await expect(habitatListPage.hedgerowHabitatsTable).toHaveAttribute(
+        'data-module',
+        'moj-sortable-table'
+      )
+    })
+
+    test('clicking a hedgerow reference link navigates to the habitat details page', async ({
+      habitatListPage,
+      page
+    }) => {
+      await page.goto(`/projects/${projectId}/habitat-list`)
+      await habitatListPage.hedgerowsTab.click()
+      await expect(habitatListPage.hedgerowsTab).toHaveAttribute(
+        'aria-selected',
+        'true'
+      )
+      await habitatListPage.firstHedgerowLink.click()
+      await expect(page).toHaveURL(/\/baseline-habitat-details/)
+    })
+  })
+
   // ─── Role enforcement ────────────────────────────────────────────────────────
 
   test.describe('Habitat list — role enforcement', () => {

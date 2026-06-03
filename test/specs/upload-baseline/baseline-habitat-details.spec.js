@@ -15,7 +15,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
     test.use({ storageState: STORAGE_STATE })
     test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
-    test('missing habitatId query param returns 400', async ({ page }) => {
+    test('missing featureId query param returns 400', async ({ page }) => {
       const response = await page.goto(
         `/baseline-habitat-details?projectId=${STUB_UUID}`
       )
@@ -24,21 +24,21 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
 
     test('missing projectId query param returns 400', async ({ page }) => {
       const response = await page.goto(
-        `/baseline-habitat-details?habitatId=${STUB_UUID}`
+        `/baseline-habitat-details?featureId=${STUB_UUID}`
       )
       expect(response.status()).toBe(HTTP_BAD_REQUEST)
     })
 
-    test('non-UUID habitatId query param returns 400', async ({ page }) => {
+    test('non-UUID featureId query param returns 400', async ({ page }) => {
       const response = await page.goto(
-        `/baseline-habitat-details?projectId=${STUB_UUID}&habitatId=not-a-uuid`
+        `/baseline-habitat-details?projectId=${STUB_UUID}&featureId=not-a-uuid`
       )
       expect(response.status()).toBe(HTTP_BAD_REQUEST)
     })
 
     test('non-UUID projectId query param returns 400', async ({ page }) => {
       const response = await page.goto(
-        `/baseline-habitat-details?projectId=not-a-uuid&habitatId=${STUB_UUID}`
+        `/baseline-habitat-details?projectId=not-a-uuid&featureId=${STUB_UUID}`
       )
       expect(response.status()).toBe(HTTP_BAD_REQUEST)
     })

@@ -304,6 +304,63 @@ function describeBaselineHabitatDetailsFlow() {
   })
 }
 
+// ─── Hedgerow habitat details flow ───────────────────────────────────────────
+
+function describeHedgerowHabitatDetailsFlow() {
+  test.describe('Baseline habitat details — hedgerow', () => {
+    test.beforeEach(
+      async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        habitatListPage,
+        page
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
+        )
+
+        await uploadBaselineFileFlow.uploadFile(id, COMPLETE_BASELINE_FILE)
+
+        await page.waitForURL(new RegExp(`/projects/${id}/habitat-list`), {
+          timeout: UPLOAD_TIMEOUT
+        })
+
+        await habitatListPage.hedgerowsTab.click()
+        await expect(habitatListPage.hedgerowsTab).toHaveAttribute(
+          'aria-selected',
+          'true'
+        )
+
+        const href =
+          await habitatListPage.firstHedgerowLink.getAttribute('href')
+        await page.goto(href)
+      }
+    )
+
+    test('page renders with hedgerow heading, no broad habitat dropdown, Length (km) size label, and hedgerows back and cancel links', async ({
+      baselineHabitatDetailsPage,
+      page
+    }) => {
+      await expect(baselineHabitatDetailsPage.hedgerowHeading).toBeVisible()
+      await expect(
+        baselineHabitatDetailsPage.broadHabitatSelect
+      ).not.toBeAttached()
+      await expect(page.getByText('Length (km)', { exact: true })).toBeVisible()
+      await expect(baselineHabitatDetailsPage.backLink).toHaveAttribute(
+        'href',
+        /.*#hedgerows$/
+      )
+      await expect(baselineHabitatDetailsPage.cancelLink).toHaveAttribute(
+        'href',
+        /.*#hedgerows$/
+      )
+    })
+  })
+}
+
 // ─── Suite ───────────────────────────────────────────────────────────────────
 
 test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
@@ -319,4 +376,5 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
   describeSuppression()
   describeDistinctivenessError()
   describeBaselineHabitatDetailsFlow()
+  describeHedgerowHabitatDetailsFlow()
 })

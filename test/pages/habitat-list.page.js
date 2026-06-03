@@ -62,6 +62,11 @@ export class HabitatListPage extends BasePage {
       .getByRole('cell', { name: 'Complete' })
       .first()
     this.areaHabitatsTable = page.locator('#area-habitats').getByRole('table')
+    this.hedgerowHabitatsTable = page.locator('#hedgerows').getByRole('table')
+    this.firstHedgerowLink = page
+      .locator('#hedgerows')
+      .getByRole('link')
+      .first()
   }
 
   async open(id) {

@@ -94,18 +94,20 @@ directly to the habitat list on success, or a structured error dropout page on f
 - **Template:** `src/server/baseline-habitat-details/baseline-habitat-details.njk`
 - **Auth required:** Yes (session + BNG Completer role)
 - **Backend endpoints (GET):**
-  - `GET /projects/{projectId}/habitats/{habitatId}` — fetches the specific habitat record
-  - `GET /reference/habitat-types-by-broad` — fetches habitat types grouped by broad habitat (cached in-process after first load)
-  - `GET /reference/trading-rules` — fetches trading rules by distinctiveness band (cached in-process after first load)
-  - `GET /reference/conditions?habitatType=…` — fetches condition options for the selected habitat type
+  - `GET /projects/{projectId}/features/{featureId}` — unified feature endpoint; returns `{ type, feature }` where `type` is `habitat` or `hedgerow`
+  - Area strategy only: `GET /reference/habitat-types-by-broad` — full lookup table of habitat types grouped by broad habitat (cached in-process after first load)
+  - Area strategy only: `GET /reference/conditions?habitatType=<Broad - Type>` — condition options keyed by the combined broad+type string
+  - Hedgerow strategy only: `GET /reference/hedgerow-types` — MVS-scope hedgerow habitat types with distinctiveness band (cached in-process after first load)
+  - Hedgerow strategy only: `GET /reference/conditions?habitatType=<Type>&featureType=hedgerow` — condition options for the hedgerow type
+  - Both strategies: `GET /reference/trading-rules` — trading-rule guidance text per distinctiveness band (cached in-process after first load)
 - **Backend endpoints (POST):**
-  - `PUT /projects/{projectId}/habitats/{featureId}` — persists the edited habitat fields
-- **Supporting frontend route:** `GET /api/reference/conditions?habitatType=…` — frontend proxy that forwards condition lookups for client-side JS (triggered when the habitat type dropdown changes); requires session + BNG Completer role
-- **Description:** Displays read-only and editable fields for a single baseline habitat record. Read-only fields: Reference, Area (ha), Distinctiveness (updated client-side via JS when habitat type changes), Strategic Significance (fixed "Low (1)"), Trading rules (updated client-side via JS), Habitat units. Editable fields: Broad habitat (dropdown), Habitat type (dropdown filtered by broad habitat selection), Condition (dropdown, options loaded from reference endpoint based on habitat type). Back link navigates to `/projects/{projectId}/habitat-list`. Cancel link navigates to `/projects/{projectId}/habitat-list#habitat-{featureId}`.
+  - `PUT /projects/{projectId}/habitats/{featureId}` — persists edited fields and recomputes derived values; **area habitats only** — backend searches `baseline.habitats`; hedgerow save is non-functional until BMD-501 wires up the per-type strategy
+- **Supporting frontend route:** `GET /api/reference/conditions?habitatType=…[&featureType=hedgerow]` — frontend proxy forwarding condition lookups for client-side JS when the habitat-type dropdown changes; requires session + BNG Completer role
+- **Description:** The feature type is resolved from the unified features endpoint and a per-type strategy (`area` or `hedgerow`) is selected. Both types render: Reference, Distinctiveness (live-updated via client-side JS), Strategic Significance (fixed "Low (1)"), Trading rules (live-updated via JS), Habitat units. Editable for both types: Habitat type (dropdown), Condition (dropdown). Area-only editable: Broad habitat dropdown (`showBroadHabitatRow: false` for hedgerows). Size label is "Area (hectares)" for area habitats, "Length (km)" for hedgerows. Back link: `/projects/{projectId}/habitat-list` (area) or `/projects/{projectId}/habitat-list#hedgerows` (hedgerow). Cancel link: `/projects/{projectId}/habitat-list#habitat-{featureId}` (area) or `/projects/{projectId}/habitat-list#hedgerows` (hedgerow).
 - **Validation (GET):**
-  - `habitatId` query param required and must be a valid UUID v4 — returns 400 if missing or invalid
+  - `featureId` query param required and must be a valid UUID v4 — returns 400 if missing or invalid
   - `projectId` query param required and must be a valid UUID v4 — returns 400 if missing or invalid
-  - Habitat not found → `Boom.notFound`
+  - Feature not found → `Boom.notFound` (404)
 - **Validation (POST):**
   - `projectId` body field required and must be a valid UUID v4
   - `featureId` body field required and must be a valid UUID v4
@@ -113,5 +115,5 @@ directly to the habitat list on success, or a structured error dropout page on f
   - PUT failure → `Boom.badGateway`
 - **On success (GET):** Renders the habitat detail edit form
 - **On success (POST):** Redirects to `/projects/{projectId}/habitat-list#habitat-{featureId}`
-- **On error (GET):** 400 for invalid/missing query params; 404 if habitat not found
+- **On error (GET):** 400 for invalid/missing query params; 404 if feature not found
 - **On error (POST):** 400 for invalid/missing body params; 502 if backend PUT fails

@@ -3,8 +3,9 @@ import { BasePage } from './base.page.js'
 export class BaselineHabitatDetailsPage extends BasePage {
   constructor(page) {
     super(page)
-    // Heading is dynamic: "Habitat {ref}" — match any h1 starting with "Habitat"
+    // Heading is dynamic: "Habitat {ref}" for area habitats, "Hedgerow {ref}" for hedgerows
     this.heading = page.getByRole('heading', { name: /^Habitat/ })
+    this.hedgerowHeading = page.getByRole('heading', { name: /^Hedgerow/ })
     this.baselineDetailsHeading = page.getByRole('heading', {
       name: 'Baseline Details'
     })
