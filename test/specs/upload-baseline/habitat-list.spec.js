@@ -233,41 +233,86 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
         /^\d+(\.\d+)?$/
       )
     })
+  })
 
-    // The four skipped tests below require a GeoPackage fixture with area
-    // habitats but empty/zero-length hedgerow and river tables. Every file in
-    // the harness has non-zero hedgerow and watercourse geometries, so these
-    // tests are skipped until a suitable fixture is added to test/example-files/.
+  // ─── Summary "No data" — no hedgerow features ────────────────────────────────
 
-    test.skip('hedgerow size shows "No data" when total length is zero', async ({
+  test.describe('Habitat list — summary "No data" when no hedgerow features', () => {
+    test.use({ storageState: STORAGE_STATE })
+    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+    test.describe.configure({ mode: 'serial' })
+
+    const NO_HEDGEROWS_FILE = 'Baseline - no hedgerows.gpkg'
+    let noHedgerowsProjectId
+
+    test('hedgerow size shows "No data" when file has no hedgerow features', async ({
+      createProjectFlow,
+      projectDashboardPage,
+      uploadBaselineFileFlow,
       habitatListPage,
       page
     }) => {
-      await page.goto(`/projects/${projectId}/habitat-list`)
+      const { id } = await setupProject(
+        createProjectFlow,
+        projectDashboardPage,
+        PROJECT_LABEL
+      )
+      noHedgerowsProjectId = id
+
+      await uploadBaselineFileFlow.uploadFile(id, NO_HEDGEROWS_FILE)
+      await page.waitForURL(new RegExp(`/projects/${id}/habitat-list`), {
+        timeout: UPLOAD_TIMEOUT
+      })
+
       await expect(habitatListPage.hedgerowSizeCell).toHaveText('No data')
     })
 
-    test.skip('watercourse size shows "No data" when total length is zero', async ({
+    test('hedgerow units show "No data" when no hedgerow features exist', async ({
       habitatListPage,
       page
     }) => {
-      await page.goto(`/projects/${projectId}/habitat-list`)
+      await page.goto(`/projects/${noHedgerowsProjectId}/habitat-list`)
+      await expect(habitatListPage.hedgerowUnitsCell).toHaveText('No data')
+    })
+  })
+
+  // ─── Summary "No data" — no watercourse features ─────────────────────────────
+
+  test.describe('Habitat list — summary "No data" when no watercourse features', () => {
+    test.use({ storageState: STORAGE_STATE })
+    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+    test.describe.configure({ mode: 'serial' })
+
+    const NO_WATERCOURSES_FILE = 'Baseline - no watercourses.gpkg'
+    let noWatercoursesProjectId
+
+    test('watercourse size shows "No data" when file has no watercourse features', async ({
+      createProjectFlow,
+      projectDashboardPage,
+      uploadBaselineFileFlow,
+      habitatListPage,
+      page
+    }) => {
+      const { id } = await setupProject(
+        createProjectFlow,
+        projectDashboardPage,
+        PROJECT_LABEL
+      )
+      noWatercoursesProjectId = id
+
+      await uploadBaselineFileFlow.uploadFile(id, NO_WATERCOURSES_FILE)
+      await page.waitForURL(new RegExp(`/projects/${id}/habitat-list`), {
+        timeout: UPLOAD_TIMEOUT
+      })
+
       await expect(habitatListPage.watercourseSizeCell).toHaveText('No data')
     })
 
-    test.skip('hedgerow units show "No data" when no hedgerow features exist', async ({
+    test('watercourse units show "No data" when no watercourse features exist', async ({
       habitatListPage,
       page
     }) => {
-      await page.goto(`/projects/${projectId}/habitat-list`)
-      await expect(habitatListPage.hedgerowUnitsCell).toHaveText('No data')
-    })
-
-    test.skip('watercourse units show "No data" when no watercourse features exist', async ({
-      habitatListPage,
-      page
-    }) => {
-      await page.goto(`/projects/${projectId}/habitat-list`)
+      await page.goto(`/projects/${noWatercoursesProjectId}/habitat-list`)
       await expect(habitatListPage.watercourseUnitsCell).toHaveText('No data')
     })
   })
