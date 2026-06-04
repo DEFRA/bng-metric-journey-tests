@@ -27,5 +27,5 @@ The authenticated user navigates to the manage projects page to view all their p
 - **Backend endpoint:** `GET /projects/{id}`
 - **Description:** Renders the task list for a specific project. The page heading shows the project name as a caption. The task list has four items: Project Name (Completed), Project Details (Not yet started), On-site baseline habitats (dynamic — see On success), On-site post intervention habitats (Cannot start yet).
 - **Validation:** `id` path param must be a valid UUID (Joi); invalid UUID → Hapi 400 validation error
-- **On success:** Renders `projects/task-list` with task list items. `isBaselineUploaded = Boolean(data?.project?.baseline)` — if true, "On-site baseline habitats" shows "Completed" (links to `/projects/{id}/habitat-list`); if false, shows "Not yet started" (links to `/projects/{id}/upload-baseline-file`)
+- **On success:** Renders `projects/task-list` with task list items. `isBaselineUploaded = Boolean(data?.project?.baseline)` — if true, "On-site baseline habitats" shows "Completed" (links to `/projects/{id}/baseline-habitat-list`); if false, shows "Not yet started" (links to `/projects/{id}/upload-baseline-file`)
 - **On error:** If the backend returns a 404, renders the same template with `error: true` — task list content is hidden; only the heading/caption is shown

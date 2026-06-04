@@ -576,9 +576,12 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       projectId = id
 
       await uploadBaselineFileFlow.uploadFile(id, COMPLETE_BASELINE_FILE)
-      await page.waitForURL(new RegExp(`/projects/${id}/habitat-list`), {
-        timeout: UPLOAD_TIMEOUT
-      })
+      await page.waitForURL(
+        new RegExp(`/projects/${id}/baseline-habitat-list`),
+        {
+          timeout: UPLOAD_TIMEOUT
+        }
+      )
 
       await habitatListPage.hedgerowsTab.click()
       await expect(habitatListPage.hedgerowsTab).toHaveAttribute(
@@ -634,7 +637,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       habitatListPage,
       page
     }) => {
-      await page.goto(`/projects/${projectId}/habitat-list`)
+      await page.goto(`/projects/${projectId}/baseline-habitat-list`)
       await habitatListPage.hedgerowsTab.click()
       await expect(habitatListPage.hedgerowsTab).toHaveAttribute(
         'aria-selected',

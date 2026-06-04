@@ -332,9 +332,12 @@ function describeHedgerowHabitatDetailsFlow() {
 
         await uploadBaselineFileFlow.uploadFile(id, COMPLETE_BASELINE_FILE)
 
-        await page.waitForURL(new RegExp(`/projects/${id}/habitat-list`), {
-          timeout: UPLOAD_TIMEOUT
-        })
+        await page.waitForURL(
+          new RegExp(`/projects/${id}/baseline-habitat-list`),
+          {
+            timeout: UPLOAD_TIMEOUT
+          }
+        )
 
         await habitatListPage.hedgerowsTab.click()
         await expect(habitatListPage.hedgerowsTab).toHaveAttribute(

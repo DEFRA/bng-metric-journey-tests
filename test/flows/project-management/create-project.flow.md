@@ -57,5 +57,5 @@ The user creates a new Biodiversity Net Gain project by entering a project name 
 - **Backend endpoint:** `GET /projects/{id}`
 - **Description:** The user clicks the project name link on the dashboard and sees a GOV.UK task list with four items: "Project Name" (Completed), "Project Details" (Not yet started), "On-site baseline habitats" (dynamic — see below), and "On-site post intervention habitats" (Cannot start yet). The project name appears as a caption.
 - **Validation:** `id` path parameter must be a valid UUID
-- **On success:** Renders the task list with the project name as caption. `isBaselineUploaded = Boolean(data?.project?.baseline)` — if true, "On-site baseline habitats" shows "Completed" (links to `/projects/{id}/habitat-list`); if false, shows "Not yet started" (links to `/projects/{id}/upload-baseline-file`)
+- **On success:** Renders the task list with the project name as caption. `isBaselineUploaded = Boolean(data?.project?.baseline)` — if true, "On-site baseline habitats" shows "Completed" (links to `/projects/{id}/baseline-habitat-list`); if false, shows "Not yet started" (links to `/projects/{id}/upload-baseline-file`)
 - **On error:** If the backend returns a 404, the Boom error is caught and the page re-renders with `error: true` — the task list body is hidden via `{% if not error %}`; only the heading/caption are shown

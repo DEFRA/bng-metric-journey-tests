@@ -51,10 +51,10 @@ directly to the habitat list on success, or a structured error dropout page on f
   - Status `rejected` → clear session keys, set empty `baselineValidationErrors` and `baselineValidationErrorsProjectId` in session, redirect to `GET /error-file`
   - Status `ready` + validation invalid + error code is `GPKG_INVALID_FILE` or `GPKG_NOT_A_GEOPACKAGE` → set `uploadError` flash "The selected file must be a GeoPackage (.gpkg)" → redirect to upload form
   - Status `ready` + validation invalid + other error codes → store structured `baselineValidationErrors` and `baselineValidationErrorsProjectId` in session → redirect to `GET /error-file`
-  - Status `ready` + validation passes → redirect to `GET /projects/{id}/habitat-list`
+  - Status `ready` + validation passes → redirect to `GET /projects/{id}/baseline-habitat-list`
   - Elapsed > 120 seconds → clear session keys, set `uploadError` flash "The file check timed out. Please try again." → redirect to upload form
   - Any other status (e.g. `pending`, `unknown`) → re-render the polling page
-- **On success:** Redirects to `GET /projects/{id}/habitat-list`
+- **On success:** Redirects to `GET /projects/{id}/baseline-habitat-list`
 - **On error:** Redirects to `GET /error-file` (structured errors) or `GET /projects/{id}/upload-baseline-file` (format / timeout flash errors)
 
 ---
@@ -76,8 +76,8 @@ directly to the habitat list on success, or a structured error dropout page on f
 
 ### Step 5 — View habitat list `[IMPLEMENTED]`
 
-- **Route:** `GET /projects/{id}/habitat-list`
-- **Template:** `src/server/habitat-list/habitat-list.njk`
+- **Route:** `GET /projects/{id}/baseline-habitat-list`
+- **Template:** `src/server/baseline-habitat-list/baseline-habitat-list.njk`
 - **Auth required:** Yes (session + BNG Completer role)
 - **Backend endpoint:** `GET /projects/{id}` — fetches project including baseline habitats
 - **Description:** Landing page after a successful upload. Renders a summary table and GOV.UK tabs (Areas, Hedgerows, Watercourses) listing the imported baseline habitats. Habitat rows are sourced from `project.project.baseline.habitats`. Back link navigates to `/add-project-details/{projectId}`. Page includes a "Continue" button (placeholder href `#`) and an "Upload a different file" link back to the upload form.
@@ -103,7 +103,7 @@ directly to the habitat list on success, or a structured error dropout page on f
 - **Backend endpoints (POST):**
   - `PUT /projects/{projectId}/habitats/{featureId}` — persists edited fields and recomputes derived values; **area habitats only** — backend searches `baseline.habitats`; hedgerow save is non-functional until BMD-501 wires up the per-type strategy
 - **Supporting frontend route:** `GET /api/reference/conditions?habitatType=…[&featureType=hedgerow]` — frontend proxy forwarding condition lookups for client-side JS when the habitat-type dropdown changes; requires session + BNG Completer role
-- **Description:** The feature type is resolved from the unified features endpoint and a per-type strategy (`area` or `hedgerow`) is selected. Both types render: Reference, Distinctiveness (live-updated via client-side JS), Strategic Significance (fixed "Low (1)"), Trading rules (live-updated via JS), Habitat units. Editable for both types: Habitat type (dropdown), Condition (dropdown). Area-only editable: Broad habitat dropdown (`showBroadHabitatRow: false` for hedgerows). Size label is "Area (hectares)" for area habitats, "Length (km)" for hedgerows. Back link: `/projects/{projectId}/habitat-list` (area) or `/projects/{projectId}/habitat-list#hedgerows` (hedgerow). Cancel link: `/projects/{projectId}/habitat-list#habitat-{featureId}` (area) or `/projects/{projectId}/habitat-list#hedgerows` (hedgerow).
+- **Description:** The feature type is resolved from the unified features endpoint and a per-type strategy (`area` or `hedgerow`) is selected. Both types render: Reference, Distinctiveness (live-updated via client-side JS), Strategic Significance (fixed "Low (1)"), Trading rules (live-updated via JS), Habitat units. Editable for both types: Habitat type (dropdown), Condition (dropdown). Area-only editable: Broad habitat dropdown (`showBroadHabitatRow: false` for hedgerows). Size label is "Area (hectares)" for area habitats, "Length (km)" for hedgerows. Back link: `/projects/{projectId}/baseline-habitat-list` (area) or `/projects/{projectId}/baseline-habitat-list#hedgerows` (hedgerow). Cancel link: `/projects/{projectId}/baseline-habitat-list#habitat-{featureId}` (area) or `/projects/{projectId}/baseline-habitat-list#hedgerows` (hedgerow).
 - **Validation (GET):**
   - `featureId` query param required and must be a valid UUID v4 — returns 400 if missing or invalid
   - `projectId` query param required and must be a valid UUID v4 — returns 400 if missing or invalid
@@ -114,6 +114,6 @@ directly to the habitat list on success, or a structured error dropout page on f
   - `broadHabitat`, `habitatType`, `condition` optional
   - PUT failure → `Boom.badGateway`
 - **On success (GET):** Renders the habitat detail edit form
-- **On success (POST):** Redirects to `/projects/{projectId}/habitat-list#habitat-{featureId}`
+- **On success (POST):** Redirects to `/projects/{projectId}/baseline-habitat-list#habitat-{featureId}`
 - **On error (GET):** 400 for invalid/missing query params; 404 if feature not found
 - **On error (POST):** 400 for invalid/missing body params; 502 if backend PUT fails
