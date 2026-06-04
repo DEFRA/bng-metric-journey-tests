@@ -11,6 +11,26 @@ const COMPLETE_BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
 const VALID_UUID_V4 = 'aaaaaaaa-bbbb-4ccc-bddd-eeeeeeeeeeee'
 const STUB_PROJECT_ID = '00000000-0000-0000-0000-000000000000'
 const PROJECT_LABEL = 'Habitat list test'
+const NO_DATA_TEXT = 'No data'
+
+async function uploadAndNavigateToHabitatList(
+  createProjectFlow,
+  projectDashboardPage,
+  uploadBaselineFileFlow,
+  page,
+  file
+) {
+  const { id } = await setupProject(
+    createProjectFlow,
+    projectDashboardPage,
+    PROJECT_LABEL
+  )
+  await uploadBaselineFileFlow.uploadFile(id, file)
+  await page.waitForURL(new RegExp(`/projects/${id}/habitat-list`), {
+    timeout: UPLOAD_TIMEOUT
+  })
+  return id
+}
 
 test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
   // Serial mode prevents parallel uploads from contaminating the shared Redis
@@ -177,23 +197,19 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       habitatListPage,
       page
     }) => {
-      const { id } = await setupProject(
+      projectId = await uploadAndNavigateToHabitatList(
         createProjectFlow,
         projectDashboardPage,
-        PROJECT_LABEL
+        uploadBaselineFileFlow,
+        page,
+        COMPLETE_BASELINE_FILE
       )
-      projectId = id
-
-      await uploadBaselineFileFlow.uploadFile(id, COMPLETE_BASELINE_FILE)
-      await page.waitForURL(new RegExp(`/projects/${id}/habitat-list`), {
-        timeout: UPLOAD_TIMEOUT
-      })
 
       await expect(habitatListPage.areaHabitatSizeCell).toHaveText(
         /^\d+(\.\d+)?ha$/
       )
       await expect(habitatListPage.areaHabitatUnitsCell).not.toContainText(
-        'No data'
+        NO_DATA_TEXT
       )
       await expect(habitatListPage.areaHabitatUnitsCell).toHaveText(
         /^\d+(\.\d+)?$/
@@ -210,7 +226,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
         /^\d+(\.\d+)?km$/
       )
       await expect(habitatListPage.hedgerowUnitsCell).not.toContainText(
-        'No data'
+        NO_DATA_TEXT
       )
       await expect(habitatListPage.hedgerowUnitsCell).toHaveText(
         /^\d+(\.\d+)?$/
@@ -227,7 +243,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
         /^\d+(\.\d+)?km$/
       )
       await expect(habitatListPage.watercourseUnitsCell).not.toContainText(
-        'No data'
+        NO_DATA_TEXT
       )
       await expect(habitatListPage.watercourseUnitsCell).toHaveText(
         /^\d+(\.\d+)?$/
@@ -252,19 +268,15 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       habitatListPage,
       page
     }) => {
-      const { id } = await setupProject(
+      noHedgerowsProjectId = await uploadAndNavigateToHabitatList(
         createProjectFlow,
         projectDashboardPage,
-        PROJECT_LABEL
+        uploadBaselineFileFlow,
+        page,
+        NO_HEDGEROWS_FILE
       )
-      noHedgerowsProjectId = id
 
-      await uploadBaselineFileFlow.uploadFile(id, NO_HEDGEROWS_FILE)
-      await page.waitForURL(new RegExp(`/projects/${id}/habitat-list`), {
-        timeout: UPLOAD_TIMEOUT
-      })
-
-      await expect(habitatListPage.hedgerowSizeCell).toHaveText('No data')
+      await expect(habitatListPage.hedgerowSizeCell).toHaveText(NO_DATA_TEXT)
     })
 
     test('hedgerow units show "No data" when no hedgerow features exist', async ({
@@ -272,7 +284,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       page
     }) => {
       await page.goto(`/projects/${noHedgerowsProjectId}/habitat-list`)
-      await expect(habitatListPage.hedgerowUnitsCell).toHaveText('No data')
+      await expect(habitatListPage.hedgerowUnitsCell).toHaveText(NO_DATA_TEXT)
     })
   })
 
@@ -293,19 +305,15 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       habitatListPage,
       page
     }) => {
-      const { id } = await setupProject(
+      noWatercoursesProjectId = await uploadAndNavigateToHabitatList(
         createProjectFlow,
         projectDashboardPage,
-        PROJECT_LABEL
+        uploadBaselineFileFlow,
+        page,
+        NO_WATERCOURSES_FILE
       )
-      noWatercoursesProjectId = id
 
-      await uploadBaselineFileFlow.uploadFile(id, NO_WATERCOURSES_FILE)
-      await page.waitForURL(new RegExp(`/projects/${id}/habitat-list`), {
-        timeout: UPLOAD_TIMEOUT
-      })
-
-      await expect(habitatListPage.watercourseSizeCell).toHaveText('No data')
+      await expect(habitatListPage.watercourseSizeCell).toHaveText(NO_DATA_TEXT)
     })
 
     test('watercourse units show "No data" when no watercourse features exist', async ({
@@ -313,7 +321,9 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       page
     }) => {
       await page.goto(`/projects/${noWatercoursesProjectId}/habitat-list`)
-      await expect(habitatListPage.watercourseUnitsCell).toHaveText('No data')
+      await expect(habitatListPage.watercourseUnitsCell).toHaveText(
+        NO_DATA_TEXT
+      )
     })
   })
 
@@ -332,17 +342,13 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       uploadBaselineFileFlow,
       page
     }) => {
-      const { id } = await setupProject(
+      projectId = await uploadAndNavigateToHabitatList(
         createProjectFlow,
         projectDashboardPage,
-        PROJECT_LABEL
+        uploadBaselineFileFlow,
+        page,
+        COMPLETE_BASELINE_FILE
       )
-      projectId = id
-
-      await uploadBaselineFileFlow.uploadFile(id, COMPLETE_BASELINE_FILE)
-      await page.waitForURL(new RegExp(`/projects/${id}/habitat-list`), {
-        timeout: UPLOAD_TIMEOUT
-      })
 
       await expect(
         page
