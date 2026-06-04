@@ -170,7 +170,9 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
     test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
     test('non-UUID id path param returns 400', async ({ page }) => {
-      const response = await page.goto('/projects/not-a-uuid/baseline-habitat-list')
+      const response = await page.goto(
+        '/projects/not-a-uuid/baseline-habitat-list'
+      )
       expect(response.status()).toBe(HTTP_BAD_REQUEST)
     })
   })
@@ -317,7 +319,9 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       habitatListPage,
       page
     }) => {
-      await page.goto(`/projects/${noWatercoursesProjectId}/baseline-habitat-list`)
+      await page.goto(
+        `/projects/${noWatercoursesProjectId}/baseline-habitat-list`
+      )
       await expect(habitatListPage.watercourseUnitsCell).toHaveText(
         NO_DATA_TEXT
       )

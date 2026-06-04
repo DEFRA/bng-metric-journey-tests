@@ -32,9 +32,12 @@ function describeHappyPath() {
 
       await uploadBaselineFileFlow.uploadFile(id, COMPLETE_BASELINE_FILE)
 
-      await page.waitForURL(new RegExp(`/projects/${id}/baseline-habitat-list`), {
-        timeout: UPLOAD_TIMEOUT
-      })
+      await page.waitForURL(
+        new RegExp(`/projects/${id}/baseline-habitat-list`),
+        {
+          timeout: UPLOAD_TIMEOUT
+        }
+      )
 
       await expect(habitatListPage.heading).toBeVisible()
       await expect(habitatListPage.firstAreaHabitatLink).toBeVisible()
@@ -229,9 +232,12 @@ function describeBaselineHabitatDetailsFlow() {
 
         await uploadBaselineFileFlow.uploadFile(id, COMPLETE_BASELINE_FILE)
 
-        await page.waitForURL(new RegExp(`/projects/${id}/baseline-habitat-list`), {
-          timeout: UPLOAD_TIMEOUT
-        })
+        await page.waitForURL(
+          new RegExp(`/projects/${id}/baseline-habitat-list`),
+          {
+            timeout: UPLOAD_TIMEOUT
+          }
+        )
 
         const href =
           await habitatListPage.firstAreaHabitatLink.getAttribute('href')
@@ -265,7 +271,9 @@ function describeBaselineHabitatDetailsFlow() {
       await baselineHabitatDetailsPage.saveButton.click()
 
       await expect(page).toHaveURL(
-        new RegExp(`/projects/${projectId}/baseline-habitat-list#habitat-${featureId}`)
+        new RegExp(
+          `/projects/${projectId}/baseline-habitat-list#habitat-${featureId}`
+        )
       )
     })
 
