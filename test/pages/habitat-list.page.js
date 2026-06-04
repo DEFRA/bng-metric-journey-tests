@@ -45,7 +45,6 @@ export class HabitatListPage extends BasePage {
       .filter({ hasText: 'Watercourses' })
       .getByRole('cell')
       .nth(2)
-    this.showMapButton = page.getByRole('button', { name: 'Show map' })
     this.continueButton = page.getByRole('button', { name: 'Continue' })
     this.areasTab = page.getByRole('tab', { name: 'Areas' })
     this.hedgerowsTab = page.getByRole('tab', { name: 'Hedgerows' })
@@ -70,6 +69,6 @@ export class HabitatListPage extends BasePage {
   }
 
   async open(id) {
-    await super.open(`/projects/${id}/habitat-list`)
+    await super.open(`/projects/${id}/baseline-habitat-list`)
   }
 }
