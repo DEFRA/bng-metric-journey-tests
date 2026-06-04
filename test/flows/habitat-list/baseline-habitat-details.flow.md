@@ -19,7 +19,7 @@ to the habitat list anchored to the edited row.
   - `GET /reference/habitat-types-by-broad` — fetches all habitat types grouped by broad habitat (cached in-process after first load)
   - `GET /reference/trading-rules` — fetches trading rules by distinctiveness band (cached in-process after first load)
   - `GET /reference/conditions?habitatType={broadType} - {type}` — fetches condition options for the current habitat type (only when both broadType and type are set)
-- **Description:** Renders a summary list in a two-column layout. Read-only rows: Reference, Area (ha), Distinctiveness (updated by client JS on dropdown change), Strategic Significance (fixed "Low (1)"), Trading rules (updated by client JS), Habitat units. Editable rows: Broad habitat (select), Habitat type (select, filtered client-side by broad habitat selection), Condition (select, options loaded from reference endpoint). A JSON script tag (`#bhd-reference-data`) embeds all static reference data for client-side JS. Back link navigates to `/projects/{projectId}/habitat-list`. Cancel link navigates to `/projects/{projectId}/habitat-list#habitat-{featureId}`.
+- **Description:** Renders a summary list in a two-column layout. Read-only rows: Reference, Area (ha), Distinctiveness (updated by client JS on dropdown change), Strategic Significance (fixed "Low (1)"), Trading rules (updated by client JS), Habitat units. Editable rows: Broad habitat (select), Habitat type (select, filtered client-side by broad habitat selection), Condition (select, options loaded from reference endpoint). A JSON script tag (`#bhd-reference-data`) embeds all static reference data for client-side JS. Back link navigates to `/projects/{projectId}/baseline-habitat-list`. Cancel link navigates to `/projects/{projectId}/baseline-habitat-list#habitat-{featureId}`.
 - **Validation (query params):**
   - `featureId` required, must be a valid UUID → 400 if missing or invalid
   - `projectId` required, must be a valid UUID → 400 if missing or invalid
@@ -45,7 +45,7 @@ to the habitat list anchored to the edited row.
   - `habitatType` optional string, allow empty string
   - `condition` optional string, allow empty string
   - `crumb` optional (CSRF token injected by `appForm` macro)
-- **On success:** Redirects to `/projects/{projectId}/habitat-list#habitat-{featureId}`
+- **On success:** Redirects to `/projects/{projectId}/baseline-habitat-list#habitat-{featureId}`
 - **On error:** Backend returns 4xx or 5xx → 502 Bad Gateway; backend 409 (lock timeout from concurrent edit) → 502 Bad Gateway
 
 ---

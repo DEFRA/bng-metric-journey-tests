@@ -3,3 +3,4 @@
 /docker
 /playwright-report
 /test-results
+/test/evidence

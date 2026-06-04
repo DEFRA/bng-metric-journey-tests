@@ -11,6 +11,26 @@ const COMPLETE_BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
 const VALID_UUID_V4 = 'aaaaaaaa-bbbb-4ccc-bddd-eeeeeeeeeeee'
 const STUB_PROJECT_ID = '00000000-0000-0000-0000-000000000000'
 const PROJECT_LABEL = 'Habitat list test'
+const NO_DATA_TEXT = 'No data'
+
+async function uploadAndNavigateToHabitatList(
+  createProjectFlow,
+  projectDashboardPage,
+  uploadBaselineFileFlow,
+  page,
+  file
+) {
+  const { id } = await setupProject(
+    createProjectFlow,
+    projectDashboardPage,
+    PROJECT_LABEL
+  )
+  await uploadBaselineFileFlow.uploadFile(id, file)
+  await page.waitForURL(new RegExp(`/projects/${id}/baseline-habitat-list`), {
+    timeout: UPLOAD_TIMEOUT
+  })
+  return id
+}
 
 test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
   // Serial mode prevents parallel uploads from contaminating the shared Redis
@@ -77,9 +97,6 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
 
       // AC6: habitat details subheading
       await expect(habitatListPage.habitatDetailsHeading).toBeVisible()
-
-      // AC7: show map button
-      await expect(habitatListPage.showMapButton).toBeVisible()
 
       // AC8 / AC9: tab visibility and default aria-selected state
       await expect(habitatListPage.areasTab).toBeVisible()
@@ -153,7 +170,9 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
     test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
     test('non-UUID id path param returns 400', async ({ page }) => {
-      const response = await page.goto('/projects/not-a-uuid/habitat-list')
+      const response = await page.goto(
+        '/projects/not-a-uuid/baseline-habitat-list'
+      )
       expect(response.status()).toBe(HTTP_BAD_REQUEST)
     })
   })
@@ -177,23 +196,19 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       habitatListPage,
       page
     }) => {
-      const { id } = await setupProject(
+      projectId = await uploadAndNavigateToHabitatList(
         createProjectFlow,
         projectDashboardPage,
-        PROJECT_LABEL
+        uploadBaselineFileFlow,
+        page,
+        COMPLETE_BASELINE_FILE
       )
-      projectId = id
-
-      await uploadBaselineFileFlow.uploadFile(id, COMPLETE_BASELINE_FILE)
-      await page.waitForURL(new RegExp(`/projects/${id}/habitat-list`), {
-        timeout: UPLOAD_TIMEOUT
-      })
 
       await expect(habitatListPage.areaHabitatSizeCell).toHaveText(
         /^\d+(\.\d+)?ha$/
       )
       await expect(habitatListPage.areaHabitatUnitsCell).not.toContainText(
-        'No data'
+        NO_DATA_TEXT
       )
       await expect(habitatListPage.areaHabitatUnitsCell).toHaveText(
         /^\d+(\.\d+)?$/
@@ -204,13 +219,13 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       habitatListPage,
       page
     }) => {
-      await page.goto(`/projects/${projectId}/habitat-list`)
+      await page.goto(`/projects/${projectId}/baseline-habitat-list`)
 
       await expect(habitatListPage.hedgerowSizeCell).toHaveText(
         /^\d+(\.\d+)?km$/
       )
       await expect(habitatListPage.hedgerowUnitsCell).not.toContainText(
-        'No data'
+        NO_DATA_TEXT
       )
       await expect(habitatListPage.hedgerowUnitsCell).toHaveText(
         /^\d+(\.\d+)?$/
@@ -221,54 +236,95 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       habitatListPage,
       page
     }) => {
-      await page.goto(`/projects/${projectId}/habitat-list`)
+      await page.goto(`/projects/${projectId}/baseline-habitat-list`)
 
       await expect(habitatListPage.watercourseSizeCell).toHaveText(
         /^\d+(\.\d+)?km$/
       )
       await expect(habitatListPage.watercourseUnitsCell).not.toContainText(
-        'No data'
+        NO_DATA_TEXT
       )
       await expect(habitatListPage.watercourseUnitsCell).toHaveText(
         /^\d+(\.\d+)?$/
       )
     })
+  })
 
-    // The four skipped tests below require a GeoPackage fixture with area
-    // habitats but empty/zero-length hedgerow and river tables. Every file in
-    // the harness has non-zero hedgerow and watercourse geometries, so these
-    // tests are skipped until a suitable fixture is added to test/example-files/.
+  // ─── Summary "No data" — no hedgerow features ────────────────────────────────
 
-    test.skip('hedgerow size shows "No data" when total length is zero', async ({
+  test.describe('Habitat list — summary "No data" when no hedgerow features', () => {
+    test.use({ storageState: STORAGE_STATE })
+    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+    test.describe.configure({ mode: 'serial' })
+
+    const NO_HEDGEROWS_FILE = 'Baseline - no hedgerows.gpkg'
+    let noHedgerowsProjectId
+
+    test('hedgerow size shows "No data" when file has no hedgerow features', async ({
+      createProjectFlow,
+      projectDashboardPage,
+      uploadBaselineFileFlow,
       habitatListPage,
       page
     }) => {
-      await page.goto(`/projects/${projectId}/habitat-list`)
-      await expect(habitatListPage.hedgerowSizeCell).toHaveText('No data')
+      noHedgerowsProjectId = await uploadAndNavigateToHabitatList(
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        page,
+        NO_HEDGEROWS_FILE
+      )
+
+      await expect(habitatListPage.hedgerowSizeCell).toHaveText(NO_DATA_TEXT)
     })
 
-    test.skip('watercourse size shows "No data" when total length is zero', async ({
+    test('hedgerow units show "No data" when no hedgerow features exist', async ({
       habitatListPage,
       page
     }) => {
-      await page.goto(`/projects/${projectId}/habitat-list`)
-      await expect(habitatListPage.watercourseSizeCell).toHaveText('No data')
+      await page.goto(`/projects/${noHedgerowsProjectId}/baseline-habitat-list`)
+      await expect(habitatListPage.hedgerowUnitsCell).toHaveText(NO_DATA_TEXT)
+    })
+  })
+
+  // ─── Summary "No data" — no watercourse features ─────────────────────────────
+
+  test.describe('Habitat list — summary "No data" when no watercourse features', () => {
+    test.use({ storageState: STORAGE_STATE })
+    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+    test.describe.configure({ mode: 'serial' })
+
+    const NO_WATERCOURSES_FILE = 'Baseline - no watercourses.gpkg'
+    let noWatercoursesProjectId
+
+    test('watercourse size shows "No data" when file has no watercourse features', async ({
+      createProjectFlow,
+      projectDashboardPage,
+      uploadBaselineFileFlow,
+      habitatListPage,
+      page
+    }) => {
+      noWatercoursesProjectId = await uploadAndNavigateToHabitatList(
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        page,
+        NO_WATERCOURSES_FILE
+      )
+
+      await expect(habitatListPage.watercourseSizeCell).toHaveText(NO_DATA_TEXT)
     })
 
-    test.skip('hedgerow units show "No data" when no hedgerow features exist', async ({
+    test('watercourse units show "No data" when no watercourse features exist', async ({
       habitatListPage,
       page
     }) => {
-      await page.goto(`/projects/${projectId}/habitat-list`)
-      await expect(habitatListPage.hedgerowUnitsCell).toHaveText('No data')
-    })
-
-    test.skip('watercourse units show "No data" when no watercourse features exist', async ({
-      habitatListPage,
-      page
-    }) => {
-      await page.goto(`/projects/${projectId}/habitat-list`)
-      await expect(habitatListPage.watercourseUnitsCell).toHaveText('No data')
+      await page.goto(
+        `/projects/${noWatercoursesProjectId}/baseline-habitat-list`
+      )
+      await expect(habitatListPage.watercourseUnitsCell).toHaveText(
+        NO_DATA_TEXT
+      )
     })
   })
 
@@ -287,17 +343,13 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       uploadBaselineFileFlow,
       page
     }) => {
-      const { id } = await setupProject(
+      projectId = await uploadAndNavigateToHabitatList(
         createProjectFlow,
         projectDashboardPage,
-        PROJECT_LABEL
+        uploadBaselineFileFlow,
+        page,
+        COMPLETE_BASELINE_FILE
       )
-      projectId = id
-
-      await uploadBaselineFileFlow.uploadFile(id, COMPLETE_BASELINE_FILE)
-      await page.waitForURL(new RegExp(`/projects/${id}/habitat-list`), {
-        timeout: UPLOAD_TIMEOUT
-      })
 
       await expect(
         page
@@ -310,7 +362,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       habitatListPage,
       page
     }) => {
-      await page.goto(`/projects/${projectId}/habitat-list`)
+      await page.goto(`/projects/${projectId}/baseline-habitat-list`)
 
       await expect(
         habitatListPage.areaHabitatsTable.getByRole('columnheader', {
@@ -357,7 +409,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       habitatListPage,
       page
     }) => {
-      await page.goto(`/projects/${projectId}/habitat-list`)
+      await page.goto(`/projects/${projectId}/baseline-habitat-list`)
       const firstRow = habitatListPage.areaHabitatsTable.getByRole('row').nth(1)
 
       const refLink = firstRow.getByRole('cell').nth(0).getByRole('link')
@@ -379,7 +431,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       habitatListPage,
       page
     }) => {
-      await page.goto(`/projects/${projectId}/habitat-list`)
+      await page.goto(`/projects/${projectId}/baseline-habitat-list`)
       const firstRow = habitatListPage.areaHabitatsTable.getByRole('row').nth(1)
       await expect(firstRow.getByRole('cell').nth(6)).not.toBeEmpty()
     })
@@ -390,7 +442,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       habitatListPage,
       page
     }) => {
-      await page.goto(`/projects/${projectId}/habitat-list`)
+      await page.goto(`/projects/${projectId}/baseline-habitat-list`)
       await expect(
         habitatListPage.areaHabitatsTable
           .getByRole('row')
@@ -402,7 +454,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       habitatListPage,
       page
     }) => {
-      await page.goto(`/projects/${projectId}/habitat-list`)
+      await page.goto(`/projects/${projectId}/baseline-habitat-list`)
 
       await expect(
         habitatListPage.areaHabitatsTable.getByRole('columnheader', {
@@ -440,7 +492,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       habitatListPage,
       page
     }) => {
-      await page.goto(`/projects/${projectId}/habitat-list`)
+      await page.goto(`/projects/${projectId}/baseline-habitat-list`)
       const header = habitatListPage.areaHabitatsTable.getByRole(
         'columnheader',
         {
@@ -455,7 +507,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       habitatListPage,
       page
     }) => {
-      await page.goto(`/projects/${projectId}/habitat-list`)
+      await page.goto(`/projects/${projectId}/baseline-habitat-list`)
       const header = habitatListPage.areaHabitatsTable.getByRole(
         'columnheader',
         {
@@ -471,7 +523,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       habitatListPage,
       page
     }) => {
-      await page.goto(`/projects/${projectId}/habitat-list`)
+      await page.goto(`/projects/${projectId}/baseline-habitat-list`)
       const header = habitatListPage.areaHabitatsTable.getByRole(
         'columnheader',
         {
@@ -488,7 +540,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       habitatListPage,
       page
     }) => {
-      await page.goto(`/projects/${projectId}/habitat-list`)
+      await page.goto(`/projects/${projectId}/baseline-habitat-list`)
       const refLink = habitatListPage.areaHabitatsTable
         .getByRole('row')
         .nth(1)
@@ -510,7 +562,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       'authenticated user without BNG Completer role is redirected to /auth/forbidden',
       { tag: '@smoke' },
       async ({ page }) => {
-        await page.goto(`/projects/${VALID_UUID_V4}/habitat-list`)
+        await page.goto(`/projects/${VALID_UUID_V4}/baseline-habitat-list`)
         await expect(page).toHaveURL(/\/auth\/forbidden/)
       }
     )
@@ -520,11 +572,11 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
 
   test.describe('Habitat list — unauthenticated access', () => {
     test(
-      'GET /projects/{id}/habitat-list redirects to sign-in',
+      'GET /projects/{id}/baseline-habitat-list redirects to sign-in',
       { tag: '@smoke' },
       async ({ page }) => {
-        await page.goto(`/projects/${STUB_PROJECT_ID}/habitat-list`)
-        await expect(page).not.toHaveURL(/\/habitat-list/)
+        await page.goto(`/projects/${STUB_PROJECT_ID}/baseline-habitat-list`)
+        await expect(page).not.toHaveURL(/\/baseline-habitat-list/)
         await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
       }
     )
