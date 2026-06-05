@@ -129,6 +129,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         projectDashboardPage,
         changeProjectNamePage
       }) => {
+        test.skip(
+          process.env.BROWSER === 'firefox',
+          'Firefox automation strips all C0 control characters (0x00–0x1f) from text inputs before form submission; backend validation covered by Chromium and WebKit runs'
+        )
         const { id } = await setupProject(
           createProjectFlow,
           projectDashboardPage
