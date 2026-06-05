@@ -137,63 +137,79 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   // ─── Error state ─────────────────────────────────────────────────────────────
 
-  test.describe('Project task list — error state', () => {
-    test.use({ storageState: STORAGE_STATE })
-    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+  test.describe(
+    'Project task list — error state',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
-    test('unknown project UUID hides the task list body', async ({
-      projectTaskListPage
-    }) => {
-      await projectTaskListPage.open('00000000-0000-0000-0000-000000000000')
+      test('unknown project UUID hides the task list body', async ({
+        projectTaskListPage
+      }) => {
+        await projectTaskListPage.open('00000000-0000-0000-0000-000000000000')
 
-      await expect(projectTaskListPage.heading).toBeVisible()
-      await expect(projectTaskListPage.informationParagraph).not.toBeVisible()
-      await expect(projectTaskListPage.taskList).not.toBeVisible()
-    })
-  })
+        await expect(projectTaskListPage.heading).toBeVisible()
+        await expect(projectTaskListPage.informationParagraph).not.toBeVisible()
+        await expect(projectTaskListPage.taskList).not.toBeVisible()
+      })
+    }
+  )
 
   // ─── Role enforcement ────────────────────────────────────────────────────────
 
-  test.describe('Project task list — role enforcement', () => {
-    test.use({ storageState: NO_ROLE_STORAGE_STATE })
-    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+  test.describe(
+    'Project task list — role enforcement',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: NO_ROLE_STORAGE_STATE })
+      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
-    test('authenticated user without bng completer role is redirected to /auth/forbidden', async ({
-      page
-    }) => {
-      await page.goto(
-        '/add-project-details/00000000-0000-0000-0000-000000000000'
-      )
+      test('authenticated user without bng completer role is redirected to /auth/forbidden', async ({
+        page
+      }) => {
+        await page.goto(
+          '/add-project-details/00000000-0000-0000-0000-000000000000'
+        )
 
-      await expect(page).toHaveURL(/\/auth\/forbidden/)
-    })
-  })
+        await expect(page).toHaveURL(/\/auth\/forbidden/)
+      })
+    }
+  )
 
   // ─── Route parameter validation ──────────────────────────────────────────────
 
-  test.describe('Project task list — route parameter validation', () => {
-    test.use({ storageState: STORAGE_STATE })
-    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+  test.describe(
+    'Project task list — route parameter validation',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
-    test('non-UUID id path param returns 400', async ({ page }) => {
-      const response = await page.goto('/add-project-details/not-a-uuid')
+      test('non-UUID id path param returns 400', async ({ page }) => {
+        const response = await page.goto('/add-project-details/not-a-uuid')
 
-      expect(response.status()).toBe(HTTP_BAD_REQUEST)
-    })
-  })
+        expect(response.status()).toBe(HTTP_BAD_REQUEST)
+      })
+    }
+  )
 
   // ─── Unauthenticated access ──────────────────────────────────────────────────
 
-  test.describe('Project task list — unauthenticated access', () => {
-    test('GET /add-project-details/{id} redirects to sign-in', async ({
-      page
-    }) => {
-      await page.goto(
-        '/add-project-details/00000000-0000-0000-0000-000000000000'
-      )
+  test.describe(
+    'Project task list — unauthenticated access',
+    { tag: '@regression' },
+    () => {
+      test('GET /add-project-details/{id} redirects to sign-in', async ({
+        page
+      }) => {
+        await page.goto(
+          '/add-project-details/00000000-0000-0000-0000-000000000000'
+        )
 
-      await expect(page).not.toHaveURL(/\/add-project-details/)
-      await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
-    })
-  })
+        await expect(page).not.toHaveURL(/\/add-project-details/)
+        await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
+      })
+    }
+  )
 })

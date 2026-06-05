@@ -24,7 +24,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   // ─── OGL link ────────────────────────────────────────────────────────────────
 
-  test.describe('Footer — OGL link', () => {
+  test.describe('Footer — OGL link', { tag: '@regression' }, () => {
     test('OGL link points to the National Archives URL in the same window', async ({
       layoutPage,
       page
@@ -38,7 +38,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   // ─── Crown Copyright link ────────────────────────────────────────────────────
 
-  test.describe('Footer — Crown Copyright link', () => {
+  test.describe('Footer — Crown Copyright link', { tag: '@regression' }, () => {
     test('Crown Copyright link points to the National Archives URL in the same window', async ({
       layoutPage,
       page

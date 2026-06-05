@@ -45,83 +45,97 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       }
     )
 
-    test('submitting whitespace-only name shows "Enter a project name" error', async ({
-      defineProjectNamePage
-    }) => {
-      await defineProjectNamePage.open()
-      await defineProjectNamePage.enterProjectName('   ')
-      await defineProjectNamePage.submit()
+    test(
+      'submitting whitespace-only name shows "Enter a project name" error',
+      { tag: '@regression' },
+      async ({ defineProjectNamePage }) => {
+        await defineProjectNamePage.open()
+        await defineProjectNamePage.enterProjectName('   ')
+        await defineProjectNamePage.submit()
 
-      await defineProjectNamePage.assertNameError('Enter a project name')
-    })
+        await defineProjectNamePage.assertNameError('Enter a project name')
+      }
+    )
 
-    test('submitting name over 1000 characters shows length error', async ({
-      defineProjectNamePage
-    }) => {
-      await defineProjectNamePage.open()
-      await defineProjectNamePage.enterProjectName(
-        'a'.repeat(PROJECT_NAME_MAX_LENGTH + 1)
-      )
-      await defineProjectNamePage.submit()
+    test(
+      'submitting name over 1000 characters shows length error',
+      { tag: '@regression' },
+      async ({ defineProjectNamePage }) => {
+        await defineProjectNamePage.open()
+        await defineProjectNamePage.enterProjectName(
+          'a'.repeat(PROJECT_NAME_MAX_LENGTH + 1)
+        )
+        await defineProjectNamePage.submit()
 
-      await defineProjectNamePage.assertNameError(
-        'Project name must be 1000 characters or fewer'
-      )
-    })
+        await defineProjectNamePage.assertNameError(
+          'Project name must be 1000 characters or fewer'
+        )
+      }
+    )
 
-    test('submitting name with control characters shows invalid characters error', async ({
-      defineProjectNamePage
-    }) => {
-      await defineProjectNamePage.open()
-      await defineProjectNamePage.enterProjectName('Project\x00Name')
-      await defineProjectNamePage.submit()
+    test(
+      'submitting name with control characters shows invalid characters error',
+      { tag: '@regression' },
+      async ({ defineProjectNamePage }) => {
+        await defineProjectNamePage.open()
+        await defineProjectNamePage.enterProjectName('Project\x00Name')
+        await defineProjectNamePage.submit()
 
-      await defineProjectNamePage.assertNameError(
-        'Project name must only contain valid characters'
-      )
-    })
+        await defineProjectNamePage.assertNameError(
+          'Project name must only contain valid characters'
+        )
+      }
+    )
 
-    test('on validation error the input is pre-filled with the submitted value', async ({
-      defineProjectNamePage
-    }) => {
-      const oversizedName = 'a'.repeat(PROJECT_NAME_MAX_LENGTH + 1)
-      await defineProjectNamePage.open()
-      await defineProjectNamePage.enterProjectName(oversizedName)
-      await defineProjectNamePage.submit()
+    test(
+      'on validation error the input is pre-filled with the submitted value',
+      { tag: '@regression' },
+      async ({ defineProjectNamePage }) => {
+        const oversizedName = 'a'.repeat(PROJECT_NAME_MAX_LENGTH + 1)
+        await defineProjectNamePage.open()
+        await defineProjectNamePage.enterProjectName(oversizedName)
+        await defineProjectNamePage.submit()
 
-      await expect(defineProjectNamePage.nameInput).toHaveValue(oversizedName)
-    })
+        await expect(defineProjectNamePage.nameInput).toHaveValue(oversizedName)
+      }
+    )
 
-    test('input enforces 1000-character limit via maxlength attribute', async ({
-      defineProjectNamePage
-    }) => {
-      await defineProjectNamePage.open()
+    test(
+      'input enforces 1000-character limit via maxlength attribute',
+      { tag: '@regression' },
+      async ({ defineProjectNamePage }) => {
+        await defineProjectNamePage.open()
 
-      await expect(defineProjectNamePage.nameInput).toHaveAttribute(
-        'maxlength',
-        '1000'
-      )
-    })
+        await expect(defineProjectNamePage.nameInput).toHaveAttribute(
+          'maxlength',
+          '1000'
+        )
+      }
+    )
   })
 
   // ─── Back link ──────────────────────────────────────────────────────────────
 
-  test.describe('Define project name — back link', () => {
-    test.use({ storageState: STORAGE_STATE })
-    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+  test.describe(
+    'Define project name — back link',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
-    test('clicking "Back" link navigates to /manage-projects', async ({
-      createProjectFlow,
-      defineProjectNamePage,
-      page
-    }) => {
-      await createProjectFlow.createProject(`Back link test ${Date.now()}`)
-      await defineProjectNamePage.open()
-      await defineProjectNamePage.backLink.click()
+      test('clicking "Back" link navigates to /manage-projects', async ({
+        createProjectFlow,
+        defineProjectNamePage,
+        page
+      }) => {
+        await createProjectFlow.createProject(`Back link test ${Date.now()}`)
+        await defineProjectNamePage.open()
+        await defineProjectNamePage.backLink.click()
 
-      await expect(page).toHaveURL(/\/manage-projects/)
-    })
-  })
+        await expect(page).toHaveURL(/\/manage-projects/)
+      })
+    }
+  )
 
   // ─── Role enforcement ────────────────────────────────────────────────────────
 
@@ -142,12 +156,16 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   // ─── Unauthenticated access ──────────────────────────────────────────────────
 
-  test.describe('Define project name — unauthenticated access', () => {
-    test('GET /project-name redirects to sign-in', async ({ page }) => {
-      await page.goto('/project-name')
+  test.describe(
+    'Define project name — unauthenticated access',
+    { tag: '@regression' },
+    () => {
+      test('GET /project-name redirects to sign-in', async ({ page }) => {
+        await page.goto('/project-name')
 
-      await expect(page).not.toHaveURL(/\/project-name/)
-      await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
-    })
-  })
+        await expect(page).not.toHaveURL(/\/project-name/)
+        await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
+      })
+    }
+  )
 })

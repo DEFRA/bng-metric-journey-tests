@@ -8,57 +8,65 @@ const STUB_UUID = '00000000-0000-0000-0000-000000000000'
 const VALID_UUID_V4 = 'aaaaaaaa-bbbb-4ccc-bddd-eeeeeeeeeeee'
 const STUB_HABITAT_TYPE = 'Grassland - Modified grassland'
 
-test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
+test.describe('habitat-list', { tag: '@habitat-list' }, () => {
   // ─── Query parameter validation ───────────────────────────────────────────────
 
-  test.describe('Baseline habitat details — query parameter validation', () => {
-    test.use({ storageState: STORAGE_STATE })
-    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+  test.describe(
+    'Baseline habitat details — query parameter validation',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
-    test('missing habitatId query param returns 400', async ({ page }) => {
-      const response = await page.goto(
-        `/baseline-habitat-details?projectId=${STUB_UUID}`
-      )
-      expect(response.status()).toBe(HTTP_BAD_REQUEST)
-    })
+      test('missing habitatId query param returns 400', async ({ page }) => {
+        const response = await page.goto(
+          `/baseline-habitat-details?projectId=${STUB_UUID}`
+        )
+        expect(response.status()).toBe(HTTP_BAD_REQUEST)
+      })
 
-    test('missing projectId query param returns 400', async ({ page }) => {
-      const response = await page.goto(
-        `/baseline-habitat-details?habitatId=${STUB_UUID}`
-      )
-      expect(response.status()).toBe(HTTP_BAD_REQUEST)
-    })
+      test('missing projectId query param returns 400', async ({ page }) => {
+        const response = await page.goto(
+          `/baseline-habitat-details?habitatId=${STUB_UUID}`
+        )
+        expect(response.status()).toBe(HTTP_BAD_REQUEST)
+      })
 
-    test('non-UUID habitatId query param returns 400', async ({ page }) => {
-      const response = await page.goto(
-        `/baseline-habitat-details?projectId=${STUB_UUID}&habitatId=not-a-uuid`
-      )
-      expect(response.status()).toBe(HTTP_BAD_REQUEST)
-    })
+      test('non-UUID habitatId query param returns 400', async ({ page }) => {
+        const response = await page.goto(
+          `/baseline-habitat-details?projectId=${STUB_UUID}&habitatId=not-a-uuid`
+        )
+        expect(response.status()).toBe(HTTP_BAD_REQUEST)
+      })
 
-    test('non-UUID projectId query param returns 400', async ({ page }) => {
-      const response = await page.goto(
-        `/baseline-habitat-details?projectId=not-a-uuid&habitatId=${STUB_UUID}`
-      )
-      expect(response.status()).toBe(HTTP_BAD_REQUEST)
-    })
-  })
+      test('non-UUID projectId query param returns 400', async ({ page }) => {
+        const response = await page.goto(
+          `/baseline-habitat-details?projectId=not-a-uuid&habitatId=${STUB_UUID}`
+        )
+        expect(response.status()).toBe(HTTP_BAD_REQUEST)
+      })
+    }
+  )
 
   // ─── Habitat not found ───────────────────────────────────────────────────────
 
-  test.describe('Baseline habitat details — habitat not found', () => {
-    test.use({ storageState: STORAGE_STATE })
-    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+  test.describe(
+    'Baseline habitat details — habitat not found',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
-    test('valid UUIDs for non-existent habitat returns 404', async ({
-      page
-    }) => {
-      const response = await page.goto(
-        `/baseline-habitat-details?projectId=${VALID_UUID_V4}&featureId=${VALID_UUID_V4}`
-      )
-      expect(response.status()).toBe(HTTP_NOT_FOUND)
-    })
-  })
+      test('valid UUIDs for non-existent habitat returns 404', async ({
+        page
+      }) => {
+        const response = await page.goto(
+          `/baseline-habitat-details?projectId=${VALID_UUID_V4}&featureId=${VALID_UUID_V4}`
+        )
+        expect(response.status()).toBe(HTTP_NOT_FOUND)
+      })
+    }
+  )
 
   // ─── Role enforcement ────────────────────────────────────────────────────────
 
@@ -96,15 +104,19 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
 
   // ─── Conditions proxy — query parameter validation ───────────────────────────
 
-  test.describe('Conditions proxy — query parameter validation', () => {
-    test.use({ storageState: STORAGE_STATE })
-    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+  test.describe(
+    'Conditions proxy — query parameter validation',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
-    test('missing habitatType query param returns 400', async ({ page }) => {
-      const response = await page.goto('/api/reference/conditions')
-      expect(response.status()).toBe(HTTP_BAD_REQUEST)
-    })
-  })
+      test('missing habitatType query param returns 400', async ({ page }) => {
+        const response = await page.goto('/api/reference/conditions')
+        expect(response.status()).toBe(HTTP_BAD_REQUEST)
+      })
+    }
+  )
 
   // ─── Conditions proxy — role enforcement ─────────────────────────────────────
 
