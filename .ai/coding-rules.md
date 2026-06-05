@@ -89,9 +89,17 @@ test.describe('Create project — happy path', { tag: '@smoke' }, () => { ... })
 test('uploads a metric file', { tag: ['@smoke', '@upload-file'] }, async () => {})
 ```
 
-Run by tag: `PROFILE=@smoke npm run test:github` — works with any run mode.
+Run by tag: `PROFILE=@smoke npm run test:github` or `PROFILE=@regression npm run test:github` — works with any run mode.
 
-`@smoke` criteria: happy path, key unauthenticated redirect per protected route, key role-enforcement redirect, one representative validation error per form. Not exhaustive validation variants, sort-order tests, or error-state edge cases. See `AGENTS.md` for the full rule.
+**Three required tag dimensions — every test must have all three:**
+
+1. `@<domain>` — inherited from the outer named `test.describe` (e.g. `@project-management`, `@habitat-list`). One per file.
+2. `@smoke` or `@regression` — mutually exclusive; every test carries exactly one.
+3. (The domain and coverage-tier tags together fully classify every test.)
+
+`@smoke` criteria: happy path, key unauthenticated redirect per protected route, key role-enforcement redirect, one representative validation error per form.
+
+`@regression` criteria: everything else — exhaustive validation variants, sort-order tests, error-state edge cases, route parameter validation (400 on non-UUID), back-link and navigation tests, additional page content tests. See `AGENTS.md` for the full rule.
 
 ## What to Avoid
 

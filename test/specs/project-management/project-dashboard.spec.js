@@ -29,37 +29,38 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       }
     )
 
-    test('clicking "Create project" button navigates to /project-name', async ({
-      createProjectFlow,
-      projectDashboardPage,
-      page
-    }) => {
-      await createProjectFlow.createProject(`Setup ${Date.now()}`)
-      await projectDashboardPage.open()
-      await projectDashboardPage.createProjectButton.click()
+    test(
+      'clicking "Create project" button navigates to /project-name',
+      { tag: '@regression' },
+      async ({ createProjectFlow, projectDashboardPage, page }) => {
+        await createProjectFlow.createProject(`Setup ${Date.now()}`)
+        await projectDashboardPage.open()
+        await projectDashboardPage.createProjectButton.click()
 
-      await expect(page).toHaveURL(/\/project-name/)
-    })
+        await expect(page).toHaveURL(/\/project-name/)
+      }
+    )
 
-    test('projects table has "Project name", "Last modified", and "Date created" column headings', async ({
-      createProjectFlow,
-      page
-    }) => {
-      await createProjectFlow.createProject(
-        `Column headings test ${Date.now()}`
-      )
+    test(
+      'projects table has "Project name", "Last modified", and "Date created" column headings',
+      { tag: '@regression' },
+      async ({ createProjectFlow, page }) => {
+        await createProjectFlow.createProject(
+          `Column headings test ${Date.now()}`
+        )
 
-      const table = page.getByTestId('projects-table')
-      await expect(
-        table.getByRole('columnheader', { name: 'Project name' })
-      ).toBeVisible()
-      await expect(
-        table.getByRole('columnheader', { name: 'Last modified' })
-      ).toBeVisible()
-      await expect(
-        table.getByRole('columnheader', { name: 'Date created' })
-      ).toBeVisible()
-    })
+        const table = page.getByTestId('projects-table')
+        await expect(
+          table.getByRole('columnheader', { name: 'Project name' })
+        ).toBeVisible()
+        await expect(
+          table.getByRole('columnheader', { name: 'Last modified' })
+        ).toBeVisible()
+        await expect(
+          table.getByRole('columnheader', { name: 'Date created' })
+        ).toBeVisible()
+      }
+    )
   })
 
   // ─── Empty state ─────────────────────────────────────────────────────────────
@@ -81,28 +82,33 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   // ─── Default sort order ──────────────────────────────────────────────────────
 
-  test.describe('Project dashboard — default sort order', () => {
-    test.use({ storageState: STORAGE_STATE })
-    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+  test.describe(
+    'Project dashboard — default sort order',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
-    test('projects are sorted by last modified descending', async ({
-      createProjectFlow,
-      projectDashboardPage
-    }) => {
-      const nameA = `Sort-A ${Date.now()}`
-      await createProjectFlow.createProject(nameA)
+      test('projects are sorted by last modified descending', async ({
+        createProjectFlow,
+        projectDashboardPage
+      }) => {
+        const nameA = `Sort-A ${Date.now()}`
+        await createProjectFlow.createProject(nameA)
 
-      const nameB = `Sort-B ${Date.now()}`
-      await createProjectFlow.createProject(nameB)
+        const nameB = `Sort-B ${Date.now()}`
+        await createProjectFlow.createProject(nameB)
 
-      await projectDashboardPage.open()
-      const projectLinks = projectDashboardPage.projectsTable.getByRole('link')
-      const names = await projectLinks.allTextContents()
-      const indexA = names.findIndex((n) => n.includes('Sort-A'))
-      const indexB = names.findIndex((n) => n.includes('Sort-B'))
-      expect(indexB).toBeLessThan(indexA)
-    })
-  })
+        await projectDashboardPage.open()
+        const projectLinks =
+          projectDashboardPage.projectsTable.getByRole('link')
+        const names = await projectLinks.allTextContents()
+        const indexA = names.findIndex((n) => n.includes('Sort-A'))
+        const indexB = names.findIndex((n) => n.includes('Sort-B'))
+        expect(indexB).toBeLessThan(indexA)
+      })
+    }
+  )
 
   // ─── Role enforcement ────────────────────────────────────────────────────────
 
@@ -138,15 +144,19 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   // ─── Backend error ───────────────────────────────────────────────────────────
 
-  test.describe('Project dashboard — backend error', () => {
-    test.use({ storageState: STORAGE_STATE })
+  test.describe(
+    'Project dashboard — backend error',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
 
-    test.skip('backend error ≥ 400 on GET /users/{userId}/projects renders an error page', async () => {
-      // The frontend calls GET /users/{userId}/projects server-side via wreck.
-      // Playwright page.route() only intercepts browser-initiated requests, so
-      // this backend call cannot be mocked at the E2E layer. A network-level
-      // proxy or a test-specific backend stub endpoint is needed to reproduce
-      // this path reliably.
-    })
-  })
+      test.skip('backend error ≥ 400 on GET /users/{userId}/projects renders an error page', async () => {
+        // The frontend calls GET /users/{userId}/projects server-side via wreck.
+        // Playwright page.route() only intercepts browser-initiated requests, so
+        // this backend call cannot be mocked at the E2E layer. A network-level
+        // proxy or a test-specific backend stub endpoint is needed to reproduce
+        // this path reliably.
+      })
+    }
+  )
 })

@@ -1,7 +1,7 @@
 import { test, expect } from '@fixtures'
 import { STORAGE_STATE, runMode } from '@utils/env.js'
 
-test.describe('Home page', () => {
+test.describe('Home page', { tag: '@home' }, () => {
   test(
     'unauthenticated visitor sees sign-in button',
     { tag: '@smoke' },

@@ -11,7 +11,7 @@ export function describeRoleEnforcement(label, route, { smoke = false } = {}) {
     test.skip(runMode === 'e2e', E2E_SKIP_REASON)
     test(
       'authenticated user without BNG Completer role is redirected to /auth/forbidden',
-      { tag: smoke ? '@smoke' : undefined },
+      { tag: smoke ? '@smoke' : '@regression' },
       async ({ page }) => {
         await page.goto(url)
         await expect(page).toHaveURL(/\/auth\/forbidden/)
@@ -29,7 +29,7 @@ export function describeUnauthenticatedAccess(
   test.describe(`${label} — unauthenticated access`, () => {
     test(
       `GET /projects/{id}/${route} redirects to sign-in`,
-      { tag: smoke ? '@smoke' : undefined },
+      { tag: smoke ? '@smoke' : '@regression' },
       async ({ page }) => {
         await page.goto(url)
         await expect(page).not.toHaveURL(new RegExp(`/${route}`))

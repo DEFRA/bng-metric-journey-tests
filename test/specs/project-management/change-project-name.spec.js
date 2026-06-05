@@ -77,50 +77,71 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       }
     )
 
-    test('submitting whitespace-only name shows "Enter a project name" error', async ({
-      createProjectFlow,
-      projectDashboardPage,
-      changeProjectNamePage
-    }) => {
-      const { id } = await setupProject(createProjectFlow, projectDashboardPage)
-      await changeProjectNamePage.open(id)
-      await changeProjectNamePage.enterName('   ')
-      await changeProjectNamePage.submit()
+    test(
+      'submitting whitespace-only name shows "Enter a project name" error',
+      { tag: '@regression' },
+      async ({
+        createProjectFlow,
+        projectDashboardPage,
+        changeProjectNamePage
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage
+        )
+        await changeProjectNamePage.open(id)
+        await changeProjectNamePage.enterName('   ')
+        await changeProjectNamePage.submit()
 
-      await changeProjectNamePage.assertNameError('Enter a project name')
-    })
+        await changeProjectNamePage.assertNameError('Enter a project name')
+      }
+    )
 
-    test('submitting name over 1000 characters shows length error', async ({
-      createProjectFlow,
-      projectDashboardPage,
-      changeProjectNamePage
-    }) => {
-      const { id } = await setupProject(createProjectFlow, projectDashboardPage)
-      await changeProjectNamePage.open(id)
-      await changeProjectNamePage.enterName(
-        'a'.repeat(PROJECT_NAME_MAX_LENGTH + 1)
-      )
-      await changeProjectNamePage.submit()
+    test(
+      'submitting name over 1000 characters shows length error',
+      { tag: '@regression' },
+      async ({
+        createProjectFlow,
+        projectDashboardPage,
+        changeProjectNamePage
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage
+        )
+        await changeProjectNamePage.open(id)
+        await changeProjectNamePage.enterName(
+          'a'.repeat(PROJECT_NAME_MAX_LENGTH + 1)
+        )
+        await changeProjectNamePage.submit()
 
-      await changeProjectNamePage.assertNameError(
-        'Project name must be 1000 characters or fewer'
-      )
-    })
+        await changeProjectNamePage.assertNameError(
+          'Project name must be 1000 characters or fewer'
+        )
+      }
+    )
 
-    test('submitting name with control characters shows invalid characters error', async ({
-      createProjectFlow,
-      projectDashboardPage,
-      changeProjectNamePage
-    }) => {
-      const { id } = await setupProject(createProjectFlow, projectDashboardPage)
-      await changeProjectNamePage.open(id)
-      await changeProjectNamePage.enterName('Project\x00Name')
-      await changeProjectNamePage.submit()
+    test(
+      'submitting name with control characters shows invalid characters error',
+      { tag: '@regression' },
+      async ({
+        createProjectFlow,
+        projectDashboardPage,
+        changeProjectNamePage
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage
+        )
+        await changeProjectNamePage.open(id)
+        await changeProjectNamePage.enterName('Project\x00Name')
+        await changeProjectNamePage.submit()
 
-      await changeProjectNamePage.assertNameError(
-        'Project name must only contain valid characters'
-      )
-    })
+        await changeProjectNamePage.assertNameError(
+          'Project name must only contain valid characters'
+        )
+      }
+    )
   })
 
   // ─── Happy path ──────────────────────────────────────────────────────────────
@@ -158,40 +179,51 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   // ─── Back link ───────────────────────────────────────────────────────────────
 
-  test.describe('Change project name — back link', () => {
-    test.use({ storageState: STORAGE_STATE })
-    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+  test.describe(
+    'Change project name — back link',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
-    test('clicking "Back" navigates to the project task list', async ({
-      createProjectFlow,
-      projectDashboardPage,
-      changeProjectNamePage,
-      page
-    }) => {
-      const { id } = await setupProject(createProjectFlow, projectDashboardPage)
-      await changeProjectNamePage.open(id)
-      await changeProjectNamePage.backLink.click()
+      test('clicking "Back" navigates to the project task list', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        changeProjectNamePage,
+        page
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage
+        )
+        await changeProjectNamePage.open(id)
+        await changeProjectNamePage.backLink.click()
 
-      await expect(page).toHaveURL(new RegExp(`/add-project-details/${id}`))
-    })
-  })
+        await expect(page).toHaveURL(new RegExp(`/add-project-details/${id}`))
+      })
+    }
+  )
 
   // ─── Role enforcement ────────────────────────────────────────────────────────
 
-  test.describe('Change project name — role enforcement', () => {
-    test.use({ storageState: NO_ROLE_STORAGE_STATE })
-    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+  test.describe(
+    'Change project name — role enforcement',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: NO_ROLE_STORAGE_STATE })
+      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
-    test('authenticated user without bng completer role is redirected to /auth/forbidden', async ({
-      page
-    }) => {
-      await page.goto(
-        '/change-project-name/00000000-0000-0000-0000-000000000000'
-      )
+      test('authenticated user without bng completer role is redirected to /auth/forbidden', async ({
+        page
+      }) => {
+        await page.goto(
+          '/change-project-name/00000000-0000-0000-0000-000000000000'
+        )
 
-      await expect(page).toHaveURL(/\/auth\/forbidden/)
-    })
-  })
+        await expect(page).toHaveURL(/\/auth\/forbidden/)
+      })
+    }
+  )
 
   // ─── Unauthenticated access ──────────────────────────────────────────────────
 
@@ -212,14 +244,18 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   // ─── Route parameter validation ──────────────────────────────────────────────
 
-  test.describe('Change project name — route parameter validation', () => {
-    test.use({ storageState: STORAGE_STATE })
-    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+  test.describe(
+    'Change project name — route parameter validation',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
-    test('non-UUID id path param returns 400', async ({ page }) => {
-      const response = await page.goto('/change-project-name/not-a-uuid')
+      test('non-UUID id path param returns 400', async ({ page }) => {
+        const response = await page.goto('/change-project-name/not-a-uuid')
 
-      expect(response.status()).toBe(HTTP_BAD_REQUEST)
-    })
-  })
+        expect(response.status()).toBe(HTTP_BAD_REQUEST)
+      })
+    }
+  )
 })

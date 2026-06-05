@@ -225,6 +225,25 @@ Do **not** tag `@smoke`:
 - Error states and edge cases
 - Route parameter validation (400 on non-UUID)
 
+### @regression — what to tag
+
+Tag `@regression` on any test that is **not** tagged `@smoke`. Every test must carry exactly one of `@smoke` or `@regression` — never neither.
+
+The `@regression` set is the mirror of `@smoke`: it covers everything excluded from smoke:
+
+- Exhaustive validation variants (whitespace, max length, control characters)
+- Sort order / ordering tests
+- Error states and edge cases (error pages, 404/400 responses)
+- Route parameter validation (400 on non-UUID)
+- Back-link navigation tests
+- Page content tests beyond the minimal happy-path assertion
+
+Apply the tag at the **describe block level** when all tests inside are non-smoke. Apply it at the **individual test level** when a describe block contains a mix of `@smoke` and `@regression` tests.
+
+```sh
+PROFILE=@regression npm run test:github   # Run all non-smoke tests
+```
+
 ### @\<domain\> — what to tag
 
 Every spec file belongs to exactly one **user-flow domain** (e.g. `project-management`). Tag all tests in the file with the domain name using a named outer `test.describe` with a `tag` option:
@@ -253,6 +272,15 @@ Rules:
 - **The domain tag matches the spec folder name** under `test/specs/` (e.g. files in `test/specs/project-management/` all use `@project-management`).
 - This lets you run all tests for a domain without knowing individual file names:
 
+**Mandatory: every test must have all three tag dimensions:**
+
+| Dimension                 | Rule                                                                                              |
+| ------------------------- | ------------------------------------------------------------------------------------------------- |
+| `@<domain>`               | Inherited from the outer named describe — do not omit the outer wrapper                           |
+| `@smoke` or `@regression` | Every test carries exactly one — `@smoke` if it meets the smoke criteria, `@regression` otherwise |
+
+When adding a new spec file or describe block, verify both dimensions are present before committing.
+
 ```sh
 PROFILE=@project-management npm run test:github
 ```
@@ -261,16 +289,18 @@ PROFILE=@project-management npm run test:github
 
 ## Run Commands
 
-| Command                                    | What it does                                                        |
-| ------------------------------------------ | ------------------------------------------------------------------- |
-| `npm run test:local`                       | Playwright against locally-running frontend (http://localhost:3000) |
-| `npm run test:github`                      | Playwright against Docker Compose stack (used in CI)                |
-| `npm run test:e2e`                         | Playwright against CDP deployed env — set `ENVIRONMENT=dev\|test`   |
-| `HEADED=true npm run test:local`           | Headed browser for debugging                                        |
-| `BROWSER=firefox npm run test:local`       | Override browser                                                    |
-| `PROFILE=@smoke npm run test:github`       | Run only `@smoke`-tagged tests against Docker Compose stack         |
-| `PROFILE=@smoke npm run test:e2e`          | Run only `@smoke`-tagged tests on the CDP portal                    |
-| `PROFILE=@upload-file npm run test:github` | Run tests tagged `@upload-file` (any tag works)                     |
+| Command                                           | What it does                                                        |
+| ------------------------------------------------- | ------------------------------------------------------------------- |
+| `npm run test:local`                              | Playwright against locally-running frontend (http://localhost:3000) |
+| `npm run test:github`                             | Playwright against Docker Compose stack (used in CI)                |
+| `npm run test:e2e`                                | Playwright against CDP deployed env — set `ENVIRONMENT=dev\|test`   |
+| `HEADED=true npm run test:local`                  | Headed browser for debugging                                        |
+| `BROWSER=firefox npm run test:local`              | Override browser                                                    |
+| `PROFILE=@smoke npm run test:github`              | Run only `@smoke`-tagged tests against Docker Compose stack         |
+| `PROFILE=@smoke npm run test:e2e`                 | Run only `@smoke`-tagged tests on the CDP portal                    |
+| `PROFILE=@regression npm run test:github`         | Run only `@regression`-tagged (non-smoke) tests                     |
+| `PROFILE=@habitat-list npm run test:github`       | Run tests for the `habitat-list` domain                             |
+| `PROFILE=@project-management npm run test:github` | Run tests for the `project-management` domain                       |
 
 ---
 
