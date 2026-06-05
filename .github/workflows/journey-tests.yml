@@ -137,6 +137,9 @@ jobs:
           BNG_METRIC_BACKEND_PATH: ./bng-metric-backend
         run: docker compose up --wait --wait-timeout 120 -d
 
+      - name: Add host entries for identity stub
+        run: echo "127.0.0.1 cdp-defra-id-stub" | sudo tee -a /etc/hosts
+
       - name: Run Playwright tests
         env:
           PROFILE: ${{ inputs.profile }}

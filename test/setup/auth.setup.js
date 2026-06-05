@@ -82,16 +82,25 @@ export default async function globalSetup() {
     return
   }
 
-  const browserTypes = { chromium, firefox, webkit }
-  const browserType =
-    browserTypes[process.env.BROWSER ?? 'chromium'] ?? chromium
-  const browser = await browserType.launch({
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--host-resolver-rules=MAP cdp-defra-id-stub 127.0.0.1,MAP localhost 127.0.0.1'
-    ]
-  })
+  const browserName = process.env.BROWSER ?? 'chromium'
+  const browserType = { chromium, firefox, webkit }[browserName] ?? chromium
+
+  // Chromium-specific: sandbox flags + host resolver to map custom hostnames
+  // and force localhost → 127.0.0.1 (avoids IPv6 preference on some runners).
+  // Firefox/WebKit use the OS /etc/hosts for custom hostnames (see workflow)
+  // and firefoxUserPrefs to force IPv4 DNS so localhost resolves correctly.
+  const launchOptions =
+    browserName === 'chromium'
+      ? {
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--host-resolver-rules=MAP cdp-defra-id-stub 127.0.0.1,MAP localhost 127.0.0.1'
+          ]
+        }
+      : { firefoxUserPrefs: { 'network.dns.disableIPv6': true } }
+
+  const browser = await browserType.launch(launchOptions)
 
   try {
     // ── BNG completer user ─────────────────────────────────────────────────
