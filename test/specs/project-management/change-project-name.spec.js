@@ -134,7 +134,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           projectDashboardPage
         )
         await changeProjectNamePage.open(id)
-        await changeProjectNamePage.enterName('Project\x00Name')
+        await changeProjectNamePage.enterName('Project\x01Name')
         await changeProjectNamePage.submit()
 
         await changeProjectNamePage.assertNameError(

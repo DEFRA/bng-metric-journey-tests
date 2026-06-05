@@ -78,7 +78,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       { tag: '@regression' },
       async ({ defineProjectNamePage }) => {
         await defineProjectNamePage.open()
-        await defineProjectNamePage.enterProjectName('Project\x00Name')
+        await defineProjectNamePage.enterProjectName('Project\x01Name')
         await defineProjectNamePage.submit()
 
         await defineProjectNamePage.assertNameError(
