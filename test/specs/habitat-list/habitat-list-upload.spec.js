@@ -435,4 +435,257 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
       })
     }
   )
+
+  // ─── Hedgerows tab table ──────────────────────────────────────────────────────
+
+  test.describe(
+    'Habitat list — hedgerows tab table',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+      test.describe.configure({ mode: 'serial' })
+
+      let projectId
+
+      test('hedgerows section heading is displayed after upload', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        habitatListPage,
+        page
+      }) => {
+        projectId = await uploadAndNavigateToHabitatList(
+          createProjectFlow,
+          projectDashboardPage,
+          uploadBaselineFileFlow,
+          page,
+          COMPLETE_BASELINE_FILE
+        )
+
+        await habitatListPage.hedgerowsTab.click()
+        await expect(
+          page.locator('#hedgerows').getByRole('heading', { name: 'Hedgerows' })
+        ).toBeVisible()
+      })
+
+      test('hedgerows table shows 7 column headings including "Length (km)" and is sortable', async ({
+        habitatListPage,
+        page
+      }) => {
+        await page.goto(`/projects/${projectId}/baseline-habitat-list`)
+        await habitatListPage.hedgerowsTab.click()
+
+        await expect(
+          habitatListPage.hedgerowsTable.getByRole('columnheader', {
+            name: 'Ref'
+          })
+        ).toBeVisible()
+        await expect(
+          habitatListPage.hedgerowsTable.getByRole('columnheader', {
+            name: HABITAT_TYPE_COL
+          })
+        ).toBeVisible()
+        await expect(
+          habitatListPage.hedgerowsTable.getByRole('columnheader', {
+            name: 'Length (km)'
+          })
+        ).toBeVisible()
+        await expect(
+          habitatListPage.hedgerowsTable.getByRole('columnheader', {
+            name: 'Distinctiveness'
+          })
+        ).toBeVisible()
+        await expect(
+          habitatListPage.hedgerowsTable.getByRole('columnheader', {
+            name: 'Condition'
+          })
+        ).toBeVisible()
+        await expect(
+          habitatListPage.hedgerowsTable.getByRole('columnheader', {
+            name: 'Units'
+          })
+        ).toBeVisible()
+        await expect(
+          habitatListPage.hedgerowsTable.getByRole('columnheader', {
+            name: 'Status'
+          })
+        ).toBeVisible()
+        await expect(habitatListPage.hedgerowsTable).toHaveAttribute(
+          'data-module',
+          'moj-sortable-table'
+        )
+      })
+
+      test('hedgerow data row shows a linked ref', async ({
+        habitatListPage,
+        page
+      }) => {
+        await page.goto(`/projects/${projectId}/baseline-habitat-list`)
+        await habitatListPage.hedgerowsTab.click()
+        const firstRow = habitatListPage.hedgerowsTable.getByRole('row').nth(1)
+        const refLink = firstRow.getByRole('cell').nth(0).getByRole('link')
+        await expect(refLink).toBeVisible()
+        await expect(refLink).toHaveAttribute(
+          'href',
+          /baseline-habitat-details/
+        )
+      })
+
+      test('clicking a hedgerow reference link navigates to the Habitat Details page', async ({
+        habitatListPage,
+        page
+      }) => {
+        await page.goto(`/projects/${projectId}/baseline-habitat-list`)
+        await habitatListPage.hedgerowsTab.click()
+        const refLink = habitatListPage.hedgerowsTable
+          .getByRole('row')
+          .nth(1)
+          .getByRole('cell')
+          .nth(0)
+          .getByRole('link')
+        await refLink.click()
+        await expect(page).toHaveURL(/\/baseline-habitat-details/)
+      })
+    }
+  )
+
+  // ─── Watercourses tab table ───────────────────────────────────────────────────
+
+  test.describe(
+    'Habitat list — watercourses tab table',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+      test.describe.configure({ mode: 'serial' })
+
+      let projectId
+
+      test('watercourses section heading is displayed after upload', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        habitatListPage,
+        page
+      }) => {
+        projectId = await uploadAndNavigateToHabitatList(
+          createProjectFlow,
+          projectDashboardPage,
+          uploadBaselineFileFlow,
+          page,
+          COMPLETE_BASELINE_FILE
+        )
+
+        await habitatListPage.watercoursesTab.click()
+        await expect(
+          page
+            .locator('#watercourses')
+            .getByRole('heading', { name: 'Watercourses' })
+        ).toBeVisible()
+      })
+
+      test('watercourses table shows 7 column headings and is sortable', async ({
+        habitatListPage,
+        page
+      }) => {
+        await page.goto(`/projects/${projectId}/baseline-habitat-list`)
+        await habitatListPage.watercoursesTab.click()
+
+        await expect(
+          habitatListPage.watercoursesTable.getByRole('columnheader', {
+            name: 'Ref'
+          })
+        ).toBeVisible()
+        await expect(
+          habitatListPage.watercoursesTable.getByRole('columnheader', {
+            name: HABITAT_TYPE_COL
+          })
+        ).toBeVisible()
+        await expect(
+          habitatListPage.watercoursesTable.getByRole('columnheader', {
+            name: 'Size'
+          })
+        ).toBeVisible()
+        await expect(
+          habitatListPage.watercoursesTable.getByRole('columnheader', {
+            name: 'Distinctiveness'
+          })
+        ).toBeVisible()
+        await expect(
+          habitatListPage.watercoursesTable.getByRole('columnheader', {
+            name: 'Condition'
+          })
+        ).toBeVisible()
+        await expect(
+          habitatListPage.watercoursesTable.getByRole('columnheader', {
+            name: 'Units'
+          })
+        ).toBeVisible()
+        await expect(
+          habitatListPage.watercoursesTable.getByRole('columnheader', {
+            name: 'Status'
+          })
+        ).toBeVisible()
+        await expect(habitatListPage.watercoursesTable).toHaveAttribute(
+          'data-module',
+          'moj-sortable-table'
+        )
+      })
+
+      test('clicking a watercourse reference link navigates to the Habitat Details page', async ({
+        habitatListPage,
+        page
+      }) => {
+        await page.goto(`/projects/${projectId}/baseline-habitat-list`)
+        await habitatListPage.watercoursesTab.click()
+        const refLink = habitatListPage.watercoursesTable
+          .getByRole('row')
+          .nth(1)
+          .getByRole('cell')
+          .nth(0)
+          .getByRole('link')
+        await refLink.click()
+        await expect(page).toHaveURL(/\/baseline-habitat-details/)
+      })
+    }
+  )
+
+  // ─── Watercourses tab empty state ─────────────────────────────────────────────
+
+  test.describe(
+    'Habitat list — watercourses tab empty state',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+      test.describe.configure({ mode: 'serial' })
+
+      const NO_WATERCOURSES_FILE = 'Baseline - no watercourses.gpkg'
+
+      test('watercourses tab panel shows "No watercourse data uploaded." when file has no watercourse features', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        habitatListPage,
+        page
+      }) => {
+        const projectId = await uploadAndNavigateToHabitatList(
+          createProjectFlow,
+          projectDashboardPage,
+          uploadBaselineFileFlow,
+          page,
+          NO_WATERCOURSES_FILE
+        )
+
+        await page.goto(`/projects/${projectId}/baseline-habitat-list`)
+        await habitatListPage.watercoursesTab.click()
+        await expect(
+          page
+            .locator('#watercourses')
+            .getByText('No watercourse data uploaded.')
+        ).toBeVisible()
+      })
+    }
+  )
 })

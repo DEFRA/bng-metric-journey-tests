@@ -61,6 +61,8 @@ export class HabitatListPage extends BasePage {
       .getByRole('cell', { name: 'Complete' })
       .first()
     this.areaHabitatsTable = page.locator('#area-habitats').getByRole('table')
+    this.hedgerowsTable = page.locator('#hedgerows').getByRole('table')
+    this.watercoursesTable = page.locator('#watercourses').getByRole('table')
   }
 
   async open(id) {

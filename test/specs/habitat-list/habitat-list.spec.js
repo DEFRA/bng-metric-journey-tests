@@ -138,6 +138,30 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
           'false'
         )
       })
+
+      test('clicking Watercourses tab selects it and deselects Areas', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        habitatListPage
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
+        )
+
+        await habitatListPage.open(id)
+        await habitatListPage.watercoursesTab.click()
+
+        await expect(habitatListPage.watercoursesTab).toHaveAttribute(
+          'aria-selected',
+          'true'
+        )
+        await expect(habitatListPage.areasTab).toHaveAttribute(
+          'aria-selected',
+          'false'
+        )
+      })
     }
   )
 
