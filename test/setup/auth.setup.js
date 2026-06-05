@@ -1,6 +1,6 @@
 import fs from 'fs/promises'
 import path from 'path'
-import { chromium } from '@playwright/test'
+import { chromium, firefox, webkit } from '@playwright/test'
 import {
   baseUrl,
   runMode,
@@ -82,7 +82,10 @@ export default async function globalSetup() {
     return
   }
 
-  const browser = await chromium.launch({
+  const browserTypes = { chromium, firefox, webkit }
+  const browserType =
+    browserTypes[process.env.BROWSER ?? 'chromium'] ?? chromium
+  const browser = await browserType.launch({
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
