@@ -85,20 +85,25 @@ export default async function globalSetup() {
   const browserName = process.env.BROWSER ?? 'chromium'
   const browserType = { chromium, firefox, webkit }[browserName] ?? chromium
 
-  // Chromium-specific: sandbox flags + host resolver to map custom hostnames
-  // and force localhost → 127.0.0.1 (avoids IPv6 preference on some runners).
-  // Firefox/WebKit use the OS /etc/hosts for custom hostnames (see workflow)
-  // and firefoxUserPrefs to force IPv4 DNS so localhost resolves correctly.
+  // Launch options are browser-specific — the CI workflow adds custom hostnames
+  // (cdp-defra-id-stub) to /etc/hosts for Firefox and WebKit since they have
+  // no equivalent of Chromium's --host-resolver-rules.
   const launchOptions =
-    browserName === 'chromium'
-      ? {
-          args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--host-resolver-rules=MAP cdp-defra-id-stub 127.0.0.1,MAP localhost 127.0.0.1'
-          ]
-        }
-      : { firefoxUserPrefs: { 'network.dns.disableIPv6': true } }
+    {
+      chromium: {
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--host-resolver-rules=MAP cdp-defra-id-stub 127.0.0.1,MAP localhost 127.0.0.1'
+        ]
+      },
+      firefox: {
+        // Disable IPv6 DNS preference — GitHub Actions runners can resolve
+        // localhost as ::1 (IPv6) while Docker services only bind 127.0.0.1.
+        firefoxUserPrefs: { 'network.dns.disableIPv6': true }
+      },
+      webkit: {}
+    }[browserName] ?? {}
 
   const browser = await browserType.launch(launchOptions)
 
