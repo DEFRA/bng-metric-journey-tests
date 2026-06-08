@@ -1,5 +1,6 @@
 import 'dotenv/config'
 import { defineConfig } from '@playwright/test'
+import { proxyConfig } from './test/utils/env.js'
 
 const runMode = process.env.RUN_MODE ?? 'local'
 const environment = process.env.ENVIRONMENT ?? 'dev'
@@ -40,6 +41,7 @@ export default defineConfig({
 
   use: {
     baseURL,
+    ...(proxyConfig && { proxy: proxyConfig }),
     headless: process.env.HEADED !== 'true',
     browserName: /** @type {any} */ (process.env.BROWSER ?? 'chromium'),
 
