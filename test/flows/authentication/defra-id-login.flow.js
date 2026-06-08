@@ -19,6 +19,9 @@ export class DefraIdLoginFlow {
 
     // The external sign-in redirects through Defra ID back to /auth/callback
     // and on to the project dashboard — allow extra time for the round trip.
-    await this.page.waitForURL(/\/manage-projects/, { timeout: 60000 })
+    await this.page.waitForURL(/\/manage-projects/, {
+      timeout: 60000,
+      waitUntil: 'domcontentloaded'
+    })
   }
 }
