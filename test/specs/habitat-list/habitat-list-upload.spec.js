@@ -35,6 +35,27 @@ async function getHabitatTypeHeader(habitatListPage, page, projectId) {
   })
 }
 
+async function assertHabitatTableColumns(table, sizeColumnName) {
+  await expect(table.getByRole('columnheader', { name: 'Ref' })).toBeVisible()
+  await expect(
+    table.getByRole('columnheader', { name: HABITAT_TYPE_COL })
+  ).toBeVisible()
+  await expect(
+    table.getByRole('columnheader', { name: sizeColumnName })
+  ).toBeVisible()
+  await expect(
+    table.getByRole('columnheader', { name: 'Distinctiveness' })
+  ).toBeVisible()
+  await expect(
+    table.getByRole('columnheader', { name: 'Condition' })
+  ).toBeVisible()
+  await expect(table.getByRole('columnheader', { name: 'Units' })).toBeVisible()
+  await expect(
+    table.getByRole('columnheader', { name: 'Status' })
+  ).toBeVisible()
+  await expect(table).toHaveAttribute('data-module', 'moj-sortable-table')
+}
+
 test.describe('habitat-list', { tag: '@habitat-list' }, () => {
   // Serial mode prevents parallel uploads from contaminating the shared Redis
   // pendingUploadId session across the describe blocks in this file.
@@ -245,45 +266,9 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         page
       }) => {
         await page.goto(`/projects/${projectId}/baseline-habitat-list`)
-
-        await expect(
-          habitatListPage.areaHabitatsTable.getByRole('columnheader', {
-            name: 'Ref'
-          })
-        ).toBeVisible()
-        await expect(
-          habitatListPage.areaHabitatsTable.getByRole('columnheader', {
-            name: HABITAT_TYPE_COL
-          })
-        ).toBeVisible()
-        await expect(
-          habitatListPage.areaHabitatsTable.getByRole('columnheader', {
-            name: 'Area (ha)'
-          })
-        ).toBeVisible()
-        await expect(
-          habitatListPage.areaHabitatsTable.getByRole('columnheader', {
-            name: 'Distinctiveness'
-          })
-        ).toBeVisible()
-        await expect(
-          habitatListPage.areaHabitatsTable.getByRole('columnheader', {
-            name: 'Condition'
-          })
-        ).toBeVisible()
-        await expect(
-          habitatListPage.areaHabitatsTable.getByRole('columnheader', {
-            name: 'Units'
-          })
-        ).toBeVisible()
-        await expect(
-          habitatListPage.areaHabitatsTable.getByRole('columnheader', {
-            name: 'Status'
-          })
-        ).toBeVisible()
-        await expect(habitatListPage.areaHabitatsTable).toHaveAttribute(
-          'data-module',
-          'moj-sortable-table'
+        await assertHabitatTableColumns(
+          habitatListPage.areaHabitatsTable,
+          'Area (ha)'
         )
       })
 
@@ -470,59 +455,19 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
       })
 
       test('hedgerows table shows 7 column headings including "Length (km)" and is sortable', async ({
-        habitatListPage,
-        page
+        habitatListPage
       }) => {
-        await page.goto(`/projects/${projectId}/baseline-habitat-list`)
-        await habitatListPage.hedgerowsTab.click()
-
-        await expect(
-          habitatListPage.hedgerowsTable.getByRole('columnheader', {
-            name: 'Ref'
-          })
-        ).toBeVisible()
-        await expect(
-          habitatListPage.hedgerowsTable.getByRole('columnheader', {
-            name: HABITAT_TYPE_COL
-          })
-        ).toBeVisible()
-        await expect(
-          habitatListPage.hedgerowsTable.getByRole('columnheader', {
-            name: 'Length (km)'
-          })
-        ).toBeVisible()
-        await expect(
-          habitatListPage.hedgerowsTable.getByRole('columnheader', {
-            name: 'Distinctiveness'
-          })
-        ).toBeVisible()
-        await expect(
-          habitatListPage.hedgerowsTable.getByRole('columnheader', {
-            name: 'Condition'
-          })
-        ).toBeVisible()
-        await expect(
-          habitatListPage.hedgerowsTable.getByRole('columnheader', {
-            name: 'Units'
-          })
-        ).toBeVisible()
-        await expect(
-          habitatListPage.hedgerowsTable.getByRole('columnheader', {
-            name: 'Status'
-          })
-        ).toBeVisible()
-        await expect(habitatListPage.hedgerowsTable).toHaveAttribute(
-          'data-module',
-          'moj-sortable-table'
+        await habitatListPage.openTab(projectId, 'hedgerows')
+        await assertHabitatTableColumns(
+          habitatListPage.hedgerowsTable,
+          'Length (km)'
         )
       })
 
       test('hedgerow data row shows a linked ref', async ({
-        habitatListPage,
-        page
+        habitatListPage
       }) => {
-        await page.goto(`/projects/${projectId}/baseline-habitat-list`)
-        await habitatListPage.hedgerowsTab.click()
+        await habitatListPage.openTab(projectId, 'hedgerows')
         const firstRow = habitatListPage.hedgerowsTable.getByRole('row').nth(1)
         const refLink = firstRow.getByRole('cell').nth(0).getByRole('link')
         await expect(refLink).toBeVisible()
@@ -536,8 +481,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         habitatListPage,
         page
       }) => {
-        await page.goto(`/projects/${projectId}/baseline-habitat-list`)
-        await habitatListPage.hedgerowsTab.click()
+        await habitatListPage.openTab(projectId, 'hedgerows')
         const refLink = habitatListPage.hedgerowsTable
           .getByRole('row')
           .nth(1)
@@ -586,50 +530,12 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
       })
 
       test('watercourses table shows 7 column headings and is sortable', async ({
-        habitatListPage,
-        page
+        habitatListPage
       }) => {
-        await page.goto(`/projects/${projectId}/baseline-habitat-list`)
-        await habitatListPage.watercoursesTab.click()
-
-        await expect(
-          habitatListPage.watercoursesTable.getByRole('columnheader', {
-            name: 'Ref'
-          })
-        ).toBeVisible()
-        await expect(
-          habitatListPage.watercoursesTable.getByRole('columnheader', {
-            name: HABITAT_TYPE_COL
-          })
-        ).toBeVisible()
-        await expect(
-          habitatListPage.watercoursesTable.getByRole('columnheader', {
-            name: 'Size'
-          })
-        ).toBeVisible()
-        await expect(
-          habitatListPage.watercoursesTable.getByRole('columnheader', {
-            name: 'Distinctiveness'
-          })
-        ).toBeVisible()
-        await expect(
-          habitatListPage.watercoursesTable.getByRole('columnheader', {
-            name: 'Condition'
-          })
-        ).toBeVisible()
-        await expect(
-          habitatListPage.watercoursesTable.getByRole('columnheader', {
-            name: 'Units'
-          })
-        ).toBeVisible()
-        await expect(
-          habitatListPage.watercoursesTable.getByRole('columnheader', {
-            name: 'Status'
-          })
-        ).toBeVisible()
-        await expect(habitatListPage.watercoursesTable).toHaveAttribute(
-          'data-module',
-          'moj-sortable-table'
+        await habitatListPage.openTab(projectId, 'watercourses')
+        await assertHabitatTableColumns(
+          habitatListPage.watercoursesTable,
+          'Size'
         )
       })
 
@@ -637,8 +543,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         habitatListPage,
         page
       }) => {
-        await page.goto(`/projects/${projectId}/baseline-habitat-list`)
-        await habitatListPage.watercoursesTab.click()
+        await habitatListPage.openTab(projectId, 'watercourses')
         const refLink = habitatListPage.watercoursesTable
           .getByRole('row')
           .nth(1)
@@ -647,6 +552,73 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
           .getByRole('link')
         await refLink.click()
         await expect(page).toHaveURL(/\/baseline-habitat-details/)
+      })
+
+      test('watercourse data row shows linked ref, non-empty habitat type, numeric size and units', async ({
+        habitatListPage
+      }) => {
+        await habitatListPage.openTab(projectId, 'watercourses')
+        const firstRow = habitatListPage.watercoursesTable
+          .getByRole('row')
+          .nth(1)
+
+        const refLink = firstRow.getByRole('cell').nth(0).getByRole('link')
+        await expect(refLink).toBeVisible()
+        await expect(refLink).toHaveAttribute(
+          'href',
+          /baseline-habitat-details/
+        )
+
+        await expect(firstRow.getByRole('cell').nth(1)).not.toBeEmpty()
+        await expect(firstRow.getByRole('cell').nth(2)).toHaveText(
+          /^\d+(\.\d+)?$/
+        )
+        await expect(firstRow.getByRole('cell').nth(3)).not.toBeEmpty()
+        await expect(firstRow.getByRole('cell').nth(4)).not.toBeEmpty()
+        await expect(firstRow.getByRole('cell').nth(5)).toHaveText(
+          /^\d+(\.\d+)?$/
+        )
+      })
+
+      // AC3 — size "km" suffix: not yet implemented (value renders as plain decimal without suffix)
+      test.skip('watercourse size column value includes "km" suffix with no space', async ({
+        habitatListPage
+      }) => {
+        await habitatListPage.openTab(projectId, 'watercourses')
+        const firstRow = habitatListPage.watercoursesTable
+          .getByRole('row')
+          .nth(1)
+        await expect(firstRow.getByRole('cell').nth(2)).toHaveText(
+          /^\d+(\.\d+)?km$/
+        )
+      })
+
+      test('watercourse data row status column is non-empty', async ({
+        habitatListPage
+      }) => {
+        await habitatListPage.openTab(projectId, 'watercourses')
+        const firstRow = habitatListPage.watercoursesTable
+          .getByRole('row')
+          .nth(1)
+        await expect(firstRow.getByRole('cell').nth(6)).not.toBeEmpty()
+      })
+
+      // AC5 — totals row: not yet implemented — no "Total" row is rendered.
+      // Consistent with area habitats table (see skipped totals test above).
+      test.skip('watercourses table displays a totals row with "Total", total size, and total units', async ({
+        habitatListPage
+      }) => {
+        await habitatListPage.openTab(projectId, 'watercourses')
+        const totalsRow = habitatListPage.watercoursesTable
+          .getByRole('row')
+          .filter({ hasText: 'Total' })
+        await expect(totalsRow).toBeVisible()
+        await expect(totalsRow.getByRole('cell').nth(2)).toHaveText(
+          /^\d+(\.\d+)?$/
+        )
+        await expect(totalsRow.getByRole('cell').nth(5)).toHaveText(
+          /^\d+(\.\d+)?$/
+        )
       })
     }
   )
@@ -678,8 +650,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
           NO_WATERCOURSES_FILE
         )
 
-        await page.goto(`/projects/${projectId}/baseline-habitat-list`)
-        await habitatListPage.watercoursesTab.click()
+        await habitatListPage.openTab(projectId, 'watercourses')
         await expect(
           page
             .locator('#watercourses')

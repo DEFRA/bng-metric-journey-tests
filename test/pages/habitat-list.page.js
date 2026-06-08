@@ -68,4 +68,11 @@ export class HabitatListPage extends BasePage {
   async open(id) {
     await super.open(`/projects/${id}/baseline-habitat-list`)
   }
+
+  async openTab(projectId, tab) {
+    await this.page.goto(`/projects/${projectId}/baseline-habitat-list`)
+    const tabLocator =
+      tab === 'hedgerows' ? this.hedgerowsTab : this.watercoursesTab
+    await tabLocator.click()
+  }
 }
