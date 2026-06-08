@@ -84,7 +84,12 @@ export default async function globalSetup() {
     }
 
     const loginBrowser = await chromium.launch({
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        // Force HTTP/1.1 through the CDP egress proxy (avoids ERR_HTTP2_PROTOCOL_ERROR).
+        ...(proxyConfig ? ['--disable-http2'] : [])
+      ],
       ...(proxyConfig && { proxy: proxyConfig })
     })
     try {
