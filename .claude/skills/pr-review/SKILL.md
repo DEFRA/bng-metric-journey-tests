@@ -7,7 +7,13 @@ When reviewing a PR, follow all steps below in order.
 
 ## Step 1 — Gather the diff
 
-Run `git diff main...HEAD` to see all changes on this branch.
+Run all three commands to capture every change on this branch — committed, staged, and unstaged:
+
+- `git diff main...HEAD` — committed changes ahead of main
+- `git diff --cached` — staged changes not yet committed
+- `git diff` — unstaged working tree changes
+
+Combine all three outputs as the full diff to review. If a file appears in multiple outputs, treat the union as the full change to that file.
 
 ## Step 2 — Write the review
 
