@@ -5,7 +5,12 @@ description: Writes pull request descriptions. Use when creating a PR, writing a
 
 When writing a PR description:
 
-1. Run `git diff main...HEAD` to see all changes on this branch
+1. Run all three commands to capture every change on this branch — committed, staged, and unstaged:
+
+   - `git diff main...HEAD` — committed changes ahead of main
+   - `git diff --cached` — staged changes not yet committed
+   - `git diff` — unstaged working tree changes
+
 2. Write a description following this format:
 
 ## What
@@ -24,11 +29,15 @@ Brief context on why this change is needed
 
 3. After outputting the description, ask:
 
-   > "Approve this description? On approval I'll commit all staged changes, push the branch, and create the PR."
+   > "Approve this description? On approval I'll stage and commit locally. You can then run `/pr-review` before pushing."
 
-4. On approval:
+4. On approval — commit locally only (do NOT push yet):
+
    - Stage any unstaged changes that belong to this PR (`git add` specific files — do not use `git add .` or `git add -A`)
    - Commit using the PR title as the commit message (first line) followed by a blank line and the full description body
+   - Confirm with: "Committed locally. Run `/pr-review` now if you'd like a review, then say **push** when ready."
+
+5. When the user says "push":
    - Push the branch with `git push -u origin HEAD`
-   - Create the PR using `gh pr create` with the approved title and description body
+   - If a PR already exists for this branch, update it with `gh api` PATCH; otherwise create it with `gh pr create`
    - Return the PR URL
