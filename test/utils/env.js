@@ -36,3 +36,16 @@ export const NO_PROJECTS_STORAGE_STATE = path.join(
   projectRoot,
   'playwright/.auth/user-no-projects.json'
 )
+
+// Real Defra ID credentials for e2e mode — injected via the CDP Portal secret
+// store (or a gitignored local .env). Required only when RUN_MODE=e2e.
+export const defraIdUsername = process.env.DEFRA_ID_USERNAME
+export const defraIdPassword = process.env.DEFRA_ID_PASSWORD
+
+// Real Defra ID login in e2e mode produces only the main completer session
+// (STORAGE_STATE). The no-role and no-projects profiles cannot be reproduced
+// from a single account, so describes that use them must skip in e2e. Pass the
+// profile the describe uses; the completer profile is never skipped.
+export function skipInE2e(storageState = STORAGE_STATE) {
+  return runMode === 'e2e' && storageState !== STORAGE_STATE
+}

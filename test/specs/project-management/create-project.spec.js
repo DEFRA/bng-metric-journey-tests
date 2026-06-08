@@ -1,5 +1,5 @@
 import { test, expect } from '@fixtures'
-import { STORAGE_STATE, runMode } from '@utils/env.js'
+import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 
@@ -8,7 +8,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   test.describe('Create project — happy path', { tag: '@smoke' }, () => {
     test.use({ storageState: STORAGE_STATE })
-    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+    test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
     test('valid name creates project and redirects to dashboard with project listed', async ({
       createProjectFlow,

@@ -3,7 +3,7 @@ import {
   STORAGE_STATE,
   NO_PROJECTS_STORAGE_STATE,
   NO_ROLE_STORAGE_STATE,
-  runMode
+  skipInE2e
 } from '@utils/env.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
@@ -13,7 +13,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   test.describe('Project dashboard — page content', () => {
     test.use({ storageState: STORAGE_STATE })
-    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+    test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
     test(
       'authenticated user sees dashboard with "Create project" button',
@@ -67,7 +67,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   test.describe('Project dashboard — empty state', () => {
     test.use({ storageState: NO_PROJECTS_STORAGE_STATE })
-    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+    test.skip(skipInE2e(NO_PROJECTS_STORAGE_STATE), E2E_SKIP_REASON)
 
     test(
       'user with no projects is redirected from dashboard to /project-name',
@@ -87,7 +87,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
-      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
       test('projects are sorted by last modified descending', async ({
         createProjectFlow,
@@ -114,7 +114,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   test.describe('Project dashboard — role enforcement', () => {
     test.use({ storageState: NO_ROLE_STORAGE_STATE })
-    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+    test.skip(skipInE2e(NO_ROLE_STORAGE_STATE), E2E_SKIP_REASON)
 
     test(
       'authenticated user without bng completer role is redirected to /auth/forbidden',

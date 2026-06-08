@@ -1,5 +1,6 @@
 playwright/.auth/
 .DS_Store
+.env
 .npm/
 .vscode
 node_modules

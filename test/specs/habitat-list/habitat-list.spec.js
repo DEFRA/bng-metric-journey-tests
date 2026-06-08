@@ -1,5 +1,5 @@
 import { test, expect } from '@fixtures'
-import { STORAGE_STATE, NO_ROLE_STORAGE_STATE, runMode } from '@utils/env.js'
+import { STORAGE_STATE, NO_ROLE_STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
@@ -15,7 +15,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
 
   test.describe('Habitat list — page display', { tag: '@smoke' }, () => {
     test.use({ storageState: STORAGE_STATE })
-    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+    test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
     test('page renders heading, summary table, habitat tabs and navigation', async ({
       createProjectFlow,
@@ -118,7 +118,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
     { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
-      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
       test('clicking Hedgerows tab selects it and deselects the other two tabs', async ({
         createProjectFlow,
@@ -185,7 +185,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
     { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
-      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
       // AC7: "Show map" button — not yet implemented in the template.
       // Enable and implement once BMD builds the map view feature.
@@ -215,7 +215,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
     { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
-      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
       // AC12: "Continue" button navigation — button currently has href="#" (stub).
       // Enable and implement once BMD-247 wires up the task list redirect.
@@ -244,7 +244,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
     { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
-      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
       test('non-UUID id path param returns 400', async ({ page }) => {
         const response = await page.goto(
@@ -259,7 +259,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
 
   test.describe('Habitat list — role enforcement', () => {
     test.use({ storageState: NO_ROLE_STORAGE_STATE })
-    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+    test.skip(skipInE2e(NO_ROLE_STORAGE_STATE), E2E_SKIP_REASON)
 
     test(
       'authenticated user without BNG Completer role is redirected to /auth/forbidden',

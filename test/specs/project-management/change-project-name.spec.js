@@ -1,5 +1,5 @@
 import { test, expect } from '@fixtures'
-import { STORAGE_STATE, NO_ROLE_STORAGE_STATE, runMode } from '@utils/env.js'
+import { STORAGE_STATE, NO_ROLE_STORAGE_STATE, skipInE2e } from '@utils/env.js'
 
 const PROJECT_NAME_MAX_LENGTH = 1000
 const HTTP_BAD_REQUEST = 400
@@ -18,7 +18,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   test.describe('Change project name — form display', () => {
     test.use({ storageState: STORAGE_STATE })
-    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+    test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
     test(
       'form renders pre-populated with existing project name',
@@ -50,7 +50,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   test.describe('Change project name — validation', () => {
     test.use({ storageState: STORAGE_STATE })
-    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+    test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
     test(
       'submitting empty name shows "Enter a project name" error',
@@ -152,7 +152,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   test.describe('Change project name — happy path', { tag: '@smoke' }, () => {
     test.use({ storageState: STORAGE_STATE })
-    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+    test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
     test('valid name updates project and redirects to task list', async ({
       createProjectFlow,
@@ -188,7 +188,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
-      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
       test('clicking "Back" navigates to the project task list', async ({
         createProjectFlow,
@@ -215,7 +215,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     { tag: '@regression' },
     () => {
       test.use({ storageState: NO_ROLE_STORAGE_STATE })
-      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+      test.skip(skipInE2e(NO_ROLE_STORAGE_STATE), E2E_SKIP_REASON)
 
       test('authenticated user without bng completer role is redirected to /auth/forbidden', async ({
         page
@@ -253,7 +253,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
-      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
       test('non-UUID id path param returns 400', async ({ page }) => {
         const response = await page.goto('/change-project-name/not-a-uuid')

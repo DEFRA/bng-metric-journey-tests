@@ -6,8 +6,11 @@ import {
   runMode,
   STORAGE_STATE,
   NO_ROLE_STORAGE_STATE,
-  NO_PROJECTS_STORAGE_STATE
+  NO_PROJECTS_STORAGE_STATE,
+  defraIdUsername,
+  defraIdPassword
 } from '../utils/env.js'
+import { DefraIdLoginFlow } from '../flows/authentication/defra-id-login.flow.js'
 
 // Unauthenticated state: used in e2e mode where the stub is not available.
 const EMPTY_STATE = JSON.stringify({ cookies: [], origins: [] })
@@ -68,14 +71,32 @@ export default async function globalSetup() {
   await fs.mkdir(path.dirname(STORAGE_STATE), { recursive: true })
 
   // In e2e mode the suite runs against a deployed environment that uses real
-  // Defra ID authentication — the cdp-defra-id-stub registration flow only
-  // works against the local Docker stack. Write empty storage-state files so
-  // test workers don't crash on startup; tests that require an authenticated
-  // session will fail at the assertion level rather than aborting the suite.
-  // Run with PROFILE=@smoke on the CDP portal to limit to unauthenticated tests.
+  // Defra ID. Sign in once as the main completer user via the real Government
+  // Gateway flow and save that session. The no-role and no-projects profiles
+  // cannot be reproduced from a single account, so they are written empty and
+  // their describes skip in e2e (see skipInE2e in utils/env.js).
   if (runMode === 'e2e') {
+    if (!defraIdUsername || !defraIdPassword) {
+      throw new Error(
+        'e2e mode requires DEFRA_ID_USERNAME and DEFRA_ID_PASSWORD to be set'
+      )
+    }
+
+    const loginBrowser = await chromium.launch({
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    })
+    try {
+      // baseURL lets the login page object navigate with a relative path.
+      const context = await loginBrowser.newContext({ baseURL: baseUrl })
+      const page = await context.newPage()
+      await new DefraIdLoginFlow(page).login(defraIdUsername, defraIdPassword)
+      await context.storageState({ path: STORAGE_STATE })
+      await context.close()
+    } finally {
+      await loginBrowser.close()
+    }
+
     await Promise.all([
-      fs.writeFile(STORAGE_STATE, EMPTY_STATE),
       fs.writeFile(NO_ROLE_STORAGE_STATE, EMPTY_STATE),
       fs.writeFile(NO_PROJECTS_STORAGE_STATE, EMPTY_STATE)
     ])

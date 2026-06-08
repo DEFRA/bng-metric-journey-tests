@@ -1,5 +1,5 @@
 import { test, expect } from '@fixtures'
-import { STORAGE_STATE, runMode } from '@utils/env.js'
+import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
 
 const TASK_BASELINE_HABITATS = 'On-site baseline habitats'
@@ -340,7 +340,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
   // (pendingUploadId). Running them in parallel causes session contamination.
   test.describe.configure({ mode: 'serial' })
   test.use({ storageState: STORAGE_STATE })
-  test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+  test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
   describeHappyPath()
   describeFormatError()

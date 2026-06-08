@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import { defineConfig } from '@playwright/test'
 
 const runMode = process.env.RUN_MODE ?? 'local'
@@ -22,7 +23,9 @@ export default defineConfig({
   testIgnore: '**/evidence/**',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
+  // e2e runs against a live environment (CDP entrypoint runs test:e2e without
+  // CI=true) — give it one retry to absorb transient real-env slowness.
+  retries: process.env.CI || runMode === 'e2e' ? 1 : 0,
   workers: process.env.CI ? 1 : undefined,
 
   // CDP Portal hard-kills runs at 2 hours
