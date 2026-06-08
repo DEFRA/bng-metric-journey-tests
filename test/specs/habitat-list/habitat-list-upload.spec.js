@@ -1,5 +1,5 @@
 import { test, expect } from '@fixtures'
-import { STORAGE_STATE, runMode } from '@utils/env.js'
+import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
@@ -68,7 +68,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
     { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
-      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
       test.describe.configure({ mode: 'serial' })
 
       let projectId
@@ -145,7 +145,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
     { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
-      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
       test.describe.configure({ mode: 'serial' })
 
       const NO_HEDGEROWS_FILE = 'Baseline - no hedgerows.gpkg'
@@ -188,7 +188,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
     { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
-      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
       test.describe.configure({ mode: 'serial' })
 
       const NO_WATERCOURSES_FILE = 'Baseline - no watercourses.gpkg'
@@ -235,7 +235,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
     { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
-      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
       test.describe.configure({ mode: 'serial' })
 
       let projectId
@@ -428,7 +428,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
     { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
-      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
       test.describe.configure({ mode: 'serial' })
 
       let projectId
@@ -501,7 +501,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
     { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
-      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
       test.describe.configure({ mode: 'serial' })
 
       let projectId
@@ -630,7 +630,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
     { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
-      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
       test.describe.configure({ mode: 'serial' })
 
       const NO_WATERCOURSES_FILE = 'Baseline - no watercourses.gpkg'

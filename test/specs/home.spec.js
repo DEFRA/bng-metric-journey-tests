@@ -1,5 +1,5 @@
 import { test, expect } from '@fixtures'
-import { STORAGE_STATE, runMode } from '@utils/env.js'
+import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 
 test.describe('Home page', { tag: '@home' }, () => {
   test(
@@ -18,7 +18,7 @@ test.describe('Home page', { tag: '@home' }, () => {
   test.describe('authenticated user', () => {
     test.use({ storageState: STORAGE_STATE })
     test.skip(
-      runMode === 'e2e',
+      skipInE2e(STORAGE_STATE),
       'Requires stub auth — not available in e2e mode'
     )
 

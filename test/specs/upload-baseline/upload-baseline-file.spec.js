@@ -1,5 +1,5 @@
 import { test, expect } from '@fixtures'
-import { STORAGE_STATE, runMode } from '@utils/env.js'
+import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
 import {
   describeRoleEnforcement,
@@ -13,7 +13,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
 
   test.describe('Upload baseline file — form display', () => {
     test.use({ storageState: STORAGE_STATE })
-    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+    test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
     test(
       'form renders with heading, instruction text, file input, and Continue button',

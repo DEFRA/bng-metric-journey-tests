@@ -60,19 +60,30 @@ Never use:
 
 ## e2e Mode and Authenticated Describes
 
-Every `describe` block that uses `storageState` must include a skip guard so it does not run on the CDP portal (where stub auth is unavailable):
+Every `describe` block that uses `storageState` must declare its e2e behaviour via `skipInE2e(profile)`. In e2e mode the suite signs in with **real Defra ID** as the completer user only, so completer describes run while `no-role` / `no-projects` describes still skip:
 
 ```js
+import { STORAGE_STATE, NO_ROLE_STORAGE_STATE, skipInE2e } from '@utils/env.js'
+
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 
+// completer profile → runs in e2e
 test.describe('Feature — some describe', () => {
   test.use({ storageState: STORAGE_STATE })
-  test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+  test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+})
+
+// no-role / no-projects profile → skips in e2e (stub only)
+test.describe('Feature — role enforcement', () => {
+  test.use({ storageState: NO_ROLE_STORAGE_STATE })
+  test.skip(skipInE2e(NO_ROLE_STORAGE_STATE), E2E_SKIP_REASON)
 })
 ```
 
+- Always pass the same profile to `skipInE2e` that the describe passes to `test.use`.
 - Define `E2E_SKIP_REASON` as a file-level constant (avoids SonarCloud duplicate-literal violations).
 - Unauthenticated describes (no `storageState`) must **not** receive `test.skip`.
+- `e2e` mode reads `DEFRA_ID_USERNAME` / `DEFRA_ID_PASSWORD` (see `.env.example`).
 
 ## Test Tagging
 

@@ -1,5 +1,5 @@
 import { test, expect } from '@fixtures'
-import { STORAGE_STATE, NO_ROLE_STORAGE_STATE, runMode } from '@utils/env.js'
+import { STORAGE_STATE, NO_ROLE_STORAGE_STATE, skipInE2e } from '@utils/env.js'
 
 const HTTP_BAD_REQUEST = 400
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
@@ -20,7 +20,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   test.describe('Project task list — page content', () => {
     test.use({ storageState: STORAGE_STATE })
-    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+    test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
     test(
       'task list shows heading, caption, 4 task items with correct hrefs and statuses',
@@ -78,7 +78,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     { tag: '@smoke' },
     () => {
       test.use({ storageState: STORAGE_STATE })
-      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
       test('clicking "Project Name" task item navigates to the change project name page', async ({
         createProjectFlow,
@@ -142,7 +142,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
-      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
       test('unknown project UUID hides the task list body', async ({
         projectTaskListPage
@@ -163,7 +163,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     { tag: '@regression' },
     () => {
       test.use({ storageState: NO_ROLE_STORAGE_STATE })
-      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+      test.skip(skipInE2e(NO_ROLE_STORAGE_STATE), E2E_SKIP_REASON)
 
       test('authenticated user without bng completer role is redirected to /auth/forbidden', async ({
         page
@@ -184,7 +184,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
-      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
       test('non-UUID id path param returns 400', async ({ page }) => {
         const response = await page.goto('/add-project-details/not-a-uuid')

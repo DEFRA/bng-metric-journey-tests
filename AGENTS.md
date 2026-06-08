@@ -159,27 +159,36 @@ Then:
 
 Tests run in three modes controlled by `RUN_MODE` (exported from `test/utils/env.js`):
 
-- `local` — against a locally running frontend on `localhost:3000`
-- `github` — against the Docker Compose stack (CI)
-- `e2e` — against a deployed CDP environment (no stub auth available)
+- `local` — against a locally running frontend on `localhost:3000` (stub auth)
+- `github` — against the Docker Compose stack, CI (stub auth)
+- `e2e` — against a deployed CDP environment (real Defra ID auth)
 
-**Authenticated tests must be skipped in e2e mode.** The `cdp-defra-id-stub` registration flow only works in the Docker stack. In e2e mode, real Defra ID OIDC is used, which is not reachable from test runners, and storage state files are written as empty.
+**Authentication by mode.** In `local`/`github` the `cdp-defra-id-stub` mints all three user profiles. In `e2e` the suite signs in through the **real Defra ID / Government Gateway** flow (`test/setup/auth.setup.js` → `DefraIdLoginFlow`) and saves the session for the **completer** profile only. That single account cannot reproduce the `no-role` or `no-projects` profiles, so describes using those two still skip in e2e; describes using the main completer `STORAGE_STATE` now **run** in e2e.
 
-Pattern for every `describe` block that uses `storageState`:
+`e2e` mode requires `DEFRA_ID_USERNAME` and `DEFRA_ID_PASSWORD` (gitignored `.env` locally, CDP Portal secret store in CI) — see `.env.example`.
+
+Pattern for every `describe` block that uses `storageState` — pass the profile it uses to `skipInE2e`:
 
 ```js
-import { STORAGE_STATE, runMode } from '@utils/env.js'
+import { STORAGE_STATE, NO_ROLE_STORAGE_STATE, skipInE2e } from '@utils/env.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 
+// completer profile → runs in e2e (skipInE2e returns false)
 test.describe('Feature — some describe', () => {
   test.use({ storageState: STORAGE_STATE })
-  test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+  test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
   // ...
+})
+
+// no-role / no-projects profile → still skips in e2e (stub only)
+test.describe('Feature — role enforcement', () => {
+  test.use({ storageState: NO_ROLE_STORAGE_STATE })
+  test.skip(skipInE2e(NO_ROLE_STORAGE_STATE), E2E_SKIP_REASON)
 })
 ```
 
-Unauthenticated describes (no `storageState`) must **not** receive `test.skip` — they are the only tests that run on the CDP portal without a profile filter.
+`skipInE2e(profile)` returns `true` only in e2e mode for a non-completer profile. Unauthenticated describes (no `storageState`) must **not** receive `test.skip`.
 
 ---
 
@@ -289,18 +298,18 @@ PROFILE=@project-management npm run test:github
 
 ## Run Commands
 
-| Command                                           | What it does                                                        |
-| ------------------------------------------------- | ------------------------------------------------------------------- |
-| `npm run test:local`                              | Playwright against locally-running frontend (http://localhost:3000) |
-| `npm run test:github`                             | Playwright against Docker Compose stack (used in CI)                |
-| `npm run test:e2e`                                | Playwright against CDP deployed env — set `ENVIRONMENT=dev\|test`   |
-| `HEADED=true npm run test:local`                  | Headed browser for debugging                                        |
-| `BROWSER=firefox npm run test:local`              | Override browser                                                    |
-| `PROFILE=@smoke npm run test:github`              | Run only `@smoke`-tagged tests against Docker Compose stack         |
-| `PROFILE=@smoke npm run test:e2e`                 | Run only `@smoke`-tagged tests on the CDP portal                    |
-| `PROFILE=@regression npm run test:github`         | Run only `@regression`-tagged (non-smoke) tests                     |
-| `PROFILE=@habitat-list npm run test:github`       | Run tests for the `habitat-list` domain                             |
-| `PROFILE=@project-management npm run test:github` | Run tests for the `project-management` domain                       |
+| Command                                           | What it does                                                                                                                  |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `npm run test:local`                              | Playwright against locally-running frontend (http://localhost:3000)                                                           |
+| `npm run test:github`                             | Playwright against Docker Compose stack (used in CI)                                                                          |
+| `npm run test:e2e`                                | Playwright against CDP deployed env (real Defra ID) — set `ENVIRONMENT=dev\|test` and `DEFRA_ID_USERNAME`/`DEFRA_ID_PASSWORD` |
+| `HEADED=true npm run test:local`                  | Headed browser for debugging                                                                                                  |
+| `BROWSER=firefox npm run test:local`              | Override browser                                                                                                              |
+| `PROFILE=@smoke npm run test:github`              | Run only `@smoke`-tagged tests against Docker Compose stack                                                                   |
+| `PROFILE=@smoke npm run test:e2e`                 | Run only `@smoke`-tagged tests on the CDP portal                                                                              |
+| `PROFILE=@regression npm run test:github`         | Run only `@regression`-tagged (non-smoke) tests                                                                               |
+| `PROFILE=@habitat-list npm run test:github`       | Run tests for the `habitat-list` domain                                                                                       |
+| `PROFILE=@project-management npm run test:github` | Run tests for the `project-management` domain                                                                                 |
 
 ---
 

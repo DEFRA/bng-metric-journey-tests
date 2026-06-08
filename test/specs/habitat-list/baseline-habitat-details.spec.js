@@ -1,5 +1,5 @@
 import { test, expect } from '@fixtures'
-import { STORAGE_STATE, NO_ROLE_STORAGE_STATE, runMode } from '@utils/env.js'
+import { STORAGE_STATE, NO_ROLE_STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
@@ -47,7 +47,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
     { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
-      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
       test('missing featureId query param returns 400', async ({ page }) => {
         const response = await page.goto(
@@ -86,7 +86,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
     { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
-      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
       test('valid UUIDs for non-existent habitat returns 404', async ({
         page
@@ -103,7 +103,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
 
   test.describe('Baseline habitat details — role enforcement', () => {
     test.use({ storageState: NO_ROLE_STORAGE_STATE })
-    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+    test.skip(skipInE2e(NO_ROLE_STORAGE_STATE), E2E_SKIP_REASON)
 
     test(
       'authenticated user without BNG Completer role is redirected to /auth/forbidden',
@@ -140,7 +140,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
     { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
-      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
       test('missing habitatType query param returns 400', async ({ page }) => {
         const response = await page.goto('/api/reference/conditions')
@@ -153,7 +153,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
 
   test.describe('Conditions proxy — role enforcement', () => {
     test.use({ storageState: NO_ROLE_STORAGE_STATE })
-    test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+    test.skip(skipInE2e(NO_ROLE_STORAGE_STATE), E2E_SKIP_REASON)
 
     test(
       'authenticated user without BNG Completer role is redirected to /auth/forbidden',
@@ -190,7 +190,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
     { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
-      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
       test('invalid featureType query param returns 400', async ({ page }) => {
         const response = await page.goto(
@@ -208,7 +208,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
     { tag: '@smoke' },
     () => {
       test.use({ storageState: STORAGE_STATE })
-      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
       test.describe.configure({ mode: 'serial' })
 
       let projectId
@@ -268,7 +268,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
     { tag: '@smoke' },
     () => {
       test.use({ storageState: STORAGE_STATE })
-      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
       test.describe.configure({ mode: 'serial' })
 
       let projectId
