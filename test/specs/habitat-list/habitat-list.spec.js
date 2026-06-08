@@ -31,8 +31,13 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
 
       await habitatListPage.open(id)
 
+      // AC1: pathname
+      expect(page.url()).toContain('baseline-habitat-list')
+
       // AC2: page title
-      expect(await page.title()).toContain('On-site baseline habitats')
+      const title = await page.title()
+      expect(title).toContain('On-site baseline habitats')
+      expect(title).toMatch(/On-site baseline habitats - .+/)
 
       // AC3: page header
       await expect(habitatListPage.heading).toBeVisible()
@@ -115,7 +120,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(runMode === 'e2e', E2E_SKIP_REASON)
 
-      test('clicking Hedgerows tab selects it and deselects Areas', async ({
+      test('clicking Hedgerows tab selects it and deselects the other two tabs', async ({
         createProjectFlow,
         projectDashboardPage,
         habitatListPage
@@ -137,9 +142,13 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
           'aria-selected',
           'false'
         )
+        await expect(habitatListPage.watercoursesTab).toHaveAttribute(
+          'aria-selected',
+          'false'
+        )
       })
 
-      test('clicking Watercourses tab selects it and deselects Areas', async ({
+      test('clicking Watercourses tab selects it and deselects the other two tabs', async ({
         createProjectFlow,
         projectDashboardPage,
         habitatListPage
@@ -161,6 +170,69 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
           'aria-selected',
           'false'
         )
+        await expect(habitatListPage.hedgerowsTab).toHaveAttribute(
+          'aria-selected',
+          'false'
+        )
+      })
+    }
+  )
+
+  // ─── Show map button (not yet implemented) ───────────────────────────────────
+
+  test.describe(
+    'Habitat list — show map button',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+
+      // AC7: "Show map" button — not yet implemented in the template.
+      // Enable and implement once BMD builds the map view feature.
+      test.skip('page displays a "Show map" button', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        habitatListPage,
+        page
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
+        )
+        await habitatListPage.open(id)
+        await expect(
+          page.getByRole('button', { name: 'Show map' })
+        ).toBeVisible()
+      })
+    }
+  )
+
+  // ─── Continue button navigation (not yet implemented) ────────────────────────
+
+  test.describe(
+    'Habitat list — continue button navigation',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(runMode === 'e2e', E2E_SKIP_REASON)
+
+      // AC12: "Continue" button navigation — button currently has href="#" (stub).
+      // Enable and implement once BMD-247 wires up the task list redirect.
+      test.skip('clicking "Continue" navigates to the project task list', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        habitatListPage,
+        page
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
+        )
+        await habitatListPage.open(id)
+        await habitatListPage.continueButton.click()
+        await expect(page).toHaveURL(new RegExp(`/add-project-details/${id}`))
       })
     }
   )

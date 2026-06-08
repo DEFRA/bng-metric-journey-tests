@@ -553,6 +553,73 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         await refLink.click()
         await expect(page).toHaveURL(/\/baseline-habitat-details/)
       })
+
+      test('watercourse data row shows linked ref, non-empty habitat type, numeric size and units', async ({
+        habitatListPage
+      }) => {
+        await habitatListPage.openTab(projectId, 'watercourses')
+        const firstRow = habitatListPage.watercoursesTable
+          .getByRole('row')
+          .nth(1)
+
+        const refLink = firstRow.getByRole('cell').nth(0).getByRole('link')
+        await expect(refLink).toBeVisible()
+        await expect(refLink).toHaveAttribute(
+          'href',
+          /baseline-habitat-details/
+        )
+
+        await expect(firstRow.getByRole('cell').nth(1)).not.toBeEmpty()
+        await expect(firstRow.getByRole('cell').nth(2)).toHaveText(
+          /^\d+(\.\d+)?$/
+        )
+        await expect(firstRow.getByRole('cell').nth(3)).not.toBeEmpty()
+        await expect(firstRow.getByRole('cell').nth(4)).not.toBeEmpty()
+        await expect(firstRow.getByRole('cell').nth(5)).toHaveText(
+          /^\d+(\.\d+)?$/
+        )
+      })
+
+      // AC3 — size "km" suffix: not yet implemented (value renders as plain decimal without suffix)
+      test.skip('watercourse size column value includes "km" suffix with no space', async ({
+        habitatListPage
+      }) => {
+        await habitatListPage.openTab(projectId, 'watercourses')
+        const firstRow = habitatListPage.watercoursesTable
+          .getByRole('row')
+          .nth(1)
+        await expect(firstRow.getByRole('cell').nth(2)).toHaveText(
+          /^\d+(\.\d+)?km$/
+        )
+      })
+
+      test('watercourse data row status column is non-empty', async ({
+        habitatListPage
+      }) => {
+        await habitatListPage.openTab(projectId, 'watercourses')
+        const firstRow = habitatListPage.watercoursesTable
+          .getByRole('row')
+          .nth(1)
+        await expect(firstRow.getByRole('cell').nth(6)).not.toBeEmpty()
+      })
+
+      // AC5 — totals row: not yet implemented — no "Total" row is rendered.
+      // Consistent with area habitats table (see skipped totals test above).
+      test.skip('watercourses table displays a totals row with "Total", total size, and total units', async ({
+        habitatListPage
+      }) => {
+        await habitatListPage.openTab(projectId, 'watercourses')
+        const totalsRow = habitatListPage.watercoursesTable
+          .getByRole('row')
+          .filter({ hasText: 'Total' })
+        await expect(totalsRow).toBeVisible()
+        await expect(totalsRow.getByRole('cell').nth(2)).toHaveText(
+          /^\d+(\.\d+)?$/
+        )
+        await expect(totalsRow.getByRole('cell').nth(5)).toHaveText(
+          /^\d+(\.\d+)?$/
+        )
+      })
     }
   )
 
