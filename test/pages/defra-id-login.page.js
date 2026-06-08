@@ -19,9 +19,11 @@ export class DefraIdLoginPage extends BasePage {
   }
 
   async open() {
-    // /auth/login is the frontend entry point (the home "Sign in" button links
-    // here); it redirects to the Defra ID authorize endpoint.
-    await super.open('/auth/login')
+    // /auth/login (the home "Sign in" link) redirects to the external Defra ID
+    // pages. Wait for the document only, not full 'load' — those pages pull many
+    // sub-resources through the CDP proxy and may not fire 'load' in time; the
+    // locators below auto-wait for the controls once they render.
+    await this.page.goto('/auth/login', { waitUntil: 'domcontentloaded' })
   }
 
   async selectGovernmentGateway() {
