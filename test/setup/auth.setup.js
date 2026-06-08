@@ -8,7 +8,8 @@ import {
   NO_ROLE_STORAGE_STATE,
   NO_PROJECTS_STORAGE_STATE,
   defraIdUsername,
-  defraIdPassword
+  defraIdPassword,
+  proxyConfig
 } from '../utils/env.js'
 import { DefraIdLoginFlow } from '../flows/authentication/defra-id-login.flow.js'
 
@@ -83,7 +84,8 @@ export default async function globalSetup() {
     }
 
     const loginBrowser = await chromium.launch({
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      ...(proxyConfig && { proxy: proxyConfig })
     })
     try {
       // baseURL lets the login page object navigate with a relative path.
