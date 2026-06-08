@@ -82,18 +82,18 @@ export default async function globalSetup() {
       )
     }
 
-    const browser = await chromium.launch({
+    const loginBrowser = await chromium.launch({
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     })
     try {
       // baseURL lets the login page object navigate with a relative path.
-      const context = await browser.newContext({ baseURL: baseUrl })
+      const context = await loginBrowser.newContext({ baseURL: baseUrl })
       const page = await context.newPage()
       await new DefraIdLoginFlow(page).login(defraIdUsername, defraIdPassword)
       await context.storageState({ path: STORAGE_STATE })
       await context.close()
     } finally {
-      await browser.close()
+      await loginBrowser.close()
     }
 
     await Promise.all([
