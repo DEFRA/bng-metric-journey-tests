@@ -41,7 +41,12 @@ export default defineConfig({
 
   use: {
     baseURL,
-    ...(proxyConfig && { proxy: proxyConfig }),
+    ...(proxyConfig && {
+      proxy: proxyConfig,
+      // Force HTTP/1.1 — the CDP egress proxy tunnels via CONNECT and Chromium's
+      // HTTP/2-to-origin trips it with ERR_HTTP2_PROTOCOL_ERROR.
+      launchOptions: { args: ['--disable-http2'] }
+    }),
     headless: process.env.HEADED !== 'true',
     browserName: /** @type {any} */ (process.env.BROWSER ?? 'chromium'),
 

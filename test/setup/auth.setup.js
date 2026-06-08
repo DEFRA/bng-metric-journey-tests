@@ -68,40 +68,49 @@ async function registerAndLogin(page, email, { withBngCompleterRole }) {
   await page.getByRole('link', { name: 'Login' }).click()
 }
 
+// e2e: sign in once as the completer user via the real Government Gateway flow
+// and save the session. The no-role and no-projects profiles can't be created
+// from a single account, so they are written empty and skip in e2e (skipInE2e).
+async function setupRealDefraIdState() {
+  if (!defraIdUsername || !defraIdPassword) {
+    throw new Error(
+      'e2e mode requires DEFRA_ID_USERNAME and DEFRA_ID_PASSWORD to be set'
+    )
+  }
+
+  const loginBrowser = await chromium.launch({
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      // Force HTTP/1.1 through the CDP egress proxy (avoids ERR_HTTP2_PROTOCOL_ERROR).
+      ...(proxyConfig ? ['--disable-http2'] : [])
+    ],
+    ...(proxyConfig && { proxy: proxyConfig })
+  })
+  try {
+    // baseURL lets the login page object navigate with a relative path.
+    const context = await loginBrowser.newContext({ baseURL: baseUrl })
+    const page = await context.newPage()
+    await new DefraIdLoginFlow(page).login(defraIdUsername, defraIdPassword)
+    await context.storageState({ path: STORAGE_STATE })
+    await context.close()
+  } finally {
+    await loginBrowser.close()
+  }
+
+  await Promise.all([
+    fs.writeFile(NO_ROLE_STORAGE_STATE, EMPTY_STATE),
+    fs.writeFile(NO_PROJECTS_STORAGE_STATE, EMPTY_STATE)
+  ])
+}
+
 export default async function globalSetup() {
   await fs.mkdir(path.dirname(STORAGE_STATE), { recursive: true })
 
-  // In e2e mode the suite runs against a deployed environment that uses real
-  // Defra ID. Sign in once as the main completer user via the real Government
-  // Gateway flow and save that session. The no-role and no-projects profiles
-  // cannot be reproduced from a single account, so they are written empty and
-  // their describes skip in e2e (see skipInE2e in utils/env.js).
+  // In e2e mode the suite authenticates against real Defra ID; local/github use
+  // the cdp-defra-id-stub registration flow below.
   if (runMode === 'e2e') {
-    if (!defraIdUsername || !defraIdPassword) {
-      throw new Error(
-        'e2e mode requires DEFRA_ID_USERNAME and DEFRA_ID_PASSWORD to be set'
-      )
-    }
-
-    const loginBrowser = await chromium.launch({
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      ...(proxyConfig && { proxy: proxyConfig })
-    })
-    try {
-      // baseURL lets the login page object navigate with a relative path.
-      const context = await loginBrowser.newContext({ baseURL: baseUrl })
-      const page = await context.newPage()
-      await new DefraIdLoginFlow(page).login(defraIdUsername, defraIdPassword)
-      await context.storageState({ path: STORAGE_STATE })
-      await context.close()
-    } finally {
-      await loginBrowser.close()
-    }
-
-    await Promise.all([
-      fs.writeFile(NO_ROLE_STORAGE_STATE, EMPTY_STATE),
-      fs.writeFile(NO_PROJECTS_STORAGE_STATE, EMPTY_STATE)
-    ])
+    await setupRealDefraIdState()
     return
   }
 
