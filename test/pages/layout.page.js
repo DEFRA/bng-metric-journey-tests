@@ -10,6 +10,9 @@ export class LayoutPage extends BasePage {
     this.projectsNavLink = page
       .getByRole('navigation', { name: 'Menu' })
       .getByRole('link', { name: 'Projects' })
+    this.signOutLink = page
+      .getByRole('navigation', { name: 'Menu' })
+      .getByRole('link', { name: 'Sign out' })
     this.betaTag = page.getByText('Beta', { exact: true })
     this.phaseBannerText = page.getByText(/This is a new service/)
     this.footer = page.getByRole('contentinfo')

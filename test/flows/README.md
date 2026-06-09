@@ -112,3 +112,6 @@ export class CreateProjectFlow {
 | project-management / create-project      | `project-management/create-project.flow.md`      | `project-management/create-project.flow.js` | `[IMPLEMENTED]` |
 | project-management / project-dashboard   | `project-management/project-dashboard.flow.md`   | —                                           | `[IMPLEMENTED]` |
 | project-management / change-project-name | `project-management/change-project-name.flow.md` | —                                           | `[IMPLEMENTED]` |
+| authentication / defra-id-login          | `authentication/defra-id-login.flow.md`          | `authentication/defra-id-login.flow.js`     | `[IMPLEMENTED]` |
+| authentication / sign-out                | `authentication/sign-out.flow.md`                | —                                           | `[IMPLEMENTED]` |
+| authentication / access-denied           | `authentication/access-denied.flow.md`           | —                                           | `[IMPLEMENTED]` |
