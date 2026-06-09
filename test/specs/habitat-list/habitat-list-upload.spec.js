@@ -43,6 +43,13 @@ async function getHedgerowHabitatTypeHeader(habitatListPage, projectId) {
   })
 }
 
+async function getWatercourseHabitatTypeHeader(habitatListPage, projectId) {
+  await habitatListPage.openTab(projectId, 'watercourses')
+  return habitatListPage.watercoursesTable.getByRole('columnheader', {
+    name: HABITAT_TYPE_COL
+  })
+}
+
 async function assertHabitatTableColumns(table, sizeColumnName) {
   await expect(table.getByRole('columnheader', { name: 'Ref' })).toBeVisible()
   await expect(
@@ -764,6 +771,74 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         await expect(totalsRow.getByRole('cell').nth(5)).toHaveText(
           /^\d+(\.\d+)?$/
         )
+      })
+
+      test('default sort on page load is Ref ascending with all other columns unsorted', async ({
+        habitatListPage
+      }) => {
+        await habitatListPage.openTab(projectId, 'watercourses')
+
+        await expect(
+          habitatListPage.watercoursesTable.getByRole('columnheader', {
+            name: 'Ref'
+          })
+        ).toHaveAttribute('aria-sort', 'ascending')
+        await expect(
+          habitatListPage.watercoursesTable.getByRole('columnheader', {
+            name: HABITAT_TYPE_COL
+          })
+        ).toHaveAttribute('aria-sort', 'none')
+        await expect(
+          habitatListPage.watercoursesTable.getByRole('columnheader', {
+            name: 'Size'
+          })
+        ).toHaveAttribute('aria-sort', 'none')
+        await expect(
+          habitatListPage.watercoursesTable.getByRole('columnheader', {
+            name: 'Condition'
+          })
+        ).toHaveAttribute('aria-sort', 'none')
+        await expect(
+          habitatListPage.watercoursesTable.getByRole('columnheader', {
+            name: 'Units'
+          })
+        ).toHaveAttribute('aria-sort', 'none')
+      })
+
+      test('clicking a non-active column header sorts watercourse rows ascending', async ({
+        habitatListPage
+      }) => {
+        const header = await getWatercourseHabitatTypeHeader(
+          habitatListPage,
+          projectId
+        )
+        await header.getByRole('button').click()
+        await expect(header).toHaveAttribute('aria-sort', 'ascending')
+      })
+
+      test('clicking an ascending column header sorts watercourse rows descending', async ({
+        habitatListPage
+      }) => {
+        const header = await getWatercourseHabitatTypeHeader(
+          habitatListPage,
+          projectId
+        )
+        await header.getByRole('button').click()
+        await header.getByRole('button').click()
+        await expect(header).toHaveAttribute('aria-sort', 'descending')
+      })
+
+      test('clicking a descending column header toggles watercourse rows back to ascending', async ({
+        habitatListPage
+      }) => {
+        const header = await getWatercourseHabitatTypeHeader(
+          habitatListPage,
+          projectId
+        )
+        await header.getByRole('button').click()
+        await header.getByRole('button').click()
+        await header.getByRole('button').click()
+        await expect(header).toHaveAttribute('aria-sort', 'ascending')
       })
     }
   )

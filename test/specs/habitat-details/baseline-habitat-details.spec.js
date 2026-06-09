@@ -10,6 +10,7 @@ const HTTP_SERVER_ERROR = 500
 const STUB_UUID = '00000000-0000-0000-0000-000000000000'
 const VALID_UUID_V4 = 'aaaaaaaa-bbbb-4ccc-bddd-eeeeeeeeeeee'
 const STUB_HABITAT_TYPE = 'Grassland - Modified grassland'
+const STUB_HEDGEROW_HABITAT_TYPE = 'Native hedgerow'
 const UPLOAD_TIMEOUT = 120_000
 const COMPLETE_BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
 const PROJECT_LABEL = 'Habitat details test'
@@ -214,6 +215,18 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       page
     }) => {
       const response = await page.goto(conditionsProxyUrl(STUB_HABITAT_TYPE))
+      expect(response.status()).toBe(HTTP_OK)
+      const body = await response.json()
+      expect(Array.isArray(body)).toBe(true)
+      expect(body.length).toBeGreaterThan(0)
+    })
+
+    test('valid hedgerow habitatType with featureType=hedgerow returns 200 with condition options', async ({
+      page
+    }) => {
+      const response = await page.goto(
+        conditionsProxyUrl(STUB_HEDGEROW_HABITAT_TYPE, 'hedgerow')
+      )
       expect(response.status()).toBe(HTTP_OK)
       const body = await response.json()
       expect(Array.isArray(body)).toBe(true)
@@ -467,6 +480,88 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await baselineHabitatDetailsPage.saveButton.click()
         await expect(page).toHaveURL(
           new RegExp(`/projects/${projectId}/baseline-habitat-list#hedgerows`)
+        )
+      })
+    }
+  )
+
+  // ─── Hedgerow details — edit and recompute ────────────────────────────────────
+
+  test.describe(
+    'Baseline habitat details — hedgerow edit',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+      test.describe.configure({ mode: 'serial' })
+
+      let projectId
+      let hedgerowFeatureId
+      let hedgerowRef
+
+      test('changing the condition and saving persists the new value on the hedgerows table', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        baselineHabitatDetailsPage,
+        habitatListPage,
+        page
+      }) => {
+        projectId = await uploadAndGetProjectId(
+          createProjectFlow,
+          projectDashboardPage,
+          uploadBaselineFileFlow,
+          page
+        )
+        // The Hedgerows panel is hidden by GOV.UK Tabs JS until the tab is clicked;
+        // clicking first makes the links visible so getByRole can find them.
+        await habitatListPage.hedgerowsTab.click()
+        const hedgerow = await getRowRefAndFeatureId(page, 'hedgerows')
+        hedgerowFeatureId = hedgerow.featureId
+        hedgerowRef = hedgerow.ref
+
+        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
+        const newCondition =
+          await baselineHabitatDetailsPage.selectDifferentCondition()
+        await baselineHabitatDetailsPage.saveButton.click()
+        await page.waitForURL(
+          new RegExp(`/projects/${projectId}/baseline-habitat-list`)
+        )
+
+        await habitatListPage.hedgerowsTab.click()
+        const row = habitatListPage.hedgerowsTable
+          .getByRole('row')
+          .filter({ hasText: hedgerowRef })
+        await expect(row.getByRole('cell').nth(CONDITION_COLUMN)).toHaveText(
+          newCondition
+        )
+        await expect(row.getByRole('cell').nth(STATUS_COLUMN)).toHaveText(
+          'Complete'
+        )
+      })
+
+      test('changing the habitat type updates the distinctiveness display', async ({
+        baselineHabitatDetailsPage,
+        page
+      }) => {
+        // All hedgerow types share identical condition options (Good, Moderate,
+        // Poor), so conditions do not change between types. Distinctiveness does
+        // differ between bands; switching from Low to Medium exercises the full
+        // client-side update path (showDistinctiveness + loadConditions).
+        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
+
+        await baselineHabitatDetailsPage.habitatTypeSelect.selectOption(
+          'Native hedgerow'
+        )
+        await expect(page.locator('#distinctivenessDisplay')).toContainText(
+          'Low (2)'
+        )
+
+        await baselineHabitatDetailsPage.habitatTypeSelect.selectOption(
+          'Native hedgerow with trees'
+        )
+        await expect(page.locator('#distinctivenessDisplay')).toContainText(
+          'Medium (4)'
         )
       })
     }
