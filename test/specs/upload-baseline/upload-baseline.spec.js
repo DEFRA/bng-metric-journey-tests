@@ -7,9 +7,9 @@ const TASK_BASELINE_HABITATS = 'On-site baseline habitats'
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const PROJECT_LABEL = 'Upload baseline flow test'
 
-// CDP Uploader must be running; meta-refresh polling can take up to 120 s in
-// the worst case, so these tests use the full per-test timeout.
-const UPLOAD_TIMEOUT = 60_000
+// CDP Uploader must be running; meta-refresh polling can take up to 120 s in the
+// worst case (esp. the real uploader in e2e), so allow the full window.
+const UPLOAD_TIMEOUT = 120_000
 const COMPLETE_BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
 
 // ─── E2E happy path ─────────────────────────────────────────────────────────
