@@ -56,6 +56,37 @@ function describeHappyPath() {
   })
 }
 
+// ─── No pending upload ───────────────────────────────────────────────────────
+
+function describeNoPendingUpload() {
+  test.describe(
+    'Upload received — no pending upload',
+    { tag: '@regression' },
+    () => {
+      test('visiting upload-received without a pending upload redirects to the upload form', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadReceivedPage,
+        page
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
+        )
+
+        // No upload has been initiated, so the session holds no pendingUploadId;
+        // the handler must bounce the user back to the upload form.
+        await uploadReceivedPage.open(id)
+
+        await expect(page).toHaveURL(
+          new RegExp(`/projects/${id}/upload-baseline-file`)
+        )
+      })
+    }
+  )
+}
+
 // ─── Format error ────────────────────────────────────────────────────────────
 
 function describeFormatError() {
@@ -130,6 +161,11 @@ function describeStructuralErrors() {
         await expect(errorFilePage.uploadDifferentFileLink).toHaveAttribute(
           'href',
           `/projects/${id}/upload-baseline-file`
+        )
+        await expect(errorFilePage.backToProjectLink).toBeVisible()
+        await expect(errorFilePage.backToProjectLink).toHaveAttribute(
+          'href',
+          `/add-project-details/${id}`
         )
       })
     }
@@ -343,6 +379,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
   test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
   describeHappyPath()
+  describeNoPendingUpload()
   describeFormatError()
   describeStructuralErrors()
   describeSuppression()
