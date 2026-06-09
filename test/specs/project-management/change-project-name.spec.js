@@ -3,6 +3,7 @@ import { STORAGE_STATE, NO_ROLE_STORAGE_STATE, skipInE2e } from '@utils/env.js'
 
 const PROJECT_NAME_MAX_LENGTH = 1000
 const HTTP_BAD_REQUEST = 400
+const HTTP_NOT_FOUND = 404
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 
 async function setupProject(createProjectFlow, projectDashboardPage) {
@@ -259,6 +260,32 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         const response = await page.goto('/change-project-name/not-a-uuid')
 
         expect(response.status()).toBe(HTTP_BAD_REQUEST)
+      })
+    }
+  )
+
+  // ─── Project not found ───────────────────────────────────────────────────────
+
+  test.describe(
+    'Change project name — project not found',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      test('valid but unknown project UUID shows an error page, not the form', async ({
+        changeProjectNamePage,
+        page
+      }) => {
+        // Unlike the task list route, this handler has no graceful 404 render.
+        // Wreck throws a Boom carrying the backend's 404, which propagates
+        // uncaught from the handler, so the user gets a 404 error page.
+        const response = await page.goto(
+          '/change-project-name/00000000-0000-0000-0000-000000000000'
+        )
+
+        expect(response.status()).toBe(HTTP_NOT_FOUND)
+        await expect(changeProjectNamePage.nameInput).not.toBeVisible()
       })
     }
   )
