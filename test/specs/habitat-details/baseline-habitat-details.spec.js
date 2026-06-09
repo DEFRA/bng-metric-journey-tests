@@ -3,14 +3,21 @@ import { STORAGE_STATE, NO_ROLE_STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
+const HTTP_OK = 200
 const HTTP_BAD_REQUEST = 400
 const HTTP_NOT_FOUND = 404
+const HTTP_SERVER_ERROR = 500
 const STUB_UUID = '00000000-0000-0000-0000-000000000000'
 const VALID_UUID_V4 = 'aaaaaaaa-bbbb-4ccc-bddd-eeeeeeeeeeee'
 const STUB_HABITAT_TYPE = 'Grassland - Modified grassland'
 const UPLOAD_TIMEOUT = 120_000
 const COMPLETE_BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
 const PROJECT_LABEL = 'Habitat details test'
+
+// Habitat-list table column order (buildHabitatRow): ref, type, size,
+// distinctiveness, condition, units, status.
+const CONDITION_COLUMN = 4
+const STATUS_COLUMN = 6
 
 async function uploadAndGetProjectId(
   createProjectFlow,
@@ -30,16 +37,30 @@ async function uploadAndGetProjectId(
   return id
 }
 
-async function getFeatureIdFromTable(page, panelId) {
-  const href = await page
-    .locator(`#${panelId}`)
-    .getByRole('link')
-    .first()
-    .getAttribute('href')
-  return new URL(href, 'http://localhost').searchParams.get('featureId')
+async function getRowRefAndFeatureId(page, panelId) {
+  const link = page.locator(`#${panelId}`).getByRole('link').first()
+  const href = await link.getAttribute('href')
+  const featureId = new URL(href, 'http://localhost').searchParams.get(
+    'featureId'
+  )
+  const ref = (await link.textContent()).trim()
+  return { ref, featureId }
 }
 
-test.describe('habitat-list', { tag: '@habitat-list' }, () => {
+async function getFeatureIdFromTable(page, panelId) {
+  const { featureId } = await getRowRefAndFeatureId(page, panelId)
+  return featureId
+}
+
+function conditionsProxyUrl(habitatType, featureType) {
+  let url = `/api/reference/conditions?habitatType=${encodeURIComponent(habitatType)}`
+  if (featureType) {
+    url += `&featureType=${featureType}`
+  }
+  return url
+}
+
+test.describe('habitat-details', { tag: '@habitat-details' }, () => {
   // ─── Query parameter validation ───────────────────────────────────────────────
 
   test.describe(
@@ -99,6 +120,40 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
     }
   )
 
+  // ─── Watercourse not editable ────────────────────────────────────────────────
+
+  test.describe(
+    'Baseline habitat details — watercourse not editable',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      test('navigating to a watercourse feature returns 500', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        habitatListPage,
+        page
+      }) => {
+        const projectId = await uploadAndGetProjectId(
+          createProjectFlow,
+          projectDashboardPage,
+          uploadBaselineFileFlow,
+          page
+        )
+        // The Watercourses panel is hidden by GOV.UK Tabs JS until clicked.
+        await habitatListPage.watercoursesTab.click()
+        const featureId = await getFeatureIdFromTable(page, 'watercourses')
+
+        const response = await page.goto(
+          `/baseline-habitat-details?projectId=${projectId}&featureId=${featureId}`
+        )
+        expect(response.status()).toBe(HTTP_SERVER_ERROR)
+      })
+    }
+  )
+
   // ─── Role enforcement ────────────────────────────────────────────────────────
 
   test.describe('Baseline habitat details — role enforcement', () => {
@@ -149,6 +204,23 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
     }
   )
 
+  // ─── Conditions proxy — happy path ───────────────────────────────────────────
+
+  test.describe('Conditions proxy — happy path', { tag: '@regression' }, () => {
+    test.use({ storageState: STORAGE_STATE })
+    test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+    test('valid habitatType returns 200 with condition options', async ({
+      page
+    }) => {
+      const response = await page.goto(conditionsProxyUrl(STUB_HABITAT_TYPE))
+      expect(response.status()).toBe(HTTP_OK)
+      const body = await response.json()
+      expect(Array.isArray(body)).toBe(true)
+      expect(body.length).toBeGreaterThan(0)
+    })
+  })
+
   // ─── Conditions proxy — role enforcement ─────────────────────────────────────
 
   test.describe('Conditions proxy — role enforcement', () => {
@@ -159,9 +231,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
       'authenticated user without BNG Completer role is redirected to /auth/forbidden',
       { tag: '@smoke' },
       async ({ page }) => {
-        await page.goto(
-          `/api/reference/conditions?habitatType=${encodeURIComponent(STUB_HABITAT_TYPE)}`
-        )
+        await page.goto(conditionsProxyUrl(STUB_HABITAT_TYPE))
         await expect(page).toHaveURL(/\/auth\/forbidden/)
       }
     )
@@ -174,9 +244,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
       'GET /api/reference/conditions redirects to sign-in',
       { tag: '@smoke' },
       async ({ page }) => {
-        await page.goto(
-          `/api/reference/conditions?habitatType=${encodeURIComponent(STUB_HABITAT_TYPE)}`
-        )
+        await page.goto(conditionsProxyUrl(STUB_HABITAT_TYPE))
         await expect(page).not.toHaveURL(/\/api\/reference\/conditions/)
         await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
       }
@@ -194,7 +262,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
 
       test('invalid featureType query param returns 400', async ({ page }) => {
         const response = await page.goto(
-          `/api/reference/conditions?habitatType=${encodeURIComponent(STUB_HABITAT_TYPE)}&featureType=invalid`
+          conditionsProxyUrl(STUB_HABITAT_TYPE, 'invalid')
         )
         expect(response.status()).toBe(HTTP_BAD_REQUEST)
       })
@@ -244,6 +312,21 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         await expect(baselineHabitatDetailsPage.cancelLink).toBeVisible()
         await expect(baselineHabitatDetailsPage.backLink).toBeVisible()
         await expect(page.getByText('Area (hectares)')).toBeVisible()
+
+        // Read-only summary rows, including the fixed "Low (1)" strategic
+        // significance applied in MVS.
+        await expect(baselineHabitatDetailsPage.referenceKey).toBeVisible()
+        await expect(
+          baselineHabitatDetailsPage.distinctivenessKey
+        ).toBeVisible()
+        await expect(
+          baselineHabitatDetailsPage.strategicSignificanceKey
+        ).toBeVisible()
+        await expect(
+          baselineHabitatDetailsPage.strategicSignificanceValue
+        ).toBeVisible()
+        await expect(baselineHabitatDetailsPage.tradingRulesKey).toBeVisible()
+        await expect(baselineHabitatDetailsPage.habitatUnitsKey).toBeVisible()
       })
 
       test('save area habitat selections redirects to habitat list with area anchor', async ({
@@ -257,6 +340,74 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
             `/projects/${projectId}/baseline-habitat-list#habitat-${areaFeatureId}`
           )
         )
+      })
+    }
+  )
+
+  // ─── Area habitat details — edit and recompute ───────────────────────────────
+
+  test.describe(
+    'Baseline habitat details — area habitat edit',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+      test.describe.configure({ mode: 'serial' })
+
+      let projectId
+      let areaFeatureId
+      let areaRef
+
+      test('changing the condition and saving persists the new value on the habitat list', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        baselineHabitatDetailsPage,
+        habitatListPage,
+        page
+      }) => {
+        projectId = await uploadAndGetProjectId(
+          createProjectFlow,
+          projectDashboardPage,
+          uploadBaselineFileFlow,
+          page
+        )
+        const area = await getRowRefAndFeatureId(page, 'area-habitats')
+        areaFeatureId = area.featureId
+        areaRef = area.ref
+
+        await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
+        const newCondition =
+          await baselineHabitatDetailsPage.selectDifferentCondition()
+        await baselineHabitatDetailsPage.saveButton.click()
+        await page.waitForURL(
+          new RegExp(`/projects/${projectId}/baseline-habitat-list`)
+        )
+
+        const row = habitatListPage.areaHabitatsTable
+          .getByRole('row')
+          .filter({ hasText: areaRef })
+        await expect(row.getByRole('cell').nth(CONDITION_COLUMN)).toHaveText(
+          newCondition
+        )
+        await expect(row.getByRole('cell').nth(STATUS_COLUMN)).toHaveText(
+          'Complete'
+        )
+      })
+
+      test('changing the habitat type refreshes the condition options', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
+        const before = await baselineHabitatDetailsPage.conditionOptionValues()
+
+        await baselineHabitatDetailsPage.selectDifferentHabitatType()
+
+        // The client JS fetches conditions for the new type via the proxy and
+        // repopulates the Condition select, so the option set changes.
+        await expect
+          .poll(() => baselineHabitatDetailsPage.conditionOptionValues())
+          .not.toEqual(before)
       })
     }
   )
