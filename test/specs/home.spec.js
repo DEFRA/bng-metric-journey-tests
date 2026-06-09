@@ -12,6 +12,7 @@ test.describe('Home page', { tag: '@home' }, () => {
       await expect(homePage.heading).toBeVisible()
       await expect(homePage.pageBody).toBeVisible()
       await expect(homePage.signInButton).toBeVisible()
+      await expect(homePage.signInButton).toHaveAttribute('href', '/auth/login')
     }
   )
 
