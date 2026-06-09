@@ -190,6 +190,13 @@ test.describe('Feature — role enforcement', () => {
 
 `skipInE2e(profile)` returns `true` only in e2e mode for a non-completer profile. Unauthenticated describes (no `storageState`) must **not** receive `test.skip`.
 
+**Expected skipped counts differ by mode — this is by design.** A clean run skips more tests on CDP (e2e) than locally:
+
+- **local / github (stub): ~7 skipped** — unconditional placeholders for features not yet built or not mockable at the browser layer (`test.skip('…', …)` / `test.skip(true, …)`): the `Show map` button, the `Continue` task-list navigation, the area/watercourse totals rows + km-suffix formatting, the unregistered `Project Details` route, and the server-side backend-error (≥ 400) path.
+- **e2e (CDP): ~17 skipped** — those same ~7 placeholders **plus the ~10 `no-role` (role-enforcement → `/auth/forbidden`) and `no-projects` (empty-state) tests.** The stub mints those profiles so they run locally/github, but the single real Defra ID account can't reproduce a no-role user or a guaranteed-empty account, so `skipInE2e()` skips them on CDP.
+
+So the extra CDP skips are exactly the role-enforcement + empty-state describes. (Counts are indicative — they shift as placeholders are implemented or tests are added.)
+
 ---
 
 ## Test Tagging
