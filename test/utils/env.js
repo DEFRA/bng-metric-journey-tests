@@ -51,13 +51,11 @@ export function skipInE2e(storageState = STORAGE_STATE) {
 }
 
 // On the CDP test runner, the browser must reach the external Defra ID pages
-// (Azure B2C / Government Gateway) through the platform proxy; internal CDP
-// service URLs and localhost go direct. The proxy var is only set on CDP, so
-// this is undefined (a no-op) locally and in github/stub mode.
-const proxyServer =
-  process.env.CDP_HTTPS_PROXY ||
-  process.env.HTTPS_PROXY ||
-  process.env.HTTP_PROXY
+// (Azure B2C / Government Gateway) through the platform egress proxy; internal
+// CDP URLs and localhost go direct. Use HTTPS_PROXY/HTTP_PROXY (the egress
+// proxy) — not CDP_HTTPS_PROXY, which targets the test's local forwarder
+// sidecar. The var is unset off-CDP, so this is a no-op locally and in github.
+const proxyServer = process.env.HTTPS_PROXY || process.env.HTTP_PROXY
 
 export const proxyConfig = proxyServer
   ? { server: proxyServer, bypass: 'localhost,127.0.0.1,.cdp-int.defra.cloud' }
