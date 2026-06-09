@@ -1,4 +1,4 @@
-# Baseline Habitat Details User Flow
+# Habitat Details User Flow
 
 ## Overview
 
@@ -17,6 +17,7 @@ yet supported.
 - **Auth required:** Yes (session + BNG Completer role)
 - **Backend endpoints:**
   - `GET /projects/{projectId}/features/{featureId}` — fetches the feature with its type discriminator (`habitat` or `hedgerow`); 404 if not found
+  - `GET /projects/{projectId}` — fetches the project name for the page caption/title; failures are swallowed and fall back to `"Project"` (non-blocking)
   - For area habitats:
     - `GET /reference/habitat-types-by-broad` — all habitat types grouped by broad (cached in-process)
     - `GET /reference/trading-rules` — trading rules by distinctiveness band (cached in-process)
