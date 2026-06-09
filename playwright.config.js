@@ -31,7 +31,9 @@ export default defineConfig({
 
   // CDP Portal hard-kills runs at 2 hours
   globalTimeout: 2 * 60 * 60 * 1000,
-  timeout: 60 * 1000,
+  // Uploads against the real CDP Uploader can poll up to ~120s (UPLOAD_TIMEOUT),
+  // so e2e needs a larger per-test budget; local/github (fast stub) keep 60s.
+  timeout: runMode === 'e2e' ? 3 * 60 * 1000 : 60 * 1000,
   expect: { timeout: 15 * 1000 },
 
   reporter: [
