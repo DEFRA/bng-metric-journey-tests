@@ -29,13 +29,13 @@ Brief context on why this change is needed
 
 3. After outputting the description, ask:
 
-   > "Approve this description? On approval I'll stage and commit locally. You can then run `/pr-review` before pushing."
+   > "Approve this description? On approval I'll stage and commit locally, then say **push** when ready."
 
 4. On approval — commit locally only (do NOT push yet):
 
    - Stage any unstaged changes that belong to this PR (`git add` specific files — do not use `git add .` or `git add -A`)
    - Commit using the PR title as the commit message (first line) followed by a blank line and the full description body
-   - Confirm with: "Committed locally. Run `/pr-review` now if you'd like a review, then say **push** when ready."
+   - Confirm with: "Committed locally. Say **push** when ready."
 
 5. When the user says "push":
    - Push the branch with `git push -u origin HEAD`
