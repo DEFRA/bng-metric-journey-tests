@@ -60,7 +60,7 @@ If no duplication is found, write "None identified."
 
 After the review output, ask:
 
-> "Would you like me to implement any of the duplication reductions above? I can apply them one at a time or all at once — just say which."
+> "Would you like me to implement any of the duplication reductions above? I can apply them one at a time or all at once — just say which. Once you're happy with the code, run `/pr-description` to commit and push."
 
 ## Step 4 — Implement on request
 

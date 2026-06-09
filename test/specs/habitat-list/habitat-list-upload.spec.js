@@ -5,6 +5,7 @@ import { setupProject } from '@utils/project-helpers.js'
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const UPLOAD_TIMEOUT = 120_000
 const COMPLETE_BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
+const NO_HEDGEROWS_FILE = 'Baseline - no hedgerows.gpkg'
 const PROJECT_LABEL = 'Habitat list test'
 const NO_DATA_TEXT = 'No data'
 const HABITAT_TYPE_COL = 'Habitat type'
@@ -31,6 +32,13 @@ async function uploadAndNavigateToHabitatList(
 async function getHabitatTypeHeader(habitatListPage, page, projectId) {
   await page.goto(`/projects/${projectId}/baseline-habitat-list`)
   return habitatListPage.areaHabitatsTable.getByRole('columnheader', {
+    name: HABITAT_TYPE_COL
+  })
+}
+
+async function getHedgerowHabitatTypeHeader(habitatListPage, projectId) {
+  await habitatListPage.openTab(projectId, 'hedgerows')
+  return habitatListPage.hedgerowsTable.getByRole('columnheader', {
     name: HABITAT_TYPE_COL
   })
 }
@@ -148,7 +156,6 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
       test.describe.configure({ mode: 'serial' })
 
-      const NO_HEDGEROWS_FILE = 'Baseline - no hedgerows.gpkg'
       let noHedgerowsProjectId
 
       test('hedgerow size shows "No data" when file has no hedgerow features', async ({
@@ -454,6 +461,29 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         ).toBeVisible()
       })
 
+      test('hedgerows tab shows "No hedgerow data uploaded." when file has no hedgerow habitats', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        habitatListPage,
+        page
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
+        )
+        await uploadBaselineFileFlow.uploadFile(id, NO_HEDGEROWS_FILE)
+        await page.waitForURL(
+          new RegExp(`/projects/${id}/baseline-habitat-list`),
+          { timeout: UPLOAD_TIMEOUT }
+        )
+        await habitatListPage.hedgerowsTab.click()
+        await expect(
+          page.locator('#hedgerows').getByText('No hedgerow data uploaded.')
+        ).toBeVisible()
+      })
+
       test('hedgerows table shows 7 column headings including "Length (km)" and is sortable', async ({
         habitatListPage
       }) => {
@@ -464,17 +494,132 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         )
       })
 
-      test('hedgerow data row shows a linked ref', async ({
+      test('hedgerow data row shows a linked ref, non-empty habitat type, numeric length and units', async ({
         habitatListPage
       }) => {
         await habitatListPage.openTab(projectId, 'hedgerows')
         const firstRow = habitatListPage.hedgerowsTable.getByRole('row').nth(1)
+
         const refLink = firstRow.getByRole('cell').nth(0).getByRole('link')
         await expect(refLink).toBeVisible()
         await expect(refLink).toHaveAttribute(
           'href',
           /baseline-habitat-details/
         )
+
+        await expect(firstRow.getByRole('cell').nth(1)).not.toBeEmpty()
+        await expect(firstRow.getByRole('cell').nth(2)).toHaveText(
+          /^\d+(\.\d+)?$/
+        )
+        await expect(firstRow.getByRole('cell').nth(3)).not.toBeEmpty()
+        await expect(firstRow.getByRole('cell').nth(4)).not.toBeEmpty()
+        await expect(firstRow.getByRole('cell').nth(5)).toHaveText(
+          /^\d+(\.\d+)?$/
+        )
+      })
+
+      // Length (km) suffix not yet implemented — value renders as plain decimal
+      test.skip('hedgerow length column value includes "km" suffix with no space', async ({
+        habitatListPage
+      }) => {
+        await habitatListPage.openTab(projectId, 'hedgerows')
+        const firstRow = habitatListPage.hedgerowsTable.getByRole('row').nth(1)
+        await expect(firstRow.getByRole('cell').nth(2)).toHaveText(
+          /^\d+(\.\d+)?km$/
+        )
+      })
+
+      test('hedgerow data row status column is non-empty', async ({
+        habitatListPage
+      }) => {
+        await habitatListPage.openTab(projectId, 'hedgerows')
+        const firstRow = habitatListPage.hedgerowsTable.getByRole('row').nth(1)
+        await expect(firstRow.getByRole('cell').nth(6)).not.toBeEmpty()
+      })
+
+      // Totals row not yet implemented — no "Total" row rendered (consistent with area/watercourses)
+      test.skip('hedgerows table totals row shows "Total" label with summed size and units', async ({
+        habitatListPage
+      }) => {
+        await habitatListPage.openTab(projectId, 'hedgerows')
+        const totalsRow = habitatListPage.hedgerowsTable
+          .getByRole('row')
+          .filter({ hasText: 'Total' })
+        await expect(totalsRow).toBeVisible()
+        await expect(totalsRow.getByRole('cell').nth(2)).toHaveText(
+          /^\d+(\.\d+)?$/
+        )
+        await expect(totalsRow.getByRole('cell').nth(5)).toHaveText(
+          /^\d+(\.\d+)?$/
+        )
+      })
+
+      test('default sort on page load is Ref ascending with all other columns unsorted', async ({
+        habitatListPage
+      }) => {
+        await habitatListPage.openTab(projectId, 'hedgerows')
+
+        await expect(
+          habitatListPage.hedgerowsTable.getByRole('columnheader', {
+            name: 'Ref'
+          })
+        ).toHaveAttribute('aria-sort', 'ascending')
+        await expect(
+          habitatListPage.hedgerowsTable.getByRole('columnheader', {
+            name: HABITAT_TYPE_COL
+          })
+        ).toHaveAttribute('aria-sort', 'none')
+        await expect(
+          habitatListPage.hedgerowsTable.getByRole('columnheader', {
+            name: 'Length (km)'
+          })
+        ).toHaveAttribute('aria-sort', 'none')
+        await expect(
+          habitatListPage.hedgerowsTable.getByRole('columnheader', {
+            name: 'Condition'
+          })
+        ).toHaveAttribute('aria-sort', 'none')
+        await expect(
+          habitatListPage.hedgerowsTable.getByRole('columnheader', {
+            name: 'Units'
+          })
+        ).toHaveAttribute('aria-sort', 'none')
+      })
+
+      test('clicking a non-active column header sorts hedgerow rows ascending', async ({
+        habitatListPage
+      }) => {
+        const header = await getHedgerowHabitatTypeHeader(
+          habitatListPage,
+          projectId
+        )
+        await header.getByRole('button').click()
+        await expect(header).toHaveAttribute('aria-sort', 'ascending')
+      })
+
+      test('clicking an ascending column header sorts hedgerow rows descending', async ({
+        habitatListPage
+      }) => {
+        const header = await getHedgerowHabitatTypeHeader(
+          habitatListPage,
+          projectId
+        )
+        await header.getByRole('button').click()
+        await header.getByRole('button').click()
+        await expect(header).toHaveAttribute('aria-sort', 'descending')
+      })
+
+      test('clicking a descending column header toggles hedgerow rows back to ascending', async ({
+        habitatListPage
+      }) => {
+        const header = await getHedgerowHabitatTypeHeader(
+          habitatListPage,
+          projectId
+        )
+        await header.getByRole('button').click()
+        await header.getByRole('button').click()
+        await header.getByRole('button').click()
+        await expect(header).toHaveAttribute('aria-sort', 'ascending')
       })
 
       test('clicking a hedgerow reference link navigates to the Habitat Details page', async ({
