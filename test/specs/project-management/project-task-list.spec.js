@@ -160,7 +160,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   test.describe(
     'Project task list — role enforcement',
-    { tag: '@regression' },
+    { tag: '@smoke' },
     () => {
       test.use({ storageState: NO_ROLE_STORAGE_STATE })
       test.skip(skipInE2e(NO_ROLE_STORAGE_STATE), E2E_SKIP_REASON)
@@ -198,7 +198,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   test.describe(
     'Project task list — unauthenticated access',
-    { tag: '@regression' },
+    { tag: '@smoke' },
     () => {
       test('GET /add-project-details/{id} redirects to sign-in', async ({
         page
