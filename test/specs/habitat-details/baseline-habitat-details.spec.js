@@ -17,24 +17,37 @@ const PROJECT_LABEL = 'Habitat details test'
 
 // Habitat-list table column order (buildHabitatRow): ref, type, size,
 // distinctiveness, condition, units, status.
+const AREA_SIZE_COLUMN = 2
+const DISTINCTIVENESS_COLUMN = 3
 const CONDITION_COLUMN = 4
 const STATUS_COLUMN = 6
 
-async function uploadAndGetProjectId(
+// Distinctiveness renders the band abbreviated (e.g. "V.Low") followed by its
+// score in brackets.
+const DISTINCTIVENESS_PATTERN =
+  /^(V\.High|High|Medium|Low|V\.Low) \(\d+(\.\d+)?\)$/
+
+async function uploadAndGetProject(
   createProjectFlow,
   projectDashboardPage,
   uploadBaselineFileFlow,
   page
 ) {
-  const { id } = await setupProject(
+  const project = await setupProject(
     createProjectFlow,
     projectDashboardPage,
     PROJECT_LABEL
   )
-  await uploadBaselineFileFlow.uploadFile(id, COMPLETE_BASELINE_FILE)
-  await page.waitForURL(new RegExp(`/projects/${id}/baseline-habitat-list`), {
-    timeout: UPLOAD_TIMEOUT
-  })
+  await uploadBaselineFileFlow.uploadFile(project.id, COMPLETE_BASELINE_FILE)
+  await page.waitForURL(
+    new RegExp(`/projects/${project.id}/baseline-habitat-list`),
+    { timeout: UPLOAD_TIMEOUT }
+  )
+  return project
+}
+
+async function uploadAndGetProjectId(...args) {
+  const { id } = await uploadAndGetProject(...args)
   return id
 }
 
@@ -59,6 +72,62 @@ function conditionsProxyUrl(habitatType, featureType) {
     url += `&featureType=${featureType}`
   }
   return url
+}
+
+async function optionTexts(select) {
+  return (await select.getByRole('option').allTextContents()).map((t) =>
+    t.trim()
+  )
+}
+
+function isSortedAscending(values) {
+  const sorted = [...values].sort((a, b) => a.localeCompare(b))
+  return JSON.stringify(values) === JSON.stringify(sorted)
+}
+
+// Condition option text is "Label (score)" — pull the trailing bracketed score.
+function conditionScores(texts) {
+  return texts
+    .map((t) => t.match(/\(([\d.]+)\)\s*$/))
+    .filter(Boolean)
+    .map((m) => Number(m[1]))
+}
+
+// Pick the first area habitat above V.Low distinctiveness so the content ACs
+// exercise a fully-populated habitat (real broad/type/condition data); fall
+// back to the first area habitat.
+async function pickRichAreaHabitat(page) {
+  const rows = page
+    .locator('#area-habitats')
+    .getByRole('table')
+    .getByRole('row')
+  const count = await rows.count()
+  let firstRow = null
+  for (let i = 0; i < count; i++) {
+    const row = rows.nth(i)
+    const link = row.getByRole('link').first()
+    if ((await link.count()) === 0) {
+      continue
+    }
+    const href = await link.getAttribute('href')
+    const ref = (await link.textContent()).trim()
+    const featureId = new URL(href, 'http://localhost').searchParams.get(
+      'featureId'
+    )
+    const cells = row.getByRole('cell')
+    const size = (await cells.nth(AREA_SIZE_COLUMN).textContent()).trim()
+    const distinctiveness = (
+      await cells.nth(DISTINCTIVENESS_COLUMN).textContent()
+    ).trim()
+    const candidate = { ref, featureId, size }
+    if (!firstRow) {
+      firstRow = candidate
+    }
+    if (distinctiveness && !distinctiveness.startsWith('V.Low')) {
+      return candidate
+    }
+  }
+  return firstRow
 }
 
 test.describe('habitat-details', { tag: '@habitat-details' }, () => {
@@ -421,6 +490,198 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect
           .poll(() => baselineHabitatDetailsPage.conditionOptionValues())
           .not.toEqual(before)
+      })
+    }
+  )
+
+  // ─── Area habitat details — page content (ACs) ───────────────────────────────
+
+  test.describe(
+    'Baseline habitat details — area habitat content',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+      test.describe.configure({ mode: 'serial' })
+
+      let projectId
+      let projectName
+      let areaFeatureId
+      let areaRef
+      let areaSize
+
+      test('AC1 — page pathname is /baseline-habitat-details after click-through', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        page
+      }) => {
+        const project = await uploadAndGetProject(
+          createProjectFlow,
+          projectDashboardPage,
+          uploadBaselineFileFlow,
+          page
+        )
+        projectId = project.id
+        projectName = project.name
+
+        const habitat = await pickRichAreaHabitat(page)
+        areaFeatureId = habitat.featureId
+        areaRef = habitat.ref
+        areaSize = habitat.size
+
+        await page
+          .locator('#area-habitats')
+          .getByRole('link', { name: areaRef, exact: true })
+          .click()
+        await expect(page).toHaveURL(/\/baseline-habitat-details/)
+      })
+
+      test('AC2 — header shows Back link, project caption, "Habitat {ref}" heading, "Baseline Details"', async ({
+        baselineHabitatDetailsPage,
+        page
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
+
+        await expect(baselineHabitatDetailsPage.backLink).toBeVisible()
+        await expect(page.getByText(projectName)).toBeVisible()
+        await expect(baselineHabitatDetailsPage.heading).toHaveText(
+          `Habitat ${areaRef}`
+        )
+        await expect(
+          baselineHabitatDetailsPage.baselineDetailsHeading
+        ).toBeVisible()
+      })
+
+      test('AC3 — Reference label and the saved reference value are displayed', async ({
+        baselineHabitatDetailsPage,
+        page
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
+
+        await expect(baselineHabitatDetailsPage.referenceKey).toBeVisible()
+        // Exact match scopes this to the Reference row value, not the
+        // "Habitat {ref}" page heading.
+        await expect(page.getByText(areaRef, { exact: true })).toBeVisible()
+      })
+
+      test('AC4 — Area (hectares) label and the value carried from the list are displayed', async ({
+        baselineHabitatDetailsPage,
+        page
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
+
+        await expect(
+          page.getByText('Area (hectares)', { exact: true })
+        ).toBeVisible()
+        await expect(page.getByText(areaSize, { exact: true })).toBeVisible()
+      })
+
+      test('AC5a — Broad habitat dropdown shows the saved value as selected', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
+
+        await expect(
+          baselineHabitatDetailsPage.broadHabitatSelect
+        ).toBeVisible()
+        expect(
+          await baselineHabitatDetailsPage.broadHabitatSelect.inputValue()
+        ).not.toBe('')
+      })
+
+      test('AC5b — Broad habitat options start with the default and are sorted ascending', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
+        const texts = await optionTexts(
+          baselineHabitatDetailsPage.broadHabitatSelect
+        )
+
+        expect(texts[0]).toBe('Choose broad habitat')
+        expect(isSortedAscending(texts.slice(1))).toBe(true)
+      })
+
+      test('AC6a — Habitat type dropdown shows the saved value as selected', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
+
+        await expect(baselineHabitatDetailsPage.habitatTypeSelect).toBeVisible()
+        expect(
+          await baselineHabitatDetailsPage.habitatTypeSelect.inputValue()
+        ).not.toBe('')
+      })
+
+      test('AC6b — Habitat type options start with the default and are sorted ascending', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
+        const texts = await optionTexts(
+          baselineHabitatDetailsPage.habitatTypeSelect
+        )
+
+        expect(texts[0]).toBe('Choose habitat type')
+        expect(texts.length).toBeGreaterThan(1)
+        expect(isSortedAscending(texts.slice(1))).toBe(true)
+      })
+
+      test('AC7 — Distinctiveness shows the band and score', async ({
+        baselineHabitatDetailsPage,
+        page
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
+
+        await expect(
+          baselineHabitatDetailsPage.distinctivenessKey
+        ).toBeVisible()
+        await expect(
+          page.getByText(DISTINCTIVENESS_PATTERN).first()
+        ).toBeVisible()
+      })
+
+      test('AC8b — Condition options start with the default and are ordered by score descending', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
+        const texts = await optionTexts(
+          baselineHabitatDetailsPage.conditionSelect
+        )
+
+        expect(texts[0]).toBe('Choose condition')
+        const scores = conditionScores(texts.slice(1))
+        expect(scores.length).toBeGreaterThan(0)
+        expect(scores).toEqual([...scores].sort((a, b) => b - a))
+      })
+
+      test('AC14 — Back link returns to the habitat list Areas tab', async ({
+        baselineHabitatDetailsPage,
+        habitatListPage,
+        page
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
+        await baselineHabitatDetailsPage.backLink.click()
+
+        await expect(page).toHaveURL(
+          new RegExp(`/projects/${projectId}/baseline-habitat-list`)
+        )
+        await expect(habitatListPage.areaHabitatsTable).toBeVisible()
+      })
+
+      test('AC15 — Cancel link returns to the habitat list Areas tab anchored to the habitat', async ({
+        baselineHabitatDetailsPage,
+        habitatListPage,
+        page
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
+        await baselineHabitatDetailsPage.cancelLink.click()
+
+        await expect(page).toHaveURL(
+          new RegExp(
+            `/projects/${projectId}/baseline-habitat-list#habitat-${areaFeatureId}`
+          )
+        )
+        await expect(habitatListPage.areaHabitatsTable).toBeVisible()
       })
     }
   )
