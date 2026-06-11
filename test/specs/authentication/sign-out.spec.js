@@ -12,7 +12,7 @@ test.describe('authentication', { tag: '@authentication' }, () => {
   // authenticated test in the run. The destination it returns to — /auth/signed-out
   // — is asserted independently in signed-out.spec.js.
 
-  test.describe('Sign out — header link', { tag: '@regression' }, () => {
+  test.describe('Sign out — header link', { tag: '@smoke' }, () => {
     test.use({ storageState: STORAGE_STATE })
     test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 

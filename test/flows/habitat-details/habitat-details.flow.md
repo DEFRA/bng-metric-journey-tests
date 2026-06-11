@@ -3,10 +3,11 @@
 ## Overview
 
 A BNG Completer views and edits the dropdown fields for a single baseline feature
-(area habitat or hedgerow). On save the backend recomputes derived values
-(distinctiveness, condition score, habitat units, status) and the user is returned
-to the habitat list anchored to the edited row or tab. Watercourse editing is not
-yet supported.
+(area habitat, hedgerow, or watercourse). On save the backend recomputes derived
+values (distinctiveness, condition score, habitat units, status) and the user is
+returned to the habitat list anchored to the edited row or tab. Watercourse
+features are now viewable; only watercourse editing (save) is unsupported — the
+backend rejects watercourse PUTs.
 
 ## Steps
 
@@ -26,14 +27,14 @@ yet supported.
     - `GET /reference/hedgerow-types` — hedgerow habitat types (cached in-process)
     - `GET /reference/trading-rules` — trading rules by distinctiveness band (cached in-process)
     - `GET /reference/conditions?habitatType={type}&featureType=hedgerow` — hedgerow condition options (only when type is set)
-- **Description:** Feature type is resolved by the backend; the page renders via a strategy (area or hedgerow). Read-only rows: Reference, Size (Area (ha) for habitats / Length (km) for hedgerows), Distinctiveness (updated by client JS), Strategic Significance (fixed "Low (1)"), Trading rules (updated by client JS), Habitat units. Editable rows: Broad habitat (select; area habitats only), Habitat type (select), Condition (select). A JSON script tag (`#bhd-reference-data`) embeds static reference data for client-side JS. Back link and Cancel link navigate to `/projects/{projectId}/baseline-habitat-list` with a tab anchor (`#hedgerows` for hedgerows, `#habitat-{featureId}` for area habitats).
+- **Description:** Feature type is resolved by the backend; the page renders via a strategy (area, hedgerow, or watercourse). Read-only rows: Reference, Size (Area (ha) for habitats / Length (km) for hedgerows / watercourses), Distinctiveness (updated by client JS), Strategic Significance (fixed "Low (1)"), Required action to meet trading rules (updated by client JS), Units in this habitat. Editable rows: Broad habitat (select; area habitats only), Habitat type (select), Condition (select). Watercourse features additionally render read-only Riparian and Watercourse encroachment dropdowns. A JSON script tag (`#bhd-reference-data`) embeds static reference data for client-side JS. Back link and Cancel link navigate to `/projects/{projectId}/baseline-habitat-list` with a tab anchor (`#hedgerows` for hedgerows, `#watercourses` for watercourses, `#habitat-{featureId}` for area habitats).
 - **Validation (query params):**
   - `featureId` required, must be a valid UUID → 400 if missing or invalid
   - `projectId` required, must be a valid UUID → 400 if missing or invalid
   - BNG Completer role required → redirects to `/auth/forbidden` if missing
   - Unauthenticated → redirects to sign-in
   - Feature not found → 404
-  - Unsupported feature type (e.g. watercourse) → 500 (Boom.badImplementation in strategy lookup)
+  - Watercourse features are viewable (200) via the registered watercourse strategy (BMD-502); a genuinely unknown feature type → 500 (Boom.badImplementation in strategy lookup)
 - **On success:** Renders the habitat details form
 - **On error:** 400 for invalid/missing query params; 404 if feature does not exist
 
@@ -70,7 +71,7 @@ yet supported.
 - **Description:** Thin frontend proxy consumed by client-side JS when the user changes the Habitat type dropdown. Refreshes the Condition select options without a full page reload.
 - **Validation (query params):**
   - `habitatType` required, min length 1 → 400 if missing or empty
-  - `featureType` optional; must be `'habitat'` or `'hedgerow'` if provided → 400 otherwise
+  - `featureType` optional; must be `'habitat'`, `'hedgerow'`, or `'watercourse'` if provided → 400 otherwise
   - BNG Completer role required → redirects to `/auth/forbidden` if missing
 - **On success:** Returns JSON array of condition objects from the backend
 - **On error:** Backend returns 4xx or 5xx → 502 Bad Gateway

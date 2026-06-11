@@ -6,6 +6,7 @@ const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const TASK_PROJECT_NAME = 'Project Name'
 const TASK_PROJECT_DETAILS = 'Project Details'
 const TASK_BASELINE_HABITATS = 'On-site baseline habitats'
+const TASK_POST_INTERVENTION = 'On-site post intervention habitats'
 
 async function setupProject(createProjectFlow, projectDashboardPage) {
   const name = `Task list test ${Date.now()}`
@@ -43,30 +44,28 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expect(page.getByText(name)).toBeVisible()
         await expect(projectTaskListPage.informationParagraph).toBeVisible()
         await expect(projectTaskListPage.taskList).toBeVisible()
-        await expect(
-          projectTaskListPage.taskItem(TASK_PROJECT_NAME)
-        ).toBeVisible()
-        await expect(
-          projectTaskListPage.taskItem(TASK_PROJECT_NAME)
-        ).toHaveAttribute('href', /\/change-project-name\//)
-        await expect(
-          projectTaskListPage.taskItem(TASK_PROJECT_DETAILS)
-        ).toBeVisible()
-        await expect(
-          projectTaskListPage.taskItem(TASK_PROJECT_DETAILS)
-        ).toHaveAttribute('href', /\/project-details\//)
-        await expect(
-          projectTaskListPage.taskItem(TASK_BASELINE_HABITATS)
-        ).toBeVisible()
-        await expect(
-          projectTaskListPage.taskItem(TASK_BASELINE_HABITATS)
-        ).toHaveAttribute('href', /\/projects\/.*\/upload-baseline-file/)
+        await projectTaskListPage.assertTaskLink(
+          TASK_PROJECT_NAME,
+          /\/change-project-name\//
+        )
+        await projectTaskListPage.assertTaskLink(
+          TASK_PROJECT_DETAILS,
+          /\/project-details\//
+        )
+        await projectTaskListPage.assertTaskLink(
+          TASK_BASELINE_HABITATS,
+          /\/projects\/.*\/upload-baseline-file/
+        )
+        await projectTaskListPage.assertTaskLink(
+          TASK_POST_INTERVENTION,
+          /\/projects\/.*\/upload-post-intervention-file/
+        )
+        // Fresh project: Project Name is Completed; Project Details, On-site
+        // baseline and On-site post intervention are all Not yet started.
+        await expect(projectTaskListPage.taskStatus('Completed')).toHaveCount(1)
         await expect(
           projectTaskListPage.taskStatus('Not yet started')
-        ).toHaveCount(2)
-        await expect(
-          projectTaskListPage.taskStatus('Cannot start yet')
-        ).toBeVisible()
+        ).toHaveCount(3)
       }
     )
   })
@@ -160,7 +159,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   test.describe(
     'Project task list — role enforcement',
-    { tag: '@regression' },
+    { tag: '@smoke' },
     () => {
       test.use({ storageState: NO_ROLE_STORAGE_STATE })
       test.skip(skipInE2e(NO_ROLE_STORAGE_STATE), E2E_SKIP_REASON)
@@ -198,7 +197,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   test.describe(
     'Project task list — unauthenticated access',
-    { tag: '@regression' },
+    { tag: '@smoke' },
     () => {
       test('GET /add-project-details/{id} redirects to sign-in', async ({
         page

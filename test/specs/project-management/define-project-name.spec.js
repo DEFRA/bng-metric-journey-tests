@@ -162,7 +162,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   test.describe(
     'Define project name — unauthenticated access',
-    { tag: '@regression' },
+    { tag: '@smoke' },
     () => {
       test('GET /project-name redirects to sign-in', async ({ page }) => {
         await page.goto('/project-name')

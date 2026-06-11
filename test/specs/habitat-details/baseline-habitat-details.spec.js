@@ -6,7 +6,6 @@ const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const HTTP_OK = 200
 const HTTP_BAD_REQUEST = 400
 const HTTP_NOT_FOUND = 404
-const HTTP_SERVER_ERROR = 500
 const STUB_UUID = '00000000-0000-0000-0000-000000000000'
 const VALID_UUID_V4 = 'aaaaaaaa-bbbb-4ccc-bddd-eeeeeeeeeeee'
 const STUB_HABITAT_TYPE = 'Grassland - Modified grassland'
@@ -51,14 +50,17 @@ async function uploadAndGetProjectId(...args) {
   return id
 }
 
+async function refAndFeatureIdFromLink(link) {
+  const href = await link.getAttribute('href')
+  return {
+    ref: (await link.textContent()).trim(),
+    featureId: new URL(href, 'http://localhost').searchParams.get('featureId')
+  }
+}
+
 async function getRowRefAndFeatureId(page, panelId) {
   const link = page.locator(`#${panelId}`).getByRole('link').first()
-  const href = await link.getAttribute('href')
-  const featureId = new URL(href, 'http://localhost').searchParams.get(
-    'featureId'
-  )
-  const ref = (await link.textContent()).trim()
-  return { ref, featureId }
+  return refAndFeatureIdFromLink(link)
 }
 
 async function getFeatureIdFromTable(page, panelId) {
@@ -109,11 +111,7 @@ async function pickRichAreaHabitat(page) {
     if ((await link.count()) === 0) {
       continue
     }
-    const href = await link.getAttribute('href')
-    const ref = (await link.textContent()).trim()
-    const featureId = new URL(href, 'http://localhost').searchParams.get(
-      'featureId'
-    )
+    const { ref, featureId } = await refAndFeatureIdFromLink(link)
     const cells = row.getByRole('cell')
     const size = (await cells.nth(AREA_SIZE_COLUMN).textContent()).trim()
     const distinctiveness = (
@@ -128,6 +126,38 @@ async function pickRichAreaHabitat(page) {
     }
   }
   return firstRow
+}
+
+// Some area habitats (e.g. the baseline's "N/A - Other" type) have a single
+// condition option, so once the saved condition is pre-selected there is no
+// alternative to choose. Walk the area habitats and return the first one that
+// offers an alternative condition, so the edit-and-persist path can run. Hrefs
+// are collected up front because opening each detail page navigates away from
+// the list.
+async function findEditableAreaHabitat(
+  page,
+  baselineHabitatDetailsPage,
+  projectId
+) {
+  const links = await page.locator('#area-habitats').getByRole('link').all()
+  const habitats = []
+  for (const link of links) {
+    const habitat = await refAndFeatureIdFromLink(link)
+    if (habitat.featureId) {
+      habitats.push(habitat)
+    }
+  }
+
+  for (const habitat of habitats) {
+    await baselineHabitatDetailsPage.open(projectId, habitat.featureId)
+    const conditions = (
+      await baselineHabitatDetailsPage.conditionOptionValues()
+    ).filter(Boolean)
+    if (conditions.length >= 2) {
+      return habitat
+    }
+  }
+  throw new Error('No area habitat with multiple condition options found')
 }
 
 test.describe('habitat-details', { tag: '@habitat-details' }, () => {
@@ -190,20 +220,21 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     }
   )
 
-  // ─── Watercourse not editable ────────────────────────────────────────────────
+  // ─── Watercourse viewable ─────────────────────────────────────────────────────
 
   test.describe(
-    'Baseline habitat details — watercourse not editable',
+    'Baseline habitat details — watercourse viewable',
     { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      test('navigating to a watercourse feature returns 500', async ({
+      test('navigating to a watercourse feature renders the details page', async ({
         createProjectFlow,
         projectDashboardPage,
         uploadBaselineFileFlow,
         habitatListPage,
+        baselineHabitatDetailsPage,
         page
       }) => {
         const projectId = await uploadAndGetProjectId(
@@ -216,10 +247,16 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await habitatListPage.watercoursesTab.click()
         const featureId = await getFeatureIdFromTable(page, 'watercourses')
 
+        // BMD-502 registered the watercourse strategy, so the page now renders
+        // (200) instead of throwing in the strategy lookup (500). Watercourse
+        // editing/saving remains unsupported (the backend rejects the PUT).
         const response = await page.goto(
           `/baseline-habitat-details?projectId=${projectId}&featureId=${featureId}`
         )
-        expect(response.status()).toBe(HTTP_SERVER_ERROR)
+        expect(response.status()).toBe(HTTP_OK)
+        await expect(
+          baselineHabitatDetailsPage.baselineDetailsHeading
+        ).toBeVisible()
       })
     }
   )
@@ -454,7 +491,11 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           uploadBaselineFileFlow,
           page
         )
-        const area = await getRowRefAndFeatureId(page, 'area-habitats')
+        const area = await findEditableAreaHabitat(
+          page,
+          baselineHabitatDetailsPage,
+          projectId
+        )
         areaFeatureId = area.featureId
         areaRef = area.ref
 
