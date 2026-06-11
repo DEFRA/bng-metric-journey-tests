@@ -24,8 +24,15 @@ export class BaselineHabitatDetailsPage extends BasePage {
       exact: true
     })
     this.strategicSignificanceValue = page.getByText('Low (1)', { exact: true })
-    this.tradingRulesKey = page.getByText('Trading rules', { exact: true })
-    this.habitatUnitsKey = page.getByText('Habitat units', { exact: true })
+    this.tradingRulesKey = page.getByText(
+      'Required action to meet trading rules',
+      {
+        exact: true
+      }
+    )
+    this.habitatUnitsKey = page.getByText('Units in this habitat', {
+      exact: true
+    })
   }
 
   async open(projectId, featureId) {
