@@ -1,3 +1,5 @@
+import { expect } from '@playwright/test'
+
 import { BasePage } from './base.page.js'
 
 export class ProjectTaskListPage extends BasePage {
@@ -22,5 +24,10 @@ export class ProjectTaskListPage extends BasePage {
 
   taskStatus(name) {
     return this.taskList.getByText(name)
+  }
+
+  async assertTaskLink(name, hrefPattern) {
+    await expect(this.taskItem(name)).toBeVisible()
+    await expect(this.taskItem(name)).toHaveAttribute('href', hrefPattern)
   }
 }
