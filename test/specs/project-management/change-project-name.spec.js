@@ -213,7 +213,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   test.describe(
     'Change project name — role enforcement',
-    { tag: '@regression' },
+    { tag: '@smoke' },
     () => {
       test.use({ storageState: NO_ROLE_STORAGE_STATE })
       test.skip(skipInE2e(NO_ROLE_STORAGE_STATE), E2E_SKIP_REASON)
