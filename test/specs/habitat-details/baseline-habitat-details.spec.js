@@ -681,6 +681,17 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         ).toBeVisible()
       })
 
+      test('AC8a — Condition dropdown shows the saved condition as selected', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
+
+        await expect(baselineHabitatDetailsPage.conditionSelect).toBeVisible()
+        expect(
+          await baselineHabitatDetailsPage.conditionSelect.inputValue()
+        ).not.toBe('')
+      })
+
       test('AC8b — Condition options start with the default and are ordered by score descending', async ({
         baselineHabitatDetailsPage
       }) => {
@@ -693,6 +704,22 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         const scores = conditionScores(texts.slice(1))
         expect(scores.length).toBeGreaterThan(0)
         expect(scores).toEqual([...scores].sort((a, b) => b - a))
+      })
+
+      test('AC10 — "Required action to meet trading rules" label is displayed', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
+
+        await expect(baselineHabitatDetailsPage.tradingRulesKey).toBeVisible()
+      })
+
+      test('AC11 — "Units in this habitat" label is displayed', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
+
+        await expect(baselineHabitatDetailsPage.habitatUnitsKey).toBeVisible()
       })
 
       test('AC14 — Back link returns to the habitat list Areas tab', async ({
