@@ -79,4 +79,4 @@ to the baseline habitat list on success, or a structured error dropout page on f
 On a successful upload the user lands on `GET /projects/{id}/baseline-habitat-list`. That page and the habitat-detail edit journey are documented in their own flow docs and are **out of scope** for this flow:
 
 - `test/flows/habitat-list/habitat-list.flow.md` — baseline habitat list page
-- `test/flows/habitat-list/baseline-habitat-details.flow.md` / `test/flows/habitat-details/habitat-details.flow.md` — edit a baseline habitat detail
+- `test/flows/habitat-details/habitat-details.flow.md` — edit a baseline habitat detail

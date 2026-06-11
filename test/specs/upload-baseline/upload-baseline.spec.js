@@ -48,10 +48,12 @@ function describeHappyPath() {
       await expect(
         projectTaskListPage.taskItem(TASK_BASELINE_HABITATS)
       ).toHaveAttribute('href', `/projects/${id}/baseline-habitat-list`)
+      // After baseline upload: Project Name + On-site baseline are Completed;
+      // Project Details + On-site post intervention remain Not yet started.
       await expect(projectTaskListPage.taskStatus('Completed')).toHaveCount(2)
       await expect(
         projectTaskListPage.taskStatus('Not yet started')
-      ).toHaveCount(1)
+      ).toHaveCount(2)
     })
   })
 }
