@@ -143,7 +143,12 @@ async function pickHedgerow(page) {
     }
     const { ref, featureId } = await refAndFeatureIdFromLink(link)
     const cells = row.getByRole('cell')
-    const length = (await cells.nth(SIZE_COLUMN).textContent()).trim()
+    // The hedgerow list cell carries a "km" suffix (e.g. "0.123km"); the
+    // details page shows the bare number under the "Length (km)" label, so
+    // strip the unit to compare like-for-like.
+    const length = (await cells.nth(SIZE_COLUMN).textContent())
+      .trim()
+      .replace(/km$/, '')
     const condition = (await cells.nth(CONDITION_COLUMN).textContent()).trim()
     const candidate = { ref, featureId, length }
     if (!firstRow) {
