@@ -34,6 +34,10 @@ backend rejects watercourse PUTs.
   - **Deselect habitat type** ("Choose habitat type") — `#distinctivenessDisplay` and `#tradingRuleDisplay` are cleared; Condition resets to "Choose condition". Units row is untouched.
   - **Select a new broad habitat** — derived displays cleared; the Habitat type select is repopulated for the new broad and reverts to "Choose habitat type"; Condition resets to "Choose condition". Units row is untouched.
   - **Deselect broad habitat** ("Choose broad habitat") — derived displays cleared; Habitat type reverts to "Choose habitat type" (single placeholder option); Condition resets to "Choose condition". Units row is untouched.
+- **Client-side dropdown behaviour (hedgerows; display-only, no DB writes until Save):** hedgerows have no broad-habitat dimension, so only Habitat type + Condition are editable.
+  - **Change condition** — no handler; the new value is simply the visible selection. Derived displays and the Units row are untouched.
+  - **Select a valid habitat type** — `#distinctivenessDisplay` and `#tradingRuleDisplay` update for the new type; the Condition select resets to "Choose condition" (hedgerow types share the same Good/Moderate/Poor condition set, so the options are unchanged but the selection still resets). Units row is untouched.
+  - **Deselect habitat type** ("Choose habitat type") — `#distinctivenessDisplay` and `#tradingRuleDisplay` are cleared; Condition resets to "Choose condition". Units row is untouched.
 - **Validation (query params):**
   - `featureId` required, must be a valid UUID → 400 if missing or invalid
   - `projectId` required, must be a valid UUID → 400 if missing or invalid

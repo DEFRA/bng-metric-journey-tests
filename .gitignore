@@ -12,3 +12,6 @@ test-results/
 feature-input.md
 test/evidence/
 
+# Claude Code harness runtime state (shared commands/skills stay tracked)
+.claude/scheduled_tasks.lock
+

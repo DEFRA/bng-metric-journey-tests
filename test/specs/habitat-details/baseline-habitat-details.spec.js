@@ -1092,7 +1092,17 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       let hedgerowFeatureId
       let hedgerowRef
 
-      test('changing the condition and saving persists the new value on the hedgerows table', async ({
+      function hedgerowRow(habitatListPage) {
+        return habitatListPage.hedgerowsTable
+          .getByRole('row')
+          .filter({ hasText: hedgerowRef })
+      }
+
+      // AC6 (Scenario A — all options selected): saving a changed selection
+      // persists it, recalculates the hedgerow units + sets status Complete, and
+      // returns to the Habitat List (Hedgerows tab) with the row and the summary
+      // total reflecting the new calculation.
+      test('AC6 Scenario A — saving with all options selected recalculates units and sets Complete', async ({
         createProjectFlow,
         projectDashboardPage,
         uploadBaselineFileFlow,
@@ -1122,39 +1132,177 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         )
 
         await habitatListPage.hedgerowsTab.click()
-        const row = habitatListPage.hedgerowsTable
-          .getByRole('row')
-          .filter({ hasText: hedgerowRef })
+        const row = hedgerowRow(habitatListPage)
         await expect(row.getByRole('cell').nth(CONDITION_COLUMN)).toHaveText(
           newCondition
         )
         await expect(row.getByRole('cell').nth(STATUS_COLUMN)).toHaveText(
           'Complete'
         )
+        // Units recalculated for the row and reflected in the summary total.
+        await expect(row.getByRole('cell').nth(UNITS_COLUMN)).toHaveText(
+          HABITAT_UNITS_PATTERN
+        )
+        await expect(habitatListPage.hedgerowUnitsCell).toHaveText(
+          HABITAT_UNITS_PATTERN
+        )
       })
 
-      test('changing the habitat type updates the distinctiveness display', async ({
+      // AC2: selecting a different valid habitat type updates the derived
+      // distinctiveness + trading-rules displays and resets the condition to
+      // "Choose condition", without recalculating units. (Hedgerow types share
+      // the same condition set, so the options are unchanged but the selection
+      // still resets.)
+      test('AC2 — selecting a habitat type updates derived values and resets condition', async ({
         baselineHabitatDetailsPage,
         page
       }) => {
-        // All hedgerow types share identical condition options (Good, Moderate,
-        // Poor), so conditions do not change between types. Distinctiveness does
-        // differ between bands; switching from Low to Medium exercises the full
-        // client-side update path (showDistinctiveness + loadConditions).
         await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
+        const unitsBefore = (
+          await baselineHabitatDetailsPage.habitatUnitsValue.textContent()
+        ).trim()
 
+        // Switching from Low to Medium exercises the full client-side update
+        // path (showDistinctiveness + showTradingRule + loadConditions).
         await baselineHabitatDetailsPage.habitatTypeSelect.selectOption(
           'Native hedgerow'
         )
-        await expect(page.locator('#distinctivenessDisplay')).toContainText(
-          'Low (2)'
-        )
+        await expect(
+          baselineHabitatDetailsPage.distinctivenessDisplay
+        ).toContainText('Low (2)')
 
         await baselineHabitatDetailsPage.habitatTypeSelect.selectOption(
           'Native hedgerow with trees'
         )
-        await expect(page.locator('#distinctivenessDisplay')).toContainText(
-          'Medium (4)'
+        await expect(
+          baselineHabitatDetailsPage.distinctivenessDisplay
+        ).toContainText('Medium (4)')
+        await expect(
+          baselineHabitatDetailsPage.tradingRuleDisplay
+        ).not.toHaveText('')
+        await expect
+          .poll(() => baselineHabitatDetailsPage.conditionSelect.inputValue())
+          .toBe('')
+        await expect(baselineHabitatDetailsPage.habitatUnitsValue).toHaveText(
+          unitsBefore
+        )
+      })
+
+      // AC1: changing the condition shows the new value as the selection with no
+      // DB write and no unit recalculation.
+      test('AC1 — selecting a new condition shows it without recalculating units', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
+        const unitsBefore = (
+          await baselineHabitatDetailsPage.habitatUnitsValue.textContent()
+        ).trim()
+        const distinctivenessBefore = (
+          await baselineHabitatDetailsPage.distinctivenessDisplay.textContent()
+        ).trim()
+
+        const newCondition =
+          await baselineHabitatDetailsPage.selectDifferentCondition()
+
+        expect(
+          await baselineHabitatDetailsPage.conditionSelect.inputValue()
+        ).toBe(newCondition)
+        // A condition change touches nothing else.
+        await expect(
+          baselineHabitatDetailsPage.distinctivenessDisplay
+        ).toHaveText(distinctivenessBefore)
+        await expect(baselineHabitatDetailsPage.habitatUnitsValue).toHaveText(
+          unitsBefore
+        )
+      })
+
+      // AC3: deselecting the habitat type ("Choose habitat type") hides the
+      // derived displays, resets the condition, and leaves units untouched.
+      test('AC3 — deselecting the habitat type hides derived values and resets condition', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
+        const unitsBefore = (
+          await baselineHabitatDetailsPage.habitatUnitsValue.textContent()
+        ).trim()
+
+        await baselineHabitatDetailsPage.habitatTypeSelect.selectOption('')
+        await expect
+          .poll(() => baselineHabitatDetailsPage.conditionSelect.inputValue())
+          .toBe('')
+
+        expect(
+          await baselineHabitatDetailsPage.habitatTypeSelect.inputValue()
+        ).toBe('')
+        await expect(
+          baselineHabitatDetailsPage.distinctivenessDisplay
+        ).toHaveText('')
+        await expect(baselineHabitatDetailsPage.tradingRuleDisplay).toHaveText(
+          ''
+        )
+        await expect(baselineHabitatDetailsPage.habitatUnitsValue).toHaveText(
+          unitsBefore
+        )
+      })
+
+      // AC7: changing a dropdown then clicking Cancel discards the change — the
+      // user returns to the Hedgerows tab and the row's condition + units are
+      // unchanged from before the edit (no UI or DB update).
+      test('AC7 — cancelling after a change discards it and leaves the row unchanged', async ({
+        baselineHabitatDetailsPage,
+        habitatListPage,
+        page
+      }) => {
+        // Capture the currently-persisted row state fresh from the list.
+        await page.goto(`/projects/${projectId}/baseline-habitat-list`)
+        await habitatListPage.hedgerowsTab.click()
+        const rowBefore = hedgerowRow(habitatListPage)
+        const conditionBefore = (
+          await rowBefore.getByRole('cell').nth(CONDITION_COLUMN).textContent()
+        ).trim()
+        const unitsBefore = (
+          await rowBefore.getByRole('cell').nth(UNITS_COLUMN).textContent()
+        ).trim()
+
+        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
+        await baselineHabitatDetailsPage.selectDifferentCondition()
+        await baselineHabitatDetailsPage.cancelLink.click()
+        await page.waitForURL(
+          new RegExp(`/projects/${projectId}/baseline-habitat-list#hedgerows`)
+        )
+
+        await habitatListPage.hedgerowsTab.click()
+        const rowAfter = hedgerowRow(habitatListPage)
+        await expect(
+          rowAfter.getByRole('cell').nth(CONDITION_COLUMN)
+        ).toHaveText(conditionBefore)
+        await expect(rowAfter.getByRole('cell').nth(UNITS_COLUMN)).toHaveText(
+          unitsBefore
+        )
+      })
+
+      // AC6 (Scenario B — not all options selected): saving with the condition
+      // deselected zeroes the units and sets status Incomplete. Runs last in the
+      // serial block because it leaves the shared hedgerow Incomplete.
+      test('AC6 Scenario B — saving with a deselected dropdown zeroes units and sets Incomplete', async ({
+        baselineHabitatDetailsPage,
+        habitatListPage,
+        page
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
+        await baselineHabitatDetailsPage.conditionSelect.selectOption('')
+        await baselineHabitatDetailsPage.saveButton.click()
+        await page.waitForURL(
+          new RegExp(`/projects/${projectId}/baseline-habitat-list`)
+        )
+
+        await habitatListPage.hedgerowsTab.click()
+        const row = hedgerowRow(habitatListPage)
+        await expect(row.getByRole('cell').nth(STATUS_COLUMN)).toHaveText(
+          'Incomplete'
+        )
+        await expect(row.getByRole('cell').nth(UNITS_COLUMN)).toHaveText(
+          ZERO_UNITS
         )
       })
     }
