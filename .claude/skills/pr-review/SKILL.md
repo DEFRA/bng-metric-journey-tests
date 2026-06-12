@@ -56,11 +56,11 @@ Scan the diff for duplication at two levels:
 
 If no duplication is found, write "None identified."
 
-## Step 3 — Ask before implementing
+## Step 3 — Brief and recommend (do not ask a canned question)
 
-After the review output, ask:
+After the review output, add a concise brief (1–3 sentences) and then **highlight your recommendation** — which duplication reductions (if any) are worth applying, and which to skip and why. Do not ask the user a templated "would you like me to implement…" question.
 
-> "Would you like me to implement any of the duplication reductions above? I can apply them one at a time or all at once — just say which. Once you're happy with the code, run `/pr-description` to commit and push."
+Then stop and wait. If the user approves, make the agreed changes (Step 4) **before** they move on to `/pr-description`. If the user does not want changes, leave the code as-is.
 
 ## Step 4 — Implement on request
 
