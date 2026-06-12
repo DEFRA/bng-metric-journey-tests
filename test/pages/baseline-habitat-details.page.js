@@ -33,6 +33,13 @@ export class BaselineHabitatDetailsPage extends BasePage {
     this.habitatUnitsKey = page.getByText('Units in this habitat', {
       exact: true
     })
+    // "Units in this habitat" is the final summary-list row, so its value is
+    // the last definition (<dd>) on the page — used to assert the units value
+    // is unchanged by display-only dropdown actions.
+    this.habitatUnitsValue = page.getByRole('definition').last()
+    // Read-only derived spans the client JS rewrites as the dropdowns change.
+    this.distinctivenessDisplay = page.locator('#distinctivenessDisplay')
+    this.tradingRuleDisplay = page.locator('#tradingRuleDisplay')
   }
 
   async open(projectId, featureId) {
@@ -54,6 +61,10 @@ export class BaselineHabitatDetailsPage extends BasePage {
     return this.optionValues(this.conditionSelect)
   }
 
+  async habitatUnitsText() {
+    return (await this.habitatUnitsValue.textContent()).trim()
+  }
+
   // Selects an option whose value differs from the current selection and
   // returns the chosen value, so the caller can assert it was persisted.
   async selectDifferentOption(select) {
@@ -73,5 +84,9 @@ export class BaselineHabitatDetailsPage extends BasePage {
 
   async selectDifferentHabitatType() {
     return this.selectDifferentOption(this.habitatTypeSelect)
+  }
+
+  async selectDifferentBroadHabitat() {
+    return this.selectDifferentOption(this.broadHabitatSelect)
   }
 }
