@@ -28,6 +28,12 @@ backend rejects watercourse PUTs.
     - `GET /reference/trading-rules` — trading rules by distinctiveness band (cached in-process)
     - `GET /reference/conditions?habitatType={type}&featureType=hedgerow` — hedgerow condition options (only when type is set)
 - **Description:** Feature type is resolved by the backend; the page renders via a strategy (area, hedgerow, or watercourse). Read-only rows: Reference, Size (Area (ha) for habitats / Length (km) for hedgerows / watercourses), Distinctiveness (updated by client JS), Strategic Significance (fixed "Low (1)"), Required action to meet trading rules (updated by client JS), Units in this habitat. Editable rows: Broad habitat (select; area habitats only), Habitat type (select), Condition (select). Watercourse features additionally render read-only Riparian and Watercourse encroachment dropdowns. A JSON script tag (`#bhd-reference-data`) embeds static reference data for client-side JS. Back link and Cancel link navigate to `/projects/{projectId}/baseline-habitat-list` with a tab anchor (`#hedgerows` for hedgerows, `#watercourses` for watercourses, `#habitat-{featureId}` for area habitats).
+- **Client-side dropdown behaviour (area habitats; display-only, no DB writes until Save — `src/client/javascripts/baseline-habitat-details.js`):**
+  - **Change condition** — no handler; the new value is simply the visible selection. Distinctiveness, trading rules and the Units row are untouched.
+  - **Select a valid habitat type** — `#distinctivenessDisplay` and `#tradingRuleDisplay` update for the new type; the Condition select resets to "Choose condition" and is repopulated for the new type via the conditions proxy (Step 3). Units row is untouched.
+  - **Deselect habitat type** ("Choose habitat type") — `#distinctivenessDisplay` and `#tradingRuleDisplay` are cleared; Condition resets to "Choose condition". Units row is untouched.
+  - **Select a new broad habitat** — derived displays cleared; the Habitat type select is repopulated for the new broad and reverts to "Choose habitat type"; Condition resets to "Choose condition". Units row is untouched.
+  - **Deselect broad habitat** ("Choose broad habitat") — derived displays cleared; Habitat type reverts to "Choose habitat type" (single placeholder option); Condition resets to "Choose condition". Units row is untouched.
 - **Validation (query params):**
   - `featureId` required, must be a valid UUID → 400 if missing or invalid
   - `projectId` required, must be a valid UUID → 400 if missing or invalid
