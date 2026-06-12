@@ -1134,8 +1134,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       // the same condition set, so the options are unchanged but the selection
       // still resets.)
       test('AC2 — selecting a habitat type updates derived values and resets condition', async ({
-        baselineHabitatDetailsPage,
-        page
+        baselineHabitatDetailsPage
       }) => {
         await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
         const unitsBefore = await baselineHabitatDetailsPage.habitatUnitsText()
