@@ -121,10 +121,12 @@ Take at least one screenshot at the start of each AC and one at the key assertio
 ### Run command
 
 ```sh
-RUN_MODE=local npx playwright test test/evidence/tmp-validation.spec.js --reporter=list
+EVIDENCE=true RUN_MODE=local npx playwright test test/evidence/tmp-validation.spec.js --reporter=list
 ```
 
 This uses the local base URL (`http://localhost:3000`). The service must be running before executing this command.
+
+`EVIDENCE=true` is required: the committed `playwright.config.js` ignores `**/evidence/**` for the normal suite (so the throwaway spec never runs in CI/regression) and only opts that one spec back in when this flag is set.
 
 ### Pass/fail report
 
