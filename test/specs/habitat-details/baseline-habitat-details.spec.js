@@ -16,7 +16,7 @@ const PROJECT_LABEL = 'Habitat details test'
 
 // Habitat-list table column order (buildHabitatRow): ref, type, size,
 // distinctiveness, condition, units, status.
-const AREA_SIZE_COLUMN = 2
+const SIZE_COLUMN = 2
 const DISTINCTIVENESS_COLUMN = 3
 const CONDITION_COLUMN = 4
 const STATUS_COLUMN = 6
@@ -113,7 +113,7 @@ async function pickRichAreaHabitat(page) {
     }
     const { ref, featureId } = await refAndFeatureIdFromLink(link)
     const cells = row.getByRole('cell')
-    const size = (await cells.nth(AREA_SIZE_COLUMN).textContent()).trim()
+    const size = (await cells.nth(SIZE_COLUMN).textContent()).trim()
     const distinctiveness = (
       await cells.nth(DISTINCTIVENESS_COLUMN).textContent()
     ).trim()
@@ -122,6 +122,39 @@ async function pickRichAreaHabitat(page) {
       firstRow = candidate
     }
     if (distinctiveness && !distinctiveness.startsWith('V.Low')) {
+      return candidate
+    }
+  }
+  return firstRow
+}
+
+// Pick a hedgerow for the content ACs, preferring one with a saved condition so
+// AC8a's "selected" value can be verified; fall back to the first hedgerow.
+// Assumes the Hedgerows tab is already active (its panel is otherwise hidden).
+async function pickHedgerow(page) {
+  const rows = page.locator('#hedgerows').getByRole('table').getByRole('row')
+  const count = await rows.count()
+  let firstRow = null
+  for (let i = 0; i < count; i++) {
+    const row = rows.nth(i)
+    const link = row.getByRole('link').first()
+    if ((await link.count()) === 0) {
+      continue
+    }
+    const { ref, featureId } = await refAndFeatureIdFromLink(link)
+    const cells = row.getByRole('cell')
+    // The hedgerow list cell carries a "km" suffix (e.g. "0.123km"); the
+    // details page shows the bare number under the "Length (km)" label, so
+    // strip the unit to compare like-for-like.
+    const length = (await cells.nth(SIZE_COLUMN).textContent())
+      .trim()
+      .replace(/km$/, '')
+    const condition = (await cells.nth(CONDITION_COLUMN).textContent()).trim()
+    const candidate = { ref, featureId, length }
+    if (!firstRow) {
+      firstRow = candidate
+    }
+    if (condition) {
       return candidate
     }
   }
@@ -798,6 +831,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(baselineHabitatDetailsPage.habitatTypeSelect).toBeVisible()
         await expect(baselineHabitatDetailsPage.conditionSelect).toBeVisible()
         await expect(baselineHabitatDetailsPage.saveButton).toBeVisible()
+        await expect(baselineHabitatDetailsPage.backLink).toBeVisible()
+        await expect(baselineHabitatDetailsPage.cancelLink).toBeVisible()
         await expect(page.getByText('Length (km)')).toBeVisible()
       })
 
@@ -892,6 +927,215 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(page.locator('#distinctivenessDisplay')).toContainText(
           'Medium (4)'
         )
+      })
+    }
+  )
+
+  // ─── Hedgerow details — page content (ACs) ───────────────────────────────────
+
+  test.describe(
+    'Baseline habitat details — hedgerow content',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+      test.describe.configure({ mode: 'serial' })
+
+      let projectId
+      let projectName
+      let hedgerowFeatureId
+      let hedgerowRef
+      let hedgerowLength
+
+      test('AC1 — page pathname is /baseline-habitat-details after click-through', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        habitatListPage,
+        page
+      }) => {
+        const project = await uploadAndGetProject(
+          createProjectFlow,
+          projectDashboardPage,
+          uploadBaselineFileFlow,
+          page
+        )
+        projectId = project.id
+        projectName = project.name
+
+        await habitatListPage.hedgerowsTab.click()
+        const hedgerow = await pickHedgerow(page)
+        hedgerowFeatureId = hedgerow.featureId
+        hedgerowRef = hedgerow.ref
+        hedgerowLength = hedgerow.length
+
+        await page
+          .locator('#hedgerows')
+          .getByRole('link', { name: hedgerowRef, exact: true })
+          .click()
+        await expect(page).toHaveURL(/\/baseline-habitat-details/)
+      })
+
+      test('AC2 — header shows Back link, project caption, "Hedgerow {ref}" heading, "Baseline Details"', async ({
+        baselineHabitatDetailsPage,
+        page
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
+
+        await expect(baselineHabitatDetailsPage.backLink).toBeVisible()
+        await expect(page.getByText(projectName)).toBeVisible()
+        await expect(baselineHabitatDetailsPage.heading).toHaveText(
+          `Hedgerow ${hedgerowRef}`
+        )
+        await expect(
+          baselineHabitatDetailsPage.baselineDetailsHeading
+        ).toBeVisible()
+      })
+
+      test('AC3 — Reference label and the saved reference value are displayed', async ({
+        baselineHabitatDetailsPage,
+        page
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
+
+        await expect(baselineHabitatDetailsPage.referenceKey).toBeVisible()
+        // Exact match scopes this to the Reference row value, not the
+        // "Hedgerow {ref}" page heading.
+        await expect(page.getByText(hedgerowRef, { exact: true })).toBeVisible()
+      })
+
+      test('AC4 — Length (km) label and the value carried from the list are displayed', async ({
+        baselineHabitatDetailsPage,
+        page
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
+
+        await expect(
+          page.getByText('Length (km)', { exact: true })
+        ).toBeVisible()
+        await expect(
+          page.getByText(hedgerowLength, { exact: true })
+        ).toBeVisible()
+      })
+
+      test('AC6a — Habitat type dropdown shows the saved value as selected', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
+
+        await expect(baselineHabitatDetailsPage.habitatTypeSelect).toBeVisible()
+        expect(
+          await baselineHabitatDetailsPage.habitatTypeSelect.inputValue()
+        ).not.toBe('')
+      })
+
+      test('AC6b — Habitat type options start with the default and are sorted ascending', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
+        const texts = await optionTexts(
+          baselineHabitatDetailsPage.habitatTypeSelect
+        )
+
+        expect(texts[0]).toBe('Choose habitat type')
+        expect(texts.length).toBeGreaterThan(1)
+        expect(isSortedAscending(texts.slice(1))).toBe(true)
+      })
+
+      test('AC7 — Distinctiveness shows the band and score', async ({
+        baselineHabitatDetailsPage,
+        page
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
+
+        await expect(
+          baselineHabitatDetailsPage.distinctivenessKey
+        ).toBeVisible()
+        await expect(
+          page.getByText(DISTINCTIVENESS_PATTERN).first()
+        ).toBeVisible()
+      })
+
+      test('AC8a — Condition dropdown shows the saved condition as selected', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
+
+        await expect(baselineHabitatDetailsPage.conditionSelect).toBeVisible()
+        expect(
+          await baselineHabitatDetailsPage.conditionSelect.inputValue()
+        ).not.toBe('')
+      })
+
+      test('AC8b — Condition options start with the default and are ordered by score descending', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
+        const texts = await optionTexts(
+          baselineHabitatDetailsPage.conditionSelect
+        )
+
+        expect(texts[0]).toBe('Choose condition')
+        const scores = conditionScores(texts.slice(1))
+        expect(scores.length).toBeGreaterThan(0)
+        expect(scores).toEqual([...scores].sort((a, b) => b - a))
+      })
+
+      test('AC9 — Strategic Significance shows the fixed "Low (1)" value', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
+
+        await expect(
+          baselineHabitatDetailsPage.strategicSignificanceKey
+        ).toBeVisible()
+        await expect(
+          baselineHabitatDetailsPage.strategicSignificanceValue
+        ).toBeVisible()
+      })
+
+      test('AC10 — "Required action to meet trading rules" label is displayed', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
+
+        await expect(baselineHabitatDetailsPage.tradingRulesKey).toBeVisible()
+      })
+
+      test('AC11 — "Units in this habitat" label is displayed', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
+
+        await expect(baselineHabitatDetailsPage.habitatUnitsKey).toBeVisible()
+      })
+
+      test('AC14 — Back link returns to the habitat list Hedgerows tab', async ({
+        baselineHabitatDetailsPage,
+        habitatListPage,
+        page
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
+        await baselineHabitatDetailsPage.backLink.click()
+
+        await expect(page).toHaveURL(
+          new RegExp(`/projects/${projectId}/baseline-habitat-list#hedgerows`)
+        )
+        await expect(habitatListPage.hedgerowsTable).toBeVisible()
+      })
+
+      test('AC15 — Cancel link returns to the habitat list Hedgerows tab', async ({
+        baselineHabitatDetailsPage,
+        habitatListPage,
+        page
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
+        await baselineHabitatDetailsPage.cancelLink.click()
+
+        await expect(page).toHaveURL(
+          new RegExp(`/projects/${projectId}/baseline-habitat-list#hedgerows`)
+        )
+        await expect(habitatListPage.hedgerowsTable).toBeVisible()
       })
     }
   )

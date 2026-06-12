@@ -491,13 +491,13 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         ).toBeVisible()
       })
 
-      test('hedgerows table shows 7 column headings including "Length (km)" and is sortable', async ({
+      test('hedgerows table shows 7 column headings including "Length" and is sortable', async ({
         habitatListPage
       }) => {
         await habitatListPage.openTab(projectId, 'hedgerows')
         await assertHabitatTableColumns(
           habitatListPage.hedgerowsTable,
-          'Length (km)'
+          'Length'
         )
       })
 
@@ -515,9 +515,8 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         )
 
         await expect(firstRow.getByRole('cell').nth(1)).not.toBeEmpty()
-        await expect(firstRow.getByRole('cell').nth(2)).toHaveText(
-          /^\d+(\.\d+)?$/
-        )
+        // Length format (with the "km" suffix) is asserted by its own test.
+        await expect(firstRow.getByRole('cell').nth(2)).not.toBeEmpty()
         await expect(firstRow.getByRole('cell').nth(3)).not.toBeEmpty()
         await expect(firstRow.getByRole('cell').nth(4)).not.toBeEmpty()
         await expect(firstRow.getByRole('cell').nth(5)).toHaveText(
@@ -525,8 +524,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         )
       })
 
-      // Length (km) suffix not yet implemented — value renders as plain decimal
-      test.skip('hedgerow length column value includes "km" suffix with no space', async ({
+      test('hedgerow length column value includes "km" suffix with no space', async ({
         habitatListPage
       }) => {
         await habitatListPage.openTab(projectId, 'hedgerows')
@@ -578,7 +576,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         ).toHaveAttribute('aria-sort', 'none')
         await expect(
           habitatListPage.hedgerowsTable.getByRole('columnheader', {
-            name: 'Length (km)'
+            name: 'Length'
           })
         ).toHaveAttribute('aria-sort', 'none')
         await expect(
@@ -722,9 +720,8 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         )
 
         await expect(firstRow.getByRole('cell').nth(1)).not.toBeEmpty()
-        await expect(firstRow.getByRole('cell').nth(2)).toHaveText(
-          /^\d+(\.\d+)?$/
-        )
+        // Size format (with the "km" suffix) is asserted by its own test.
+        await expect(firstRow.getByRole('cell').nth(2)).not.toBeEmpty()
         await expect(firstRow.getByRole('cell').nth(3)).not.toBeEmpty()
         await expect(firstRow.getByRole('cell').nth(4)).not.toBeEmpty()
         await expect(firstRow.getByRole('cell').nth(5)).toHaveText(
@@ -732,8 +729,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         )
       })
 
-      // AC3 — size "km" suffix: not yet implemented (value renders as plain decimal without suffix)
-      test.skip('watercourse size column value includes "km" suffix with no space', async ({
+      test('watercourse size column value includes "km" suffix with no space', async ({
         habitatListPage
       }) => {
         await habitatListPage.openTab(projectId, 'watercourses')
