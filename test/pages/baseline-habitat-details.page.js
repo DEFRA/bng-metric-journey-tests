@@ -61,6 +61,10 @@ export class BaselineHabitatDetailsPage extends BasePage {
     return this.optionValues(this.conditionSelect)
   }
 
+  async habitatUnitsText() {
+    return (await this.habitatUnitsValue.textContent()).trim()
+  }
+
   // Selects an option whose value differs from the current selection and
   // returns the chosen value, so the caller can assert it was persisted.
   async selectDifferentOption(select) {

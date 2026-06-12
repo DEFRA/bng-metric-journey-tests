@@ -101,6 +101,11 @@ function conditionScores(texts) {
     .map((m) => Number(m[1]))
 }
 
+async function expectDerivedValuesHidden(detailsPage) {
+  await expect(detailsPage.distinctivenessDisplay).toHaveText('')
+  await expect(detailsPage.tradingRuleDisplay).toHaveText('')
+}
+
 // Pick the first area habitat above V.Low distinctiveness so the content ACs
 // exercise a fully-populated habitat (real broad/type/condition data); fall
 // back to the first area habitat.
@@ -581,9 +586,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       }) => {
         await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
         const before = await baselineHabitatDetailsPage.conditionOptionValues()
-        const unitsBefore = (
-          await baselineHabitatDetailsPage.habitatUnitsValue.textContent()
-        ).trim()
+        const unitsBefore = await baselineHabitatDetailsPage.habitatUnitsText()
 
         const newType =
           await baselineHabitatDetailsPage.selectDifferentHabitatType()
@@ -617,9 +620,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         baselineHabitatDetailsPage
       }) => {
         await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
-        const unitsBefore = (
-          await baselineHabitatDetailsPage.habitatUnitsValue.textContent()
-        ).trim()
+        const unitsBefore = await baselineHabitatDetailsPage.habitatUnitsText()
         const distinctivenessBefore = (
           await baselineHabitatDetailsPage.distinctivenessDisplay.textContent()
         ).trim()
@@ -646,9 +647,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         baselineHabitatDetailsPage
       }) => {
         await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
-        const unitsBefore = (
-          await baselineHabitatDetailsPage.habitatUnitsValue.textContent()
-        ).trim()
+        const unitsBefore = await baselineHabitatDetailsPage.habitatUnitsText()
 
         await baselineHabitatDetailsPage.habitatTypeSelect.selectOption('')
         await expect
@@ -658,12 +657,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         expect(
           await baselineHabitatDetailsPage.habitatTypeSelect.inputValue()
         ).toBe('')
-        await expect(
-          baselineHabitatDetailsPage.distinctivenessDisplay
-        ).toHaveText('')
-        await expect(baselineHabitatDetailsPage.tradingRuleDisplay).toHaveText(
-          ''
-        )
+        await expectDerivedValuesHidden(baselineHabitatDetailsPage)
         await expect(baselineHabitatDetailsPage.habitatUnitsValue).toHaveText(
           unitsBefore
         )
@@ -676,9 +670,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         baselineHabitatDetailsPage
       }) => {
         await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
-        const unitsBefore = (
-          await baselineHabitatDetailsPage.habitatUnitsValue.textContent()
-        ).trim()
+        const unitsBefore = await baselineHabitatDetailsPage.habitatUnitsText()
 
         const newBroad =
           await baselineHabitatDetailsPage.selectDifferentBroadHabitat()
@@ -686,12 +678,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         expect(
           await baselineHabitatDetailsPage.broadHabitatSelect.inputValue()
         ).toBe(newBroad)
-        await expect(
-          baselineHabitatDetailsPage.distinctivenessDisplay
-        ).toHaveText('')
-        await expect(baselineHabitatDetailsPage.tradingRuleDisplay).toHaveText(
-          ''
-        )
+        await expectDerivedValuesHidden(baselineHabitatDetailsPage)
         expect(
           await baselineHabitatDetailsPage.habitatTypeSelect.inputValue()
         ).toBe('')
@@ -710,21 +697,14 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         baselineHabitatDetailsPage
       }) => {
         await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
-        const unitsBefore = (
-          await baselineHabitatDetailsPage.habitatUnitsValue.textContent()
-        ).trim()
+        const unitsBefore = await baselineHabitatDetailsPage.habitatUnitsText()
 
         await baselineHabitatDetailsPage.broadHabitatSelect.selectOption('')
 
         expect(
           await baselineHabitatDetailsPage.broadHabitatSelect.inputValue()
         ).toBe('')
-        await expect(
-          baselineHabitatDetailsPage.distinctivenessDisplay
-        ).toHaveText('')
-        await expect(baselineHabitatDetailsPage.tradingRuleDisplay).toHaveText(
-          ''
-        )
+        await expectDerivedValuesHidden(baselineHabitatDetailsPage)
         expect(
           await baselineHabitatDetailsPage.habitatTypeSelect.inputValue()
         ).toBe('')
@@ -1158,9 +1138,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         page
       }) => {
         await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
-        const unitsBefore = (
-          await baselineHabitatDetailsPage.habitatUnitsValue.textContent()
-        ).trim()
+        const unitsBefore = await baselineHabitatDetailsPage.habitatUnitsText()
 
         // Switching from Low to Medium exercises the full client-side update
         // path (showDistinctiveness + showTradingRule + loadConditions).
@@ -1194,9 +1172,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         baselineHabitatDetailsPage
       }) => {
         await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
-        const unitsBefore = (
-          await baselineHabitatDetailsPage.habitatUnitsValue.textContent()
-        ).trim()
+        const unitsBefore = await baselineHabitatDetailsPage.habitatUnitsText()
         const distinctivenessBefore = (
           await baselineHabitatDetailsPage.distinctivenessDisplay.textContent()
         ).trim()
@@ -1222,9 +1198,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         baselineHabitatDetailsPage
       }) => {
         await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
-        const unitsBefore = (
-          await baselineHabitatDetailsPage.habitatUnitsValue.textContent()
-        ).trim()
+        const unitsBefore = await baselineHabitatDetailsPage.habitatUnitsText()
 
         await baselineHabitatDetailsPage.habitatTypeSelect.selectOption('')
         await expect
@@ -1234,12 +1208,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         expect(
           await baselineHabitatDetailsPage.habitatTypeSelect.inputValue()
         ).toBe('')
-        await expect(
-          baselineHabitatDetailsPage.distinctivenessDisplay
-        ).toHaveText('')
-        await expect(baselineHabitatDetailsPage.tradingRuleDisplay).toHaveText(
-          ''
-        )
+        await expectDerivedValuesHidden(baselineHabitatDetailsPage)
         await expect(baselineHabitatDetailsPage.habitatUnitsValue).toHaveText(
           unitsBefore
         )
