@@ -139,11 +139,12 @@ async function pickRichAreaHabitat(page) {
   return firstRow
 }
 
-// Pick a hedgerow for the content ACs, preferring one with a saved condition so
-// AC8a's "selected" value can be verified; fall back to the first hedgerow.
-// Assumes the Hedgerows tab is already active (its panel is otherwise hidden).
-async function pickHedgerow(page) {
-  const rows = page.locator('#hedgerows').getByRole('table').getByRole('row')
+// Pick a linear feature (hedgerow or watercourse) from its habitat-list panel
+// for the content ACs, preferring one with a saved condition so AC8a's
+// "selected" value can be verified; fall back to the first. Assumes the
+// feature's tab is already active (its panel is otherwise hidden).
+async function pickLinearFeature(page, panelId) {
+  const rows = page.locator(`#${panelId}`).getByRole('table').getByRole('row')
   const count = await rows.count()
   let firstRow = null
   for (let i = 0; i < count; i++) {
@@ -154,9 +155,9 @@ async function pickHedgerow(page) {
     }
     const { ref, featureId } = await refAndFeatureIdFromLink(link)
     const cells = row.getByRole('cell')
-    // The hedgerow list cell carries a "km" suffix (e.g. "0.123km"); the
-    // details page shows the bare number under the "Length (km)" label, so
-    // strip the unit to compare like-for-like.
+    // The list cell carries a "km" suffix (e.g. "0.123km"); the details page
+    // shows the bare number under the "Length (km)" label, so strip the unit
+    // to compare like-for-like.
     const length = (await cells.nth(SIZE_COLUMN).textContent())
       .trim()
       .replace(/km$/, '')
@@ -170,6 +171,14 @@ async function pickHedgerow(page) {
     }
   }
   return firstRow
+}
+
+async function pickHedgerow(page) {
+  return pickLinearFeature(page, 'hedgerows')
+}
+
+async function pickWatercourse(page) {
+  return pickLinearFeature(page, 'watercourses')
 }
 
 // Some area habitats (e.g. the baseline's "N/A - Other" type) have a single
@@ -1481,6 +1490,277 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           new RegExp(`/projects/${projectId}/baseline-habitat-list#hedgerows`)
         )
         await expect(habitatListPage.hedgerowsTable).toBeVisible()
+      })
+    }
+  )
+
+  // ─── Watercourse details — page content (ACs) ────────────────────────────────
+
+  test.describe(
+    'Baseline habitat details — watercourse content',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+      test.describe.configure({ mode: 'serial' })
+
+      let projectId
+      let projectName
+      let watercourseFeatureId
+      let watercourseRef
+      let watercourseLength
+
+      test('AC1 — page pathname is /baseline-habitat-details after click-through', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        habitatListPage,
+        page
+      }) => {
+        const project = await uploadAndGetProject(
+          createProjectFlow,
+          projectDashboardPage,
+          uploadBaselineFileFlow,
+          page
+        )
+        projectId = project.id
+        projectName = project.name
+
+        await habitatListPage.watercoursesTab.click()
+        const watercourse = await pickWatercourse(page)
+        watercourseFeatureId = watercourse.featureId
+        watercourseRef = watercourse.ref
+        watercourseLength = watercourse.length
+
+        await page
+          .locator('#watercourses')
+          .getByRole('link', { name: watercourseRef, exact: true })
+          .click()
+        await expect(page).toHaveURL(/\/baseline-habitat-details/)
+      })
+
+      test('AC2 — header shows Back link, project caption, "Watercourse {ref}" heading, "Baseline Details"', async ({
+        baselineHabitatDetailsPage,
+        page
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
+
+        await expect(baselineHabitatDetailsPage.backLink).toBeVisible()
+        await expect(page.getByText(projectName)).toBeVisible()
+        await expect(baselineHabitatDetailsPage.heading).toHaveText(
+          `Watercourse ${watercourseRef}`
+        )
+        await expect(
+          baselineHabitatDetailsPage.baselineDetailsHeading
+        ).toBeVisible()
+      })
+
+      test('AC3 — Reference label and the saved reference value are displayed', async ({
+        baselineHabitatDetailsPage,
+        page
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
+
+        await expect(baselineHabitatDetailsPage.referenceKey).toBeVisible()
+        await expect(
+          page.getByText(watercourseRef, { exact: true })
+        ).toBeVisible()
+      })
+
+      test('AC4 — Length (km) label and the value carried from the list are displayed', async ({
+        baselineHabitatDetailsPage,
+        page
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
+
+        await expect(
+          page.getByText('Length (km)', { exact: true })
+        ).toBeVisible()
+        await expect(
+          page.getByText(watercourseLength, { exact: true })
+        ).toBeVisible()
+      })
+
+      test('AC5 — Broad habitat dropdown is displayed with its default option', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
+
+        await expect(
+          baselineHabitatDetailsPage.broadHabitatSelect
+        ).toBeVisible()
+        const texts = await optionTexts(
+          baselineHabitatDetailsPage.broadHabitatSelect
+        )
+        expect(texts[0]).toBe('Choose broad habitat')
+      })
+
+      test('AC6a — Habitat type dropdown shows the saved value as selected', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
+
+        await expect(baselineHabitatDetailsPage.habitatTypeSelect).toBeVisible()
+        expect(
+          await baselineHabitatDetailsPage.habitatTypeSelect.inputValue()
+        ).not.toBe('')
+      })
+
+      test('AC6b — Habitat type options start with the default and are sorted ascending', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
+        const texts = await optionTexts(
+          baselineHabitatDetailsPage.habitatTypeSelect
+        )
+
+        expect(texts[0]).toBe('Choose habitat type')
+        expect(texts.length).toBeGreaterThan(1)
+        expect(isSortedAscending(texts.slice(1))).toBe(true)
+      })
+
+      test('AC7 — Distinctiveness shows the band and score', async ({
+        baselineHabitatDetailsPage,
+        page
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
+
+        await expect(
+          baselineHabitatDetailsPage.distinctivenessKey
+        ).toBeVisible()
+        await expect(
+          page.getByText(DISTINCTIVENESS_PATTERN).first()
+        ).toBeVisible()
+      })
+
+      test('AC8a — Condition dropdown shows the saved condition as selected', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
+
+        await expect(baselineHabitatDetailsPage.conditionSelect).toBeVisible()
+        expect(
+          await baselineHabitatDetailsPage.conditionSelect.inputValue()
+        ).not.toBe('')
+      })
+
+      test('AC8b — Condition options start with the default and are ordered by score descending', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
+        const texts = await optionTexts(
+          baselineHabitatDetailsPage.conditionSelect
+        )
+
+        expect(texts[0]).toBe('Choose condition')
+        const scores = conditionScores(texts.slice(1))
+        expect(scores.length).toBeGreaterThan(0)
+        expect(scores).toEqual([...scores].sort((a, b) => b - a))
+      })
+
+      test('AC9 — Strategic Significance shows the fixed "Low (1)" value', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
+
+        await expect(
+          baselineHabitatDetailsPage.strategicSignificanceKey
+        ).toBeVisible()
+        await expect(
+          baselineHabitatDetailsPage.strategicSignificanceValue
+        ).toBeVisible()
+      })
+
+      test('AC10 — "Required action to meet trading rules" label is displayed', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
+
+        await expect(baselineHabitatDetailsPage.tradingRulesKey).toBeVisible()
+      })
+
+      test('AC11 — "Units in this habitat" label is displayed', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
+
+        await expect(baselineHabitatDetailsPage.habitatUnitsKey).toBeVisible()
+      })
+
+      test('ACW — Watercourse encroachment dropdown shows the default and options', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
+        await expect(
+          baselineHabitatDetailsPage.watercourseEncroachmentSelect
+        ).toBeVisible()
+        const texts = await optionTexts(
+          baselineHabitatDetailsPage.watercourseEncroachmentSelect
+        )
+
+        expect(texts[0]).toBe('Choose watercourse encroachment')
+        expect(texts.length).toBeGreaterThan(1)
+      })
+
+      test('ACR — Riparian encroachment dropdown shows the default and options', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
+        await expect(
+          baselineHabitatDetailsPage.riparianEncroachmentSelect
+        ).toBeVisible()
+        const texts = await optionTexts(
+          baselineHabitatDetailsPage.riparianEncroachmentSelect
+        )
+
+        expect(texts[0]).toBe('Choose riparian encroachment')
+        expect(texts.length).toBeGreaterThan(1)
+      })
+
+      test('AC12 — Save button is displayed', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
+        await expect(baselineHabitatDetailsPage.saveButton).toBeVisible()
+      })
+
+      test('AC13 — Cancel link is displayed', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
+        await expect(baselineHabitatDetailsPage.cancelLink).toBeVisible()
+      })
+
+      test('AC14 — Back link returns to the habitat list Watercourses tab', async ({
+        baselineHabitatDetailsPage,
+        habitatListPage,
+        page
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
+        await baselineHabitatDetailsPage.backLink.click()
+
+        await expect(page).toHaveURL(
+          new RegExp(
+            `/projects/${projectId}/baseline-habitat-list#watercourses`
+          )
+        )
+        await expect(habitatListPage.watercoursesTable).toBeVisible()
+      })
+
+      test('AC15 — Cancel link returns to the habitat list Watercourses tab', async ({
+        baselineHabitatDetailsPage,
+        habitatListPage,
+        page
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
+        await baselineHabitatDetailsPage.cancelLink.click()
+
+        await expect(page).toHaveURL(
+          new RegExp(
+            `/projects/${projectId}/baseline-habitat-list#watercourses`
+          )
+        )
+        await expect(habitatListPage.watercoursesTable).toBeVisible()
       })
     }
   )
