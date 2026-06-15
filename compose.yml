@@ -161,7 +161,11 @@ services:
 
   ################################################################################
   cdp-defra-id-stub:
-    image: defradigital/cdp-defra-id-stub:latest
+    # Pinned: 0.35.0/0.36.0 changed the /register flow and broke auth.setup.js
+    # (the global-setup never reaches /relationship). 0.34.0 is the last
+    # known-good version. Bump deliberately once auth.setup.js supports the
+    # newer stub flow.
+    image: defradigital/cdp-defra-id-stub:0.34.0
     networks:
       bng-journey-tests:
         aliases:

@@ -3,14 +3,21 @@ import { BasePage } from './base.page.js'
 export class BaselineHabitatDetailsPage extends BasePage {
   constructor(page) {
     super(page)
-    // Heading is dynamic: "Habitat {ref}" or "Hedgerow {ref}"
-    this.heading = page.getByRole('heading', { name: /^(Habitat|Hedgerow)/ })
+    // Heading is dynamic: "Habitat {ref}", "Hedgerow {ref}" or "Watercourse {ref}"
+    this.heading = page.getByRole('heading', {
+      name: /^(Habitat|Hedgerow|Watercourse)/
+    })
     this.baselineDetailsHeading = page.getByRole('heading', {
       name: 'Baseline Details'
     })
     this.broadHabitatSelect = page.getByLabel('Broad habitat')
     this.habitatTypeSelect = page.getByLabel('Habitat type')
     this.conditionSelect = page.getByLabel('Condition')
+    // Read-only dropdowns rendered only for watercourse features.
+    this.watercourseEncroachmentSelect = page.getByLabel(
+      'Watercourse encroachment'
+    )
+    this.riparianEncroachmentSelect = page.getByLabel('Riparian encroachment')
     this.saveButton = page.getByRole('button', { name: 'Save' })
     this.cancelLink = page.getByRole('link', { name: 'Cancel' })
     this.backLink = page.getByRole('link', { name: 'Back' })
