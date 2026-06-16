@@ -213,6 +213,49 @@ async function findEditableAreaHabitat(
   throw new Error('No area habitat with multiple condition options found')
 }
 
+// The read-only display / content-AC describes don't mutate the baseline, so
+// they share a single uploaded project (and its picked area / hedgerow /
+// watercourse features) rather than each running a fresh real-CDP upload. Those
+// per-describe uploads were the bottleneck: in e2e they overload the shared CDP
+// uploader and individual uploads tip past the frontend's 120 s budget. Edit /
+// save describes still upload their own project so their mutations stay isolated.
+//
+// Memoised per worker: the first read-only test pays the upload + picks; the
+// rest reuse the returned ids. A failed build is not cached, so a transient
+// upload failure can retry on the next caller.
+let sharedBaselinePromise = null
+
+function getSharedBaseline(deps) {
+  if (!sharedBaselinePromise) {
+    sharedBaselinePromise = buildSharedBaseline(deps).catch((err) => {
+      sharedBaselinePromise = null
+      throw err
+    })
+  }
+  return sharedBaselinePromise
+}
+
+async function buildSharedBaseline({
+  createProjectFlow,
+  projectDashboardPage,
+  uploadBaselineFileFlow,
+  habitatListPage,
+  page
+}) {
+  const project = await uploadAndGetProject(
+    createProjectFlow,
+    projectDashboardPage,
+    uploadBaselineFileFlow,
+    page
+  )
+  const area = await pickRichAreaHabitat(page)
+  await habitatListPage.hedgerowsTab.click()
+  const hedgerow = await pickHedgerow(page)
+  await habitatListPage.watercoursesTab.click()
+  const watercourse = await pickWatercourse(page)
+  return { id: project.id, name: project.name, area, hedgerow, watercourse }
+}
+
 test.describe('habitat-details', { tag: '@habitat-details' }, () => {
   // ─── Query parameter validation ───────────────────────────────────────────────
 
@@ -290,21 +333,19 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         baselineHabitatDetailsPage,
         page
       }) => {
-        const projectId = await uploadAndGetProjectId(
+        const shared = await getSharedBaseline({
           createProjectFlow,
           projectDashboardPage,
           uploadBaselineFileFlow,
+          habitatListPage,
           page
-        )
-        // The Watercourses panel is hidden by GOV.UK Tabs JS until clicked.
-        await habitatListPage.watercoursesTab.click()
-        const featureId = await getFeatureIdFromTable(page, 'watercourses')
+        })
 
         // BMD-502 registered the watercourse strategy, so the page now renders
         // (200) instead of throwing in the strategy lookup (500). Watercourse
         // editing/saving remains unsupported (the backend rejects the PUT).
         const response = await page.goto(
-          `/baseline-habitat-details?projectId=${projectId}&featureId=${featureId}`
+          `/baseline-habitat-details?projectId=${shared.id}&featureId=${shared.watercourse.featureId}`
         )
         expect(response.status()).toBe(HTTP_OK)
         await expect(
@@ -806,22 +847,23 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         createProjectFlow,
         projectDashboardPage,
         uploadBaselineFileFlow,
+        habitatListPage,
         page
       }) => {
-        const project = await uploadAndGetProject(
+        const shared = await getSharedBaseline({
           createProjectFlow,
           projectDashboardPage,
           uploadBaselineFileFlow,
+          habitatListPage,
           page
-        )
-        projectId = project.id
-        projectName = project.name
+        })
+        projectId = shared.id
+        projectName = shared.name
+        areaFeatureId = shared.area.featureId
+        areaRef = shared.area.ref
+        areaSize = shared.area.size
 
-        const habitat = await pickRichAreaHabitat(page)
-        areaFeatureId = habitat.featureId
-        areaRef = habitat.ref
-        areaSize = habitat.size
-
+        await habitatListPage.open(projectId)
         await page
           .locator('#area-habitats')
           .getByRole('link', { name: areaRef, exact: true })
@@ -1308,21 +1350,21 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         habitatListPage,
         page
       }) => {
-        const project = await uploadAndGetProject(
+        const shared = await getSharedBaseline({
           createProjectFlow,
           projectDashboardPage,
           uploadBaselineFileFlow,
+          habitatListPage,
           page
-        )
-        projectId = project.id
-        projectName = project.name
+        })
+        projectId = shared.id
+        projectName = shared.name
+        hedgerowFeatureId = shared.hedgerow.featureId
+        hedgerowRef = shared.hedgerow.ref
+        hedgerowLength = shared.hedgerow.length
 
+        await habitatListPage.open(projectId)
         await habitatListPage.hedgerowsTab.click()
-        const hedgerow = await pickHedgerow(page)
-        hedgerowFeatureId = hedgerow.featureId
-        hedgerowRef = hedgerow.ref
-        hedgerowLength = hedgerow.length
-
         await page
           .locator('#hedgerows')
           .getByRole('link', { name: hedgerowRef, exact: true })
@@ -1517,21 +1559,21 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         habitatListPage,
         page
       }) => {
-        const project = await uploadAndGetProject(
+        const shared = await getSharedBaseline({
           createProjectFlow,
           projectDashboardPage,
           uploadBaselineFileFlow,
+          habitatListPage,
           page
-        )
-        projectId = project.id
-        projectName = project.name
+        })
+        projectId = shared.id
+        projectName = shared.name
+        watercourseFeatureId = shared.watercourse.featureId
+        watercourseRef = shared.watercourse.ref
+        watercourseLength = shared.watercourse.length
 
+        await habitatListPage.open(projectId)
         await habitatListPage.watercoursesTab.click()
-        const watercourse = await pickWatercourse(page)
-        watercourseFeatureId = watercourse.featureId
-        watercourseRef = watercourse.ref
-        watercourseLength = watercourse.length
-
         await page
           .locator('#watercourses')
           .getByRole('link', { name: watercourseRef, exact: true })
