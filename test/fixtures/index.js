@@ -12,8 +12,11 @@ import { HabitatListPage } from '@pages/habitat-list.page.js'
 import { BaselineHabitatDetailsPage } from '@pages/baseline-habitat-details.page.js'
 import { ForbiddenPage } from '@pages/forbidden.page.js'
 import { SignedOutPage } from '@pages/signed-out.page.js'
+import { UploadPostInterventionFilePage } from '@pages/upload-post-intervention-file.page.js'
+import { PostInterventionHabitatListPage } from '@pages/post-intervention-habitat-list.page.js'
 import { CreateProjectFlow } from '@flows/project-management/create-project.flow.js'
 import { UploadBaselineFileFlow } from '@flows/upload-baseline/upload-baseline-file.flow.js'
+import { UploadPostInterventionFileFlow } from '@flows/upload-post-intervention/upload-post-intervention-file.flow.js'
 
 export const test = base.extend({
   homePage: async ({ page }, use) => {
@@ -55,11 +58,20 @@ export const test = base.extend({
   signedOutPage: async ({ page }, use) => {
     await use(new SignedOutPage(page))
   },
+  uploadPostInterventionFilePage: async ({ page }, use) => {
+    await use(new UploadPostInterventionFilePage(page))
+  },
+  postInterventionHabitatListPage: async ({ page }, use) => {
+    await use(new PostInterventionHabitatListPage(page))
+  },
   createProjectFlow: async ({ page }, use) => {
     await use(new CreateProjectFlow(page))
   },
   uploadBaselineFileFlow: async ({ page }, use) => {
     await use(new UploadBaselineFileFlow(page))
+  },
+  uploadPostInterventionFileFlow: async ({ page }, use) => {
+    await use(new UploadPostInterventionFileFlow(page))
   }
 })
 
