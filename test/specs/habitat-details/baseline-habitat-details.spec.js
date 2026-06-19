@@ -1638,18 +1638,14 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         ).toBeVisible()
       })
 
-      test('AC5 — Broad habitat dropdown is displayed with its default option', async ({
+      test('AC5 — Broad habitat dropdown is not rendered for watercourses', async ({
         baselineHabitatDetailsPage
       }) => {
         await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
 
-        await expect(
-          baselineHabitatDetailsPage.broadHabitatSelect
-        ).toBeVisible()
-        const texts = await optionTexts(
-          baselineHabitatDetailsPage.broadHabitatSelect
+        await expect(baselineHabitatDetailsPage.broadHabitatSelect).toHaveCount(
+          0
         )
-        expect(texts[0]).toBe('Choose broad habitat')
       })
 
       test('AC6a — Habitat type dropdown shows the saved value as selected', async ({
