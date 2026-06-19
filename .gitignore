@@ -11,6 +11,7 @@ playwright/.auth/
 test-results/
 feature-input.md
 test/evidence/
+docs/
 
 # Claude Code harness runtime state (shared commands/skills stay tracked)
 .claude/scheduled_tasks.lock
