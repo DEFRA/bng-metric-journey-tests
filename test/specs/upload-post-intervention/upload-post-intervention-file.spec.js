@@ -62,5 +62,20 @@ test.describe(
       'Upload post-intervention file',
       'upload-post-intervention-file'
     )
+
+    // ─── Received route — role enforcement ───────────────────────────────────────
+
+    describeRoleEnforcement(
+      'Post-intervention upload received',
+      'post-intervention-upload-received'
+    )
+
+    // ─── Received route — unauthenticated access ─────────────────────────────────
+
+    describeUnauthenticatedAccess(
+      'Post-intervention upload received',
+      'post-intervention-upload-received',
+      { smoke: false }
+    )
   }
 )

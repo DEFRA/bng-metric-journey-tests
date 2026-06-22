@@ -1,6 +1,7 @@
 import { test, expect } from '@fixtures'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
+import { assertRejectedFileError } from '@utils/error-file-assertions.js'
 
 const TASK_BASELINE_HABITATS = 'On-site baseline habitats'
 
@@ -155,20 +156,11 @@ function describeStructuralErrors() {
 
         await page.waitForURL('/error-file', { timeout: UPLOAD_TIMEOUT })
 
-        await expect(errorFilePage.errorSummary).toBeVisible()
-        await expect(errorFilePage.errorSummary).toContainText(
-          'There is a problem with your file'
-        )
-        await expect(errorFilePage.baselineRejectedHeading).toBeVisible()
-        await expect(errorFilePage.uploadDifferentFileLink).toBeVisible()
-        await expect(errorFilePage.uploadDifferentFileLink).toHaveAttribute(
-          'href',
-          `/projects/${id}/upload-baseline-file`
-        )
-        await expect(errorFilePage.backToProjectLink).toBeVisible()
-        await expect(errorFilePage.backToProjectLink).toHaveAttribute(
-          'href',
-          `/add-project-details/${id}`
+        await assertRejectedFileError(
+          errorFilePage,
+          errorFilePage.baselineRejectedHeading,
+          id,
+          'upload-baseline-file'
         )
       })
     }
