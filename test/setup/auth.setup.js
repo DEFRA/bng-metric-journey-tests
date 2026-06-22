@@ -55,7 +55,19 @@ async function registerAndLogin(page, email, { withBngCompleterRole }) {
     // verify-role.js does a case-insensitive check.
     await page.waitForURL(/\/role-name/)
     await page.getByLabel('Role Name').fill('BNG completer')
-    await page.getByLabel('Role Status').selectOption({ value: 'complete' })
+    // The stub passes Role Status verbatim into the token claim
+    // (relationshipId:roleName:status). The frontend (BMD-511) requires the
+    // numeric Defra ID enrolment code (3 = COMPLETE_APPROVED) that the real IdP
+    // sends, but the stub dropdown only offers word labels. The stub does not
+    // validate the value, so inject and submit the numeric code directly.
+    await page.evaluate(() => {
+      const select = document.querySelector('#roleStatus')
+      const option = document.createElement('option')
+      option.value = '3'
+      option.text = 'Complete (approved)'
+      select.add(option)
+      select.value = '3'
+    })
     await page.getByRole('button', { name: 'Add role' }).click()
   }
 

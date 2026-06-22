@@ -282,7 +282,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         await page.goto(`/projects/${projectId}/baseline-habitat-list`)
         await assertHabitatTableColumns(
           habitatListPage.areaHabitatsTable,
-          'Area (ha)'
+          'Area'
         )
       })
 
@@ -303,13 +303,25 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         )
 
         await expect(firstRow.getByRole('cell').nth(1)).not.toBeEmpty()
-        await expect(firstRow.getByRole('cell').nth(2)).toHaveText(
-          /^\d+(\.\d+)?$/
-        )
+        // Area format (with the "ha" suffix) is asserted by its own test.
+        await expect(firstRow.getByRole('cell').nth(2)).not.toBeEmpty()
         await expect(firstRow.getByRole('cell').nth(3)).not.toBeEmpty()
         await expect(firstRow.getByRole('cell').nth(4)).not.toBeEmpty()
         await expect(firstRow.getByRole('cell').nth(5)).toHaveText(
           /^\d+(\.\d+)?$/
+        )
+      })
+
+      test('area column value includes "ha" suffix with no space', async ({
+        habitatListPage,
+        page
+      }) => {
+        await page.goto(`/projects/${projectId}/baseline-habitat-list`)
+        const firstRow = habitatListPage.areaHabitatsTable
+          .getByRole('row')
+          .nth(1)
+        await expect(firstRow.getByRole('cell').nth(2)).toHaveText(
+          /^\d+(\.\d+)?ha$/
         )
       })
 
@@ -356,7 +368,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         ).toHaveAttribute('aria-sort', 'none')
         await expect(
           habitatListPage.areaHabitatsTable.getByRole('columnheader', {
-            name: 'Area (ha)'
+            name: 'Area'
           })
         ).toHaveAttribute('aria-sort', 'none')
         await expect(
