@@ -107,11 +107,17 @@ export class CreateProjectFlow {
 
 ## Journey Status
 
-| Journey                                  | Flow doc                                         | Flow class                                  | Status          |
-| ---------------------------------------- | ------------------------------------------------ | ------------------------------------------- | --------------- |
-| project-management / create-project      | `project-management/create-project.flow.md`      | `project-management/create-project.flow.js` | `[IMPLEMENTED]` |
-| project-management / project-dashboard   | `project-management/project-dashboard.flow.md`   | —                                           | `[IMPLEMENTED]` |
-| project-management / change-project-name | `project-management/change-project-name.flow.md` | —                                           | `[IMPLEMENTED]` |
-| authentication / defra-id-login          | `authentication/defra-id-login.flow.md`          | `authentication/defra-id-login.flow.js`     | `[IMPLEMENTED]` |
-| authentication / sign-out                | `authentication/sign-out.flow.md`                | —                                           | `[IMPLEMENTED]` |
-| authentication / access-denied           | `authentication/access-denied.flow.md`           | —                                           | `[IMPLEMENTED]` |
+| Journey                                                  | Flow doc                                                         | Flow class                                     | Status          |
+| -------------------------------------------------------- | ---------------------------------------------------------------- | ---------------------------------------------- | --------------- |
+| project-management / create-project                      | `project-management/create-project.flow.md`                      | `project-management/create-project.flow.js`    | `[IMPLEMENTED]` |
+| project-management / project-dashboard                   | `project-management/project-dashboard.flow.md`                   | —                                              | `[IMPLEMENTED]` |
+| project-management / change-project-name                 | `project-management/change-project-name.flow.md`                 | —                                              | `[IMPLEMENTED]` |
+| authentication / defra-id-login                          | `authentication/defra-id-login.flow.md`                          | `authentication/defra-id-login.flow.js`        | `[IMPLEMENTED]` |
+| authentication / sign-out                                | `authentication/sign-out.flow.md`                                | —                                              | `[IMPLEMENTED]` |
+| authentication / access-denied                           | `authentication/access-denied.flow.md`                           | —                                              | `[IMPLEMENTED]` |
+| upload-baseline / upload-baseline-file                   | `upload-baseline/upload-baseline-file.flow.md`                   | `upload-baseline/upload-baseline-file.flow.js` | `[IMPLEMENTED]` |
+| upload-post-intervention / upload-post-intervention-file | `upload-post-intervention/upload-post-intervention-file.flow.md` | —                                              | `[IMPLEMENTED]` |
+| habitat-list / habitat-list                              | `habitat-list/habitat-list.flow.md`                              | —                                              | `[IMPLEMENTED]` |
+| habitat-list / baseline-habitat-details                  | `habitat-list/baseline-habitat-details.flow.md`                  | —                                              | `[IMPLEMENTED]` |
+| habitat-list / post-intervention-habitat-list            | `habitat-list/post-intervention-habitat-list.flow.md`            | —                                              | `[IMPLEMENTED]` |
+| habitat-details / habitat-details                        | `habitat-details/habitat-details.flow.md`                        | —                                              | `[IMPLEMENTED]` |
