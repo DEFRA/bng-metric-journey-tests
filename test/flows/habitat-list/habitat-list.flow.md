@@ -17,9 +17,10 @@ features of that type are present.
 - **Auth required:** Yes (session + BNG Completer role)
 - **Backend endpoint:** `GET /projects/{id}` — fetches project including `baseline.habitats`, `baseline.hedgerows`, `baseline.watercourses`, `baseline.habitatSizes`, `baseline.units`
 - **Description:** Renders a summary table (area habitats, hedgerows, watercourses — size and units) and a GOV.UK tabs component with three panels:
-  - **Areas tab** (`#area-habitats`): sortable table — Ref (link to `/baseline-habitat-details?featureId={featureId}&projectId={id}`), Habitat type, Area (ha), Distinctiveness, Condition, Units, Status. Default sort: Ref ascending.
-  - **Hedgerows tab** (`#hedgerows`): sortable table — Ref (link to `/baseline-habitat-details?featureId={featureId}&projectId={id}`), Habitat type, Length (km), Distinctiveness, Condition, Units, Status. Default sort: Ref ascending. Shows "No hedgerow data uploaded." when `hedgerowRows` is null (i.e. `baseline.hedgerows` is absent or empty — the controller uses `hedgerows?.length ? ... : null`, not an empty-array pass-through).
+  - **Areas tab** (`#area-habitats`): sortable table — Ref (link to `/baseline-habitat-details?featureId={featureId}&projectId={id}`), Habitat type, Area, Distinctiveness, Condition, Units, Status. Default sort: Ref ascending.
+  - **Hedgerows tab** (`#hedgerows`): sortable table — Ref (link to `/baseline-habitat-details?featureId={featureId}&projectId={id}`), Habitat type, Length, Distinctiveness, Condition, Units, Status. Default sort: Ref ascending. Shows "No hedgerow data uploaded." when `hedgerowRows` is null (i.e. `baseline.hedgerows` is absent or empty — the controller uses `hedgerows?.length ? ... : null`, not an empty-array pass-through).
   - **Watercourses tab** (`#watercourses`): sortable table — Ref, Habitat type, Size, Distinctiveness, Condition, Units, Status. Default sort: Ref ascending. Shows "No watercourse data uploaded." when `watercourseRows` is null (same null-guard pattern).
+  - The size column header carries no unit; the unit is appended to each row value instead — Area values render as `{n}ha`, Length/Size values as `{n}km`. The Units column is a bare 2-decimal-place number.
   - A "Continue" button (`href="#"`, currently a stub) and an "Upload a different file" button navigating to `/projects/{id}/upload-baseline-file`.
   - Back link navigates to `/add-project-details/{id}`.
 - **Validation:**
