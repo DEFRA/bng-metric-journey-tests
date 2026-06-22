@@ -1,24 +1,13 @@
-import { BasePage } from './base.page.js'
+import { UploadHabitatFilePage } from './upload-habitat-file.page.js'
 
-export class UploadBaselineFilePage extends BasePage {
+const INSTRUCTION_TEXT =
+  'Upload a GeoPackage (.gpkg) file containing a red line boundary and baseline habitat parcels.'
+
+export class UploadBaselineFilePage extends UploadHabitatFilePage {
   constructor(page) {
-    super(page)
-    this.heading = page.getByRole('heading', {
-      name: 'Upload a GeoPackage (.gpkg) file'
+    super(page, {
+      instructionText: INSTRUCTION_TEXT,
+      uploadRoute: 'upload-baseline-file'
     })
-    // The GOV.UK enhanced file upload replaces the input with a visible button;
-    // setInputFiles must target the real hidden input, not the button.
-    this.fileInput = page.locator('input[type="file"]')
-    this.noFileChosenText = page.getByText('No file chosen')
-    this.continueButton = page.getByRole('button', { name: 'Continue' })
-    this.backLink = page.getByRole('link', { name: 'Back' })
-    this.errorSummary = page.getByRole('alert')
-    this.instructionText = page.getByText(
-      'Upload a GeoPackage (.gpkg) file containing a red line boundary and baseline habitat parcels.'
-    )
-  }
-
-  async open(id) {
-    await super.open(`/projects/${id}/upload-baseline-file`)
   }
 }

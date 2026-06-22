@@ -1,7 +1,6 @@
 import { test, expect } from '@fixtures'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
-import { assertRejectedFileError } from '@utils/error-file-assertions.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const PROJECT_LABEL = 'Upload post-intervention flow test'
@@ -144,11 +143,22 @@ function describeStructuralErrors() {
 
         await page.waitForURL('/error-file', { timeout: UPLOAD_TIMEOUT })
 
-        await assertRejectedFileError(
-          errorFilePage,
-          errorFilePage.postInterventionRejectedHeading,
-          id,
-          'upload-post-intervention-file'
+        await expect(errorFilePage.errorSummary).toBeVisible()
+        await expect(errorFilePage.errorSummary).toContainText(
+          'There is a problem with your file'
+        )
+        await expect(
+          errorFilePage.postInterventionRejectedHeading
+        ).toBeVisible()
+        await expect(errorFilePage.uploadDifferentFileLink).toBeVisible()
+        await expect(errorFilePage.uploadDifferentFileLink).toHaveAttribute(
+          'href',
+          `/projects/${id}/upload-post-intervention-file`
+        )
+        await expect(errorFilePage.backToProjectLink).toBeVisible()
+        await expect(errorFilePage.backToProjectLink).toHaveAttribute(
+          'href',
+          `/add-project-details/${id}`
         )
       })
     }
