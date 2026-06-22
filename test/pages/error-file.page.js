@@ -7,6 +7,12 @@ export class ErrorFilePage extends BasePage {
     this.genericHeading = page.getByRole('heading', {
       name: 'There is a problem with your file'
     })
+    this.baselineRejectedHeading = page.getByRole('heading', {
+      name: "We couldn't accept your baseline file"
+    })
+    this.postInterventionRejectedHeading = page.getByRole('heading', {
+      name: "We couldn't accept your post-intervention file"
+    })
     this.uploadDifferentFileLink = page.getByRole('button', {
       name: 'Upload a different file'
     })

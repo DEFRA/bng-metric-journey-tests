@@ -7,17 +7,21 @@ data for a project. The file is submitted directly to the CDP Uploader service; 
 then polls for upload status, validates the file via the backend, and routes the user
 to the baseline habitat list on success, or a structured error dropout page on failure.
 
+The baseline and post-intervention upload journeys now share parameterised controllers and
+templates (keyed by `HABITAT_UPLOAD_TYPES`); the post-intervention variant is documented in
+its own flow doc.
+
 ## Steps
 
 ### Step 1 — View file upload form `[IMPLEMENTED]`
 
 - **Route:** `GET /projects/{id}/upload-baseline-file`
-- **Template:** `src/server/upload-baseline-file/upload-baseline-file.njk`
-- **Auth required:** Yes (session + BNG Completer role)
+- **Template:** `src/server/habitat-upload-file/habitat-upload-file.njk` (shared; controller is `createUploadFileController(HABITAT_UPLOAD_TYPES.baseline)`)
+- **Auth required:** Yes (session + approved BNG Completer role — Defra ID enrolment status 3, scoped to `currentRelationshipId` when present)
 - **Backend endpoints:**
   - `GET /projects/{id}` — fetches project name for the caption
   - `POST /upload/initiate` — creates a CDP upload session; returns `uploadId` and `uploadUrl`
-- **Description:** Renders a GOV.UK file-upload form whose `action` points directly to the CDP Uploader URL (not the app). The handler reads and immediately clears any `uploadError` flash from the session (set by previous failed/timed-out attempts) and stores the new `uploadId` in the session as `pendingUploadId`. The response sets `Cache-Control: no-store` to ensure the short-lived upload URL is always fresh. Back link and Cancel link both navigate to `/add-project-details/{projectId}`.
+- **Description:** Renders a GOV.UK file-upload form whose `action` points directly to the CDP Uploader URL (not the app). The handler reads and immediately clears any `uploadError` flash from the session (set by previous failed/timed-out attempts) and stores the new `uploadId` in the session as `pendingUploadId`. The response sets `Cache-Control: no-store` to ensure the short-lived upload URL is always fresh. Back link and Cancel link both navigate to `/add-project-details/{projectId}`. The controller delegates to the shared upload-file factory; upload metadata sent to the CDP Uploader includes `uploadType: 'baseline'`, and backend calls forward the user's Defra ID bearer via `backendRequest` (BMD-511).
 - **Validation:** None (display-only). If `uploadUrl` is absent the template renders a fallback message ("Unable to start file upload") instead of the form.
 - **On success:** Renders the file-upload form
 - **On error:** Renders the form with the session flash error message in a GOV.UK error summary (then cleared)
@@ -41,11 +45,11 @@ to the baseline habitat list on success, or a structured error dropout page on f
 
 - **Route:** `GET /projects/{id}/upload-received`
 - **Template:** `src/server/upload-received/upload-received.njk`
-- **Auth required:** Yes (session + BNG Completer role)
+- **Auth required:** Yes (session + approved BNG Completer role — Defra ID enrolment status 3, scoped to `currentRelationshipId` when present)
 - **Backend endpoints:**
   - `GET /upload/{uploadId}/status` — polls upload status (treats `numberOfRejectedFiles > 0` as `rejected`)
-  - `POST /baseline/validate/{uploadId}` (body: `{ projectId }`) — triggered once status is `ready`; validates and persists the baseline
-- **Description:** The template renders a "Checking your file" message with a `<meta http-equiv="refresh" content="5">` tag so the browser re-hits the handler every 5 seconds. On each request the handler checks `pendingUploadId` from the session, polls upload status, and tracks elapsed time in `uploadStartedAt`. Once status is `ready` it calls baseline validation and clears both session keys. Possible outcomes are listed below.
+  - `POST /baseline/validate/{uploadId}` (body: `{ projectId }`) — triggered once status is `ready`; validates and persists the baseline; forwards the user's Defra ID bearer via `backendRequest`
+- **Description:** Rendered by the shared `createUploadReceivedController(HABITAT_UPLOAD_TYPES.baseline, validateBaseline)` factory. The template renders a "Checking your file" message with a `<meta http-equiv="refresh" content="5">` tag so the browser re-hits the handler every 5 seconds. On each request the handler checks `pendingUploadId` from the session, polls upload status, and tracks elapsed time in `uploadStartedAt`. Once status is `ready` it calls baseline validation and clears both session keys. The rejected and structured-error branches also set `validationUploadType = 'baseline'` in session (consumed by the shared error-file page). Possible outcomes are listed below.
 - **Validation / branching:**
   - `pendingUploadId` missing → redirect to `GET /projects/{id}/upload-baseline-file`
   - Status `rejected` → clear session keys, set empty `baselineValidationErrors` and `baselineValidationErrorsProjectId` in session, redirect to `GET /error-file`
@@ -65,7 +69,7 @@ to the baseline habitat list on success, or a structured error dropout page on f
 - **Template:** `src/server/error-file/index.njk`
 - **Auth required:** Yes (session required)
 - **Backend endpoint:** None
-- **Description:** Reads `baselineValidationErrors` (structured array) and `baselineValidationErrorsProjectId` from the session, then clears both immediately so a refresh does not re-display stale data. Errors are grouped into blocks by error code; each block renders a heading, an optional note, and a bulleted list of offending features with a "… and N more" tail when the backend truncated the sample. Suppression rule: when `AREA_PARCELS_OUTSIDE_REDLINE` is present, `SLIVERS_OUTSIDE_REDLINE` errors are hidden. When the errors array is empty (e.g. rejected upload) a generic "We couldn't accept your file" message is shown. Offers "Upload a different file" (back to upload form) and "Back to project" links when `projectId` is known, or "Back to start" otherwise.
+- **Description:** The page is now shared by the baseline and post-intervention flows. It reads `validationUploadType` from the session to select the upload type (defaulting to baseline), then reads that type's structured-error array and projectId — for baseline these remain `baselineValidationErrors` and `baselineValidationErrorsProjectId`. It clears all upload-type session keys immediately so a refresh does not re-display stale data, and passes `fileLabel` and `uploadHref` to the view. Errors are grouped into blocks by error code; each block renders a heading, an optional note, and a bulleted list of offending features with a "… and N more" tail when the backend truncated the sample. Suppression rule: when `AREA_PARCELS_OUTSIDE_REDLINE` is present, `SLIVERS_OUTSIDE_REDLINE` errors are hidden. When the errors array is empty (e.g. rejected upload) a generic "We couldn't accept your file" message is shown. Offers "Upload a different file" (back to upload form) and "Back to project" links when `projectId` is known, or "Back to start" otherwise.
 - **Validation:**
   - Session error array absent or empty → generic fallback message
   - `projectId` absent → project-specific action links replaced with a "Back to start" root link

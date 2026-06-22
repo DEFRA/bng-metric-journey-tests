@@ -159,6 +159,7 @@ function describeStructuralErrors() {
         await expect(errorFilePage.errorSummary).toContainText(
           'There is a problem with your file'
         )
+        await expect(errorFilePage.baselineRejectedHeading).toBeVisible()
         await expect(errorFilePage.uploadDifferentFileLink).toBeVisible()
         await expect(errorFilePage.uploadDifferentFileLink).toHaveAttribute(
           'href',
