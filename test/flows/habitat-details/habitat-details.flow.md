@@ -14,10 +14,10 @@ backend rejects watercourse PUTs.
 ### Step 1 — View habitat details `[IMPLEMENTED]`
 
 - **Route:** `GET /baseline-habitat-details`
-- **Template:** `src/server/baseline-habitat-details/baseline-habitat-details.njk`
+- **Template:** `src/server/habitat-details/habitat-details.njk` (shared template rendered as `habitat-details/habitat-details`; the GET/POST handlers come from the `createHabitatDetailsControllers` factory in `src/server/common/helpers/habitat-details-controller.js`)
 - **Auth required:** Yes (session + BNG Completer role)
 - **Backend endpoints:**
-  - `GET /projects/{projectId}/features/{featureId}` — fetches the feature with its type discriminator (`habitat` or `hedgerow`); 404 if not found
+  - `GET /projects/{projectId}/features/{featureId}` — fetches the feature with its type discriminator (`habitat`, `hedgerow`, or `watercourse`); 404 if not found
   - `GET /projects/{projectId}` — fetches the project name for the page caption/title; failures are swallowed and fall back to `"Project"` (non-blocking)
   - For area habitats:
     - `GET /reference/habitat-types-by-broad` — all habitat types grouped by broad (cached in-process)
@@ -27,6 +27,11 @@ backend rejects watercourse PUTs.
     - `GET /reference/hedgerow-types` — hedgerow habitat types (cached in-process)
     - `GET /reference/trading-rules` — trading rules by distinctiveness band (cached in-process)
     - `GET /reference/conditions?habitatType={type}&featureType=hedgerow` — hedgerow condition options (only when type is set)
+  - For watercourses:
+    - `GET /reference/watercourse-types` — watercourse habitat types (cached in-process)
+    - `GET /reference/trading-rules?featureType=watercourse` — watercourse trading rules (cached in-process)
+    - `GET /reference/watercourse-encroachments` — watercourse + riparian encroachment option lists (cached in-process)
+    - `GET /reference/conditions?habitatType={type}&featureType=watercourse` — watercourse condition options (only when type is set)
 - **Description:** Feature type is resolved by the backend; the page renders via a strategy (area, hedgerow, or watercourse). Read-only rows: Reference, Size (Area (ha) for habitats / Length (km) for hedgerows / watercourses), Distinctiveness (updated by client JS), Strategic Significance (fixed "Low (1)"), Required action to meet trading rules (updated by client JS), Units in this habitat. Editable rows: Broad habitat (select; area habitats only), Habitat type (select), Condition (select). Watercourse features additionally render read-only Riparian and Watercourse encroachment dropdowns. A JSON script tag (`#bhd-reference-data`) embeds static reference data for client-side JS. Back link and Cancel link navigate to `/projects/{projectId}/baseline-habitat-list` with a tab anchor (`#hedgerows` for hedgerows, `#watercourses` for watercourses, `#habitat-{featureId}` for area habitats).
 - **Client-side dropdown behaviour (area habitats; display-only, no DB writes until Save — `src/client/javascripts/baseline-habitat-details.js`):**
   - **Change condition** — no handler; the new value is simply the visible selection. Distinctiveness, trading rules and the Units row are untouched.
@@ -55,7 +60,7 @@ backend rejects watercourse PUTs.
 - **Route:** `POST /baseline-habitat-details`
 - **Template:** None (redirect only)
 - **Auth required:** Yes (session + BNG Completer role)
-- **Backend endpoint:** `PUT /projects/{projectId}/features/{featureId}` — persists broadType / habitatType / condition; recomputes distinctiveness, condition score, habitat units, and Complete/Incomplete status; uses row-level locking with a 5 s timeout; returns `{ type, feature }`
+- **Backend endpoint:** `PUT /projects/{projectId}/features/{featureId}` — persists broadType / habitatType / condition (plus watercourseEncroachment / riparianEncroachment from the watercourse form); recomputes distinctiveness, condition score, habitat units, and Complete/Incomplete status; uses row-level locking with a 5 s timeout; returns `{ type, feature }`. Watercourse saves are rejected by the backend (feature type not editable → 400), surfaced to the user as 502.
 - **Description:** Submits the dropdown selections. Empty strings are coerced to null by the backend. The redirect anchor is determined by the feature type returned in the backend response.
 - **Validation (payload):**
   - `projectId` required UUID
@@ -63,6 +68,8 @@ backend rejects watercourse PUTs.
   - `broadHabitat` optional string, allow empty string
   - `habitatType` optional string, allow empty string
   - `condition` optional string, allow empty string
+  - `watercourseEncroachment` optional string, allow empty string (watercourse form only)
+  - `riparianEncroachment` optional string, allow empty string (watercourse form only)
   - `crumb` optional (CSRF token injected by `appForm` macro)
 - **On success:**
   - Area habitat: Redirects to `/projects/{projectId}/baseline-habitat-list#habitat-{featureId}`
@@ -77,7 +84,7 @@ backend rejects watercourse PUTs.
 - **Route:** `GET /api/reference/conditions`
 - **Template:** None (JSON response)
 - **Auth required:** Yes (session + BNG Completer role)
-- **Backend endpoint:** `GET /reference/conditions?habitatType={habitatType}[&featureType=hedgerow]` — returns condition options; `featureType=hedgerow` queries the hedgerow conditions table instead of area habitats
+- **Backend endpoint:** `GET /reference/conditions?habitatType={habitatType}[&featureType=hedgerow|watercourse]` — returns condition options; `featureType` selects the hedgerow or watercourse conditions table instead of area habitats
 - **Description:** Thin frontend proxy consumed by client-side JS when the user changes the Habitat type dropdown. Refreshes the Condition select options without a full page reload.
 - **Validation (query params):**
   - `habitatType` required, min length 1 → 400 if missing or empty
