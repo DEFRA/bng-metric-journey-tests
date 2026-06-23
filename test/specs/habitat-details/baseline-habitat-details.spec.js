@@ -17,10 +17,12 @@ const E2E_UPLOAD_SKIP_REASON =
 const HTTP_OK = 200
 const HTTP_BAD_REQUEST = 400
 const HTTP_NOT_FOUND = 404
+const HTTP_BAD_GATEWAY = 502
 const STUB_UUID = '00000000-0000-0000-0000-000000000000'
 const VALID_UUID_V4 = 'aaaaaaaa-bbbb-4ccc-bddd-eeeeeeeeeeee'
 const STUB_HABITAT_TYPE = 'Grassland - Modified grassland'
 const STUB_HEDGEROW_HABITAT_TYPE = 'Native hedgerow'
+const STUB_WATERCOURSE_HABITAT_TYPE = 'Ditches'
 const UPLOAD_TIMEOUT = 120_000
 const COMPLETE_BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
 const PROJECT_LABEL = 'Habitat details test'
@@ -91,6 +93,14 @@ function conditionsProxyUrl(habitatType, featureType) {
     url += `&featureType=${featureType}`
   }
   return url
+}
+
+async function expectConditionsProxyOk(page, habitatType, featureType) {
+  const response = await page.goto(conditionsProxyUrl(habitatType, featureType))
+  expect(response.status()).toBe(HTTP_OK)
+  const body = await response.json()
+  expect(Array.isArray(body)).toBe(true)
+  expect(body.length).toBeGreaterThan(0)
 }
 
 async function optionTexts(select) {
@@ -425,23 +435,27 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     test('valid habitatType returns 200 with condition options', async ({
       page
     }) => {
-      const response = await page.goto(conditionsProxyUrl(STUB_HABITAT_TYPE))
-      expect(response.status()).toBe(HTTP_OK)
-      const body = await response.json()
-      expect(Array.isArray(body)).toBe(true)
-      expect(body.length).toBeGreaterThan(0)
+      await expectConditionsProxyOk(page, STUB_HABITAT_TYPE)
     })
 
     test('valid hedgerow habitatType with featureType=hedgerow returns 200 with condition options', async ({
       page
     }) => {
-      const response = await page.goto(
-        conditionsProxyUrl(STUB_HEDGEROW_HABITAT_TYPE, 'hedgerow')
+      await expectConditionsProxyOk(
+        page,
+        STUB_HEDGEROW_HABITAT_TYPE,
+        'hedgerow'
       )
-      expect(response.status()).toBe(HTTP_OK)
-      const body = await response.json()
-      expect(Array.isArray(body)).toBe(true)
-      expect(body.length).toBeGreaterThan(0)
+    })
+
+    test('valid watercourse habitatType with featureType=watercourse returns 200 with condition options', async ({
+      page
+    }) => {
+      await expectConditionsProxyOk(
+        page,
+        STUB_WATERCOURSE_HABITAT_TYPE,
+        'watercourse'
+      )
     })
   })
 
@@ -1770,6 +1784,22 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         expect(texts.length).toBeGreaterThan(1)
       })
 
+      test('Encroachment order — Watercourse encroachment is shown before Riparian encroachment', async ({
+        baselineHabitatDetailsPage,
+        page
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
+        const rowKeys = (await page.getByRole('term').allTextContents()).map(
+          (t) => t.trim()
+        )
+        const watercourseIdx = rowKeys.indexOf('Watercourse encroachment')
+        const riparianIdx = rowKeys.indexOf('Riparian encroachment')
+
+        expect(watercourseIdx).toBeGreaterThan(-1)
+        expect(riparianIdx).toBeGreaterThan(-1)
+        expect(watercourseIdx).toBeLessThan(riparianIdx)
+      })
+
       test('AC12 — Save button is displayed', async ({
         baselineHabitatDetailsPage
       }) => {
@@ -1814,6 +1844,25 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           )
         )
         await expect(habitatListPage.watercoursesTable).toBeVisible()
+      })
+
+      test('Save on a watercourse returns 502 (editing unsupported)', async ({
+        baselineHabitatDetailsPage,
+        page
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
+
+        // The backend rejects watercourse PUTs (feature type not editable -> 400),
+        // which the frontend surfaces as a 502 Bad Gateway.
+        const [response] = await Promise.all([
+          page.waitForResponse(
+            (r) =>
+              r.url().includes('/baseline-habitat-details') &&
+              r.request().method() === 'POST'
+          ),
+          baselineHabitatDetailsPage.saveButton.click()
+        ])
+        expect(response.status()).toBe(HTTP_BAD_GATEWAY)
       })
     }
   )
