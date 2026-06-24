@@ -336,9 +336,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         await expect(firstRow.getByRole('cell').nth(6)).not.toBeEmpty()
       })
 
-      // Totals row not yet implemented in the template — no tfoot or "Total" row
-      // is rendered. Enable this test once the feature is built.
-      test.skip('totals row shows "Total" label with summed area and units', async ({
+      test('totals row shows "Total" label with summed area and units', async ({
         habitatListPage,
         page
       }) => {
@@ -554,8 +552,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         await expect(firstRow.getByRole('cell').nth(6)).not.toBeEmpty()
       })
 
-      // Totals row not yet implemented — no "Total" row rendered (consistent with area/watercourses)
-      test.skip('hedgerows table totals row shows "Total" label with summed size and units', async ({
+      test('hedgerows table totals row shows "Total" label with summed size and units', async ({
         habitatListPage
       }) => {
         await habitatListPage.openTab(projectId, 'hedgerows')
@@ -564,7 +561,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
           .filter({ hasText: 'Total' })
         await expect(totalsRow).toBeVisible()
         await expect(totalsRow.getByRole('cell').nth(2)).toHaveText(
-          /^\d+(\.\d+)?$/
+          /^\d+(\.\d+)?km$/
         )
         await expect(totalsRow.getByRole('cell').nth(5)).toHaveText(
           /^\d+(\.\d+)?$/
@@ -763,9 +760,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         await expect(firstRow.getByRole('cell').nth(6)).not.toBeEmpty()
       })
 
-      // AC5 — totals row: not yet implemented — no "Total" row is rendered.
-      // Consistent with area habitats table (see skipped totals test above).
-      test.skip('watercourses table displays a totals row with "Total", total size, and total units', async ({
+      test('watercourses table displays a totals row with "Total", total size, and total units', async ({
         habitatListPage
       }) => {
         await habitatListPage.openTab(projectId, 'watercourses')
@@ -774,7 +769,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
           .filter({ hasText: 'Total' })
         await expect(totalsRow).toBeVisible()
         await expect(totalsRow.getByRole('cell').nth(2)).toHaveText(
-          /^\d+(\.\d+)?$/
+          /^\d+(\.\d+)?km$/
         )
         await expect(totalsRow.getByRole('cell').nth(5)).toHaveText(
           /^\d+(\.\d+)?$/

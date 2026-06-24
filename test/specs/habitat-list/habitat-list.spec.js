@@ -217,9 +217,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      // AC12: "Continue" button navigation — button currently has href="#" (stub).
-      // Enable and implement once BMD-247 wires up the task list redirect.
-      test.skip('clicking "Continue" navigates to the project task list', async ({
+      test('clicking "Continue" navigates to the project task list', async ({
         createProjectFlow,
         projectDashboardPage,
         habitatListPage,

@@ -1,10 +1,13 @@
 import { test, expect } from '@fixtures'
-import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
+import { STORAGE_STATE, NO_ROLE_STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const UPLOAD_TIMEOUT = 120_000
 const COMPLETE_POST_INTERVENTION_FILE = 'Post-intervention - complete.gpkg'
+const HTTP_BAD_REQUEST = 400
+const VALID_UUID_V4 = 'aaaaaaaa-bbbb-4ccc-bddd-eeeeeeeeeeee'
+const STUB_PROJECT_ID = '00000000-0000-0000-0000-000000000000'
 const PROJECT_LABEL = 'Post-intervention habitat list test'
 
 async function uploadAndNavigateToHabitatList(
@@ -69,11 +72,22 @@ test.describe(
           await expect(
             postInterventionHabitatListPage.summaryTable
           ).toBeVisible()
-          await expect(
-            postInterventionHabitatListPage.summaryTable
-              .getByRole('columnheader')
-              .first()
-          ).toBeVisible()
+          for (const col of [
+            'Unit type',
+            'Size',
+            'Baseline units',
+            'Post-intervention units',
+            'Net unit change',
+            'Net % change',
+            'Trading rules satisfied'
+          ]) {
+            await expect(
+              postInterventionHabitatListPage.summaryTable.getByRole(
+                'columnheader',
+                { name: col }
+              )
+            ).toBeVisible()
+          }
           await expect(
             postInterventionHabitatListPage.summaryTable
               .getByRole('row')
@@ -152,5 +166,51 @@ test.describe(
         })
       }
     )
+
+    test.describe(
+      'Post-intervention habitat list — route parameter validation',
+      { tag: '@regression' },
+      () => {
+        test.use({ storageState: STORAGE_STATE })
+        test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+        test('non-UUID id path param returns 400', async ({ page }) => {
+          const response = await page.goto(
+            '/projects/not-a-uuid/post-intervention-habitat-list'
+          )
+          expect(response.status()).toBe(HTTP_BAD_REQUEST)
+        })
+      }
+    )
+
+    test.describe('Post-intervention habitat list — role enforcement', () => {
+      test.use({ storageState: NO_ROLE_STORAGE_STATE })
+      test.skip(skipInE2e(NO_ROLE_STORAGE_STATE), E2E_SKIP_REASON)
+
+      test(
+        'authenticated user without BNG Completer role is redirected to /auth/forbidden',
+        { tag: '@smoke' },
+        async ({ page }) => {
+          await page.goto(
+            `/projects/${VALID_UUID_V4}/post-intervention-habitat-list`
+          )
+          await expect(page).toHaveURL(/\/auth\/forbidden/)
+        }
+      )
+    })
+
+    test.describe('Post-intervention habitat list — unauthenticated access', () => {
+      test(
+        'GET /projects/{id}/post-intervention-habitat-list redirects to sign-in',
+        { tag: '@smoke' },
+        async ({ page }) => {
+          await page.goto(
+            `/projects/${STUB_PROJECT_ID}/post-intervention-habitat-list`
+          )
+          await expect(page).not.toHaveURL(/\/post-intervention-habitat-list/)
+          await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
+        }
+      )
+    })
   }
 )
