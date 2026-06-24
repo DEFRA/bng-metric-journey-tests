@@ -175,14 +175,20 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
   // ─── Summary "No data" — no hedgerow features ────────────────────────────────
 
   test.describe(
-    'Habitat list — summary "No data" when no hedgerow features',
+    'Habitat list — no-hedgerows baseline: hedgerow "No data" and individual trees',
     { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
       test.describe.configure({ mode: 'serial' })
 
+      // 'Baseline - no hedgerows.gpkg' has no hedgerow features but does carry
+      // individual trees (Urban Trees layer), so a single upload covers both the
+      // hedgerow "No data" checks and the tree checks below.
       let noHedgerowsProjectId
+
+      const sizeInHa = async (cell) =>
+        Number((await cell.innerText()).replace(/[^\d.]/g, ''))
 
       test('hedgerow size shows "No data" when file has no hedgerow features', async ({
         createProjectFlow,
@@ -210,6 +216,30 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
           `/projects/${noHedgerowsProjectId}/baseline-habitat-list`
         )
         await expect(habitatListPage.hedgerowUnitsCell).toHaveText(NO_DATA_TEXT)
+      })
+
+      test('Site size is smaller than Area habitats size because tree areas are excluded from Site', async ({
+        habitatListPage,
+        page
+      }) => {
+        await page.goto(
+          `/projects/${noHedgerowsProjectId}/baseline-habitat-list`
+        )
+        const siteSize = await sizeInHa(habitatListPage.siteSizeCell)
+        const areaHabitatsSize = await sizeInHa(
+          habitatListPage.areaHabitatSizeCell
+        )
+        expect(siteSize).toBeLessThan(areaHabitatsSize)
+      })
+
+      test('individual trees are listed as their own rows on the Areas tab', async ({
+        habitatListPage,
+        page
+      }) => {
+        await page.goto(
+          `/projects/${noHedgerowsProjectId}/baseline-habitat-list`
+        )
+        await expect(habitatListPage.treeRows.first()).toBeVisible()
       })
     }
   )

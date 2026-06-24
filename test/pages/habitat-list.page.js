@@ -15,6 +15,11 @@ export class HabitatListPage extends BasePage {
       level: 2
     })
     this.summaryTable = page.getByRole('table').first()
+    this.siteSizeCell = this.summaryTable
+      .getByRole('row')
+      .filter({ hasText: 'Site' })
+      .getByRole('cell')
+      .nth(1)
     this.areaHabitatSizeCell = this.summaryTable
       .getByRole('row')
       .filter({ hasText: 'Area habitats' })
@@ -61,6 +66,9 @@ export class HabitatListPage extends BasePage {
       .getByRole('cell', { name: 'Complete' })
       .first()
     this.areaHabitatsTable = page.locator('#area-habitats').getByRole('table')
+    this.treeRows = this.areaHabitatsTable
+      .getByRole('row')
+      .filter({ hasText: /Urban tree|Rural tree/ })
     this.hedgerowsTable = page.locator('#hedgerows').getByRole('table')
     this.watercoursesTable = page.locator('#watercourses').getByRole('table')
   }

@@ -8,16 +8,25 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   test.describe('Header — structure', () => {
     test(
-      'GOV.UK header, service name, "Projects" nav link, and beta banner are visible',
+      'GOV.UK header, service name, and beta banner are visible',
       { tag: '@smoke' },
       async ({ layoutPage, page }) => {
         await page.goto('/')
 
         await expect(layoutPage.govUkHeader).toBeVisible()
         await expect(layoutPage.serviceNameLink).toBeVisible()
-        await expect(layoutPage.projectsNavLink).toBeVisible()
         await expect(layoutPage.betaTag).toBeVisible()
         await expect(layoutPage.phaseBannerText).toBeVisible()
+      }
+    )
+
+    test(
+      '"Projects" nav link is hidden for unauthenticated users',
+      { tag: '@smoke' },
+      async ({ layoutPage, page }) => {
+        await page.goto('/')
+
+        await expect(layoutPage.projectsNavLink).toBeHidden()
       }
     )
   })
