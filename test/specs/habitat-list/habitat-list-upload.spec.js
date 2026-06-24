@@ -71,6 +71,25 @@ async function assertHabitatTableColumns(table, sizeColumnName) {
   await expect(table).toHaveAttribute('data-module', 'moj-sortable-table')
 }
 
+// Asserts the totals-row Units value equals the sum of the individual data-row
+// Units. Data rows are those carrying a ref link (excludes header and total).
+async function expectTotalEqualsSumOfRowUnits(table, totalsRow, page) {
+  const dataRows = table
+    .getByRole('row')
+    .filter({ has: page.getByRole('link') })
+  const rowCount = await dataRows.count()
+  let unitsSum = 0
+  for (let i = 0; i < rowCount; i++) {
+    unitsSum += Number(
+      await dataRows.nth(i).getByRole('cell').nth(5).textContent()
+    )
+  }
+  const totalUnits = Number(
+    await totalsRow.getByRole('cell').nth(5).textContent()
+  )
+  expect(totalUnits).toBeCloseTo(unitsSum, 1)
+}
+
 test.describe('habitat-list', { tag: '@habitat-list' }, () => {
   // Serial mode prevents parallel uploads from contaminating the shared Redis
   // pendingUploadId session across the describe blocks in this file.
@@ -529,9 +548,11 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         await expect(firstRow.getByRole('cell').nth(2)).not.toBeEmpty()
         await expect(firstRow.getByRole('cell').nth(3)).not.toBeEmpty()
         await expect(firstRow.getByRole('cell').nth(4)).not.toBeEmpty()
-        await expect(firstRow.getByRole('cell').nth(5)).toHaveText(
-          /^\d+(\.\d+)?$/
-        )
+        // Units must be a calculated, non-zero value (size × distinctiveness ×
+        // condition × strategic significance), not merely numeric.
+        const unitsCell = firstRow.getByRole('cell').nth(5)
+        await expect(unitsCell).toHaveText(/^\d+(\.\d+)?$/)
+        expect(Number(await unitsCell.textContent())).toBeGreaterThan(0)
       })
 
       test('hedgerow length column value includes "km" suffix with no space', async ({
@@ -553,7 +574,8 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
       })
 
       test('hedgerows table totals row shows "Total" label with summed size and units', async ({
-        habitatListPage
+        habitatListPage,
+        page
       }) => {
         await habitatListPage.openTab(projectId, 'hedgerows')
         const totalsRow = habitatListPage.hedgerowsTable
@@ -565,6 +587,13 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         )
         await expect(totalsRow.getByRole('cell').nth(5)).toHaveText(
           /^\d+(\.\d+)?$/
+        )
+
+        // AC2: total hedgerow units equals the sum of the individual rows.
+        await expectTotalEqualsSumOfRowUnits(
+          habitatListPage.hedgerowsTable,
+          totalsRow,
+          page
         )
       })
 
@@ -733,9 +762,12 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         await expect(firstRow.getByRole('cell').nth(2)).not.toBeEmpty()
         await expect(firstRow.getByRole('cell').nth(3)).not.toBeEmpty()
         await expect(firstRow.getByRole('cell').nth(4)).not.toBeEmpty()
-        await expect(firstRow.getByRole('cell').nth(5)).toHaveText(
-          /^\d+(\.\d+)?$/
-        )
+        // Units must be a calculated, non-zero value (size × distinctiveness ×
+        // condition × riparian × watercourse encroachment × strategic
+        // significance), not merely numeric.
+        const unitsCell = firstRow.getByRole('cell').nth(5)
+        await expect(unitsCell).toHaveText(/^\d+(\.\d+)?$/)
+        expect(Number(await unitsCell.textContent())).toBeGreaterThan(0)
       })
 
       test('watercourse size column value includes "km" suffix with no space', async ({
@@ -761,7 +793,8 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
       })
 
       test('watercourses table displays a totals row with "Total", total size, and total units', async ({
-        habitatListPage
+        habitatListPage,
+        page
       }) => {
         await habitatListPage.openTab(projectId, 'watercourses')
         const totalsRow = habitatListPage.watercoursesTable
@@ -773,6 +806,13 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         )
         await expect(totalsRow.getByRole('cell').nth(5)).toHaveText(
           /^\d+(\.\d+)?$/
+        )
+
+        // AC2: total watercourse units equals the sum of the individual rows.
+        await expectTotalEqualsSumOfRowUnits(
+          habitatListPage.watercoursesTable,
+          totalsRow,
+          page
         )
       })
 
