@@ -5,7 +5,7 @@ test.describe('Home page', { tag: '@home' }, () => {
   test(
     'unauthenticated visitor sees sign-in button',
     { tag: '@smoke' },
-    async ({ homePage, page }) => {
+    async ({ homePage, layoutPage, page }) => {
       await homePage.open()
 
       await expect(page).toHaveTitle('Home - Biodiversity Net Gain')
@@ -13,6 +13,7 @@ test.describe('Home page', { tag: '@home' }, () => {
       await expect(homePage.pageBody).toBeVisible()
       await expect(homePage.signInButton).toBeVisible()
       await expect(homePage.signInButton).toHaveAttribute('href', '/auth/login')
+      await expect(layoutPage.signOutLink).toBeHidden()
     }
   )
 

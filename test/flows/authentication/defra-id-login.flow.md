@@ -17,6 +17,9 @@ github runs continue to use the stub.
 - **Auth required:** No (initiates authentication)
 - **Description:** The home "Sign in" button links to `/auth/login`; the frontend
   begins the OIDC authorization code flow and redirects to Defra ID.
+- **Note:** `GET /auth/login?forceReselection=true` propagates `forceReselection=true`
+  to the IdP authorization request (forces account/organisation re-selection);
+  omitted otherwise.
 
 ### Step 2 — Choose Government Gateway `[IMPLEMENTED]`
 
@@ -33,8 +36,15 @@ github runs continue to use the stub.
 ### Step 4 — Return to service `[IMPLEMENTED]`
 
 - **Route:** `GET /auth/callback` → redirect to `/manage-projects`
+- **Backend endpoint:** `POST {backend}/auth/session` (best-effort) — after the
+  token exchange the frontend forwards the `id_token` as a Bearer credential so
+  the backend (`defra-jwt` strategy) upserts the user's identity, relationships
+  and roles (`bng.users` / `bng.relationships` / `bng.roles`) in one transaction
+  (204). Non-blocking: a failure is logged, recorded as a session-persist
+  failure metric, and sign-in still proceeds.
 - **Description:** Defra ID redirects back with an auth code; the frontend
-  exchanges it for a session and lands on the project dashboard.
+  exchanges it for a session, persists the session to the backend (best-effort),
+  and lands on the project dashboard.
 
 ## Notes
 
