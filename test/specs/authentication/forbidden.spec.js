@@ -1,5 +1,9 @@
 import { test, expect } from '@fixtures'
-import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
+import {
+  STORAGE_STATE,
+  PENDING_ROLE_STORAGE_STATE,
+  skipInE2e
+} from '@utils/env.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 
@@ -69,4 +73,26 @@ test.describe('authentication', { tag: '@authentication' }, () => {
       await expect(layoutPage.signOutLink).toBeVisible()
     })
   })
+
+  // ─── Non-approved role ───────────────────────────────────────────────────────
+  // A user holding a bng completer role at a non-approved enrolment status
+  // (status 1, PENDING) is signed in but blocked from the service — the
+  // approved-status (3) RBAC rule, distinct from the no-role case.
+
+  test.describe(
+    'Access denied — non-approved role',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: PENDING_ROLE_STORAGE_STATE })
+      test.skip(skipInE2e(PENDING_ROLE_STORAGE_STATE), E2E_SKIP_REASON)
+
+      test('a user whose bng completer role is not approved is redirected to /auth/forbidden', async ({
+        page
+      }) => {
+        await page.goto('/manage-projects')
+
+        await expect(page).toHaveURL(/\/auth\/forbidden/)
+      })
+    }
+  )
 })
