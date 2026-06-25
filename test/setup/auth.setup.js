@@ -7,6 +7,7 @@ import {
   STORAGE_STATE,
   NO_ROLE_STORAGE_STATE,
   NO_PROJECTS_STORAGE_STATE,
+  PENDING_ROLE_STORAGE_STATE,
   defraIdUsername,
   defraIdPassword,
   proxyConfig
@@ -16,7 +17,11 @@ import { DefraIdLoginFlow } from '../flows/authentication/defra-id-login.flow.js
 // Unauthenticated state: used in e2e mode where the stub is not available.
 const EMPTY_STATE = JSON.stringify({ cookies: [], origins: [] })
 
-async function registerAndLogin(page, email, { withBngCompleterRole }) {
+async function registerAndLogin(
+  page,
+  email,
+  { withBngCompleterRole, roleStatus = '3' }
+) {
   // Navigate to login — frontend redirects to the stub's authorize endpoint.
   await page.goto(`${baseUrl}/auth/login`)
 
@@ -60,14 +65,14 @@ async function registerAndLogin(page, email, { withBngCompleterRole }) {
     // numeric Defra ID enrolment code (3 = COMPLETE_APPROVED) that the real IdP
     // sends, but the stub dropdown only offers word labels. The stub does not
     // validate the value, so inject and submit the numeric code directly.
-    await page.evaluate(() => {
+    await page.evaluate((status) => {
       const select = document.querySelector('#roleStatus')
       const option = document.createElement('option')
-      option.value = '3'
-      option.text = 'Complete (approved)'
+      option.value = status
+      option.text = `Status ${status}`
       select.add(option)
-      select.value = '3'
-    })
+      select.value = status
+    }, roleStatus)
     await page.getByRole('button', { name: 'Add role' }).click()
   }
 
@@ -112,8 +117,18 @@ async function setupRealDefraIdState() {
 
   await Promise.all([
     fs.writeFile(NO_ROLE_STORAGE_STATE, EMPTY_STATE),
-    fs.writeFile(NO_PROJECTS_STORAGE_STATE, EMPTY_STATE)
+    fs.writeFile(NO_PROJECTS_STORAGE_STATE, EMPTY_STATE),
+    fs.writeFile(PENDING_ROLE_STORAGE_STATE, EMPTY_STATE)
   ])
+}
+
+async function mintProfile(browser, { email, role, waitUrl, statePath }) {
+  const context = await browser.newContext()
+  const page = await context.newPage()
+  await registerAndLogin(page, email, role)
+  await page.waitForURL(waitUrl)
+  await context.storageState({ path: statePath })
+  await context.close()
 }
 
 export default async function globalSetup() {
@@ -153,37 +168,41 @@ export default async function globalSetup() {
 
   try {
     // ── BNG completer user ─────────────────────────────────────────────────
-    const context1 = await browser.newContext()
-    const page1 = await context1.newPage()
-    await registerAndLogin(page1, `bng-test-${Date.now()}@example.com`, {
-      withBngCompleterRole: true
+    await mintProfile(browser, {
+      email: `bng-test-${Date.now()}@example.com`,
+      role: { withBngCompleterRole: true },
+      waitUrl: /\/manage-projects|\/project-name/,
+      statePath: STORAGE_STATE
     })
-    await page1.waitForURL(/\/manage-projects|\/project-name/)
-    await context1.storageState({ path: STORAGE_STATE })
-    await context1.close()
 
-    // ── No-role user — authenticated session without bng completer role ────
-    const context2 = await browser.newContext()
-    const page2 = await context2.newPage()
-    await registerAndLogin(page2, `bng-norole-${Date.now()}@example.com`, {
-      withBngCompleterRole: false
+    // ── No-role user — authenticated session without bng completer role. The
+    //    post-login redirect to a protected route is intercepted by
+    //    requireBngCompleterRole, which redirects to /auth/forbidden.
+    await mintProfile(browser, {
+      email: `bng-norole-${Date.now()}@example.com`,
+      role: { withBngCompleterRole: false },
+      waitUrl: /\/auth\/forbidden|\/manage-projects/,
+      statePath: NO_ROLE_STORAGE_STATE
     })
-    // Without the bng completer role the post-login redirect to /project-dashboard
-    // is intercepted by requireBngCompleterRole, which redirects to /auth/forbidden.
-    await page2.waitForURL(/\/auth\/forbidden|\/manage-projects/)
-    await context2.storageState({ path: NO_ROLE_STORAGE_STATE })
-    await context2.close()
 
     // ── No-projects user — BNG completer with a clean account; no test ever
     //    calls createProjectFlow with this session, preserving the empty state.
-    const context3 = await browser.newContext()
-    const page3 = await context3.newPage()
-    await registerAndLogin(page3, `bng-noprojects-${Date.now()}@example.com`, {
-      withBngCompleterRole: true
+    await mintProfile(browser, {
+      email: `bng-noprojects-${Date.now()}@example.com`,
+      role: { withBngCompleterRole: true },
+      waitUrl: /\/manage-projects|\/project-name/,
+      statePath: NO_PROJECTS_STORAGE_STATE
     })
-    await page3.waitForURL(/\/manage-projects|\/project-name/)
-    await context3.storageState({ path: NO_PROJECTS_STORAGE_STATE })
-    await context3.close()
+
+    // ── Pending-role user — bng completer role at a non-approved status (1 =
+    //    PENDING). The session is established, but requireBngCompleterRole
+    //    redirects every protected route to /auth/forbidden.
+    await mintProfile(browser, {
+      email: `bng-pending-${Date.now()}@example.com`,
+      role: { withBngCompleterRole: true, roleStatus: '1' },
+      waitUrl: /\/auth\/forbidden|\/manage-projects/,
+      statePath: PENDING_ROLE_STORAGE_STATE
+    })
   } finally {
     await browser.close()
   }

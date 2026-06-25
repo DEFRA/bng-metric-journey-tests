@@ -37,6 +37,14 @@ export const NO_PROJECTS_STORAGE_STATE = path.join(
   'playwright/.auth/user-no-projects.json'
 )
 
+// Authenticated session holding a bng completer role at a non-approved enrolment
+// status (1 = PENDING). verify-role only grants access on status 3, so this
+// profile is blocked at /auth/forbidden like the no-role profile.
+export const PENDING_ROLE_STORAGE_STATE = path.join(
+  projectRoot,
+  'playwright/.auth/user-pending-role.json'
+)
+
 // Real Defra ID credentials for e2e mode — injected via the CDP Portal secret
 // store (or a gitignored local .env). Required only when RUN_MODE=e2e.
 export const defraIdUsername = process.env.DEFRA_ID_USERNAME

@@ -3,8 +3,11 @@ import {
   STORAGE_STATE,
   NO_PROJECTS_STORAGE_STATE,
   NO_ROLE_STORAGE_STATE,
+  baseUrl,
   skipInE2e
 } from '@utils/env.js'
+import { CreateProjectFlow } from '@flows/project-management/create-project.flow.js'
+import { ProjectDashboardPage } from '@pages/project-dashboard.page.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 
@@ -79,6 +82,51 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       }
     )
   })
+
+  // ─── Cross-user visibility ───────────────────────────────────────────────────
+  // DoD: a project created by one user must not be visible to any other user.
+  // Drives two sessions in one test — the completer creates a uniquely-named
+  // project, a different (no-projects) user must not see it.
+
+  test.describe(
+    'Project dashboard — cross-user visibility',
+    { tag: '@regression' },
+    () => {
+      test.skip(skipInE2e(NO_PROJECTS_STORAGE_STATE), E2E_SKIP_REASON)
+
+      test('a project created by one user is not visible to a different user', async ({
+        browser
+      }) => {
+        const projectName = `Isolation ${Date.now()}`
+
+        const creatorContext = await browser.newContext({
+          storageState: STORAGE_STATE,
+          baseURL: baseUrl
+        })
+        const otherContext = await browser.newContext({
+          storageState: NO_PROJECTS_STORAGE_STATE,
+          baseURL: baseUrl
+        })
+
+        try {
+          const creatorPage = await creatorContext.newPage()
+          const creatorDashboard = new ProjectDashboardPage(creatorPage)
+          await new CreateProjectFlow(creatorPage).createProject(projectName)
+          await creatorDashboard.open()
+          await expect(creatorDashboard.projectLink(projectName)).toBeVisible()
+
+          const otherPage = await otherContext.newPage()
+          await otherPage.goto('/manage-projects')
+          await expect(
+            otherPage.getByRole('link', { name: projectName })
+          ).toBeHidden()
+        } finally {
+          await creatorContext.close()
+          await otherContext.close()
+        }
+      })
+    }
+  )
 
   // ─── Default sort order ──────────────────────────────────────────────────────
 
