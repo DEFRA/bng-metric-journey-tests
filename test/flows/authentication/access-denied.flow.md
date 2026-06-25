@@ -4,7 +4,7 @@
 
 Requests that fail authentication or authorisation are redirected to a 403
 "Access denied" page. This covers users with no session, authenticated users
-lacking the BNG completer role, and login/callback failures.
+without an approved BNG completer role, and login/callback failures.
 
 ## Steps
 
@@ -22,9 +22,14 @@ lacking the BNG completer role, and login/callback failures.
 - **Backend endpoint:** None
 - **Description:** A failing request is redirected (`.takeover()`) to
   `/auth/forbidden` rather than reaching the protected handler.
-- **Validation:** Role is parsed from colon-delimited token role entries
-  (`relationshipId:roleName:statusNum`); access is granted only if any entry's
-  role name equals `bng completer` (case-insensitive).
+- **Validation:** Role entries are colon-delimited (`relationshipId:roleName:status`).
+  Access requires an **approved** `bng completer` role: the role name (rebuilt
+  from the middle field(s), lower-cased, trimmed) must equal `bng completer`
+  **and** the trailing status must be `3` (APPROVED). Statuses `1,2,4,5,6,7`
+  (pending/rejected/removed) and any non-integer or out-of-range (not 1–7) status
+  are treated as unauthorised. When the token carries a `currentRelationshipId`,
+  the approved role must belong to that relationship; otherwise any approved
+  `bng completer` role suffices. (Mirrors the backend RBAC — see `verify-role.js`.)
 - **On success:** Redirects to `/auth/forbidden`
 - **On error:** N/A
 
@@ -36,8 +41,11 @@ lacking the BNG completer role, and login/callback failures.
 - **Backend endpoint:** None
 - **Description:** Renders the 403 page — heading "Access denied", body
   (`data-testid="forbidden-body"`) "You do not have permission to view this
-  page.", a note that access is limited to the **BNG completer** role, and a
-  "Return to the home page" link to `/`.
+  page.", a note that access is limited to an **approved BNG completer** role
+  (with guidance to contact a Defra administrator if the role is still awaiting
+  approval), and a "Return to the home page" link to `/`. The controller passes
+  `navigation: []`, so the page's service navigation omits the default "Projects"
+  link.
 - **Validation:** None (display-only)
 - **On success:** Renders the forbidden page with HTTP 403
 - **On error:** N/A

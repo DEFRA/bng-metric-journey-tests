@@ -1,4 +1,7 @@
 import { test, expect } from '@fixtures'
+import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
+
+const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 
 test.describe('authentication', { tag: '@authentication' }, () => {
   // ─── Page content ────────────────────────────────────────────────────────────
@@ -45,5 +48,25 @@ test.describe('authentication', { tag: '@authentication' }, () => {
         await expect(page).toHaveTitle('Home - Biodiversity Net Gain')
       }
     )
+  })
+
+  // ─── Navigation ──────────────────────────────────────────────────────────────
+  // The controller passes navigation: [], so the forbidden page omits the
+  // default "Projects" nav link even for an authenticated session (which would
+  // otherwise see it). The authenticated "Sign out" link is still appended.
+
+  test.describe('Forbidden page — navigation', { tag: '@regression' }, () => {
+    test.use({ storageState: STORAGE_STATE })
+    test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+    test('omits the "Projects" nav link while keeping "Sign out"', async ({
+      forbiddenPage,
+      layoutPage
+    }) => {
+      await forbiddenPage.open()
+
+      await expect(layoutPage.projectsNavLink).toBeHidden()
+      await expect(layoutPage.signOutLink).toBeVisible()
+    })
   })
 })
