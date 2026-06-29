@@ -261,6 +261,233 @@ function describeDistinctivenessError() {
   )
 }
 
+// ─── Field and combination validation ─────────────────────────────────────────
+
+function describeFieldValidation() {
+  test.describe(
+    'Upload baseline — field and combination validation',
+    { tag: '@regression' },
+    () => {
+      // All three gates are built (backend validation) and route to /error-file.
+      // Each test uploads a fixture that violates one rule and asserts the matching
+      // rejection heading in the GOV.UK error summary.
+      async function expectRejection(
+        {
+          createProjectFlow,
+          projectDashboardPage,
+          uploadBaselineFileFlow,
+          errorFilePage,
+          page
+        },
+        fixture,
+        expectedText
+      ) {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
+        )
+        await uploadBaselineFileFlow.uploadFile(id, fixture)
+        await page.waitForURL('/error-file', { timeout: UPLOAD_TIMEOUT })
+        await expect(errorFilePage.errorSummary).toBeVisible()
+        await expect(errorFilePage.errorSummary).toContainText(expectedText)
+        await expect(errorFilePage.uploadDifferentFileLink).toHaveAttribute(
+          'href',
+          `/projects/${id}/upload-baseline-file`
+        )
+      }
+
+      // This fixture's incorrect habitat geometry surfaces as a geometry-column
+      // schema mismatch, so the readable area parcels come back empty — the page
+      // reports "Zero area habitat parcels" alongside the "baseline mismatch".
+      test('rejects a habitats layer with incorrect geometry', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        await expectRejection(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            errorFilePage,
+            page
+          },
+          'Baseline - habitats with incorrect geometry.gpkg',
+          'Zero area habitat parcels in GeoPackage'
+        )
+      })
+
+      test('rejects a habitats layer with a missing column', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        await expectRejection(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            errorFilePage,
+            page
+          },
+          'Baseline - missing columns in Habitats.gpkg',
+          'baseline mismatch'
+        )
+      })
+
+      test('rejects a file with duplicate habitat references', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        await expectRejection(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            errorFilePage,
+            page
+          },
+          'Baseline - duplicate habitat ref.gpkg',
+          'One or more habitats share the same Parcel Ref'
+        )
+      })
+    }
+  )
+}
+
+// ─── Redline outside England ──────────────────────────────────────────────────
+
+function describeOutsideEngland() {
+  test.describe(
+    'Upload baseline — redline outside England',
+    { tag: '@regression' },
+    () => {
+      test('uploading a file whose redline is outside England is rejected on the error-file page', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
+        )
+
+        await uploadBaselineFileFlow.uploadFile(
+          id,
+          'Baseline - redline not in england.gpkg'
+        )
+
+        await page.waitForURL('/error-file', { timeout: UPLOAD_TIMEOUT })
+
+        await expect(errorFilePage.errorSummary).toBeVisible()
+        await expect(errorFilePage.errorSummary).toContainText(
+          'Redline boundary is outside England'
+        )
+        await expect(errorFilePage.uploadDifferentFileLink).toBeVisible()
+        await expect(errorFilePage.uploadDifferentFileLink).toHaveAttribute(
+          'href',
+          `/projects/${id}/upload-baseline-file`
+        )
+      })
+    }
+  )
+}
+
+// ─── Redline area too large (no fixture yet) ──────────────────────────────────
+
+function describeAreaTooLarge() {
+  test.describe(
+    'Upload baseline — redline area too large',
+    { tag: '@regression' },
+    () => {
+      // The REDLINE_AREA_TOO_LARGE gate is built (backend error-builders.js emits
+      // "...exceeds the 100 sq km limit") but the harness has no >100 sq km fixture.
+      // To enable once one exists:
+      //   1. copy the >100 sq km fixture into test/example-files/
+      //   2. replace the fixture name below and remove this test.skip
+      test.skip('uploading a file whose redline area exceeds 100 sq km is rejected on the error-file page', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
+        )
+
+        await uploadBaselineFileFlow.uploadFile(
+          id,
+          'Baseline - redline area too large.gpkg'
+        )
+
+        await page.waitForURL('/error-file', { timeout: UPLOAD_TIMEOUT })
+
+        await expect(errorFilePage.errorSummary).toContainText(
+          'exceeds the 100 sq km limit'
+        )
+      })
+    }
+  )
+}
+
+// ─── Irreplaceable habitat (not yet built) ────────────────────────────────────
+
+function describeIrreplaceableHabitat() {
+  test.describe(
+    'Upload baseline — irreplaceable habitat',
+    { tag: '@regression' },
+    () => {
+      // The irreplaceable-habitat eligibility filter is NOT implemented: there is
+      // no error code in ../bng-metric-backend/src/validation/baseline/errors.js
+      // and no fixture in ../bng-metric-harness/example-files. The distinctiveness
+      // eligibility gate IS covered by describeDistinctivenessError() above.
+      // To enable once the filter ships:
+      //   1. copy the irreplaceable-habitat fixture into test/example-files/
+      //   2. replace the fixture name below and remove this test.skip
+      test.skip('uploading a file with an irreplaceable habitat is rejected on the error-file page', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
+        )
+
+        await uploadBaselineFileFlow.uploadFile(
+          id,
+          'Baseline - irreplaceable habitat.gpkg'
+        )
+
+        await page.waitForURL('/error-file', { timeout: UPLOAD_TIMEOUT })
+
+        await expect(errorFilePage.errorSummary).toBeVisible()
+        await expect(errorFilePage.uploadDifferentFileLink).toHaveAttribute(
+          'href',
+          `/projects/${id}/upload-baseline-file`
+        )
+      })
+    }
+  )
+}
+
 // ─── Baseline habitat details flow ───────────────────────────────────────────
 
 function describeBaselineHabitatDetailsFlow() {
@@ -387,5 +614,9 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
   describeStructuralErrors()
   describeSuppression()
   describeDistinctivenessError()
+  describeFieldValidation()
+  describeOutsideEngland()
+  describeAreaTooLarge()
+  describeIrreplaceableHabitat()
   describeBaselineHabitatDetailsFlow()
 })
