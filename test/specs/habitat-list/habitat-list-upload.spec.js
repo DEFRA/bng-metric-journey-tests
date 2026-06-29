@@ -241,6 +241,24 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         )
         await expect(habitatListPage.treeRows.first()).toBeVisible()
       })
+
+      test('individual tree rows show calculated units greater than zero', async ({
+        habitatListPage,
+        page
+      }) => {
+        await page.goto(
+          `/projects/${noHedgerowsProjectId}/baseline-habitat-list`
+        )
+        // Units is the 6th column (index 5) of the area habitats table, same as
+        // the area/hedgerow/watercourse unit checks. A tree habitat must produce
+        // a calculated, non-zero unit value like any other habitat type.
+        const unitsCell = habitatListPage.treeRows
+          .first()
+          .getByRole('cell')
+          .nth(5)
+        await expect(unitsCell).toHaveText(/^\d+(\.\d+)?$/)
+        expect(Number(await unitsCell.textContent())).toBeGreaterThan(0)
+      })
     }
   )
 
@@ -949,6 +967,40 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
             .locator('#watercourses')
             .getByText('No watercourse data uploaded.')
         ).toBeVisible()
+      })
+    }
+  )
+
+  // ─── GIS trees layer (not yet supported) ──────────────────────────────────────
+
+  test.describe(
+    'Habitat list — GIS trees layer',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      // Individual tree habitats are covered above. A dedicated GIS-mapped trees
+      // layer (roadmap: "trees mapped from GIS") is not yet a supported input and
+      // has no harness fixture. Enable once it ships:
+      //   1. copy the GIS-trees-layer fixture into test/example-files/
+      //   2. upload it and assert the trees layer's units render on the habitat list
+      test.skip('units render for a GIS-mapped trees layer', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        habitatListPage,
+        page
+      }) => {
+        const projectId = await uploadAndNavigateToHabitatList(
+          createProjectFlow,
+          projectDashboardPage,
+          uploadBaselineFileFlow,
+          page,
+          'Baseline - gis trees layer.gpkg'
+        )
+        await page.goto(`/projects/${projectId}/baseline-habitat-list`)
+        await expect(habitatListPage.treeRows.first()).toBeVisible()
       })
     }
   )

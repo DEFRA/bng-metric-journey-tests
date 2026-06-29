@@ -8,6 +8,7 @@ import {
 } from '@utils/env.js'
 import { CreateProjectFlow } from '@flows/project-management/create-project.flow.js'
 import { ProjectDashboardPage } from '@pages/project-dashboard.page.js'
+import { ProjectTaskListPage } from '@pages/project-task-list.page.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 
@@ -120,6 +121,48 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           await expect(
             otherPage.getByRole('link', { name: projectName })
           ).toBeHidden()
+        } finally {
+          await creatorContext.close()
+          await otherContext.close()
+        }
+      })
+
+      test('a project created by one user cannot be opened directly by a different user', async ({
+        browser
+      }) => {
+        const projectName = `Isolation direct ${Date.now()}`
+
+        const creatorContext = await browser.newContext({
+          storageState: STORAGE_STATE,
+          baseURL: baseUrl
+        })
+        const otherContext = await browser.newContext({
+          storageState: NO_PROJECTS_STORAGE_STATE,
+          baseURL: baseUrl
+        })
+
+        try {
+          const creatorPage = await creatorContext.newPage()
+          const creatorDashboard = new ProjectDashboardPage(creatorPage)
+          await new CreateProjectFlow(creatorPage).createProject(projectName)
+          await creatorDashboard.open()
+          const href = await creatorDashboard
+            .projectLink(projectName)
+            .getAttribute('href')
+          const projectId = href.split('/').pop()
+
+          // The other user opens the creator's project URL directly. The backend
+          // scopes GET /projects/{id} by owner (visibleToUser), so it 404s and the
+          // task list renders its "Project not found" state: heading only, no body
+          // and — critically — none of the creator's project content.
+          const otherPage = await otherContext.newPage()
+          const otherTaskList = new ProjectTaskListPage(otherPage)
+          await otherTaskList.open(projectId)
+
+          await expect(otherTaskList.heading).toBeVisible()
+          await expect(otherPage.getByText(projectName)).toBeHidden()
+          await expect(otherTaskList.informationParagraph).toBeHidden()
+          await expect(otherTaskList.taskList).toBeHidden()
         } finally {
           await creatorContext.close()
           await otherContext.close()

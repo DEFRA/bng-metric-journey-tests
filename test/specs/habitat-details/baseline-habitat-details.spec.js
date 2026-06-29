@@ -1034,6 +1034,43 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(baselineHabitatDetailsPage.tradingRulesKey).toBeVisible()
       })
 
+      test('AC10 — trading-rule guidance value is shown and tracks the distinctiveness band', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
+
+        // Beyond the AC10 label: the saved habitat shows a populated guidance
+        // value for its band on load. The exact wording is owned by the engine
+        // reference data, so assert a non-empty guidance string (not a hard-coded
+        // sentence) alongside the band.
+        await expect(
+          baselineHabitatDetailsPage.distinctivenessDisplay
+        ).toHaveText(DISTINCTIVENESS_PATTERN)
+        const bandBefore = (
+          await baselineHabitatDetailsPage.distinctivenessDisplay.textContent()
+        ).trim()
+        const guidanceBefore = (
+          await baselineHabitatDetailsPage.tradingRuleDisplay.textContent()
+        ).trim()
+        expect(guidanceBefore).not.toBe('')
+
+        // Selecting a habitat type in a different band updates the guidance, proving
+        // it is derived per distinctiveness band rather than static.
+        await baselineHabitatDetailsPage.selectDifferentHabitatType()
+        await expect(
+          baselineHabitatDetailsPage.tradingRuleDisplay
+        ).not.toHaveText('')
+        const bandAfter = (
+          await baselineHabitatDetailsPage.distinctivenessDisplay.textContent()
+        ).trim()
+        const guidanceAfter = (
+          await baselineHabitatDetailsPage.tradingRuleDisplay.textContent()
+        ).trim()
+        if (bandAfter !== bandBefore) {
+          expect(guidanceAfter).not.toBe(guidanceBefore)
+        }
+      })
+
       test('AC11 — "Units in this habitat" label is displayed', async ({
         baselineHabitatDetailsPage
       }) => {
