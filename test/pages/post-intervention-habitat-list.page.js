@@ -18,6 +18,37 @@ export class PostInterventionHabitatListPage extends BasePage {
     this.hedgerowsTab = page.getByRole('tab', { name: 'Hedgerows' })
     this.watercoursesTab = page.getByRole('tab', { name: 'Watercourses' })
     this.backLink = page.getByRole('link', { name: 'Back' })
+
+    // Summary "Size" cells (Unit type | Size | …) — Site excludes special
+    // habitats (trees); Area habitats includes them.
+    this.siteSizeCell = this.summaryTable
+      .getByRole('row')
+      .filter({ hasText: 'Site' })
+      .getByRole('cell')
+      .nth(1)
+    this.areaHabitatSizeCell = this.summaryTable
+      .getByRole('row')
+      .filter({ hasText: 'Area habitats' })
+      .getByRole('cell')
+      .nth(1)
+
+    // Areas-tab habitat table and its total-row Size cell.
+    this.areaHabitatsTable = page.locator('#area-habitats').getByRole('table')
+    this.areaTableTotalSizeCell = this.areaHabitatsTable
+      .getByRole('row')
+      .filter({ hasText: 'Total' })
+      .getByRole('cell')
+      .nth(2)
+    // One row per individual tree (urban or rural) in the Areas table.
+    this.treeRows = this.areaHabitatsTable
+      .getByRole('row')
+      .filter({ hasText: /Urban tree|Rural tree/ })
+  }
+
+  // Areas-table row for a given habitat Ref (e.g. 'T001'). Refs are unique, so
+  // the substring filter isolates a single row.
+  treeRowByRef(ref) {
+    return this.areaHabitatsTable.getByRole('row').filter({ hasText: ref })
   }
 
   async open(id) {
