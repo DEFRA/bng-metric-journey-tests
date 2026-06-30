@@ -48,13 +48,13 @@ its own flow doc.
 - **Auth required:** Yes (session + approved BNG Completer role — Defra ID enrolment status 3, scoped to `currentRelationshipId` when present)
 - **Backend endpoints:**
   - `GET /upload/{uploadId}/status` — polls upload status (treats `numberOfRejectedFiles > 0` as `rejected`)
-  - `POST /baseline/validate/{uploadId}` (body: `{ projectId }`) — triggered once status is `ready`; validates and persists the baseline; forwards the user's Defra ID bearer via `backendRequest`
+  - `POST /baseline/validate/{uploadId}` (body: `{ projectId }`) — triggered once status is `ready`; validates the file contents and persists the baseline; forwards the user's Defra ID bearer via `backendRequest`. Content validation includes a distinctiveness-scope check (BMD-352): any habitat — area habitats, hedgerows, or watercourses — whose distinctiveness is **High** or **Very high** is rejected with error code `HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE` (the error names the offending feature ref; allowed bands are Medium, Low, Very low). This drives the structured-error branch below.
 - **Description:** Rendered by the shared `createUploadReceivedController(HABITAT_UPLOAD_TYPES.baseline, validateBaseline)` factory. The template renders a "Checking your file" message with a `<meta http-equiv="refresh" content="5">` tag so the browser re-hits the handler every 5 seconds. On each request the handler checks `pendingUploadId` from the session, polls upload status, and tracks elapsed time in `uploadStartedAt`. Once status is `ready` it calls baseline validation and clears both session keys. The rejected and structured-error branches also set `validationUploadType = 'baseline'` in session (consumed by the shared error-file page). Possible outcomes are listed below.
 - **Validation / branching:**
   - `pendingUploadId` missing → redirect to `GET /projects/{id}/upload-baseline-file`
   - Status `rejected` → clear session keys, set empty `baselineValidationErrors` and `baselineValidationErrorsProjectId` in session, redirect to `GET /error-file`
   - Status `ready` + validation invalid + error code is `GPKG_INVALID_FILE` or `GPKG_NOT_A_GEOPACKAGE` → set `uploadError` flash "The selected file must be a GeoPackage (.gpkg)" → redirect to upload form
-  - Status `ready` + validation invalid + other error codes → store structured `baselineValidationErrors` and `baselineValidationErrorsProjectId` in session → redirect to `GET /error-file`
+  - Status `ready` + validation invalid + other error codes (e.g. `HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE`, `PARCEL_OVERLAPS`, `AREA_PARCELS_OUTSIDE_REDLINE`) → store structured `baselineValidationErrors` and `baselineValidationErrorsProjectId` in session → redirect to `GET /error-file`
   - Status `ready` + validation passes → redirect to `GET /projects/{id}/baseline-habitat-list`
   - Elapsed > 120 seconds → clear session keys, set `uploadError` flash "The file check timed out. Please try again." → redirect to upload form
   - Any other status (e.g. `pending`, `unknown`, `error`) → re-render the polling page
