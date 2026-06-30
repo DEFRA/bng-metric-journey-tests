@@ -8,6 +8,17 @@ import { UploadPostInterventionFileFlow } from '@flows/upload-post-intervention/
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const UPLOAD_TIMEOUT = 120_000
 const COMPLETE_POST_INTERVENTION_FILE = 'Post-intervention - complete.gpkg'
+// BNG-529: no shipped post-intervention fixture contains hedgerows, so this is a
+// synthesised file (Hedgerows layer added to the complete area fixture) held
+// only in this repo's test/example-files/. Provisional — replace with a real
+// surveyed post-intervention-with-hedgerows GeoPackage when one is available.
+const HEDGEROWS_FILE = 'Post-intervention - complete with hedgerows.gpkg'
+// BNG-530: as with hedgerows, no shipped post-intervention fixture contains
+// watercourses, so this is a synthesised file (Rivers layer added to the
+// complete area fixture) held only in this repo's test/example-files/.
+// Provisional — replace with a real surveyed post-intervention-with-watercourses
+// GeoPackage when one is available.
+const WATERCOURSES_FILE = 'Post-intervention - complete with watercourses.gpkg'
 const HTTP_BAD_REQUEST = 400
 const VALID_UUID_V4 = 'aaaaaaaa-bbbb-4ccc-bddd-eeeeeeeeeeee'
 const STUB_PROJECT_ID = '00000000-0000-0000-0000-000000000000'
@@ -22,10 +33,11 @@ const TREES_COMPLETE_FILE = 'Post-intervention - complete with trees.gpkg'
 const TREES_COMPLETE_TOTAL_HA = 0.0489
 
 // Areas-table columns: Ref(0) Habitat type(1) Area(2) Distinctiveness(3)
-// Condition(4) Units(5) Status(6).
-const TREE_TYPE_COL = 1
-const TREE_AREA_COL = 2
-const TREE_UNITS_COL = 5
+// Condition(4) Units(5) Status(6). UNITS_COL (5) is shared by the Hedgerows
+// and Watercourses tables, which use the same column layout.
+const AREAS_HABITAT_TYPE_COL = 1
+const AREAS_AREA_COL = 2
+const UNITS_COL = 5
 
 async function uploadAndNavigateToHabitatList(
   createProjectFlow,
@@ -290,7 +302,7 @@ test.describe(
               const row = postInterventionHabitatListPage.treeRowByRef(ref)
               await expect(row).toBeVisible()
               await expect(
-                row.getByRole('cell').nth(TREE_AREA_COL)
+                row.getByRole('cell').nth(AREAS_AREA_COL)
               ).toContainText(area)
             }
           }
@@ -306,7 +318,7 @@ test.describe(
               const units = postInterventionHabitatListPage
                 .treeRowByRef(ref)
                 .getByRole('cell')
-                .nth(TREE_UNITS_COL)
+                .nth(UNITS_COL)
               // a non-zero unit value is calculated and shown for each tree
               await expect(units).toHaveText(/[1-9]/)
             }
@@ -338,19 +350,19 @@ test.describe(
               postInterventionHabitatListPage
                 .treeRowByRef('R001')
                 .getByRole('cell')
-                .nth(TREE_TYPE_COL)
+                .nth(AREAS_HABITAT_TYPE_COL)
             ).toHaveText('Rural tree')
             await expect(
               postInterventionHabitatListPage
                 .treeRowByRef('R002')
                 .getByRole('cell')
-                .nth(TREE_TYPE_COL)
+                .nth(AREAS_HABITAT_TYPE_COL)
             ).toHaveText('Rural tree')
             await expect(
               postInterventionHabitatListPage
                 .treeRowByRef('U001')
                 .getByRole('cell')
-                .nth(TREE_TYPE_COL)
+                .nth(AREAS_HABITAT_TYPE_COL)
             ).toHaveText('Urban tree')
           }
         )
@@ -416,6 +428,198 @@ test.describe(
           }
         )
       })
+    })
+
+    // ─── Area habitat units (BNG-528) ────────────────────────────────────────
+    // Each standard (non-tree) area habitat carries a calculated BNG unit value
+    // (distinctiveness × condition × area), and the Areas-table footer sums
+    // them. The persisted project total `postIntervention.units.habitatsTotal`
+    // is NOT surfaced in the UI, so it is covered by back-end integration tests,
+    // not here. The fixture is uploaded once (beforeAll) and shared by these
+    // read-only tests.
+
+    test.describe('Post-intervention habitat list — area habitat units (BNG-528)', () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      // Expected calculated units for `Post-intervention - complete.gpkg`:
+      // Ref → displayed Units. A V.Low sealed-surface parcel correctly
+      // calculates to 0.00; habitats with distinctiveness + condition score
+      // above zero.
+      const expectedUnitsByRef = [
+        ['H2-3', '2.65'], // Other neutral grassland — Medium / Good
+        ['H2-2', '0.65'], // Modified grassland — Low / Moderate
+        ['H1', '0.00'] // Developed land; sealed surface — V.Low
+      ]
+      // Footer Total sums the unrounded per-habitat units (4.09, not the 4.08
+      // that summing the 2dp display values would give).
+      const EXPECTED_UNITS_TOTAL = '4.09'
+
+      let projectId
+      test.beforeAll(async ({ browser }) => {
+        projectId = await uploadFixtureInNewContext(
+          browser,
+          PROJECT_LABEL,
+          COMPLETE_POST_INTERVENTION_FILE
+        )
+      })
+
+      test(
+        'each area habitat shows its calculated unit value',
+        { tag: '@smoke' },
+        async ({ postInterventionHabitatListPage }) => {
+          await postInterventionHabitatListPage.open(projectId)
+
+          for (const [ref, units] of expectedUnitsByRef) {
+            await expect(
+              postInterventionHabitatListPage
+                .areaRowByRef(ref)
+                .getByRole('cell')
+                .nth(UNITS_COL)
+            ).toHaveText(units)
+          }
+        }
+      )
+
+      test(
+        'the Areas table footer Total sums the post-intervention units',
+        { tag: '@regression' },
+        async ({ postInterventionHabitatListPage }) => {
+          await postInterventionHabitatListPage.open(projectId)
+
+          await expect(
+            postInterventionHabitatListPage.areaTableTotalUnitsCell
+          ).toHaveText(EXPECTED_UNITS_TOTAL)
+        }
+      )
+    })
+
+    // ─── Hedgerow units (BNG-529) ────────────────────────────────────────────
+    // Each post-intervention hedgerow carries a calculated BNG unit value
+    // (distinctiveness × condition × length), and the Hedgerows-table footer
+    // sums them. The persisted project total `postIntervention.units
+    // .hedgerowsTotal` is NOT surfaced in the UI, so it is covered by back-end
+    // integration tests, not here. PROVISIONAL: uses the synthesised
+    // HEDGEROWS_FILE — replace with a real fixture when one exists.
+
+    test.describe('Post-intervention habitat list — hedgerow units (BNG-529)', () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      // Expected calculated units for the synthesised hedgerow fixture:
+      // Ref → displayed Units (Low/Medium distinctiveness × condition × length).
+      const expectedUnitsByRef = [
+        ['HR1', '0.36'], // Native hedgerow — Low / Moderate, 0.09km
+        ['HR2', '0.60'], // Native hedgerow w/ bank or ditch — Medium / Good, 0.05km
+        ['HR3', '0.10'] // Native hedgerow — Low / Moderate, 0.024km
+      ]
+      const EXPECTED_UNITS_TOTAL = '1.06' // 0.36 + 0.60 + 0.10
+
+      let projectId
+      test.beforeAll(async ({ browser }) => {
+        projectId = await uploadFixtureInNewContext(
+          browser,
+          PROJECT_LABEL,
+          HEDGEROWS_FILE
+        )
+      })
+
+      test(
+        'each hedgerow shows its calculated unit value',
+        { tag: '@smoke' },
+        async ({ postInterventionHabitatListPage }) => {
+          await postInterventionHabitatListPage.open(projectId)
+          // The Hedgerows panel is tab-hidden until selected.
+          await postInterventionHabitatListPage.hedgerowsTab.click()
+
+          for (const [ref, units] of expectedUnitsByRef) {
+            await expect(
+              postInterventionHabitatListPage
+                .hedgerowRowByRef(ref)
+                .getByRole('cell')
+                .nth(UNITS_COL)
+            ).toHaveText(units)
+          }
+        }
+      )
+
+      test(
+        'the Hedgerows table footer Total sums the post-intervention units',
+        { tag: '@regression' },
+        async ({ postInterventionHabitatListPage }) => {
+          await postInterventionHabitatListPage.open(projectId)
+          await postInterventionHabitatListPage.hedgerowsTab.click()
+
+          await expect(
+            postInterventionHabitatListPage.hedgerowTableTotalUnitsCell
+          ).toHaveText(EXPECTED_UNITS_TOTAL)
+        }
+      )
+    })
+
+    // ─── Watercourse units (BNG-530) ─────────────────────────────────────────
+    // Each post-intervention watercourse carries a calculated BNG unit value
+    // (distinctiveness × condition × length × encroachment), and the
+    // Watercourses-table footer sums them. The persisted project total
+    // `postIntervention.units.watercoursesTotal` is NOT surfaced in the UI, so
+    // it is covered by back-end integration tests, not here. PROVISIONAL: uses
+    // the synthesised WATERCOURSES_FILE — replace with a real fixture when one
+    // exists.
+
+    test.describe('Post-intervention habitat list — watercourse units (BNG-530)', () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      // Expected calculated units for the synthesised watercourse fixture:
+      // Ref → displayed Units (Medium distinctiveness × Moderate condition,
+      // no encroachment; units scale with length).
+      const expectedUnitsByRef = [
+        ['WC1', '0.72'], // Ditches — 0.09km
+        ['WC2', '0.40'], // Ditches — 0.05km
+        ['WC3', '0.19'] // Ditches — 0.024km
+      ]
+      const EXPECTED_UNITS_TOTAL = '1.31' // 0.72 + 0.40 + 0.19
+
+      let projectId
+      test.beforeAll(async ({ browser }) => {
+        projectId = await uploadFixtureInNewContext(
+          browser,
+          PROJECT_LABEL,
+          WATERCOURSES_FILE
+        )
+      })
+
+      test(
+        'each watercourse shows its calculated unit value',
+        { tag: '@smoke' },
+        async ({ postInterventionHabitatListPage }) => {
+          await postInterventionHabitatListPage.open(projectId)
+          // The Watercourses panel is tab-hidden until selected.
+          await postInterventionHabitatListPage.watercoursesTab.click()
+
+          for (const [ref, units] of expectedUnitsByRef) {
+            await expect(
+              postInterventionHabitatListPage
+                .watercourseRowByRef(ref)
+                .getByRole('cell')
+                .nth(UNITS_COL)
+            ).toHaveText(units)
+          }
+        }
+      )
+
+      test(
+        'the Watercourses table footer Total sums the post-intervention units',
+        { tag: '@regression' },
+        async ({ postInterventionHabitatListPage }) => {
+          await postInterventionHabitatListPage.open(projectId)
+          await postInterventionHabitatListPage.watercoursesTab.click()
+
+          await expect(
+            postInterventionHabitatListPage.watercourseTableTotalUnitsCell
+          ).toHaveText(EXPECTED_UNITS_TOTAL)
+        }
+      )
     })
   }
 )

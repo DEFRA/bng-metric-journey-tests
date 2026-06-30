@@ -32,23 +32,60 @@ export class PostInterventionHabitatListPage extends BasePage {
       .getByRole('cell')
       .nth(1)
 
-    // Areas-tab habitat table and its total-row Size cell.
+    // Areas-tab habitat table; its total-row Size cell and total-row Units cell.
     this.areaHabitatsTable = page.locator('#area-habitats').getByRole('table')
     this.areaTableTotalSizeCell = this.areaHabitatsTable
       .getByRole('row')
       .filter({ hasText: 'Total' })
       .getByRole('cell')
       .nth(2)
+    this.areaTableTotalUnitsCell = this.#totalUnitsCell(this.areaHabitatsTable)
     // One row per individual tree (urban or rural) in the Areas table.
     this.treeRows = this.areaHabitatsTable
       .getByRole('row')
       .filter({ hasText: /Urban tree|Rural tree/ })
+
+    // Hedgerows-tab and Watercourses-tab tables, each tab-hidden until selected.
+    this.hedgerowsTable = page.locator('#hedgerows').getByRole('table')
+    this.hedgerowTableTotalUnitsCell = this.#totalUnitsCell(this.hedgerowsTable)
+
+    this.watercoursesTable = page.locator('#watercourses').getByRole('table')
+    this.watercourseTableTotalUnitsCell = this.#totalUnitsCell(
+      this.watercoursesTable
+    )
   }
 
-  // Areas-table row for a given habitat Ref (e.g. 'T001'). Refs are unique, so
-  // the substring filter isolates a single row.
+  // Total-row Units cell for a tab table (Units is column index 5 in the
+  // Areas, Hedgerows and Watercourses tables alike).
+  #totalUnitsCell(table) {
+    return table
+      .getByRole('row')
+      .filter({ hasText: 'Total' })
+      .getByRole('cell')
+      .nth(5)
+  }
+
+  // Row in a tab table for a given Ref. Refs are unique, so the substring
+  // filter isolates a single row.
+  #rowByRef(table, ref) {
+    return table.getByRole('row').filter({ hasText: ref })
+  }
+
+  hedgerowRowByRef(ref) {
+    return this.#rowByRef(this.hedgerowsTable, ref)
+  }
+
+  watercourseRowByRef(ref) {
+    return this.#rowByRef(this.watercoursesTable, ref)
+  }
+
+  areaRowByRef(ref) {
+    return this.#rowByRef(this.areaHabitatsTable, ref)
+  }
+
+  // Individual-tree row by Ref — alias retained for the BNG-587 tree tests.
   treeRowByRef(ref) {
-    return this.areaHabitatsTable.getByRole('row').filter({ hasText: ref })
+    return this.areaRowByRef(ref)
   }
 
   async open(id) {
