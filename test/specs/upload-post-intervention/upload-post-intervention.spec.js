@@ -12,6 +12,13 @@ const COMPLETE_FILE = 'Post-intervention - complete.gpkg'
 const STRUCTURAL_ERROR_FILE =
   'Post-intervention (missing data) - fails validation.gpkg'
 const FORMAT_ERROR_FILE = 'Not a valid geopackage.gpkg'
+const RLB_NO_GEOMETRY_FILE =
+  'Post-intervention - no geometry column in RLB layer.gpkg'
+const RLB_MULTIPLE_GEOMETRY_FILE =
+  'Post-intervention - multiple geometry columns in RLB layer.gpkg'
+const RLB_WRONG_GEOMETRY_FILE =
+  'Post-intervention - wrong geometry in RLB layer.gpkg'
+const SLIVERS_FILE = 'Post-intervention - complete with slivers.gpkg'
 
 // ─── E2E happy path ─────────────────────────────────────────────────────────
 
@@ -165,6 +172,70 @@ function describeStructuralErrors() {
   )
 }
 
+// ─── Content validation errors (structure + data quality) ────────────────────
+
+function describeContentValidationErrors() {
+  // Each fixture exercises a distinct post-intervention validation failure that
+  // surfaces on the shared error-file dropout page. Expected text confirmed by
+  // manual validation. Note: the slivers message is baseline-worded in the
+  // shared backend copy (says "Baseline file …" on a post-intervention upload).
+  const cases = [
+    {
+      name: 'a Red Line Boundary layer with no geometry column',
+      file: RLB_NO_GEOMETRY_FILE,
+      expected: 'Missing required feature layer in GeoPackage'
+    },
+    {
+      name: 'a Red Line Boundary layer with multiple geometry columns',
+      file: RLB_MULTIPLE_GEOMETRY_FILE,
+      expected:
+        'expected exactly one geometry column in gpkg_geometry_columns but found 2'
+    },
+    {
+      name: 'a Red Line Boundary layer with the wrong geometry type',
+      file: RLB_WRONG_GEOMETRY_FILE,
+      expected: 'Zero red line boundaries in GeoPackage (expecting one)'
+    },
+    {
+      name: 'slivers inside the redline boundary',
+      file: SLIVERS_FILE,
+      expected:
+        'slivers inside the redline boundary that are not covered by any area habitat polygon'
+    }
+  ]
+
+  test.describe(
+    'Upload post-intervention — content validation errors',
+    { tag: '@regression' },
+    () => {
+      for (const { name, file, expected } of cases) {
+        test(`uploading ${name} is rejected on the error-file page`, async ({
+          createProjectFlow,
+          projectDashboardPage,
+          uploadPostInterventionFileFlow,
+          errorFilePage,
+          page
+        }) => {
+          const { id } = await setupProject(
+            createProjectFlow,
+            projectDashboardPage,
+            PROJECT_LABEL
+          )
+
+          await uploadPostInterventionFileFlow.uploadFile(id, file)
+          await page.waitForURL('/error-file', { timeout: UPLOAD_TIMEOUT })
+
+          await expect(
+            errorFilePage.postInterventionRejectedHeading
+          ).toBeVisible()
+          await expect(errorFilePage.errorSummary).toBeVisible()
+          await expect(page.getByText(expected).first()).toBeVisible()
+        })
+      }
+    }
+  )
+}
+
 // ─── Suite ───────────────────────────────────────────────────────────────────
 
 test.describe(
@@ -182,5 +253,6 @@ test.describe(
     describeNoPendingUpload()
     describeFormatError()
     describeStructuralErrors()
+    describeContentValidationErrors()
   }
 )

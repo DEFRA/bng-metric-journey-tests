@@ -130,11 +130,13 @@ This uses the local base URL (`http://localhost:3000`). The service must be runn
 
 ### Pass/fail report
 
-After the run, parse the terminal output and produce a summary table:
+After the run, parse the terminal output and produce a summary table. Include a
+**GeoPackage file(s)** column naming the `.gpkg` fixture(s) each AC exercised (from
+`test/example-files/`); use `—` when the AC involves no file upload:
 
-| AC  | Description | Result      | Screenshots                            |
-| --- | ----------- | ----------- | -------------------------------------- |
-| AC1 | ...         | PASS / FAIL | `ac1-step1-...png`, `ac1-step2-...png` |
-| AC2 | ...         | PASS / FAIL | `ac2-step1-...png`                     |
+| AC  | Description | GeoPackage file(s)    | Result      | Screenshots                            |
+| --- | ----------- | --------------------- | ----------- | -------------------------------------- |
+| AC1 | ...         | `valid-baseline.gpkg` | PASS / FAIL | `ac1-step1-...png`, `ac1-step2-...png` |
+| AC2 | ...         | —                     | PASS / FAIL | `ac2-step1-...png`                     |
 
 If a test fails, include the error message from the terminal output alongside the result.
