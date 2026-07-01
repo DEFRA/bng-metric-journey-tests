@@ -26,8 +26,16 @@ export class ProjectTaskListPage extends BasePage {
     return this.taskList.getByText(name)
   }
 
+  taskRow(name) {
+    return this.taskList.getByRole('listitem').filter({ hasText: name })
+  }
+
   async assertTaskLink(name, hrefPattern) {
     await expect(this.taskItem(name)).toBeVisible()
     await expect(this.taskItem(name)).toHaveAttribute('href', hrefPattern)
+  }
+
+  async assertTaskStatus(name, statusText) {
+    await expect(this.taskRow(name).getByText(statusText)).toBeVisible()
   }
 }
