@@ -9,6 +9,7 @@ const PROJECT_LABEL = 'Upload post-intervention flow test'
 // worst case (esp. the real uploader in e2e), so allow the full window.
 const UPLOAD_TIMEOUT = 120_000
 const COMPLETE_FILE = 'Post-intervention - complete.gpkg'
+const TASK_POST_INTERVENTION = 'On-site post intervention habitats'
 const STRUCTURAL_ERROR_FILE =
   'Post-intervention (missing data) - fails validation.gpkg'
 const FORMAT_ERROR_FILE = 'Not a valid geopackage.gpkg'
@@ -29,11 +30,12 @@ function describeHappyPath() {
     'Upload post-intervention — happy path',
     { tag: '@smoke' },
     () => {
-      test('uploading a valid .gpkg file reaches the post-intervention habitat list', async ({
+      test('uploading a valid .gpkg file reaches the habitat list and marks the task list item as Completed', async ({
         createProjectFlow,
         projectDashboardPage,
         uploadPostInterventionFileFlow,
         postInterventionHabitatListPage,
+        projectTaskListPage,
         page
       }) => {
         const { id } = await setupProject(
@@ -53,6 +55,26 @@ function describeHappyPath() {
         await expect(
           postInterventionHabitatListPage.summaryHeading
         ).toBeVisible()
+
+        await projectTaskListPage.open(id)
+
+        await expect(
+          projectTaskListPage.taskItem(TASK_POST_INTERVENTION)
+        ).toHaveAttribute(
+          'href',
+          `/projects/${id}/post-intervention-habitat-list`
+        )
+        await projectTaskListPage.assertTaskStatus(
+          TASK_POST_INTERVENTION,
+          'Completed'
+        )
+        // After a post-intervention-only upload: Project Name + On-site
+        // post intervention are Completed; Project Details + On-site baseline
+        // remain Not yet started.
+        await expect(projectTaskListPage.taskStatus('Completed')).toHaveCount(2)
+        await expect(
+          projectTaskListPage.taskStatus('Not yet started')
+        ).toHaveCount(2)
       })
     }
   )

@@ -32,7 +32,7 @@ project's task list.
 | PI-TRIG-2 | Before upload, the task links to `/projects/{id}/upload-post-intervention-file`.                                                                                  | ✅ href asserted                                                                                                                  |
 | PI-TRIG-3 | Clicking the task navigates to the post-intervention upload form (starts the journey).                                                                            | ✅ [project-task-list.spec.js](../../specs/project-management/project-task-list.spec.js) — "task item navigation"                 |
 | PI-TRIG-4 | Before upload, the task status is "Not yet started" (blue tag).                                                                                                   | ✅ row-scoped assertion in the "page content" test                                                                                |
-| PI-TRIG-5 | After a successful upload, the task shows "Completed" and links to `/projects/{id}/post-intervention-habitat-list`.                                               | ❌ gap — verified end-to-end via the **Happy Path** title; not a standalone Trigger test                                          |
+| PI-TRIG-5 | After a successful upload, the task shows "Completed" and links to `/projects/{id}/post-intervention-habitat-list`.                                               | ✅ asserted by the **Happy Path** title (§6), not a standalone Trigger test                                                       |
 | PI-TRIG-6 | Shared page guards apply: unauthenticated → sign-in; no BNG Completer role → `/auth/forbidden`; non-UUID id → 400; unknown project UUID hides the task-list body. | ✅ covered at page level ([project-task-list.spec.js](../../specs/project-management/project-task-list.spec.js)); not re-mirrored |
 
 **Implemented for this title:** PI-TRIG-3 — a click-navigation test on the post-intervention
@@ -187,3 +187,26 @@ after uploading `Not a valid geopackage.gpkg`).
   is on the **shared** `/error-file` page and is baseline-tested.
 - **BMD-367 skeleton** (pathname `invalid-file`, "Dropout Page (Skeleton)" placeholder) —
   superseded; the real `/error-file` page is covered.
+
+---
+
+## 6. Happy Path
+
+**Source:** no dedicated Jira ticket — this is the end-to-end journey. Mirrors the baseline
+happy-path test.
+
+**Journey:** create project → upload a valid post-intervention file → land on the
+post-intervention habitat list → the project task list flips the post-intervention task to
+"Completed".
+
+**Precondition:** signed-in, approved BNG Completer, with a project.
+
+| Ref     | Acceptance criterion                                                                                                                                              | Fixture                             | Coverage                                                        |
+| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | --------------------------------------------------------------- |
+| PI-HP-1 | Uploading a valid `.gpkg` reaches the post-intervention habitat list (heading + Summary).                                                                         | `Post-intervention - complete.gpkg` | ✅ `upload-post-intervention.spec.js` happy path                |
+| PI-HP-2 | After the upload, the task list shows the "On-site post intervention habitats" task as **Completed**, linking to the habitat list (counts 2/2). (= **PI-TRIG-5**) | `Post-intervention - complete.gpkg` | ✅ happy-path test now reopens the task list (added this title) |
+
+**Already covered (no new tests):** the deeper habitat-list data — per-habitat sizes, units
+and individual trees across the Areas/Hedgerows/Watercourses tabs — is covered by the
+unit-calculation journey tests (BNG-528/529/530/587), so the happy path asserts only the
+landing + the task-list Completed state.
