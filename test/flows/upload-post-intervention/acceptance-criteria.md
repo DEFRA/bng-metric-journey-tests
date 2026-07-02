@@ -115,3 +115,31 @@ eligibility (BMD-352).
 invalid files (one per available fixture). The error-file dropout **page presentation**
 (rejected upload, timeout, structured-error grouping / "… and N more", SLIVERS suppression,
 "Upload a different file" / "Back to project" links) is the Unhappy Path title.
+
+---
+
+## 4. Postgres File Processing
+
+**Source (baseline):** BMD-448 (unpack GeoPackage → habitat data in JSON), BMD-449 (save
+geometries to Postgres as a geometry type, linked by reference), BMD-451 (save
+`filename`/`fileSize` metadata to the project JSON), BMD-452 (calculate geometry sizes —
+individual + total).
+
+**Scope decision: no journey-suite tests.** This title is **backend persistence** — what is
+written to Postgres and the project JSONB. It lives in `bng-metric-backend` (a separate repo
+and PR) and is the remit of backend integration/unit tests, not this browser suite. In the
+journey suite it is only observable **indirectly**: the happy-path upload (PI-UV-1/7) lands on
+the post-intervention habitat list, which renders the persisted habitat data, sizes, and units.
+The validation logic and persistence are **shared with baseline**.
+
+| Ticket  | Mirrored concern                                                           | Existing backend coverage                                                                                                                |
+| ------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| BMD-448 | Habitat data (refs, type, distinctiveness, condition) → `postIntervention` | ✅ integration: `post-intervention-persistence.test.js` (habitats/hedgerows/watercourses persisted; feature read/edit)                   |
+| BMD-449 | Geometries → Postgres geometry table, linked by `featureId`                | ✅ integration: `post_intervention_red_line` / `post_intervention_habitats` rows (SRID, `is_valid`, `MULTIPOLYGON`)                      |
+| BMD-451 | `filename` / `fileSize` in the JSONB document                              | 🟡 **unit only**: `extract-post-intervention.test.js` (threads filename/fileSize) — **not asserted in the integration persistence test** |
+| BMD-452 | Geometry sizes (individual + total, hectares)                              | ✅ integration: `postIntervention.habitatSizes` (areaHabitats / hedgerows / watercourses)                                                |
+
+**Optional backend follow-up (out of this PR):** the one integration-level gap is that
+`post-intervention-persistence.test.js` does not assert `postIntervention.filename` /
+`fileSize` end-to-end (BMD-451). Closing it belongs in `bng-metric-backend` via
+`/verify-integration-coverage` (a separate backend PR), not the journey suite.
