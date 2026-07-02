@@ -12,6 +12,8 @@ const COMPLETE_FILE = 'Post-intervention - complete.gpkg'
 const STRUCTURAL_ERROR_FILE =
   'Post-intervention (missing data) - fails validation.gpkg'
 const FORMAT_ERROR_FILE = 'Not a valid geopackage.gpkg'
+const FORMAT_ERROR_MESSAGE = 'The selected file must be a GeoPackage (.gpkg)'
+const ERROR_SUMMARY_TITLE = 'There is a problem'
 const RLB_NO_GEOMETRY_FILE =
   'Post-intervention - no geometry column in RLB layer.gpkg'
 const RLB_MULTIPLE_GEOMETRY_FILE =
@@ -94,7 +96,7 @@ function describeFormatError() {
     'Upload post-intervention — format error',
     { tag: '@regression' },
     () => {
-      test('uploading a non-GeoPackage file shows flash error on the upload form', async ({
+      test('uploading a non-GeoPackage file shows the error summary with heading and error link', async ({
         createProjectFlow,
         projectDashboardPage,
         uploadPostInterventionFileFlow,
@@ -114,10 +116,43 @@ function describeFormatError() {
           { timeout: UPLOAD_TIMEOUT }
         )
 
-        await expect(uploadPostInterventionFilePage.errorSummary).toBeVisible()
-        await expect(uploadPostInterventionFilePage.errorSummary).toContainText(
-          'The selected file must be a GeoPackage (.gpkg)'
+        const summary = uploadPostInterventionFilePage.errorSummary
+        await expect(summary).toBeVisible()
+        await expect(
+          summary.getByRole('heading', { name: ERROR_SUMMARY_TITLE })
+        ).toBeVisible()
+        await expect(
+          summary.getByRole('link', { name: FORMAT_ERROR_MESSAGE })
+        ).toBeVisible()
+      })
+
+      test('clicking the error-summary link moves focus to the file-selection button', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadPostInterventionFileFlow,
+        uploadPostInterventionFilePage,
+        page
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
         )
+
+        await uploadPostInterventionFileFlow.uploadFile(id, FORMAT_ERROR_FILE)
+
+        await page.waitForURL(
+          new RegExp(`/projects/${id}/upload-post-intervention-file`),
+          { timeout: UPLOAD_TIMEOUT }
+        )
+
+        await uploadPostInterventionFilePage.errorSummary
+          .getByRole('link', { name: FORMAT_ERROR_MESSAGE })
+          .click()
+
+        await expect(
+          uploadPostInterventionFilePage.chooseFileButton
+        ).toBeFocused()
       })
     }
   )

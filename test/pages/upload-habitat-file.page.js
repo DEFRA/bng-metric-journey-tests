@@ -16,6 +16,8 @@ export class UploadHabitatFilePage extends BasePage {
     // setInputFiles must target the real hidden input, not the button.
     this.fileInput = page.locator('input[type="file"]')
     this.noFileChosenText = page.getByText('No file chosen')
+    // GOV.UK enhanced file upload replaces the input with this button (id="file").
+    this.chooseFileButton = page.getByRole('button', { name: 'Choose file' })
     this.continueButton = page.getByRole('button', { name: 'Continue' })
     this.backLink = page.getByRole('link', { name: 'Back' })
     this.cancelLink = page.getByRole('link', { name: 'Cancel' })
