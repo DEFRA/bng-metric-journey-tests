@@ -66,6 +66,11 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expect(
           projectTaskListPage.taskStatus('Not yet started')
         ).toHaveCount(3)
+        // Row-scoped: the post-intervention task specifically is Not yet started.
+        await projectTaskListPage.assertTaskStatus(
+          TASK_POST_INTERVENTION,
+          'Not yet started'
+        )
       }
     )
   })
@@ -130,6 +135,22 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await projectTaskListPage.taskItem(TASK_BASELINE_HABITATS).click()
 
         await expect(page).toHaveURL(/\/upload-baseline-file/)
+      })
+
+      test('clicking "On-site post intervention habitats" task item navigates to the post-intervention upload page', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        projectTaskListPage,
+        page
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage
+        )
+        await projectTaskListPage.open(id)
+        await projectTaskListPage.taskItem(TASK_POST_INTERVENTION).click()
+
+        await expect(page).toHaveURL(/\/upload-post-intervention-file/)
       })
     }
   )
