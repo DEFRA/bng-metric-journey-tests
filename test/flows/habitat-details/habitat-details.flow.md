@@ -6,8 +6,8 @@ A BNG Completer views and edits the dropdown fields for a single baseline featur
 (area habitat, hedgerow, or watercourse). On save the backend recomputes derived
 values (distinctiveness, condition score, habitat units, status) and the user is
 returned to the habitat list anchored to the edited row or tab. Watercourse
-features are now viewable; only watercourse editing (save) is unsupported — the
-backend rejects watercourse PUTs.
+features are fully editable: saves persist the encroachment selections and
+recompute units from the engine's encroachment multipliers (BMD-597).
 
 ## Steps
 
@@ -32,7 +32,7 @@ backend rejects watercourse PUTs.
     - `GET /reference/trading-rules?featureType=watercourse` — watercourse trading rules (cached in-process)
     - `GET /reference/watercourse-encroachments` — watercourse + riparian encroachment option lists (cached in-process)
     - `GET /reference/conditions?habitatType={type}&featureType=watercourse` — watercourse condition options (only when type is set)
-- **Description:** Feature type is resolved by the backend; the page renders via a strategy (area, hedgerow, or watercourse). Read-only rows: Reference, Size (Area (ha) for habitats / Length (km) for hedgerows / watercourses), Distinctiveness (updated by client JS), Strategic Significance (fixed "Low (1)"), Required action to meet trading rules (updated by client JS), Units in this habitat. Editable rows: Broad habitat (select; area habitats only), Habitat type (select), Condition (select). Watercourse features additionally render read-only Riparian and Watercourse encroachment dropdowns. A JSON script tag (`#bhd-reference-data`) embeds static reference data for client-side JS. Back link and Cancel link navigate to `/projects/{projectId}/baseline-habitat-list` with a tab anchor (`#hedgerows` for hedgerows, `#watercourses` for watercourses, `#habitat-{featureId}` for area habitats).
+- **Description:** Feature type is resolved by the backend; the page renders via a strategy (area, hedgerow, or watercourse). Read-only rows: Reference, Size (Area (ha) for habitats / Length (km) for hedgerows / watercourses), Distinctiveness (updated by client JS), Strategic Significance (fixed "Low (1)"), Required action to meet trading rules (updated by client JS), Units in this habitat. Editable rows: Broad habitat (select; area habitats only), Habitat type (select), Condition (select). Watercourse features additionally render editable Watercourse and Riparian encroachment dropdowns, filtered by habitat type (culverts show only "N/A - Culvert"; other types exclude it) (BMD-597). A JSON script tag (`#bhd-reference-data`) embeds static reference data for client-side JS. Back link and Cancel link navigate to `/projects/{projectId}/baseline-habitat-list` with a tab anchor (`#hedgerows` for hedgerows, `#watercourses` for watercourses, `#habitat-{featureId}` for area habitats).
 - **Client-side dropdown behaviour (area habitats; display-only, no DB writes until Save — `src/client/javascripts/baseline-habitat-details.js`):**
   - **Change condition** — no handler; the new value is simply the visible selection. Distinctiveness, trading rules and the Units row are untouched.
   - **Select a valid habitat type** — `#distinctivenessDisplay` and `#tradingRuleDisplay` update for the new type; the Condition select resets to "Choose condition" and is repopulated for the new type via the conditions proxy (Step 3). Units row is untouched.
@@ -43,6 +43,10 @@ backend rejects watercourse PUTs.
   - **Change condition** — no handler; the new value is simply the visible selection. Derived displays and the Units row are untouched.
   - **Select a valid habitat type** — `#distinctivenessDisplay` and `#tradingRuleDisplay` update for the new type; the Condition select resets to "Choose condition" (hedgerow types share the same Good/Moderate/Poor condition set, so the options are unchanged but the selection still resets). Units row is untouched.
   - **Deselect habitat type** ("Choose habitat type") — `#distinctivenessDisplay` and `#tradingRuleDisplay` are cleared; Condition resets to "Choose condition". Units row is untouched.
+- **Client-side dropdown behaviour (watercourses; display-only, no DB writes until Save — BMD-597):** watercourses have no broad-habitat dimension; Habitat type, Condition, Watercourse encroachment and Riparian encroachment are editable.
+  - **Change condition** — no handler; the new value is simply the visible selection. Derived displays and the Units row are untouched.
+  - **Select a valid habitat type** — `#distinctivenessDisplay` and `#tradingRuleDisplay` update for the new type; the Condition select resets to "Choose condition" and repopulates via the conditions proxy; both encroachment selects reset to their "Choose …" placeholders and repopulate culvert-aware (Culvert → only "N/A - Culvert"; any other type → the graded options without it).
+  - **Deselect habitat type** ("Choose habitat type") — derived displays cleared; Condition resets to "Choose condition"; both encroachment selects reset to their placeholders only. Units row is untouched.
 - **Validation (query params):**
   - `featureId` required, must be a valid UUID → 400 if missing or invalid
   - `projectId` required, must be a valid UUID → 400 if missing or invalid
@@ -60,7 +64,7 @@ backend rejects watercourse PUTs.
 - **Route:** `POST /baseline-habitat-details`
 - **Template:** None (redirect only)
 - **Auth required:** Yes (session + BNG Completer role)
-- **Backend endpoint:** `PUT /projects/{projectId}/features/{featureId}` — persists broadType / habitatType / condition (plus watercourseEncroachment / riparianEncroachment from the watercourse form); recomputes distinctiveness, condition score, habitat units, and Complete/Incomplete status; uses row-level locking with a 5 s timeout; returns `{ type, feature }`. Watercourse saves are rejected by the backend (feature type not editable → 400), surfaced to the user as 502.
+- **Backend endpoint:** `PUT /projects/{projectId}/features/{featureId}` — persists broadType / habitatType / condition (plus watercourseEncroachment / riparianEncroachment from the watercourse form); recomputes distinctiveness, condition score, habitat units, and Complete/Incomplete status; uses row-level locking with a 5 s timeout; returns `{ type, feature }`. Watercourse saves persist the encroachment selections and recompute units from the engine's encroachment multipliers (BMD-597).
 - **Description:** Submits the dropdown selections. Empty strings are coerced to null by the backend. The redirect anchor is determined by the feature type returned in the backend response.
 - **Validation (payload):**
   - `projectId` required UUID
