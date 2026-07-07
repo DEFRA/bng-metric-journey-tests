@@ -31,6 +31,10 @@ jobs:
 
   sonarcloud:
     name: SonarCloud Analysis
+    # Dependabot-triggered runs cannot read Actions secrets, so SONAR_TOKEN is
+    # empty and the scan always fails. Dependency bumps carry no analysable
+    # code change; a skipped job still satisfies required checks.
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
