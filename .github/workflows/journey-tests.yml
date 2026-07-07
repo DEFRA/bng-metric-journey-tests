@@ -88,17 +88,17 @@ jobs:
       BROWSER: ${{ inputs.browser || 'chromium' }}
     steps:
       - name: Check out journey-tests
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Check out bng-metric-frontend
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: DEFRA/bng-metric-frontend
           ref: ${{ needs.parse-depends-on.outputs.frontend-branch }}
           path: bng-metric-frontend
 
       - name: Check out bng-metric-backend
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: DEFRA/bng-metric-backend
           ref: ${{ needs.parse-depends-on.outputs.backend-branch }}
