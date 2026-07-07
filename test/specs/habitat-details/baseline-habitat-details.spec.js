@@ -17,7 +17,6 @@ const E2E_UPLOAD_SKIP_REASON =
 const HTTP_OK = 200
 const HTTP_BAD_REQUEST = 400
 const HTTP_NOT_FOUND = 404
-const HTTP_BAD_GATEWAY = 502
 const STUB_UUID = '00000000-0000-0000-0000-000000000000'
 const VALID_UUID_V4 = 'aaaaaaaa-bbbb-4ccc-bddd-eeeeeeeeeeee'
 const STUB_HABITAT_TYPE = 'Grassland - Modified grassland'
@@ -1883,23 +1882,17 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(habitatListPage.watercoursesTable).toBeVisible()
       })
 
-      test('Save on a watercourse returns 502 (editing unsupported)', async ({
+      test('save watercourse selections redirects to habitat list with watercourses anchor', async ({
         baselineHabitatDetailsPage,
         page
       }) => {
         await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
-
-        // The backend rejects watercourse PUTs (feature type not editable -> 400),
-        // which the frontend surfaces as a 502 Bad Gateway.
-        const [response] = await Promise.all([
-          page.waitForResponse(
-            (r) =>
-              r.url().includes('/baseline-habitat-details') &&
-              r.request().method() === 'POST'
-          ),
-          baselineHabitatDetailsPage.saveButton.click()
-        ])
-        expect(response.status()).toBe(HTTP_BAD_GATEWAY)
+        await baselineHabitatDetailsPage.saveButton.click()
+        await expect(page).toHaveURL(
+          new RegExp(
+            `/projects/${projectId}/baseline-habitat-list#watercourses`
+          )
+        )
       })
     }
   )
