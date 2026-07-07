@@ -43,6 +43,10 @@ recompute units from the engine's encroachment multipliers (BMD-597).
   - **Change condition** — no handler; the new value is simply the visible selection. Derived displays and the Units row are untouched.
   - **Select a valid habitat type** — `#distinctivenessDisplay` and `#tradingRuleDisplay` update for the new type; the Condition select resets to "Choose condition" (hedgerow types share the same Good/Moderate/Poor condition set, so the options are unchanged but the selection still resets). Units row is untouched.
   - **Deselect habitat type** ("Choose habitat type") — `#distinctivenessDisplay` and `#tradingRuleDisplay` are cleared; Condition resets to "Choose condition". Units row is untouched.
+- **Client-side dropdown behaviour (watercourses; display-only, no DB writes until Save — BMD-597):** watercourses have no broad-habitat dimension; Habitat type, Condition, Watercourse encroachment and Riparian encroachment are editable.
+  - **Change condition** — no handler; the new value is simply the visible selection. Derived displays and the Units row are untouched.
+  - **Select a valid habitat type** — `#distinctivenessDisplay` and `#tradingRuleDisplay` update for the new type; the Condition select resets to "Choose condition" and repopulates via the conditions proxy; both encroachment selects reset to their "Choose …" placeholders and repopulate culvert-aware (Culvert → only "N/A - Culvert"; any other type → the graded options without it).
+  - **Deselect habitat type** ("Choose habitat type") — derived displays cleared; Condition resets to "Choose condition"; both encroachment selects reset to their placeholders only. Units row is untouched.
 - **Validation (query params):**
   - `featureId` required, must be a valid UUID → 400 if missing or invalid
   - `projectId` required, must be a valid UUID → 400 if missing or invalid

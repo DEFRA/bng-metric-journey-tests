@@ -22,6 +22,30 @@ const VALID_UUID_V4 = 'aaaaaaaa-bbbb-4ccc-bddd-eeeeeeeeeeee'
 const STUB_HABITAT_TYPE = 'Grassland - Modified grassland'
 const STUB_HEDGEROW_HABITAT_TYPE = 'Native hedgerow'
 const STUB_WATERCOURSE_HABITAT_TYPE = 'Ditches'
+// Culvert handling (BMD-597): culverts carry a single "N/A - Culvert" value on
+// both encroachment dropdowns; every other watercourse type excludes it and
+// shows the graded options (engine order).
+const CULVERT_TYPE = 'Culvert'
+const CULVERT_ENCROACHMENT = 'N/A - Culvert'
+const WATERCOURSE_ENCROACHMENT_PLACEHOLDER = 'Choose watercourse encroachment'
+const RIPARIAN_ENCROACHMENT_PLACEHOLDER = 'Choose riparian encroachment'
+const NON_CULVERT_WATERCOURSE_ENCROACHMENTS = [
+  'No Encroachment',
+  'Minor',
+  'Major'
+]
+const NON_CULVERT_RIPARIAN_ENCROACHMENTS = [
+  'Major/Major',
+  'Major/Moderate',
+  'Major/Minor',
+  'Major/No Encroachment',
+  'Moderate/Moderate',
+  'Moderate/Minor',
+  'Moderate/No Encroachment',
+  'Minor/Minor',
+  'Minor/No Encroachment',
+  'No Encroachment/No Encroachment'
+]
 const UPLOAD_TIMEOUT = 120_000
 const COMPLETE_BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
 const PROJECT_LABEL = 'Habitat details test'
@@ -1601,6 +1625,268 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     }
   )
 
+  // ─── Watercourse details — edit and recompute (BMD-597) ──────────────────────
+
+  test.describe(
+    'Baseline habitat details — watercourse edit',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+      test.skip(runMode === 'e2e', E2E_UPLOAD_SKIP_REASON)
+      test.describe.configure({ mode: 'serial' })
+
+      let projectId
+      let watercourseFeatureId
+      let watercourseRef
+
+      function watercourseRow(habitatListPage) {
+        return habitatListPage.watercoursesTable
+          .getByRole('row')
+          .filter({ hasText: watercourseRef })
+      }
+
+      // AC8/AC8c (Scenario A — all options selected): saving with habitat type,
+      // condition and both encroachments set persists them, recalculates the
+      // watercourse units + sets status Complete, and returns to the Habitat
+      // List (Watercourses tab) with the row and the summary total reflecting
+      // the new calculation.
+      test('Scenario A — saving with all options selected recalculates units and sets Complete', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        baselineHabitatDetailsPage,
+        habitatListPage,
+        page
+      }) => {
+        projectId = await uploadAndGetProjectId(
+          createProjectFlow,
+          projectDashboardPage,
+          uploadBaselineFileFlow,
+          page
+        )
+        await habitatListPage.watercoursesTab.click()
+        const watercourse = await getRowRefAndFeatureId(page, 'watercourses')
+        watercourseFeatureId = watercourse.featureId
+        watercourseRef = watercourse.ref
+
+        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
+        // Selecting the type resets condition + encroachments, so set all four
+        // explicitly. The condition options repopulate asynchronously from the
+        // conditions proxy after the type change — a condition selected before
+        // that response lands is wiped by the repopulation (the option set may
+        // be identical when the saved type is reselected, so option-list polls
+        // cannot detect it) — so wait for the proxy response itself.
+        await Promise.all([
+          page.waitForResponse((response) =>
+            response.url().includes('/api/reference/conditions')
+          ),
+          baselineHabitatDetailsPage.habitatTypeSelect.selectOption(
+            STUB_WATERCOURSE_HABITAT_TYPE
+          )
+        ])
+        await expect
+          .poll(
+            async () =>
+              (await baselineHabitatDetailsPage.conditionOptionValues()).length
+          )
+          .toBeGreaterThan(1)
+        const newCondition =
+          await baselineHabitatDetailsPage.selectDifferentCondition()
+        await baselineHabitatDetailsPage.watercourseEncroachmentSelect.selectOption(
+          'Minor'
+        )
+        await baselineHabitatDetailsPage.riparianEncroachmentSelect.selectOption(
+          'Minor/Minor'
+        )
+        await baselineHabitatDetailsPage.saveButton.click()
+        await page.waitForURL(
+          new RegExp(
+            `/projects/${projectId}/baseline-habitat-list#watercourses`
+          )
+        )
+
+        await habitatListPage.watercoursesTab.click()
+        const row = watercourseRow(habitatListPage)
+        await expect(row.getByRole('cell').nth(CONDITION_COLUMN)).toHaveText(
+          newCondition
+        )
+        await expect(row.getByRole('cell').nth(STATUS_COLUMN)).toHaveText(
+          'Complete'
+        )
+        // Units recalculated for the row and reflected in the summary total.
+        await expect(row.getByRole('cell').nth(UNITS_COLUMN)).toHaveText(
+          HABITAT_UNITS_PATTERN
+        )
+        await expect(habitatListPage.watercourseUnitsCell).toHaveText(
+          HABITAT_UNITS_PATTERN
+        )
+      })
+
+      // AC (change condition): changing the condition shows the new value as
+      // the selection with no DB write and no unit recalculation.
+      test('changing the condition shows it without recalculating units', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
+        const unitsBefore = await baselineHabitatDetailsPage.habitatUnitsText()
+        const distinctivenessBefore = (
+          await baselineHabitatDetailsPage.distinctivenessDisplay.textContent()
+        ).trim()
+
+        const newCondition =
+          await baselineHabitatDetailsPage.selectDifferentCondition()
+
+        expect(
+          await baselineHabitatDetailsPage.conditionSelect.inputValue()
+        ).toBe(newCondition)
+        // A condition change touches nothing else.
+        await expect(
+          baselineHabitatDetailsPage.distinctivenessDisplay
+        ).toHaveText(distinctivenessBefore)
+        await expect(baselineHabitatDetailsPage.habitatUnitsValue).toHaveText(
+          unitsBefore
+        )
+      })
+
+      // AC (select a valid habitat type): the derived displays update and the
+      // condition + both encroachment dropdowns reset to their placeholders,
+      // without recalculating units.
+      test('selecting a habitat type updates derived values and resets condition and encroachments', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
+        const unitsBefore = await baselineHabitatDetailsPage.habitatUnitsText()
+
+        await baselineHabitatDetailsPage.habitatTypeSelect.selectOption(
+          'Priority habitat'
+        )
+        await expect
+          .poll(() => baselineHabitatDetailsPage.conditionSelect.inputValue())
+          .toBe('')
+
+        await expect(
+          baselineHabitatDetailsPage.distinctivenessDisplay
+        ).not.toHaveText('')
+        await expect(
+          baselineHabitatDetailsPage.tradingRuleDisplay
+        ).not.toHaveText('')
+        await expect(
+          baselineHabitatDetailsPage.watercourseEncroachmentSelect
+        ).toHaveValue('')
+        await expect(
+          baselineHabitatDetailsPage.riparianEncroachmentSelect
+        ).toHaveValue('')
+        await expect(baselineHabitatDetailsPage.habitatUnitsValue).toHaveText(
+          unitsBefore
+        )
+      })
+
+      // AC (deselect habitat type): the derived displays are hidden and the
+      // condition + both encroachment dropdowns reset, without recalculating
+      // units.
+      test('deselecting the habitat type hides derived values and resets condition and encroachments', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
+        const unitsBefore = await baselineHabitatDetailsPage.habitatUnitsText()
+
+        await baselineHabitatDetailsPage.habitatTypeSelect.selectOption('')
+        await expect
+          .poll(() => baselineHabitatDetailsPage.conditionSelect.inputValue())
+          .toBe('')
+
+        expect(
+          await baselineHabitatDetailsPage.habitatTypeSelect.inputValue()
+        ).toBe('')
+        await expectDerivedValuesHidden(baselineHabitatDetailsPage)
+        await expect(
+          baselineHabitatDetailsPage.watercourseEncroachmentSelect
+        ).toHaveValue('')
+        await expect(
+          baselineHabitatDetailsPage.riparianEncroachmentSelect
+        ).toHaveValue('')
+        await expect(baselineHabitatDetailsPage.habitatUnitsValue).toHaveText(
+          unitsBefore
+        )
+      })
+
+      // AC (cancel): changing dropdowns then clicking Cancel discards the
+      // changes — the user returns to the Watercourses tab with the row's
+      // condition, units and the watercourse summary total unchanged.
+      test('cancelling after changes discards them and leaves the row and total unchanged', async ({
+        baselineHabitatDetailsPage,
+        habitatListPage,
+        page
+      }) => {
+        // Capture the currently-persisted state fresh from the list.
+        await page.goto(`/projects/${projectId}/baseline-habitat-list`)
+        await habitatListPage.watercoursesTab.click()
+        const rowBefore = watercourseRow(habitatListPage)
+        const conditionBefore = (
+          await rowBefore.getByRole('cell').nth(CONDITION_COLUMN).textContent()
+        ).trim()
+        const unitsBefore = (
+          await rowBefore.getByRole('cell').nth(UNITS_COLUMN).textContent()
+        ).trim()
+        const totalBefore = (
+          await habitatListPage.watercourseUnitsCell.textContent()
+        ).trim()
+
+        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
+        await baselineHabitatDetailsPage.selectDifferentCondition()
+        await baselineHabitatDetailsPage.watercourseEncroachmentSelect.selectOption(
+          'Major'
+        )
+        await baselineHabitatDetailsPage.cancelLink.click()
+        await page.waitForURL(
+          new RegExp(
+            `/projects/${projectId}/baseline-habitat-list#watercourses`
+          )
+        )
+
+        await habitatListPage.watercoursesTab.click()
+        const rowAfter = watercourseRow(habitatListPage)
+        await expect(
+          rowAfter.getByRole('cell').nth(CONDITION_COLUMN)
+        ).toHaveText(conditionBefore)
+        await expect(rowAfter.getByRole('cell').nth(UNITS_COLUMN)).toHaveText(
+          unitsBefore
+        )
+        await expect(habitatListPage.watercourseUnitsCell).toHaveText(
+          totalBefore
+        )
+      })
+
+      // AC8 (Scenario B — not all options selected): saving with the condition
+      // deselected zeroes the units and sets status Incomplete. Runs last in
+      // the serial block because it leaves the shared watercourse Incomplete.
+      test('Scenario B — saving with a deselected dropdown zeroes units and sets Incomplete', async ({
+        baselineHabitatDetailsPage,
+        habitatListPage,
+        page
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
+        await baselineHabitatDetailsPage.conditionSelect.selectOption('')
+        await baselineHabitatDetailsPage.saveButton.click()
+        await page.waitForURL(
+          new RegExp(
+            `/projects/${projectId}/baseline-habitat-list#watercourses`
+          )
+        )
+
+        await habitatListPage.watercoursesTab.click()
+        const row = watercourseRow(habitatListPage)
+        await expect(row.getByRole('cell').nth(STATUS_COLUMN)).toHaveText(
+          'Incomplete'
+        )
+        await expect(row.getByRole('cell').nth(UNITS_COLUMN)).toHaveText(
+          ZERO_UNITS
+        )
+      })
+    }
+  )
+
   // ─── Watercourse details — page content (ACs) ────────────────────────────────
 
   test.describe(
@@ -1790,7 +2076,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(baselineHabitatDetailsPage.habitatUnitsKey).toBeVisible()
       })
 
-      test('ACW — Watercourse encroachment dropdown shows the default and options', async ({
+      // BMD-597 AC set 1: a non-culvert type gets the graded encroachment
+      // options without "N/A - Culvert" (the shared watercourse's saved type
+      // is never Culvert, so the server-side filter takes this branch).
+      test('ACW — Watercourse encroachment dropdown shows the default and the non-culvert options', async ({
         baselineHabitatDetailsPage
       }) => {
         await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
@@ -1801,11 +2090,14 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           baselineHabitatDetailsPage.watercourseEncroachmentSelect
         )
 
-        expect(texts[0]).toBe('Choose watercourse encroachment')
-        expect(texts.length).toBeGreaterThan(1)
+        expect(texts).toEqual([
+          WATERCOURSE_ENCROACHMENT_PLACEHOLDER,
+          ...NON_CULVERT_WATERCOURSE_ENCROACHMENTS
+        ])
+        expect(texts).not.toContain(CULVERT_ENCROACHMENT)
       })
 
-      test('ACR — Riparian encroachment dropdown shows the default and options', async ({
+      test('ACR — Riparian encroachment dropdown shows the default and the non-culvert options', async ({
         baselineHabitatDetailsPage
       }) => {
         await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
@@ -1816,8 +2108,43 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           baselineHabitatDetailsPage.riparianEncroachmentSelect
         )
 
-        expect(texts[0]).toBe('Choose riparian encroachment')
-        expect(texts.length).toBeGreaterThan(1)
+        expect(texts).toEqual([
+          RIPARIAN_ENCROACHMENT_PLACEHOLDER,
+          ...NON_CULVERT_RIPARIAN_ENCROACHMENTS
+        ])
+        expect(texts).not.toContain(CULVERT_ENCROACHMENT)
+      })
+
+      // BMD-597 AC set 1 (culverts): selecting the Culvert type repopulates
+      // both encroachment dropdowns client-side with the single culvert value.
+      test('ACW-culvert — selecting the Culvert type narrows Watercourse encroachment to N/A - Culvert', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
+        await baselineHabitatDetailsPage.habitatTypeSelect.selectOption(
+          CULVERT_TYPE
+        )
+        await expect
+          .poll(() =>
+            optionTexts(
+              baselineHabitatDetailsPage.watercourseEncroachmentSelect
+            )
+          )
+          .toEqual([WATERCOURSE_ENCROACHMENT_PLACEHOLDER, CULVERT_ENCROACHMENT])
+      })
+
+      test('ACR-culvert — selecting the Culvert type narrows Riparian encroachment to N/A - Culvert', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
+        await baselineHabitatDetailsPage.habitatTypeSelect.selectOption(
+          CULVERT_TYPE
+        )
+        await expect
+          .poll(() =>
+            optionTexts(baselineHabitatDetailsPage.riparianEncroachmentSelect)
+          )
+          .toEqual([RIPARIAN_ENCROACHMENT_PLACEHOLDER, CULVERT_ENCROACHMENT])
       })
 
       test('Encroachment order — Watercourse encroachment is shown before Riparian encroachment', async ({
