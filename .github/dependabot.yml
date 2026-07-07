@@ -35,6 +35,12 @@ updates:
       # Include direct package.json updates
       - dependency-type: direct
 
+    ignore:
+      # neostandard peers on eslint ^9; drop this once neostandard
+      # supports eslint 10
+      - dependency-name: eslint
+        update-types: ['version-update:semver-major']
+
   # Update GitHub Actions
   - package-ecosystem: github-actions
     directory: /
