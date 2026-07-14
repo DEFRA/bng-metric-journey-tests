@@ -32,12 +32,25 @@ const TREES_COMPLETE_FILE = 'Post-intervention - complete with trees.gpkg'
 // TREES_COMPLETE_FILE holds 3 Medium trees → 3 × 0.0163 = 0.0489 ha total.
 const TREES_COMPLETE_TOTAL_HA = 0.0489
 
+// BMD-531: no shipped post-intervention fixture passes validation while
+// missing unit-calculation values, so this is a copy of the backend
+// integration fixture `baseline-complete.gpkg` held in this repo's
+// test/example-files/. Its Retained parcel H1 calculates units (Complete);
+// its Enhanced parcels H2/H3 lack proposed type/condition and its linear
+// features lack retention categories, so their units cannot be calculated
+// (Incomplete).
+const MIXED_STATUS_FILE =
+  'Post-intervention - mixed complete and incomplete.gpkg'
+
 // Areas-table columns: Ref(0) Habitat type(1) Area(2) Distinctiveness(3)
-// Condition(4) Units(5) Status(6). UNITS_COL (5) is shared by the Hedgerows
-// and Watercourses tables, which use the same column layout.
+// Condition(4) Units(5) Status(6). UNITS_COL (5) and STATUS_COL (6) are
+// shared by the Hedgerows and Watercourses tables, which use the same
+// column layout.
 const AREAS_HABITAT_TYPE_COL = 1
 const AREAS_AREA_COL = 2
 const UNITS_COL = 5
+const STATUS_COL = 6
+const UNITS_VALUE_PATTERN = /^\d+\.\d{2}$/
 
 async function uploadAndNavigateToHabitatList(
   createProjectFlow,
@@ -82,6 +95,29 @@ async function uploadFixtureInNewContext(browser, label, file) {
     return id
   } finally {
     await context.close()
+  }
+}
+
+// BMD-531 status/units pairing: every data row (rows carrying a ref link,
+// which excludes the header and Total rows) shows a status of exactly
+// "Complete" or "Incomplete"; a Complete row always shows a calculated
+// Units value and an Incomplete row always shows an empty Units cell.
+async function expectStatusUnitsPairing(table, page) {
+  const dataRows = table
+    .getByRole('row')
+    .filter({ has: page.getByRole('link') })
+  const rowCount = await dataRows.count()
+  expect(rowCount).toBeGreaterThan(0)
+  for (let i = 0; i < rowCount; i++) {
+    const cells = dataRows.nth(i).getByRole('cell')
+    const status = (await cells.nth(STATUS_COL).innerText()).trim()
+    const units = (await cells.nth(UNITS_COL).innerText()).trim()
+    expect(['Complete', 'Incomplete']).toContain(status)
+    if (status === 'Complete') {
+      expect(units).toMatch(UNITS_VALUE_PATTERN)
+    } else {
+      expect(units).toBe('')
+    }
   }
 }
 
@@ -620,6 +656,129 @@ test.describe(
           ).toHaveText(EXPECTED_UNITS_TOTAL)
         }
       )
+    })
+
+    // ─── Habitat status (BMD-531) ────────────────────────────────────────────
+    // At import the backend assigns each feature a status: "Complete" when all
+    // values required to calculate units are present, "Incomplete" when one or
+    // more are missing — reflected in the Status column of all three tab
+    // tables. A Complete row always shows a calculated Units value; an
+    // Incomplete row never does. Each fixture is uploaded once (beforeAll) and
+    // shared by its read-only tests; the section runs serially to avoid
+    // CDP-uploader contention from parallel uploads.
+
+    test.describe('Post-intervention habitat list — habitat status (BMD-531)', () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+      test.describe.configure({ mode: 'serial' })
+
+      test.describe('file with all required values', () => {
+        let projectId
+        test.beforeAll(async ({ browser }) => {
+          projectId = await uploadFixtureInNewContext(
+            browser,
+            PROJECT_LABEL,
+            COMPLETE_POST_INTERVENTION_FILE
+          )
+        })
+
+        test(
+          'every area habitat shows status Complete with a calculated unit value',
+          { tag: '@smoke' },
+          async ({ postInterventionHabitatListPage, page }) => {
+            await postInterventionHabitatListPage.open(projectId)
+
+            for (const ref of ['H1', 'H2-2', 'H2-3']) {
+              const row = postInterventionHabitatListPage.areaRowByRef(ref)
+              await expect(row.getByRole('cell').nth(STATUS_COL)).toHaveText(
+                'Complete'
+              )
+              await expect(row.getByRole('cell').nth(UNITS_COL)).toHaveText(
+                UNITS_VALUE_PATTERN
+              )
+            }
+            await expectStatusUnitsPairing(
+              postInterventionHabitatListPage.areaHabitatsTable,
+              page
+            )
+          }
+        )
+      })
+
+      test.describe('file with missing unit-calculation values', () => {
+        let projectId
+        test.beforeAll(async ({ browser }) => {
+          projectId = await uploadFixtureInNewContext(
+            browser,
+            PROJECT_LABEL,
+            MIXED_STATUS_FILE
+          )
+        })
+
+        test(
+          'area habitats missing proposed values show Incomplete with no units, alongside a Complete parcel',
+          { tag: '@regression' },
+          async ({ postInterventionHabitatListPage, page }) => {
+            await postInterventionHabitatListPage.open(projectId)
+
+            // H1 (Retained) calculates from baseline values → Complete;
+            // H2/H3 (Enhanced) lack proposed type/condition → Incomplete.
+            await expect(
+              postInterventionHabitatListPage
+                .areaRowByRef('H1')
+                .getByRole('cell')
+                .nth(STATUS_COL)
+            ).toHaveText('Complete')
+            for (const ref of ['H2', 'H3']) {
+              const row = postInterventionHabitatListPage.areaRowByRef(ref)
+              await expect(row.getByRole('cell').nth(STATUS_COL)).toHaveText(
+                'Incomplete'
+              )
+              await expect(row.getByRole('cell').nth(UNITS_COL)).toHaveText('')
+            }
+            await expectStatusUnitsPairing(
+              postInterventionHabitatListPage.areaHabitatsTable,
+              page
+            )
+          }
+        )
+
+        test(
+          'hedgerows and watercourses missing values show Incomplete with no units',
+          { tag: '@regression' },
+          async ({ postInterventionHabitatListPage, page }) => {
+            await postInterventionHabitatListPage.open(projectId)
+
+            // Hedgerows have no retention category → Incomplete.
+            await postInterventionHabitatListPage.hedgerowsTab.click()
+            for (const ref of ['H1', 'H2']) {
+              await expect(
+                postInterventionHabitatListPage
+                  .hedgerowRowByRef(ref)
+                  .getByRole('cell')
+                  .nth(STATUS_COL)
+              ).toHaveText('Incomplete')
+            }
+            await expectStatusUnitsPairing(
+              postInterventionHabitatListPage.hedgerowsTable,
+              page
+            )
+
+            // The watercourse has retention category "Null" → Incomplete.
+            await postInterventionHabitatListPage.watercoursesTab.click()
+            await expect(
+              postInterventionHabitatListPage
+                .watercourseRowByRef('R1')
+                .getByRole('cell')
+                .nth(STATUS_COL)
+            ).toHaveText('Incomplete')
+            await expectStatusUnitsPairing(
+              postInterventionHabitatListPage.watercoursesTable,
+              page
+            )
+          }
+        )
+      })
     })
   }
 )
