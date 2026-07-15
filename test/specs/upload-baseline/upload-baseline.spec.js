@@ -11,6 +11,8 @@ const PROJECT_LABEL = 'Upload baseline flow test'
 // worst case (esp. the real uploader in e2e), so allow the full window.
 const UPLOAD_TIMEOUT = 120_000
 const COMPLETE_BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
+const NATURAL_ENGLAND_MISMATCH_COPY =
+  'The layer names and column names do not match what is required by Natural England'
 
 // ─── E2E happy path ─────────────────────────────────────────────────────────
 
@@ -135,6 +137,9 @@ function describeStructuralErrors() {
     'Upload baseline — structural validation errors',
     { tag: '@regression' },
     () => {
+      // The fixture trips PARCEL_OVERLAPS alongside distinctiveness and
+      // area-sum-mismatch errors, so the multi-error layout renders (the
+      // BMD-405 single-error page needs exactly one error).
       test('uploading a .gpkg file with content errors shows error summary on the error-file page', async ({
         createProjectFlow,
         projectDashboardPage,
@@ -158,6 +163,9 @@ function describeStructuralErrors() {
         await expect(errorFilePage.errorSummary).toBeVisible()
         await expect(errorFilePage.errorSummary).toContainText(
           'There is a problem with your file'
+        )
+        await expect(errorFilePage.errorSummary).toContainText(
+          'One or more area habitat parcels overlap with other parcels'
         )
         await expect(errorFilePage.baselineRejectedHeading).toBeVisible()
         await expect(errorFilePage.uploadDifferentFileLink).toBeVisible()
@@ -226,7 +234,7 @@ function describeDistinctivenessError() {
     'Upload baseline — high distinctiveness habitat',
     { tag: '@smoke' },
     () => {
-      test('uploading a file with High/Very High distinctiveness habitat shows error with habitat reference on error-file page', async ({
+      test('uploading a file with High/Very High distinctiveness habitat shows the distinctiveness single-error page', async ({
         createProjectFlow,
         projectDashboardPage,
         uploadBaselineFileFlow,
@@ -246,11 +254,15 @@ function describeDistinctivenessError() {
 
         await page.waitForURL('/error-file', { timeout: UPLOAD_TIMEOUT })
 
-        await expect(errorFilePage.errorSummary).toBeVisible()
-        await expect(errorFilePage.errorSummary).toContainText(
-          'One or more habitats have a distinctiveness that is out of scope'
+        // BMD-405 AC6a: exactly one HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE error
+        // renders the distinctiveness variant with a metric-tool link.
+        await expect(errorFilePage.distinctivenessHeading).toBeVisible()
+        await expect(errorFilePage.errorSummary).not.toBeVisible()
+        await expect(errorFilePage.metricToolLink).toBeVisible()
+        await expect(errorFilePage.metricToolLink).toHaveAttribute(
+          'href',
+          'https://www.gov.uk/government/publications/statutory-biodiversity-metric-tools-and-guides'
         )
-        await expect(page.getByText(/Feature Ref/).first()).toBeVisible()
         await expect(errorFilePage.uploadDifferentFileLink).toBeVisible()
         await expect(errorFilePage.uploadDifferentFileLink).toHaveAttribute(
           'href',
@@ -262,6 +274,23 @@ function describeDistinctivenessError() {
 }
 
 // ─── Field and combination validation ─────────────────────────────────────────
+
+async function uploadToErrorFile(fixtures, fixture) {
+  const {
+    createProjectFlow,
+    projectDashboardPage,
+    uploadBaselineFileFlow,
+    page
+  } = fixtures
+  const { id } = await setupProject(
+    createProjectFlow,
+    projectDashboardPage,
+    PROJECT_LABEL
+  )
+  await uploadBaselineFileFlow.uploadFile(id, fixture)
+  await page.waitForURL('/error-file', { timeout: UPLOAD_TIMEOUT })
+  return id
+}
 
 function describeFieldValidation() {
   test.describe(
@@ -340,23 +369,33 @@ function describeFieldValidation() {
         )
       })
 
-      test('rejects a file with duplicate habitat references', async ({
+      test('rejects a file with duplicate habitat references with the catch-all single-error page', async ({
         createProjectFlow,
         projectDashboardPage,
         uploadBaselineFileFlow,
         errorFilePage,
         page
       }) => {
-        await expectRejection(
+        const id = await uploadToErrorFile(
           {
             createProjectFlow,
             projectDashboardPage,
             uploadBaselineFileFlow,
-            errorFilePage,
             page
           },
-          'Baseline - duplicate habitat ref.gpkg',
-          'One or more habitats share the same Parcel Ref'
+          'Baseline - duplicate habitat ref.gpkg'
+        )
+
+        // BMD-405: DUPLICATE_HABITAT_REF is a single error with no dedicated
+        // AC copy — falls back to the AC1 Natural England catch-all.
+        await expect(errorFilePage.geopackageErrorHeading).toBeVisible()
+        await expect(errorFilePage.errorSummary).not.toBeVisible()
+        await expect(
+          page.getByText(NATURAL_ENGLAND_MISMATCH_COPY)
+        ).toBeVisible()
+        await expect(errorFilePage.uploadNewFileLink).toHaveAttribute(
+          'href',
+          `/projects/${id}/upload-baseline-file`
         )
       })
     }
@@ -370,6 +409,9 @@ function describeOutsideEngland() {
     'Upload baseline — redline outside England',
     { tag: '@regression' },
     () => {
+      // The fixture trips REDLINE_OUTSIDE_ENGLAND alongside distinctiveness
+      // and area-sum-mismatch errors, so the multi-error layout renders (the
+      // BMD-405 placeholder variant needs exactly one error).
       test('uploading a file whose redline is outside England is rejected on the error-file page', async ({
         createProjectFlow,
         projectDashboardPage,
@@ -400,6 +442,261 @@ function describeOutsideEngland() {
           `/projects/${id}/upload-baseline-file`
         )
       })
+    }
+  )
+}
+
+// ─── Geometric validation gates (multi-error layout) ──────────────────────────
+
+// Each fixture trips its named geometric gate, but every one also carries
+// side errors from the shared base data (out-of-scope distinctiveness,
+// area-sum-mismatch), so the grouped multi-error layout renders. The tests
+// assert the gate's block heading inside the GOV.UK error summary.
+const GEOMETRIC_GATE_CASES = [
+  {
+    title: 'rejects a self-intersecting redline boundary',
+    fixture: 'Baseline - self intersecting redline.gpkg',
+    summaryText: 'Redline boundary geometry is invalid'
+  },
+  {
+    title: 'rejects a self-intersecting (bowtie) parcel',
+    fixture: 'Baseline - bowtie parcel.gpkg',
+    summaryText: 'One or more area habitat polygons have invalid geometry'
+  },
+  {
+    title: 'rejects a file with slivers inside the redline boundary',
+    fixture: 'Baseline - sliver.gpkg',
+    summaryText: 'Baseline file contains slivers inside the redline boundary'
+  },
+  {
+    title: 'rejects a hedgerow outside the redline boundary',
+    fixture: 'Baseline - hedgerow outside.gpkg',
+    summaryText:
+      'One or more hedgerow habitats are not entirely within the redline boundary'
+  },
+  {
+    title: 'rejects a watercourse outside the redline boundary',
+    fixture: 'Baseline - watercourse outside.gpkg',
+    summaryText:
+      'One or more watercourse habitats are not entirely within the redline boundary'
+  },
+  {
+    title: 'rejects a tree outside the redline boundary',
+    fixture: 'Baseline - tree outside.gpkg',
+    summaryText:
+      'One or more trees are not entirely within the redline boundary'
+  }
+]
+
+function describeGeometricGateErrors() {
+  test.describe(
+    'Upload baseline — geometric validation errors',
+    { tag: '@regression' },
+    () => {
+      for (const { title, fixture, summaryText } of GEOMETRIC_GATE_CASES) {
+        test(
+          title,
+          async ({
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            errorFilePage,
+            page
+          }) => {
+            const id = await uploadToErrorFile(
+              {
+                createProjectFlow,
+                projectDashboardPage,
+                uploadBaselineFileFlow,
+                page
+              },
+              fixture
+            )
+
+            await expect(errorFilePage.errorSummary).toBeVisible()
+            await expect(errorFilePage.errorSummary).toContainText(summaryText)
+            await expect(errorFilePage.baselineRejectedHeading).toBeVisible()
+            await expect(errorFilePage.uploadDifferentFileLink).toHaveAttribute(
+              'href',
+              `/projects/${id}/upload-baseline-file`
+            )
+          }
+        )
+      }
+    }
+  )
+}
+
+// ─── Single validation error dropout pages (BMD-405) ──────────────────────────
+
+const GEOPACKAGE_ERROR_H1 = 'Your Geopackage (.gpkg) file contains an error'
+
+// Each fixture below trips exactly one backend validation error (verified by
+// uploading and inspecting the rendered page), so the error-file page renders
+// the BMD-405 single-error layout. `heading` is the expected H1 (string =
+// substring match, regex for ref-personalised headings); `body` is the copy
+// asserted in the paragraph. `placeholder: true` marks AC14 codes whose
+// finalised copy is pending BMD-592.
+const SINGLE_ERROR_CASES = [
+  {
+    title:
+      'missing redline boundary shows the "redline boundary is missing" page',
+    fixture: 'Baseline - no rlb polygons.gpkg',
+    heading: GEOPACKAGE_ERROR_H1,
+    body: 'The redline boundary is missing. Draw the red line boundary and'
+  },
+  {
+    title:
+      'multiple redline boundaries shows the "multiple red line boundaries" page',
+    fixture: 'Baseline - three rlb polygons.gpkg',
+    heading: GEOPACKAGE_ERROR_H1,
+    body: 'This file contains multiple red line boundaries. Draw the red line boundary again and'
+  },
+  {
+    title:
+      'file without habitat parcels shows the "doesn\'t contain any parcels" page',
+    fixture: 'Baseline - no habitats.gpkg',
+    heading: GEOPACKAGE_ERROR_H1,
+    body: "The file doesn't contain any parcels. Draw parcels within your red line boundary and"
+  },
+  {
+    title: 'wrong column names shows the Natural England catch-all page',
+    fixture: 'Baseline - wrong column names in Habitats.gpkg',
+    heading: GEOPACKAGE_ERROR_H1,
+    body: `${NATURAL_ENGLAND_MISMATCH_COPY}. Rename the layers and columns and`
+  }
+]
+
+// BMD-405 copy that cannot be reached today: every current fixture with the
+// named defect also trips side errors (distinctiveness, area-sum-mismatch,
+// slivers), so the multi-error layout renders instead (those gates are covered
+// in describeGeometricGateErrors above). Each entry needs a new single-defect
+// fixture — its parcels must tile the redline exactly and use in-scope
+// distinctiveness. To enable one:
+//   1. add the single-defect fixture to test/example-files/ under the name
+//      given in `fixture`
+//   2. move the entry up into SINGLE_ERROR_CASES
+const SINGLE_ERROR_PENDING_FIXTURE_CASES = [
+  {
+    title:
+      'self-intersecting redline alone shows the "boundary is overlapping itself" page',
+    fixture: 'Baseline - only self intersecting redline.gpkg',
+    heading: GEOPACKAGE_ERROR_H1,
+    body: 'The redline boundary is overlapping itself. Draw the boundary again and'
+  },
+  {
+    title:
+      'self-intersecting parcel alone shows the personalised "parcel contains an error" page',
+    fixture: 'Baseline - only bowtie parcel.gpkg',
+    heading: /This parcel .+ contains an error/,
+    body: 'This parcel is overlapping itself. Draw the parcel again and'
+  },
+  {
+    title:
+      'overlapping parcels alone show the personalised "parcels contain an error" page',
+    fixture: 'Baseline - only overlapping parcels.gpkg',
+    heading: /These parcels .+ contain an error/,
+    body: 'These parcels are overlapping. Draw the parcels again and'
+  },
+  {
+    title: 'sliver parcel alone shows the "parcel is a sliver" page',
+    fixture: 'Baseline - only sliver.gpkg',
+    heading: GEOPACKAGE_ERROR_H1,
+    body: 'This parcel is a sliver (a thin strip of land). Draw the parcel again and'
+  },
+  {
+    title:
+      'parcel outside the redline alone shows the personalised parcel page',
+    fixture: 'Baseline - only parcel outside redline.gpkg',
+    heading: /This parcel .+ contains an error/,
+    body: 'This parcel is outside the red line boundary. Draw the parcel again and'
+  },
+  {
+    title:
+      'hedgerow outside the redline alone shows the personalised hedgerow page',
+    fixture: 'Baseline - only hedgerow outside.gpkg',
+    heading: /This hedgerow .+ contains an error/,
+    body: 'This hedgerow is outside the red line boundary. Draw the hedgerow again and'
+  },
+  {
+    title:
+      'watercourse outside the redline alone shows the personalised watercourse page',
+    fixture: 'Baseline - only watercourse outside.gpkg',
+    heading: /This watercourse .+ contains an error/,
+    body: 'This watercourse is outside the red line boundary. Draw the watercourse again and'
+  },
+  {
+    title: 'IGGI outside the redline alone shows the placeholder page',
+    fixture: 'Baseline - only iggi outside.gpkg',
+    placeholder: true,
+    body: 'One or more IGGIs are not entirely within the redline boundary'
+  },
+  {
+    title: 'tree outside the redline alone shows the placeholder page',
+    fixture: 'Baseline - only tree outside.gpkg',
+    placeholder: true,
+    body: 'One or more trees are not entirely within the redline boundary'
+  },
+  {
+    title: 'area sum mismatch alone shows the placeholder page',
+    fixture: 'Baseline - only area sum mismatch.gpkg',
+    placeholder: true,
+    body: 'does not equal redline boundary area'
+  }
+]
+
+function singleErrorTest({ title, fixture, heading, body, placeholder }, opts) {
+  const testFn = opts?.skip ? test.skip : test
+  testFn(
+    title,
+    async ({
+      createProjectFlow,
+      projectDashboardPage,
+      uploadBaselineFileFlow,
+      errorFilePage,
+      page
+    }) => {
+      const id = await uploadToErrorFile(
+        {
+          createProjectFlow,
+          projectDashboardPage,
+          uploadBaselineFileFlow,
+          page
+        },
+        fixture
+      )
+
+      // The single-error layout renders no GOV.UK error summary.
+      await expect(errorFilePage.errorSummary).not.toBeVisible()
+      await expect(page.getByText(body)).toBeVisible()
+      if (placeholder) {
+        await expect(errorFilePage.placeholderHeading).toBeVisible()
+      } else {
+        await expect(errorFilePage.singleErrorHeading(heading)).toBeVisible()
+        await expect(errorFilePage.uploadNewFileLink).toHaveAttribute(
+          'href',
+          `/projects/${id}/upload-baseline-file`
+        )
+      }
+      await expect(errorFilePage.uploadDifferentFileLink).toHaveAttribute(
+        'href',
+        `/projects/${id}/upload-baseline-file`
+      )
+    }
+  )
+}
+
+function describeSingleErrorDropout() {
+  test.describe(
+    'Upload baseline — single validation error dropout (BMD-405)',
+    { tag: '@regression' },
+    () => {
+      for (const singleErrorCase of SINGLE_ERROR_CASES) {
+        singleErrorTest(singleErrorCase)
+      }
+      for (const pendingCase of SINGLE_ERROR_PENDING_FIXTURE_CASES) {
+        singleErrorTest(pendingCase, { skip: true })
+      }
     }
   )
 }
@@ -616,6 +913,8 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
   describeDistinctivenessError()
   describeFieldValidation()
   describeOutsideEngland()
+  describeGeometricGateErrors()
+  describeSingleErrorDropout()
   describeAreaTooLarge()
   describeIrreplaceableHabitat()
   describeBaselineHabitatDetailsFlow()

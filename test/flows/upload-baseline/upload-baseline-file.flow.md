@@ -69,10 +69,44 @@ its own flow doc.
 - **Template:** `src/server/error-file/index.njk`
 - **Auth required:** Yes (session required)
 - **Backend endpoint:** None
-- **Description:** The page is now shared by the baseline and post-intervention flows. It reads `validationUploadType` from the session to select the upload type (defaulting to baseline), then reads that type's structured-error array and projectId — for baseline these remain `baselineValidationErrors` and `baselineValidationErrorsProjectId`. It clears all upload-type session keys immediately so a refresh does not re-display stale data, and passes `fileLabel` and `uploadHref` to the view. Errors are grouped into blocks by error code; each block renders a heading, an optional note, and a bulleted list of offending features with a "… and N more" tail when the backend truncated the sample. Suppression rule: when `AREA_PARCELS_OUTSIDE_REDLINE` is present, `SLIVERS_OUTSIDE_REDLINE` errors are hidden. When the errors array is empty (e.g. rejected upload) a generic "We couldn't accept your file" message is shown. Offers "Upload a different file" (back to upload form) and "Back to project" links when `projectId` is known, or "Back to start" otherwise.
+- **Description:** The page is shared by the baseline and post-intervention flows. It reads
+  `validationUploadType` from the session to select the upload type (defaulting to baseline),
+  then reads that type's structured-error array and projectId — for baseline these remain
+  `baselineValidationErrors` and `baselineValidationErrorsProjectId`. It clears all upload-type
+  session keys immediately so a refresh does not re-display stale data. The page then renders
+  one of three layouts depending on the error array:
+  1. **Exactly one error (BMD-405):** a dedicated single-error page whose H1 and body copy are
+     resolved per error code (`error-file/single-error-copy.js`, copy verbatim from the BMD-405
+     ACs). Three variants:
+     - `standard` — H1 (personalised with the offending feature ref(s) for
+       `AREA_PARCELS_INVALID_GEOMETRY`, `PARCEL_OVERLAPS`, `AREA_PARCELS_OUTSIDE_REDLINE`,
+       `HEDGEROWS_OUTSIDE_REDLINE`, `WATERCOURSES_OUTSIDE_REDLINE`; otherwise
+       "Your Geopackage (.gpkg) file contains an error") plus an instruction sentence ending in
+       an inline "upload a new file" link back to the upload form. When projectId is unknown the
+       link is dropped and the sentence is closed with a full stop.
+     - `distinctiveness` — `HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE` renders H1 "Very high and high
+       distinctiveness habitats are not yet included in this service" and a link to the statutory
+       biodiversity metric tool on GOV.UK (opens in a new tab).
+     - `placeholder` — `REDLINE_OUTSIDE_ENGLAND`, `REDLINE_AREA_TOO_LARGE`,
+       `IGGIS_OUTSIDE_REDLINE`, `TREES_OUTSIDE_REDLINE`, `AREA_SUM_MISMATCH` render
+       "PLACEHOLDER (AWAITING UCD)" + the raw backend message, pending BMD-592.
+     - Any unmapped code falls back to the AC1 catch-all copy ("The layer names and column names
+       do not match what is required by Natural England…").
+     - The page title is set to the single-error H1. The exactly-one check runs on the **raw**
+       session error array, before the sliver-suppression rule below.
+  2. **Multiple errors:** GOV.UK error summary plus error blocks grouped by error code; each block
+     renders a heading, an optional note (e.g. allowed distinctiveness bands, display-mapped
+     "V.High" → "Very high"), and a bulleted list of offending features with an "… and N more"
+     tail when the backend truncated the sample. Suppression rule: when
+     `AREA_PARCELS_OUTSIDE_REDLINE` is present, `SLIVERS_OUTSIDE_REDLINE` errors are hidden.
+  3. **Empty array (e.g. rejected upload):** generic "We couldn't accept your file" message.
+     All layouts offer "Upload a different file" (back to the upload form) and "Back to project"
+     links when `projectId` is known, or "Back to start" otherwise.
 - **Validation:**
   - Session error array absent or empty → generic fallback message
-  - `projectId` absent → project-specific action links replaced with a "Back to start" root link
+  - Exactly one error → single-error layout (per-code copy); two or more → grouped blocks layout
+  - `projectId` absent → project-specific action links replaced with a "Back to start" root link,
+    and the single-error inline upload link is trimmed to a plain sentence
 - **On success:** Renders the error dropout page
 - **On error:** N/A
 
