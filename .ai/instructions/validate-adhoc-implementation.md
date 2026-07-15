@@ -13,8 +13,15 @@ There are two layers to every validation, and you do both:
 
 ## Inputs
 
+Inputs arrive one of two ways — the command file's source gate decides which (the user picks via `AskUserQuestion`):
+
+- **Jira API** — everything is extracted from the ticket per `.ai/instructions/jira-extraction.md`: key-details from the summary/description/AC custom fields, PR details from the development-info endpoint (or remote links / comment URLs), and supporting documents downloaded from the ticket's attachments into the ticket's `docs/<slug>-evidence/` folder. The extraction summary must be confirmed by the user before validation starts.
+- **Manual** — the user supplies them directly, as below.
+
+Either way, the same three inputs drive the validation:
+
 - **Key-details** (required) — ticket key/title, requirements, ACs. Read them fresh; do not rely on a cached version from earlier in the session.
-- **PR screenshot** (optional) — identifies the repo(s), PR number(s), branch names and merge status. Some tickets have **no PR** — the implementation may still be present in the repo (landed via another PR). Always check.
+- **PR details** (optional) — a PR screenshot (manual path) or extracted PR links (Jira path); identifies the repo(s), PR number(s), branch names and merge status. Some tickets have **no PR** — the implementation may still be present in the repo (landed via another PR). Always check.
 - **Supporting documents** (optional) — most commonly a self-contained HTML widget that is supposed to have been published. Treat it as the source of truth for a content comparison.
 
 ---
@@ -28,13 +35,13 @@ Sibling repos under `VSCodeProjects/` (paths relative to this repo):
 - `../bng-metric-harness` — gen-gpkg tooling, `example-files/*.gpkg` fixtures, `packages/bng-lib`
 - `../bng-metric-digital-prototype` — GOV.UK Prototype Kit app (Trading Rules, Simulator, Enhancement Rules, gen-gpkg)
 
-The PR screenshot names the repo(s) and PR number(s) — start there.
+The PR screenshot (or the Jira-extracted PR links) names the repo(s) and PR number(s) — start there.
 
 ---
 
 ## Step 1 — Locate the implementation
 
-1. From the PR screenshot, note each repo, PR number, branch, and merge status.
+1. From the PR screenshot or the Jira-extracted PR links, note each repo, PR number, branch, and merge status.
 2. In the relevant repo: `git log --oneline`, find the PR's merge/commits, `git show --stat <sha>` and read the changed files **at HEAD**.
 3. If HEAD has drifted past the ticket's change (a later PR re-touched the same files), inspect the file **at the ticket's merge commit** as well, and report the divergence.
 4. **If no PR was provided / none exists:** search the repo for the feature anyway (`git log --oneline -- <path>`, grep for routes/markers). State plainly whether the implementation is present and which commit introduced it. "No dedicated PR" ≠ "not implemented".
