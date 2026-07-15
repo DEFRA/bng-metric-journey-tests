@@ -23,6 +23,33 @@ Only proceed once the user confirms both steps are done and all tests passed.
 
 ---
 
+## Ticket-details source gate (`/validate-ac-manual` only)
+
+After the pre-flight, ask the user (via `AskUserQuestion`) how to source the ticket details:
+
+1. **Jira API** — extract the ticket from Jira and populate `feature-input.md` automatically.
+2. **Manual** — the user fills `feature-input.md` themselves (current behaviour).
+
+`/validate-ac-automated` does **not** run this gate — it reads `feature-input.md` as-is.
+
+**Jira API path:**
+
+- Resolve the ticket key in this order: (1) a key given with the command or earlier in the conversation, (2) a real (non-placeholder) `Ticket Number` already filled into `feature-input.md`, (3) ask the user for it (e.g. `BMD-123`).
+- Follow `.ai/instructions/jira-extraction.md` to fetch and parse the issue.
+- Overwrite `feature-input.md`, keeping the template's headings and layout exactly, with:
+  - **Ticket Number / Title** ← `key` + `fields.summary`
+  - **User flow** ← the best-matching doc under `test/flows/` based on the ticket content; if there is no confident match, keep the placeholder and flag it to the user
+  - **Implementation PRs** ← development-info endpoint / remote links / PR URLs in comments (`repo: PR#n` lines); write `none linked on ticket` if nothing found
+  - **What it does** ← the ticket description, summarised
+  - **Acceptance criteria** ← the AC custom fields, as a numbered list (one AC per number, verbatim wording)
+  - **Notes** ← relevant clarifications/exclusions from comments
+- Show the user a short summary of what was extracted (ticket, flow match, PR list, AC count) and get confirmation before continuing — this catches wrong-field extraction.
+- If credentials are missing or the fetch fails, say so and fall back to the manual path.
+
+**Manual path:** confirm `feature-input.md` has been filled in; if it is still the blank template, stop and wait for the user to fill it.
+
+---
+
 ## Extracting ACs from feature-input.md
 
 Read `feature-input.md` in full. The key fields are:
@@ -140,3 +167,11 @@ After the run, parse the terminal output and produce a summary table. Include a
 | AC2 | ...         | —                     | PASS / FAIL | `ac2-step1-...png`                     |
 
 If a test fails, include the error message from the terminal output alongside the result.
+
+---
+
+## Resetting feature-input.md after the run
+
+`feature-input.md` is a working scratchpad, not a record. Once the run is complete — the pass/fail report is delivered (`/validate-ac-manual`), or the coverage analysis plus any approved test work is finished (`/validate-ac-automated`) — restore it to its blank state by copying `.ai/templates/feature-input.template.md` over `feature-input.md`.
+
+Skip the reset only if the user says they are about to run the other validate-ac command against the same ticket; in that case reset after that second run instead.

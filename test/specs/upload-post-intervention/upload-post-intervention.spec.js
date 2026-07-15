@@ -22,6 +22,8 @@ const RLB_MULTIPLE_GEOMETRY_FILE =
 const RLB_WRONG_GEOMETRY_FILE =
   'Post-intervention - wrong geometry in RLB layer.gpkg'
 const SLIVERS_FILE = 'Post-intervention - complete with slivers.gpkg'
+const NATURAL_ENGLAND_MISMATCH_COPY =
+  'The layer names and column names do not match what is required by Natural England'
 
 // ─── E2E happy path ─────────────────────────────────────────────────────────
 
@@ -187,6 +189,9 @@ function describeStructuralErrors() {
     'Upload post-intervention — structural validation errors',
     { tag: '@regression' },
     () => {
+      // The fixture surfaces exactly one schema error, so the BMD-405
+      // single-error catch-all page renders; its inline upload link must
+      // target the post-intervention route (validationUploadType routing).
       test('uploading a .gpkg file with content errors shows the post-intervention error-file page', async ({
         createProjectFlow,
         projectDashboardPage,
@@ -207,19 +212,16 @@ function describeStructuralErrors() {
 
         await page.waitForURL('/error-file', { timeout: UPLOAD_TIMEOUT })
 
-        await expect(errorFilePage.errorSummary).toBeVisible()
-        await expect(errorFilePage.errorSummary).toContainText(
-          'There is a problem with your file'
-        )
+        await expect(errorFilePage.geopackageErrorHeading).toBeVisible()
+        await expect(errorFilePage.errorSummary).not.toBeVisible()
         await expect(
-          errorFilePage.postInterventionRejectedHeading
+          page.getByText(NATURAL_ENGLAND_MISMATCH_COPY)
         ).toBeVisible()
-        await expect(errorFilePage.uploadDifferentFileLink).toBeVisible()
-        await expect(errorFilePage.uploadDifferentFileLink).toHaveAttribute(
+        await expect(errorFilePage.uploadNewFileLink).toHaveAttribute(
           'href',
           `/projects/${id}/upload-post-intervention-file`
         )
-        await expect(errorFilePage.backToProjectLink).toBeVisible()
+        await expect(errorFilePage.uploadDifferentFileLink).toBeVisible()
         await expect(errorFilePage.backToProjectLink).toHaveAttribute(
           'href',
           `/add-project-details/${id}`
@@ -232,32 +234,39 @@ function describeStructuralErrors() {
 // ─── Content validation errors (structure + data quality) ────────────────────
 
 function describeContentValidationErrors() {
-  // Each fixture exercises a distinct post-intervention validation failure that
-  // surfaces on the shared error-file dropout page. Expected text confirmed by
-  // manual validation. Note: the slivers message is baseline-worded in the
-  // shared backend copy (says "Baseline file …" on a post-intervention upload).
+  // Each fixture exercises a distinct post-intervention validation failure
+  // that surfaces on the shared error-file dropout page. Expected copy is
+  // confirmed by uploading and inspecting the rendered page: fixtures that
+  // surface exactly one backend error render the BMD-405 single-error layout
+  // (`layout: 'single'` — no error summary); fixtures with several errors
+  // keep the grouped multi-error layout (`layout: 'multi'`).
   const cases = [
     {
       name: 'a Red Line Boundary layer with no geometry column',
       file: RLB_NO_GEOMETRY_FILE,
-      expected: 'Missing required feature layer in GeoPackage'
+      layout: 'single',
+      expected: NATURAL_ENGLAND_MISMATCH_COPY
     },
     {
       name: 'a Red Line Boundary layer with multiple geometry columns',
       file: RLB_MULTIPLE_GEOMETRY_FILE,
-      expected:
-        'expected exactly one geometry column in gpkg_geometry_columns but found 2'
+      layout: 'single',
+      expected: NATURAL_ENGLAND_MISMATCH_COPY
     },
     {
       name: 'a Red Line Boundary layer with the wrong geometry type',
       file: RLB_WRONG_GEOMETRY_FILE,
+      layout: 'multi',
       expected: 'Zero red line boundaries in GeoPackage (expecting one)'
     },
     {
+      // BMD-405 AC9: the slivers fixture trips a single sliver error, so the
+      // single-error sliver copy renders (this variant has no reachable
+      // baseline fixture — see the upload-baseline pending-fixture skips).
       name: 'slivers inside the redline boundary',
       file: SLIVERS_FILE,
-      expected:
-        'slivers inside the redline boundary that are not covered by any area habitat polygon'
+      layout: 'single',
+      expected: 'This parcel is a sliver (a thin strip of land)'
     }
   ]
 
@@ -265,7 +274,7 @@ function describeContentValidationErrors() {
     'Upload post-intervention — content validation errors',
     { tag: '@regression' },
     () => {
-      for (const { name, file, expected } of cases) {
+      for (const { name, file, layout, expected } of cases) {
         test(`uploading ${name} is rejected on the error-file page`, async ({
           createProjectFlow,
           projectDashboardPage,
@@ -282,10 +291,19 @@ function describeContentValidationErrors() {
           await uploadPostInterventionFileFlow.uploadFile(id, file)
           await page.waitForURL('/error-file', { timeout: UPLOAD_TIMEOUT })
 
-          await expect(
-            errorFilePage.postInterventionRejectedHeading
-          ).toBeVisible()
-          await expect(errorFilePage.errorSummary).toBeVisible()
+          if (layout === 'single') {
+            await expect(errorFilePage.geopackageErrorHeading).toBeVisible()
+            await expect(errorFilePage.errorSummary).not.toBeVisible()
+            await expect(errorFilePage.uploadNewFileLink).toHaveAttribute(
+              'href',
+              `/projects/${id}/upload-post-intervention-file`
+            )
+          } else {
+            await expect(
+              errorFilePage.postInterventionRejectedHeading
+            ).toBeVisible()
+            await expect(errorFilePage.errorSummary).toBeVisible()
+          }
           await expect(page.getByText(expected).first()).toBeVisible()
         })
       }

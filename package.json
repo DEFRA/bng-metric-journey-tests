@@ -13,6 +13,7 @@
     "test:local": "RUN_MODE=local playwright test",
     "test:github": "CI=true RUN_MODE=github playwright test",
     "test:e2e": "RUN_MODE=e2e playwright test",
+    "screenshots": "RUN_MODE=local playwright test --config=playwright.screenshots.config.js",
     "format": "prettier --write 'test/**/*.js' '**/*.{js,md,json,config.js}'",
     "format:check": "prettier --check 'test/**/*.js' '**/*.{js,md,json,config.js}'",
     "git:pre-commit-hook": "npm run format:check && npm run lint",
