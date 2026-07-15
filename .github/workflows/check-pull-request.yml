@@ -10,6 +10,12 @@ on:
       - reopened
       - synchronize
       - ready_for_review
+  # Re-run the required checks when the merge queue tests a PR against the
+  # latest main. Without this trigger the queue has no status to wait on and
+  # nothing ever merges.
+  merge_group:
+    branches:
+      - main
 
 jobs:
   lint-and-format:
@@ -34,7 +40,9 @@ jobs:
     # Dependabot-triggered runs cannot read Actions secrets, so SONAR_TOKEN is
     # empty and the scan always fails. Dependency bumps carry no analysable
     # code change; a skipped job still satisfies required checks.
-    if: github.actor != 'dependabot[bot]'
+    # Merge queue builds are skipped too: the scan needs pull-request context
+    # that merge_group events do not carry, and the PR was already analysed.
+    if: github.actor != 'dependabot[bot]' && github.event_name != 'merge_group'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
