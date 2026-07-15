@@ -129,7 +129,10 @@ services:
   # development), and S3 storage.  APP_BASE_URL must use localhost so the upload
   # URL embedded in the form action is reachable from the test browser on the host.
   cdp-uploader:
-    image: defradigital/cdp-uploader:latest
+    # Pinned to the same version + digest the backend repo's CI uses
+    # (CDP_UPLOADER_IMAGE in bng-metric-backend/.github/workflows/check-pull-request.yml).
+    # Override with CDP_UPLOADER_VERSION when testing a newer uploader.
+    image: defradigital/cdp-uploader:${CDP_UPLOADER_VERSION:-1.16.0@sha256:eb1627b60690ec24d41a17ed82e80c28d009aaaeb19dc179c6a3887da7e6a5bd}
     networks:
       - bng-journey-tests
     environment:
