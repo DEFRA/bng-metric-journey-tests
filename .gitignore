@@ -16,3 +16,6 @@ docs/
 # Claude Code harness runtime state (shared commands/skills stay tracked)
 .claude/scheduled_tasks.lock
 
+
+# Happy-path screenshot capture output (npm run screenshots)
+test/screenshots/output/
