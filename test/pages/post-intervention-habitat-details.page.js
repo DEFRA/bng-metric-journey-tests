@@ -41,6 +41,8 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     // Area page only — on the hedgerow/watercourse pages the third row is
     // Length, not Area.
     this.areaValue = page.getByRole('definition').nth(2)
+    // Hedgerow/watercourse pages only — same third row, Length instead.
+    this.lengthValue = page.getByRole('definition').nth(2)
 
     // Shown only when a baseline feature shares the parcel ref (the baseline
     // and post-intervention uploads have independent featureIds).
