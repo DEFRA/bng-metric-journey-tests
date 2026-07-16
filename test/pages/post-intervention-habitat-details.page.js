@@ -37,7 +37,9 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     })
 
     // Area is the third summary-list row (after Reference and Intervention),
-    // so its value is the third definition (<dd>) on the view-only page.
+    // so its value is the third definition (<dd>) on the view-only area page.
+    // Area page only — on the hedgerow/watercourse pages the third row is
+    // Length, not Area.
     this.areaValue = page.getByRole('definition').nth(2)
 
     // Shown only when a baseline feature shares the parcel ref (the baseline
