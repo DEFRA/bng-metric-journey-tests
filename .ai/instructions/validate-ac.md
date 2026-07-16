@@ -60,7 +60,13 @@ Read `feature-input.md` in full. The key fields are:
 
 Each AC is treated as an independent unit. Do not combine ACs into a single test.
 
-**File upload ACs:** When an AC requires a file upload, source the fixture from `../bng-metric-harness/example-files/` and copy it into `test/example-files/` in this repo before generating the spec. This ensures the file is available for repeated local and CI runs. Choose the file that matches the scenario (happy path, specific validation error, invalid format). If the right file is ambiguous, ask the user before proceeding.
+**File upload ACs:** When an AC requires a file upload, source the fixture in this order:
+
+1. `test/example-files/` in this repo — a previously used fixture may already cover the scenario.
+2. `../bng-metric-harness/example-files/` — the canonical fixture library; copy the chosen file into `test/example-files/` before generating the spec so it is available for repeated local and CI runs.
+3. **Last resort:** generate one by mutating the nearest existing fixture — only after confirming neither location has a usable file — and save the generated file into `test/example-files/` so later runs can reuse it.
+
+Choose the file that matches the scenario (happy path, specific validation error, invalid format). If the right file is ambiguous, ask the user before proceeding.
 
 ---
 

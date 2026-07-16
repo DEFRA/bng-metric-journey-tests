@@ -39,6 +39,9 @@ const PROJECT_LABEL = 'PI habitat details test'
 //   the PI parcel H1 has a ref-matching baseline feature (link shown) while
 //   H2-2 does not (link hidden).
 // - HEDGEROWS_FILE / WATERCOURSES_FILE: HR1-3 / WC1-3 all Retained.
+// - HEDGEROW_BASELINE_FILE: BASELINE_FILE variant whose hedgerow Parcel Refs
+//   are HR1/HR2, so PI hedgerow HR1 has a ref-matching baseline feature and
+//   the "View baseline details" link renders on its view-only page.
 // - MIXED_FILE: H1 Retained with blank proposed columns (proves the
 //   baseline-side value sourcing), hedgerows with no retention category
 //   (default-Retained), river R1 with retention "Null" (editable
@@ -47,9 +50,11 @@ const PROJECT_LABEL = 'PI habitat details test'
 const COMPLETE_PI_FILE = 'Post-intervention - complete.gpkg'
 const BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
 const HEDGEROWS_FILE = 'Post-intervention - complete with hedgerows.gpkg'
+const HEDGEROW_BASELINE_FILE = 'Baseline - complete with hedgerow refs.gpkg'
 const WATERCOURSES_FILE = 'Post-intervention - complete with watercourses.gpkg'
 const MIXED_FILE = 'Post-intervention - mixed complete and incomplete.gpkg'
 const TREES_FILE = 'Post-intervention - urban trees all sizes.gpkg'
+const RETAINED_HEDGEROW_REF = 'HR1'
 
 // Habitat-list table column order: ref, type, size, distinctiveness,
 // condition, units, status.
@@ -86,14 +91,8 @@ async function featureIdByRef(page, panelId, ref) {
   return new URL(href, baseUrl).searchParams.get('featureId')
 }
 
-async function rowUnitsText(listPage, ref) {
-  return (
-    await listPage
-      .areaRowByRef(ref)
-      .getByRole('cell')
-      .nth(UNITS_COL)
-      .innerText()
-  ).trim()
+async function rowUnitsText(row) {
+  return (await row.getByRole('cell').nth(UNITS_COL).innerText()).trim()
 }
 
 // Create a project in its own context, upload the given fixture(s), and
@@ -158,7 +157,9 @@ function getCompleteProject(browser) {
       return {
         retainedWithBaseline: await featureIdByRef(page, 'area-habitats', 'H1'),
         retainedNoBaseline: await featureIdByRef(page, 'area-habitats', 'H2-2'),
-        retainedNoBaselineUnits: await rowUnitsText(listPage, 'H2-2'),
+        retainedNoBaselineUnits: await rowUnitsText(
+          listPage.areaRowByRef('H2-2')
+        ),
         enhanced: await featureIdByRef(page, 'area-habitats', 'H2-3'),
         lost: await featureIdByRef(page, 'area-habitats', 'H2-1')
       }
@@ -181,7 +182,9 @@ function getMixedProject(browser) {
         'area-habitats',
         'H1'
       )
-      const retainedBlankProposedUnits = await rowUnitsText(listPage, 'H1')
+      const retainedBlankProposedUnits = await rowUnitsText(
+        listPage.areaRowByRef('H1')
+      )
       await listPage.hedgerowsTab.click()
       const hedgerowNoRetention = await featureIdByRef(page, 'hedgerows', 'H1')
       await listPage.watercoursesTab.click()
@@ -200,16 +203,26 @@ function getMixedProject(browser) {
   )
 }
 
+// Baseline + PI hedgerow uploads in one project: retained hedgerows for the
+// view-only page, with HR1 ref-matched to a baseline hedgerow so the
+// "View baseline details" link renders (BMD-723 AC1/AC3).
 function getHedgerowsProject(browser) {
   return getSharedProject(
     browser,
     'hedgerows',
-    { piFile: HEDGEROWS_FILE },
+    { baselineFile: HEDGEROW_BASELINE_FILE, piFile: HEDGEROWS_FILE },
     async (page) => {
       const listPage = new PostInterventionHabitatListPage(page)
       await listPage.hedgerowsTab.click()
       return {
-        retainedHedgerow: await featureIdByRef(page, 'hedgerows', 'HR1')
+        retainedHedgerow: await featureIdByRef(
+          page,
+          'hedgerows',
+          RETAINED_HEDGEROW_REF
+        ),
+        retainedHedgerowUnits: await rowUnitsText(
+          listPage.hedgerowRowByRef(RETAINED_HEDGEROW_REF)
+        )
       }
     }
   )
@@ -710,6 +723,11 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         ).toBeVisible()
         await expect(page.getByText('Retained', { exact: true })).toBeVisible()
         await expect(postInterventionHabitatDetailsPage.saveButton).toBeHidden()
+        // No baseline upload in this project, so no ref-matched feature and
+        // no "View baseline details" link.
+        await expect(
+          postInterventionHabitatDetailsPage.viewBaselineLink
+        ).toBeHidden()
       })
     })
 
@@ -784,7 +802,12 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     test(
       'retained hedgerow renders the read-only page without a Broad habitat row',
       { tag: '@smoke' },
-      async ({ browser, postInterventionHabitatDetailsPage, page }) => {
+      async ({
+        browser,
+        postInterventionHabitatDetailsPage,
+        postInterventionHabitatListPage,
+        page
+      }) => {
         const shared = await getHedgerowsProject(browser)
         await postInterventionHabitatDetailsPage.open(
           shared.id,
@@ -807,6 +830,92 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
         await detailsPage.backLink.click()
         await expect(page).toHaveURL(listAnchorPattern(shared.id, 'hedgerows'))
+        // "Preselected" is GOV.UK tabs client-side behaviour driven by the
+        // anchor — assert the Hedgerows tab really is selected, not just the
+        // URL.
+        await expect(
+          postInterventionHabitatListPage.hedgerowsTab
+        ).toHaveAttribute('aria-selected', 'true')
+        await expect(
+          postInterventionHabitatListPage.hedgerowsTable
+        ).toBeVisible()
+      }
+    )
+
+    test(
+      'retained hedgerow shows its saved values with multiplier formatting',
+      { tag: '@regression' },
+      async ({
+        browser,
+        postInterventionHabitatDetailsPage,
+        postInterventionHabitatListPage,
+        page
+      }) => {
+        const shared = await getHedgerowsProject(browser)
+        // Arrive the way the user does (BMD-723 AC1): select the Hedgerows
+        // tab and click the hedgerow's ref link rather than deep-linking.
+        await postInterventionHabitatListPage.open(shared.id)
+        await postInterventionHabitatListPage.hedgerowsTab.click()
+        await postInterventionHabitatListPage.hedgerowsTable
+          .getByRole('link', { name: RETAINED_HEDGEROW_REF, exact: true })
+          .click()
+        await expect(page).toHaveURL(/\/post-intervention-habitat-details/)
+
+        await expect(postInterventionHabitatDetailsPage.caption).toHaveText(
+          shared.name
+        )
+        await expect(
+          page.getByText(RETAINED_HEDGEROW_REF, { exact: true })
+        ).toBeVisible()
+        // HR1: Native hedgerow / Moderate / 90 m (fixture values); "Low (2)"
+        // and "Moderate (2)" are the engine's reference distinctiveness and
+        // condition for that habitat type. Length renders in km with
+        // trailing zeros trimmed.
+        await expect(page.getByText('Retained', { exact: true })).toBeVisible()
+        await expect(postInterventionHabitatDetailsPage.lengthValue).toHaveText(
+          /^\s*0\.09\s*$/
+        )
+        await expect(page.getByText('Low (2)', { exact: true })).toBeVisible()
+        await expect(
+          page.getByText('Moderate (2)', { exact: true })
+        ).toBeVisible()
+        await expect(
+          postInterventionHabitatDetailsPage.strategicSignificanceValue
+        ).toBeVisible()
+        // "Units in this habitat" matches the Units cell of the same
+        // hedgerow's habitat-list row.
+        await expect(
+          postInterventionHabitatDetailsPage.habitatUnitsValue
+        ).toHaveText(shared.retainedHedgerowUnits)
+      }
+    )
+
+    test(
+      '"View baseline details" links to the ref-matched baseline hedgerow',
+      { tag: '@regression' },
+      async ({ browser, postInterventionHabitatDetailsPage, page }) => {
+        const shared = await getHedgerowsProject(browser)
+        await postInterventionHabitatDetailsPage.open(
+          shared.id,
+          shared.retainedHedgerow
+        )
+
+        await expect(
+          postInterventionHabitatDetailsPage.viewBaselineLink
+        ).toBeVisible()
+        await postInterventionHabitatDetailsPage.viewBaselineLink.click()
+        await expect(page).toHaveURL(/\/baseline-habitat-details/)
+
+        // The baseline and PI uploads assign independent featureIds, so the
+        // link must resolve the baseline feature by parcel ref — a different
+        // featureId from the PI feature the user came from.
+        const baselineFeatureId = new URL(page.url()).searchParams.get(
+          'featureId'
+        )
+        expect(baselineFeatureId).not.toBe(shared.retainedHedgerow)
+        await expect(postInterventionHabitatDetailsPage.heading).toHaveText(
+          `Hedgerow ${RETAINED_HEDGEROW_REF}`
+        )
       }
     )
   })
