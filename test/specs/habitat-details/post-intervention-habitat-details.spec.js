@@ -26,9 +26,9 @@ const HTTP_NOT_FOUND = 404
 const STUB_UUID = '00000000-0000-0000-0000-000000000000'
 const VALID_UUID_V4 = 'aaaaaaaa-bbbb-4ccc-bddd-eeeeeeeeeeee'
 const UPLOAD_TIMEOUT = 120_000
-// Test-timeout cap for this file: first caller per worker builds a shared
-// project (create + up to two uploads), which overruns the default 60s
-// timeout when several workers build concurrently.
+// Test-timeout cap for this file: the first test to need a shared project
+// pays its build (create + up to two uploads), which overruns the default
+// 60s timeout.
 const SHARED_BUILD_TEST_TIMEOUT = 180_000
 const PROJECT_LABEL = 'PI habitat details test'
 
@@ -57,6 +57,23 @@ const CONDITION_COL = 4
 const UNITS_COL = 5
 const STATUS_COL = 6
 const HABITAT_UNITS_PATTERN = /^\d+\.\d{2}$/
+
+function detailsUrl({ projectId, featureId } = {}) {
+  const params = new URLSearchParams()
+  if (projectId !== undefined) {
+    params.set('projectId', projectId)
+  }
+  if (featureId !== undefined) {
+    params.set('featureId', featureId)
+  }
+  return `/post-intervention-habitat-details?${params.toString()}`
+}
+
+function listAnchorPattern(projectId, anchor) {
+  return new RegExp(
+    `/projects/${projectId}/post-intervention-habitat-list#${anchor}`
+  )
+}
 
 // Ref link → featureId, harvested from a habitat-list tab panel. The panel's
 // tab must be active first — GOV.UK Tabs hides inactive panels, and hidden
@@ -250,29 +267,25 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
       test('missing featureId query param returns 400', async ({ page }) => {
-        const response = await page.goto(
-          `/post-intervention-habitat-details?projectId=${STUB_UUID}`
-        )
+        const response = await page.goto(detailsUrl({ projectId: STUB_UUID }))
         expect(response.status()).toBe(HTTP_BAD_REQUEST)
       })
 
       test('missing projectId query param returns 400', async ({ page }) => {
-        const response = await page.goto(
-          `/post-intervention-habitat-details?featureId=${STUB_UUID}`
-        )
+        const response = await page.goto(detailsUrl({ featureId: STUB_UUID }))
         expect(response.status()).toBe(HTTP_BAD_REQUEST)
       })
 
       test('non-UUID featureId query param returns 400', async ({ page }) => {
         const response = await page.goto(
-          `/post-intervention-habitat-details?projectId=${STUB_UUID}&featureId=not-a-uuid`
+          detailsUrl({ projectId: STUB_UUID, featureId: 'not-a-uuid' })
         )
         expect(response.status()).toBe(HTTP_BAD_REQUEST)
       })
 
       test('non-UUID projectId query param returns 400', async ({ page }) => {
         const response = await page.goto(
-          `/post-intervention-habitat-details?projectId=not-a-uuid&featureId=${STUB_UUID}`
+          detailsUrl({ projectId: 'not-a-uuid', featureId: STUB_UUID })
         )
         expect(response.status()).toBe(HTTP_BAD_REQUEST)
       })
@@ -292,7 +305,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         page
       }) => {
         const response = await page.goto(
-          `/post-intervention-habitat-details?projectId=${VALID_UUID_V4}&featureId=${VALID_UUID_V4}`
+          detailsUrl({ projectId: VALID_UUID_V4, featureId: VALID_UUID_V4 })
         )
         expect(response.status()).toBe(HTTP_NOT_FOUND)
       })
@@ -310,7 +323,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       { tag: '@smoke' },
       async ({ page }) => {
         await page.goto(
-          `/post-intervention-habitat-details?projectId=${STUB_UUID}&featureId=${STUB_UUID}`
+          detailsUrl({ projectId: STUB_UUID, featureId: STUB_UUID })
         )
         await expect(page).toHaveURL(/\/auth\/forbidden/)
       }
@@ -325,7 +338,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       { tag: '@smoke' },
       async ({ page }) => {
         await page.goto(
-          `/post-intervention-habitat-details?projectId=${STUB_UUID}&featureId=${STUB_UUID}`
+          detailsUrl({ projectId: STUB_UUID, featureId: STUB_UUID })
         )
         await expect(page).not.toHaveURL(/\/post-intervention-habitat-details/)
         await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
@@ -428,9 +441,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await postInterventionHabitatDetailsPage.backLink.click()
 
           await expect(page).toHaveURL(
-            new RegExp(
-              `/projects/${shared.id}/post-intervention-habitat-list#area-habitats`
-            )
+            listAnchorPattern(shared.id, 'area-habitats')
           )
         }
       )
@@ -520,9 +531,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         // anchored to the habitat row.
         await detailsPage.cancelLink.click()
         await expect(page).toHaveURL(
-          new RegExp(
-            `/projects/${shared.id}/post-intervention-habitat-list#habitat-${shared.enhanced}`
-          )
+          listAnchorPattern(shared.id, `habitat-${shared.enhanced}`)
         )
       })
 
@@ -584,7 +593,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         try {
           const otherPage = await otherContext.newPage()
           const response = await otherPage.goto(
-            `/post-intervention-habitat-details?projectId=${shared.id}&featureId=${shared.retainedNoBaseline}`
+            detailsUrl({
+              projectId: shared.id,
+              featureId: shared.retainedNoBaseline
+            })
           )
           expect(response.status()).toBe(HTTP_NOT_FOUND)
           // None of the creator's feature data is rendered.
@@ -692,7 +704,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         }) => {
           const shared = await getMixedProject(browser)
           const response = await page.goto(
-            `/post-intervention-habitat-details?projectId=${shared.id}&featureId=${shared.editableWatercourse}`
+            detailsUrl({
+              projectId: shared.id,
+              featureId: shared.editableWatercourse
+            })
           )
 
           expect(response.status()).toBe(HTTP_OK)
@@ -766,11 +781,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(detailsPage.habitatTypeSelect).toBeHidden()
 
         await detailsPage.backLink.click()
-        await expect(page).toHaveURL(
-          new RegExp(
-            `/projects/${shared.id}/post-intervention-habitat-list#hedgerows`
-          )
-        )
+        await expect(page).toHaveURL(listAnchorPattern(shared.id, 'hedgerows'))
       }
     )
   })
@@ -819,9 +830,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
         await detailsPage.backLink.click()
         await expect(page).toHaveURL(
-          new RegExp(
-            `/projects/${shared.id}/post-intervention-habitat-list#watercourses`
-          )
+          listAnchorPattern(shared.id, 'watercourses')
         )
       }
     )
@@ -854,9 +863,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
         await postInterventionHabitatDetailsPage.backLink.click()
         await expect(page).toHaveURL(
-          new RegExp(
-            `/projects/${shared.id}/post-intervention-habitat-list#area-habitats`
-          )
+          listAnchorPattern(shared.id, 'area-habitats')
         )
       })
     }
@@ -900,9 +907,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await postInterventionHabitatDetailsPage.saveButton.click()
 
         await expect(page).toHaveURL(
-          new RegExp(
-            `/projects/${id}/post-intervention-habitat-list#habitat-${enhanced}`
-          )
+          listAnchorPattern(id, `habitat-${enhanced}`)
         )
         const row = postInterventionHabitatListPage.areaRowByRef('H2-3')
         await expect(row.getByRole('cell').nth(CONDITION_COL)).toHaveText(
