@@ -172,6 +172,9 @@ If a test fails, include the error message from the terminal output alongside th
 
 ## Resetting feature-input.md after the run
 
-`feature-input.md` is a working scratchpad, not a record. Once the run is complete — the pass/fail report is delivered (`/validate-ac-manual`), or the coverage analysis plus any approved test work is finished (`/validate-ac-automated`) — restore it to its blank state by copying `.ai/templates/feature-input.template.md` over `feature-input.md`.
+`feature-input.md` is a working scratchpad, not a record, but it stays populated for the whole life of a ticket: the standard workflow is `/validate-ac-manual` first, then `/validate-ac-automated` against the same extracted ACs.
 
-Skip the reset only if the user says they are about to run the other validate-ac command against the same ticket; in that case reset after that second run instead.
+- **`/validate-ac-manual`** — do **not** reset. Leave the file populated so the automated run can reuse the extraction.
+- **`/validate-ac-automated`** — this closes out the ticket. Once the coverage analysis is delivered and any approved test work is finished, restore the blank state by copying `.ai/templates/feature-input.template.md` over `feature-input.md`.
+
+If the user says they are done with the ticket after the manual run alone (no automated run planned), reset then instead.
