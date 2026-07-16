@@ -36,6 +36,10 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
       exact: true
     })
 
+    // Area is the third summary-list row (after Reference and Intervention),
+    // so its value is the third definition (<dd>) on the view-only page.
+    this.areaValue = page.getByRole('definition').nth(2)
+
     // Shown only when a baseline feature shares the parcel ref (the baseline
     // and post-intervention uploads have independent featureIds).
     this.viewBaselineLink = page.getByRole('link', {

@@ -394,17 +394,29 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       test(
         'retained area habitat shows its saved values with multiplier formatting',
         { tag: '@regression' },
-        async ({ browser, postInterventionHabitatDetailsPage, page }) => {
+        async ({
+          browser,
+          postInterventionHabitatDetailsPage,
+          postInterventionHabitatListPage,
+          page
+        }) => {
           const shared = await getCompleteProject(browser)
-          await postInterventionHabitatDetailsPage.open(
-            shared.id,
-            shared.retainedNoBaseline
-          )
+          // Arrive the way the user does (BMD-608 AC1): click the parcel's
+          // ref link on the habitat-list Areas tab rather than deep-linking.
+          await postInterventionHabitatListPage.open(shared.id)
+          await postInterventionHabitatListPage.areaHabitatsTable
+            .getByRole('link', { name: 'H2-2', exact: true })
+            .click()
+          await expect(page).toHaveURL(/\/post-intervention-habitat-details/)
 
           // H2-2: Grassland / Modified grassland / Moderate (fixture values);
           // "Low (2)" and "Moderate (2)" are the engine's reference
           // distinctiveness and condition for that habitat type.
           await expect(page.getByText('H2-2', { exact: true })).toBeVisible()
+          // Area renders as "<value>ha" (10 significant figures).
+          await expect(postInterventionHabitatDetailsPage.areaValue).toHaveText(
+            /^\s*\d+(\.\d+)?ha\s*$/
+          )
           await expect(
             page.getByText('Retained', { exact: true })
           ).toBeVisible()
@@ -432,7 +444,12 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       test(
         'back link returns to the post-intervention habitat list Areas tab',
         { tag: '@regression' },
-        async ({ browser, postInterventionHabitatDetailsPage, page }) => {
+        async ({
+          browser,
+          postInterventionHabitatDetailsPage,
+          postInterventionHabitatListPage,
+          page
+        }) => {
           const shared = await getCompleteProject(browser)
           await postInterventionHabitatDetailsPage.open(
             shared.id,
@@ -443,6 +460,14 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await expect(page).toHaveURL(
             listAnchorPattern(shared.id, 'area-habitats')
           )
+          // "Preselected" is GOV.UK tabs client-side behaviour driven by the
+          // anchor — assert the Areas tab really is selected, not just the URL.
+          await expect(
+            postInterventionHabitatListPage.areasTab
+          ).toHaveAttribute('aria-selected', 'true')
+          await expect(
+            postInterventionHabitatListPage.areaHabitatsTable
+          ).toBeVisible()
         }
       )
 
