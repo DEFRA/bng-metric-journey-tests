@@ -121,3 +121,4 @@ export class CreateProjectFlow {
 | habitat-list / baseline-habitat-details                  | `habitat-list/baseline-habitat-details.flow.md`                  | —                                              | `[IMPLEMENTED]` |
 | habitat-list / post-intervention-habitat-list            | `habitat-list/post-intervention-habitat-list.flow.md`            | —                                              | `[IMPLEMENTED]` |
 | habitat-details / habitat-details                        | `habitat-details/habitat-details.flow.md`                        | —                                              | `[IMPLEMENTED]` |
+| habitat-details / view-post-intervention                 | `habitat-details/view-post-intervention.flow.md`                 | —                                              | `[IMPLEMENTED]` |
