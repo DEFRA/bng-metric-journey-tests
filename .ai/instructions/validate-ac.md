@@ -60,7 +60,13 @@ Read `feature-input.md` in full. The key fields are:
 
 Each AC is treated as an independent unit. Do not combine ACs into a single test.
 
-**File upload ACs:** When an AC requires a file upload, source the fixture from `../bng-metric-harness/example-files/` and copy it into `test/example-files/` in this repo before generating the spec. This ensures the file is available for repeated local and CI runs. Choose the file that matches the scenario (happy path, specific validation error, invalid format). If the right file is ambiguous, ask the user before proceeding.
+**File upload ACs:** When an AC requires a file upload, source the fixture in this order:
+
+1. `test/example-files/` in this repo — a previously used fixture may already cover the scenario.
+2. `../bng-metric-harness/example-files/` — the canonical fixture library; copy the chosen file into `test/example-files/` before generating the spec so it is available for repeated local and CI runs.
+3. **Last resort:** generate one by mutating the nearest existing fixture — only after confirming neither location has a usable file — and save the generated file into `test/example-files/` so later runs can reuse it.
+
+Choose the file that matches the scenario (happy path, specific validation error, invalid format). If the right file is ambiguous, ask the user before proceeding.
 
 ---
 
@@ -172,6 +178,9 @@ If a test fails, include the error message from the terminal output alongside th
 
 ## Resetting feature-input.md after the run
 
-`feature-input.md` is a working scratchpad, not a record. Once the run is complete — the pass/fail report is delivered (`/validate-ac-manual`), or the coverage analysis plus any approved test work is finished (`/validate-ac-automated`) — restore it to its blank state by copying `.ai/templates/feature-input.template.md` over `feature-input.md`.
+`feature-input.md` is a working scratchpad, not a record, but it stays populated for the whole life of a ticket: the standard workflow is `/validate-ac-manual` first, then `/validate-ac-automated` against the same extracted ACs.
 
-Skip the reset only if the user says they are about to run the other validate-ac command against the same ticket; in that case reset after that second run instead.
+- **`/validate-ac-manual`** — do **not** reset. Leave the file populated so the automated run can reuse the extraction.
+- **`/validate-ac-automated`** — this closes out the ticket. Once the coverage analysis is delivered and any approved test work is finished, restore the blank state by copying `.ai/templates/feature-input.template.md` over `feature-input.md`.
+
+If the user says they are done with the ticket after the manual run alone (no automated run planned), reset then instead.

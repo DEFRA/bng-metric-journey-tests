@@ -16,7 +16,7 @@ Steps to follow in order:
 6. Generate `test/evidence/tmp-validation.spec.js` — one `test()` block per AC with explicit `page.screenshot()` calls at key steps, saving screenshots to `test/evidence/YYYY-MM-DD/`.
 7. Run the spec: `EVIDENCE=true RUN_MODE=local npx playwright test test/evidence/tmp-validation.spec.js --reporter=list` (the `EVIDENCE=true` flag opts the evidence spec past the suite's `testIgnore`).
 8. Parse the terminal output and produce the pass/fail summary table as described in the instruction file.
-9. Restore `feature-input.md` to its blank template state by copying `.ai/templates/feature-input.template.md` over it (see "Resetting feature-input.md after the run" in the instruction file).
+9. Leave `feature-input.md` populated — the extracted ACs are reused by `/validate-ac-automated` next; that command performs the reset when the ticket is done (see "Resetting feature-input.md after the run" in the instruction file).
 
 The local frontend service must be running at `http://localhost:3000` before step 7.
 

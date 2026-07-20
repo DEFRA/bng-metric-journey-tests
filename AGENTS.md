@@ -14,7 +14,7 @@ The suite runs on DEFRA's CDP Portal. Tests are packaged in a Docker image and r
 
 - `../bng-metric-frontend` — Hapi.js frontend on port 3000, GOV.UK Frontend + Nunjucks
 - `../bng-metric-backend` — Hapi.js API on port 3001, PostgreSQL + Drizzle ORM; integration tests live in `integration-tests/`
-- `../bng-metric-harness` — test fixtures; `example-files/` contains 26 GeoPackage (`.gpkg`) files for file upload journeys (valid baseline, valid post-intervention, validation-error variants, and an invalid-format file). Before writing a test that requires a file upload, copy the relevant file into `test/example-files/` in this repo so it is available for repeated local and CI runs. Ask the user which file to use if the scenario is ambiguous.
+- `../bng-metric-harness` — test fixtures; `example-files/` contains 26 GeoPackage (`.gpkg`) files for file upload journeys (valid baseline, valid post-intervention, validation-error variants, and an invalid-format file). Before writing a test that requires a file upload, source the fixture in this order: (1) `test/example-files/` in this repo, (2) the harness `example-files/` (copy the file into `test/example-files/` so it is available for repeated local and CI runs), (3) only if neither has a usable file, generate one by mutating the nearest existing fixture and save it into `test/example-files/`. Ask the user which file to use if the scenario is ambiguous.
 
 ---
 
