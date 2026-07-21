@@ -627,30 +627,27 @@ const SINGLE_ERROR_CASES = [
     fixture: 'Baseline - only area sum mismatch.gpkg',
     placeholder: true,
     body: 'does not equal redline boundary area'
-  }
-]
-
-// BMD-405 copy that cannot be reached today.
-//
-// Parcel-outside: the backend reports every outside-parcel condition as
-// AREA_PARCELS_OUTSIDE_REDLINE *plus* a SLIVERS_OUTSIDE_REDLINE error, and
-// the error-file page selects the single-error layout on the raw error array
-// BEFORE the sliver-suppression display rule (see the flow doc, Step 4), so
-// "exactly one error" can never occur — verified with a geometrically clean
-// fixture (fat 30 sq m protrusion, area-sum exactly compensated). The
-// personalised AC10 copy stays dead code until the backend dedupes the pair.
-//
-// IGGI/tree: the valid base fixture has no IGGI or Urban Trees layers to
-// mutate, and every generator fixture trips side errors. Needs a valid
-// 5-layer base fixture first.
-const SINGLE_ERROR_PENDING_FIXTURE_CASES = [
+  },
   {
+    // AREA_PARCELS_OUTSIDE_REDLINE always co-fires with its correlated
+    // SLIVERS_OUTSIDE_REDLINE (same escaping geometry, reported from the
+    // per-parcel and union-of-parcels angle). Frontend PR#160 fixed the
+    // single-error check to compare against the de-duplicated visibleErrors
+    // list instead of the raw error array, so this now renders the
+    // personalised page (previously blocked — see git history for the
+    // original SINGLE_ERROR_PENDING_FIXTURE_CASES entry and rationale).
     title:
       'parcel outside the redline alone shows the personalised parcel page',
     fixture: 'Baseline - only parcel outside redline.gpkg',
     heading: /This parcel .+ contains an error/,
     body: 'This parcel is outside the red line boundary. Draw the parcel again and'
-  },
+  }
+]
+
+// BMD-405 copy that cannot be reached today: the valid base fixture has no
+// IGGI or Urban Trees layers to mutate, and every generator fixture trips
+// side errors. Needs a valid 5-layer base fixture first.
+const SINGLE_ERROR_PENDING_FIXTURE_CASES = [
   {
     title: 'IGGI outside the redline alone shows the placeholder page',
     fixture: 'Baseline - only iggi outside.gpkg',
