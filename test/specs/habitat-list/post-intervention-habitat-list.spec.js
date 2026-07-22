@@ -31,25 +31,27 @@ const TREES_RURAL_URBAN_FILE = 'Post-intervention - rural and urban trees.gpkg'
 const TREES_COMPLETE_FILE = 'Post-intervention - complete with trees.gpkg'
 // TREES_COMPLETE_FILE holds 3 Medium trees → 3 × 0.0163 = 0.0489 ha total.
 const TREES_COMPLETE_TOTAL_HA = 0.0489
+// TREES_COMPLETE_FILE with tree T007's Retention Category set to Lost, so the
+// backend drops it at import: T005/T006 remain, T007 is excluded (BMD-531/534).
+const TREE_LOST_FILE = 'Post-intervention - trees with a lost tree.gpkg'
 
-// BMD-531: no shipped post-intervention fixture passes validation while
-// missing unit-calculation values, so this is a copy of the backend
-// integration fixture `baseline-complete.gpkg` held in this repo's
-// test/example-files/. Its Retained parcel H1 calculates units (Complete);
-// its Enhanced parcels H2/H3 lack proposed type/condition and its linear
-// features lack retention categories, so their units cannot be calculated
-// (Incomplete).
+// BMD-531: Retained parcel H1 calculates units from the baseline side
+// (Complete); Enhanced parcels H2/H3 lack proposed type/condition so their
+// units cannot be calculated (Incomplete). The fixture's hedgerows (H1/H2) and
+// river (R1) carry Retention Category "Lost", so the backend excludes them at
+// import (BMD-531/534) — the file passes validation and those layers are empty.
 const MIXED_STATUS_FILE =
   'Post-intervention - mixed complete and incomplete.gpkg'
 
-// Areas-table columns: Ref(0) Habitat type(1) Area(2) Distinctiveness(3)
-// Condition(4) Units(5) Status(6). UNITS_COL (5) and STATUS_COL (6) are
-// shared by the Hedgerows and Watercourses tables, which use the same
-// column layout.
-const AREAS_HABITAT_TYPE_COL = 1
-const AREAS_AREA_COL = 2
-const UNITS_COL = 5
-const STATUS_COL = 6
+// Post-intervention Areas-table columns (BMD-845 added the "Intervention
+// type" column at index 1): Ref(0) Intervention type(1) Habitat type(2)
+// Area(3) Distinctiveness(4) Condition(5) Units(6) Status(7). UNITS_COL (6)
+// and STATUS_COL (7) are shared by the Hedgerows and Watercourses tables,
+// which use the same column layout.
+const AREAS_HABITAT_TYPE_COL = 2
+const AREAS_AREA_COL = 3
+const UNITS_COL = 6
+const STATUS_COL = 7
 const UNITS_VALUE_PATTERN = /^\d+\.\d{2}$/
 
 async function uploadAndNavigateToHabitatList(
@@ -404,6 +406,37 @@ test.describe(
         )
       })
 
+      test.describe('lost tree exclusion', () => {
+        let projectId
+        test.beforeAll(async ({ browser }) => {
+          projectId = await uploadFixtureInNewContext(
+            browser,
+            PROJECT_LABEL,
+            TREE_LOST_FILE
+          )
+        })
+
+        test(
+          'a Lost individual tree is excluded from the list',
+          { tag: '@regression' },
+          async ({ postInterventionHabitatListPage }) => {
+            await postInterventionHabitatListPage.open(projectId)
+
+            // T005/T006 are Retained and listed; T007 is Lost, so the backend
+            // drops it at import (BMD-531/534).
+            await expect(postInterventionHabitatListPage.treeRows).toHaveCount(
+              2
+            )
+            await expect(
+              postInterventionHabitatListPage.treeRowByRef('T005')
+            ).toHaveCount(1)
+            await expect(
+              postInterventionHabitatListPage.treeRowByRef('T007')
+            ).toHaveCount(0)
+          }
+        )
+      })
+
       test.describe('summary with trees', () => {
         let projectId
         test.beforeAll(async ({ browser }) => {
@@ -705,7 +738,7 @@ test.describe(
         )
       })
 
-      test.describe('file with missing unit-calculation values', () => {
+      test.describe('file with incomplete areas and Lost linear features', () => {
         let projectId
         test.beforeAll(async ({ browser }) => {
           projectId = await uploadFixtureInNewContext(
@@ -744,38 +777,25 @@ test.describe(
         )
 
         test(
-          'hedgerows and watercourses missing values show Incomplete with no units',
+          'Lost hedgerows and watercourses are excluded from the list',
           { tag: '@regression' },
-          async ({ postInterventionHabitatListPage, page }) => {
+          async ({ postInterventionHabitatListPage }) => {
             await postInterventionHabitatListPage.open(projectId)
 
-            // Hedgerows have no retention category → Incomplete.
+            // The fixture's hedgerows (H1/H2) and river (R1) all carry
+            // Retention Category "Lost", so the backend drops them at import
+            // (BMD-531/534) — their tabs contain no data rows.
             await postInterventionHabitatListPage.hedgerowsTab.click()
             for (const ref of ['H1', 'H2']) {
               await expect(
-                postInterventionHabitatListPage
-                  .hedgerowRowByRef(ref)
-                  .getByRole('cell')
-                  .nth(STATUS_COL)
-              ).toHaveText('Incomplete')
+                postInterventionHabitatListPage.hedgerowRowByRef(ref)
+              ).toHaveCount(0)
             }
-            await expectStatusUnitsPairing(
-              postInterventionHabitatListPage.hedgerowsTable,
-              page
-            )
 
-            // The watercourse has retention category "Null" → Incomplete.
             await postInterventionHabitatListPage.watercoursesTab.click()
             await expect(
-              postInterventionHabitatListPage
-                .watercourseRowByRef('R1')
-                .getByRole('cell')
-                .nth(STATUS_COL)
-            ).toHaveText('Incomplete')
-            await expectStatusUnitsPairing(
-              postInterventionHabitatListPage.watercoursesTable,
-              page
-            )
+              postInterventionHabitatListPage.watercourseRowByRef('R1')
+            ).toHaveCount(0)
           }
         )
       })
