@@ -1759,7 +1759,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         const unitsBefore = await baselineHabitatDetailsPage.habitatUnitsText()
 
         await baselineHabitatDetailsPage.habitatTypeSelect.selectOption(
-          'Priority habitat'
+          'Canals'
         )
         await expect
           .poll(() => baselineHabitatDetailsPage.conditionSelect.inputValue())

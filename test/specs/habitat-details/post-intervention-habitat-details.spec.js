@@ -16,6 +16,7 @@ import { PostInterventionHabitatListPage } from '@pages/post-intervention-habita
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const HTTP_BAD_REQUEST = 400
 const HTTP_NOT_FOUND = 404
+const HTTP_NOT_IMPLEMENTED = 501
 const STUB_UUID = '00000000-0000-0000-0000-000000000000'
 const VALID_UUID_V4 = 'aaaaaaaa-bbbb-4ccc-bddd-eeeeeeeeeeee'
 const UPLOAD_TIMEOUT = 120_000
@@ -982,6 +983,40 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(page).toHaveURL(
           listAnchorPattern(shared.id, 'area-habitats')
         )
+      })
+    }
+  )
+
+  // ─── Save is not implemented (read-only route) ──────────────────────────────
+  // Every PI details page is read-only (BMD-608/723/724), so nothing renders a
+  // form that posts here — but the route stays registered and must answer 501
+  // rather than a default 404, so a stale page or client gets an explicit
+  // "not implemented" response.
+
+  test.describe(
+    'Post-intervention habitat details — save not implemented',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      test('POST /post-intervention-habitat-details returns 501 Not Implemented', async ({
+        page
+      }) => {
+        // No page on this route ever renders a form that posts here (it's
+        // read-only), so there is no crumb-carrying HTML form to submit via a
+        // real browser action. Any response sets the httpOnly `crumb` cookie
+        // (@hapi/crumb, restful: false); read it from the context and echo it
+        // back in the JSON payload the same way a real form submission would.
+        await page.goto('/')
+        const crumbCookie = (await page.context().cookies()).find(
+          (cookie) => cookie.name === 'crumb'
+        )
+        const response = await page.request.post(
+          '/post-intervention-habitat-details',
+          { data: { crumb: crumbCookie.value } }
+        )
+        expect(response.status()).toBe(HTTP_NOT_IMPLEMENTED)
       })
     }
   )
