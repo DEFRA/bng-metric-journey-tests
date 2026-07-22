@@ -154,41 +154,6 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     }
   )
 
-  // ─── Project Details — site information (not yet built) ───────────────────────
-
-  test.describe(
-    'Project Details — site information',
-    { tag: '@regression' },
-    () => {
-      test.use({ storageState: STORAGE_STATE })
-      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
-
-      // The /project-details/{id} page is registered but display-only — caption,
-      // heading and back link, no form fields or POST route yet. The nav test in
-      // "task item navigation" above covers reaching it. The backend project model
-      // already carries site.name and site.grid_ref. Enable once the form ships
-      // (BMD-276):
-      //   1. add a ProjectDetails page object
-      //   2. enter site name + grid reference, submit, and assert they persist —
-      //      shown on revisit and the "Project Details" task flips to Completed
-      test.skip('entering a site name and grid reference persists them against the project', async ({
-        createProjectFlow,
-        projectDashboardPage,
-        projectTaskListPage,
-        page
-      }) => {
-        const { id } = await setupProject(
-          createProjectFlow,
-          projectDashboardPage
-        )
-        await page.goto(`/project-details/${id}`)
-        // enter site name + grid reference, then submit
-        await projectTaskListPage.open(id)
-        await expect(projectTaskListPage.taskStatus('Completed')).toHaveCount(2)
-      })
-    }
-  )
-
   // ─── Error state ─────────────────────────────────────────────────────────────
 
   test.describe(
