@@ -28,6 +28,21 @@ export class ProjectDetailsPage extends BasePage {
     await super.open(`/project-details/${id}`)
   }
 
+  async #fillIfDefined(locator, value) {
+    if (value !== undefined) {
+      await locator.fill(value)
+    }
+  }
+
+  // Check the radio whose label maps to `value`; a nullish or unrecognised
+  // value leaves the group untouched.
+  async #checkRadio(value, radiosByValue) {
+    const radio = radiosByValue[value]
+    if (radio) {
+      await radio.check()
+    }
+  }
+
   async fill({
     localPlanningAuthority,
     surveyCompleters,
@@ -38,34 +53,23 @@ export class ProjectDetailsPage extends BasePage {
     nsips,
     applicant
   }) {
-    if (localPlanningAuthority !== undefined) {
-      await this.localPlanningAuthorityInput.fill(localPlanningAuthority)
-    }
-    if (surveyCompleters !== undefined) {
-      await this.surveyCompletersInput.fill(surveyCompleters)
-    }
-    if (day !== undefined) {
-      await this.dayInput.fill(day)
-    }
-    if (month !== undefined) {
-      await this.monthInput.fill(month)
-    }
-    if (year !== undefined) {
-      await this.yearInput.fill(year)
-    }
-    if (developmentType === 'Small site') {
-      await this.smallSiteRadio.check()
-    } else if (developmentType === 'Large site') {
-      await this.largeSiteRadio.check()
-    }
-    if (nsips === 'Yes') {
-      await this.nsipsYesRadio.check()
-    } else if (nsips === 'No') {
-      await this.nsipsNoRadio.check()
-    }
-    if (applicant !== undefined) {
-      await this.applicantInput.fill(applicant)
-    }
+    await this.#fillIfDefined(
+      this.localPlanningAuthorityInput,
+      localPlanningAuthority
+    )
+    await this.#fillIfDefined(this.surveyCompletersInput, surveyCompleters)
+    await this.#fillIfDefined(this.dayInput, day)
+    await this.#fillIfDefined(this.monthInput, month)
+    await this.#fillIfDefined(this.yearInput, year)
+    await this.#checkRadio(developmentType, {
+      'Small site': this.smallSiteRadio,
+      'Large site': this.largeSiteRadio
+    })
+    await this.#checkRadio(nsips, {
+      Yes: this.nsipsYesRadio,
+      No: this.nsipsNoRadio
+    })
+    await this.#fillIfDefined(this.applicantInput, applicant)
   }
 
   async submit() {
