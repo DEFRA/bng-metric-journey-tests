@@ -1,5 +1,11 @@
 import { test, expect } from '@fixtures'
-import { STORAGE_STATE, NO_ROLE_STORAGE_STATE, skipInE2e } from '@utils/env.js'
+import {
+  STORAGE_STATE,
+  NO_ROLE_STORAGE_STATE,
+  NO_PROJECTS_STORAGE_STATE,
+  skipInE2e,
+  baseUrl
+} from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
 import { ProjectDashboardPage } from '@pages/project-dashboard.page.js'
 import { CreateProjectFlow } from '@flows/project-management/create-project.flow.js'
@@ -48,6 +54,7 @@ const MIXED_STATUS_FILE =
 // Area(3) Distinctiveness(4) Condition(5) Units(6) Status(7). UNITS_COL (6)
 // and STATUS_COL (7) are shared by the Hedgerows and Watercourses tables,
 // which use the same column layout.
+const INTERVENTION_TYPE_COL = 1
 const AREAS_HABITAT_TYPE_COL = 2
 const AREAS_AREA_COL = 3
 const UNITS_COL = 6
@@ -141,7 +148,7 @@ test.describe(
           postInterventionHabitatListPage,
           page
         }) => {
-          const { name } = await uploadAndNavigateToHabitatList(
+          const { id, name } = await uploadAndNavigateToHabitatList(
             createProjectFlow,
             projectDashboardPage,
             uploadPostInterventionFileFlow,
@@ -198,11 +205,20 @@ test.describe(
           await expect(
             postInterventionHabitatListPage.continueButton
           ).toBeVisible()
+          await expect(
+            postInterventionHabitatListPage.continueButton
+          ).toHaveAttribute('href', `/add-project-details/${id}`)
 
           // AC5: secondary upload button
           await expect(
             postInterventionHabitatListPage.uploadDifferentFileButton
           ).toBeVisible()
+          await expect(
+            postInterventionHabitatListPage.uploadDifferentFileButton
+          ).toHaveAttribute(
+            'href',
+            `/projects/${id}/upload-post-intervention-file`
+          )
         })
       }
     )
@@ -301,6 +317,46 @@ test.describe(
           await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
         }
       )
+    })
+
+    // ─── Cross-user access ────────────────────────────────────────────────────
+    // The backend scopes projects by owner (visibleToUser) and 404s a foreign
+    // project id, so `fetchProject` resolves to a null habitats document here —
+    // the page still renders (200), but with the generic "Project" caption and
+    // no habitat rows. Unlike post-intervention-habitat-details (which 404s),
+    // this route fails safe by omission rather than by status code, so the
+    // assertion is on data non-leakage rather than the response status.
+
+    test.describe('cross-user access', { tag: '@regression' }, () => {
+      test.skip(skipInE2e(NO_PROJECTS_STORAGE_STATE), E2E_SKIP_REASON)
+
+      test('a different user opening the URL directly does not see the project owner’s habitat data', async ({
+        browser
+      }) => {
+        const projectId = await uploadFixtureInNewContext(
+          browser,
+          PROJECT_LABEL,
+          COMPLETE_POST_INTERVENTION_FILE
+        )
+        const otherContext = await browser.newContext({
+          storageState: NO_PROJECTS_STORAGE_STATE,
+          baseURL: baseUrl
+        })
+        try {
+          const otherPage = await otherContext.newPage()
+          await otherPage.goto(
+            `/projects/${projectId}/post-intervention-habitat-list`
+          )
+
+          // None of the creator's project name or habitat data is rendered.
+          await expect(otherPage.getByText(PROJECT_LABEL)).toBeHidden()
+          await expect(
+            otherPage.getByRole('link', { name: 'H1', exact: true })
+          ).toBeHidden()
+        } finally {
+          await otherContext.close()
+        }
+      })
     })
 
     // ─── Individual trees (BNG-587) ──────────────────────────────────────────
@@ -689,6 +745,121 @@ test.describe(
           ).toHaveText(EXPECTED_UNITS_TOTAL)
         }
       )
+    })
+
+    // ─── Intervention type column (BMD-845) ──────────────────────────────────
+    // BMD-845 added an "Intervention type" column (second column, between Ref
+    // and Habitat type) to all three tab tables, showing each feature's
+    // normalised retention category. COMPLETE_POST_INTERVENTION_FILE carries a
+    // mix (H1 Retained, H2-3 Enhanced, H2-1 Lost imported as Created —
+    // BMD-531/534), proving the column's value mapping rather than just its
+    // presence; HEDGEROWS_FILE/WATERCOURSES_FILE are all Retained (see their
+    // own BNG-529/530 sections), so those tabs only prove presence.
+
+    test.describe('Post-intervention habitat list — intervention type column (BMD-845)', () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      test.describe('area habitats — mixed retention categories', () => {
+        let projectId
+        test.beforeAll(async ({ browser }) => {
+          projectId = await uploadFixtureInNewContext(
+            browser,
+            PROJECT_LABEL,
+            COMPLETE_POST_INTERVENTION_FILE
+          )
+        })
+
+        test(
+          'each area habitat shows its normalised retention category',
+          { tag: '@smoke' },
+          async ({ postInterventionHabitatListPage }) => {
+            await postInterventionHabitatListPage.open(projectId)
+
+            await expect(
+              postInterventionHabitatListPage.areaHabitatsTable.getByRole(
+                'columnheader',
+                { name: 'Intervention type' }
+              )
+            ).toBeVisible()
+
+            const expectedInterventionByRef = [
+              ['H1', 'Retained'],
+              ['H2-3', 'Enhanced'],
+              ['H2-1', 'Created'] // Lost area habitat imported as Created (BMD-531/534)
+            ]
+            for (const [ref, intervention] of expectedInterventionByRef) {
+              await expect(
+                postInterventionHabitatListPage
+                  .areaRowByRef(ref)
+                  .getByRole('cell')
+                  .nth(INTERVENTION_TYPE_COL)
+              ).toHaveText(intervention)
+            }
+          }
+        )
+      })
+
+      test.describe('hedgerows and watercourses — column presence', () => {
+        let hedgerowsProjectId
+        let watercoursesProjectId
+        test.beforeAll(async ({ browser }) => {
+          hedgerowsProjectId = await uploadFixtureInNewContext(
+            browser,
+            PROJECT_LABEL,
+            HEDGEROWS_FILE
+          )
+          watercoursesProjectId = await uploadFixtureInNewContext(
+            browser,
+            PROJECT_LABEL,
+            WATERCOURSES_FILE
+          )
+        })
+
+        test(
+          'the Hedgerows tab shows Retained in the Intervention type column',
+          { tag: '@regression' },
+          async ({ postInterventionHabitatListPage }) => {
+            await postInterventionHabitatListPage.open(hedgerowsProjectId)
+            await postInterventionHabitatListPage.hedgerowsTab.click()
+
+            await expect(
+              postInterventionHabitatListPage.hedgerowsTable.getByRole(
+                'columnheader',
+                { name: 'Intervention type' }
+              )
+            ).toBeVisible()
+            await expect(
+              postInterventionHabitatListPage
+                .hedgerowRowByRef('HR1')
+                .getByRole('cell')
+                .nth(INTERVENTION_TYPE_COL)
+            ).toHaveText('Retained')
+          }
+        )
+
+        test(
+          'the Watercourses tab shows Retained in the Intervention type column',
+          { tag: '@regression' },
+          async ({ postInterventionHabitatListPage }) => {
+            await postInterventionHabitatListPage.open(watercoursesProjectId)
+            await postInterventionHabitatListPage.watercoursesTab.click()
+
+            await expect(
+              postInterventionHabitatListPage.watercoursesTable.getByRole(
+                'columnheader',
+                { name: 'Intervention type' }
+              )
+            ).toBeVisible()
+            await expect(
+              postInterventionHabitatListPage
+                .watercourseRowByRef('WC1')
+                .getByRole('cell')
+                .nth(INTERVENTION_TYPE_COL)
+            ).toHaveText('Retained')
+          }
+        )
+      })
     })
 
     // ─── Habitat status (BMD-531) ────────────────────────────────────────────

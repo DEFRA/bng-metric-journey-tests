@@ -1,17 +1,17 @@
 import { BaselineHabitatDetailsPage } from './baseline-habitat-details.page.js'
 
-// The /post-intervention-habitat-details route renders one of three page
-// families depending on the feature: a read-only summary list for retained
-// features (BMD-608/723/724), an unsupported-feature placeholder for
-// individual trees, or the shared editable form (same template as the
-// baseline details page) for Created/Enhanced/Lost features. Extending the
-// baseline page object inherits the editable-form locators and select
-// helpers; the locators added here cover the view-only pages.
+// The /post-intervention-habitat-details route renders one of two page
+// families regardless of retention category (BMD-608/723/724): a read-only
+// summary list for area/hedgerow/watercourse features, or an
+// unsupported-feature placeholder for individual trees. POST to this route
+// answers 501 — there is no editable form. Extending the baseline page
+// object inherits its select/save locators only so the "hidden on a
+// read-only page" assertions in this file's specs have something to check
+// against; the locators added here cover the view-only pages.
 export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPage {
   constructor(page) {
     super(page)
-    // View-only pages share a fixed heading; the editable fall-through keeps
-    // the dynamic "Habitat {ref}" heading inherited from the baseline page.
+    // Every page on this route shares this fixed heading.
     this.viewOnlyHeading = page.getByRole('heading', {
       name: 'Post-intervention habitat details'
     })
