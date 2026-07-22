@@ -4,7 +4,6 @@ import {
   NO_ROLE_STORAGE_STATE,
   NO_PROJECTS_STORAGE_STATE,
   skipInE2e,
-  runMode,
   baseUrl
 } from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
@@ -15,11 +14,6 @@ import { ProjectDashboardPage } from '@pages/project-dashboard.page.js'
 import { PostInterventionHabitatListPage } from '@pages/post-intervention-habitat-list.page.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
-// The save describe runs its own real-CDP upload and mutates it; under e2e
-// load the real uploader can exceed the frontend's 120s polling budget
-// (MAX_WAIT_SECONDS). Full coverage runs in github (stub uploader).
-const E2E_UPLOAD_SKIP_REASON =
-  'Real CDP upload exceeds the frontend 120s budget under e2e load — covered in github (stub uploader)'
 const HTTP_OK = 200
 const HTTP_BAD_REQUEST = 400
 const HTTP_NOT_FOUND = 404
@@ -33,8 +27,8 @@ const SHARED_BUILD_TEST_TIMEOUT = 180_000
 const PROJECT_LABEL = 'PI habitat details test'
 
 // Fixture reachability (Retention Category per feature, read from the .gpkg):
-// - COMPLETE_PI_FILE areas: H1 + H2-2 Retained (view-only), H2-3 + H3
-//   Enhanced and H2-1… Lost (editable fall-through).
+// - COMPLETE_PI_FILE areas: H1 + H2-2 Retained, H2-3 + H3 Enhanced, H2-1…
+//   Lost — all render the read-only page now (retention no longer gates it).
 // - BASELINE_FILE areas: H1, H2, H3 — so in a project holding both uploads
 //   the PI parcel H1 has a ref-matching baseline feature (link shown) while
 //   H2-2 does not (link hidden).
@@ -56,12 +50,10 @@ const MIXED_FILE = 'Post-intervention - mixed complete and incomplete.gpkg'
 const TREES_FILE = 'Post-intervention - urban trees all sizes.gpkg'
 const RETAINED_HEDGEROW_REF = 'HR1'
 
-// Habitat-list table column order: ref, type, size, distinctiveness,
-// condition, units, status.
-const CONDITION_COL = 4
-const UNITS_COL = 5
-const STATUS_COL = 6
-const HABITAT_UNITS_PATTERN = /^\d+\.\d{2}$/
+// Post-intervention habitat-list table column order (BMD-845 added the
+// "Intervention type" column at index 1): ref, intervention type, type, size,
+// distinctiveness, condition, units, status.
+const UNITS_COL = 6
 
 function detailsUrl({ projectId, featureId } = {}) {
   const params = new URLSearchParams()
@@ -145,8 +137,8 @@ function getSharedProject(browser, key, files, harvest) {
 }
 
 // Baseline + PI complete uploads in one project: retained parcels for the
-// view-only page (H1 with a ref-matching baseline feature, H2-2 without),
-// and Enhanced/Lost parcels for the editable fall-through.
+// read-only page (H1 with a ref-matching baseline feature, H2-2 without),
+// and an Enhanced parcel to prove retention no longer gates the read-only page.
 function getCompleteProject(browser) {
   return getSharedProject(
     browser,
@@ -160,8 +152,7 @@ function getCompleteProject(browser) {
         retainedNoBaselineUnits: await rowUnitsText(
           listPage.areaRowByRef('H2-2')
         ),
-        enhanced: await featureIdByRef(page, 'area-habitats', 'H2-3'),
-        lost: await featureIdByRef(page, 'area-habitats', 'H2-1')
+        enhanced: await featureIdByRef(page, 'area-habitats', 'H2-3')
       }
     }
   )
@@ -534,83 +525,47 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       )
     })
 
-    // ─── Editable fall-through (non-retained area habitats) ──────────────────
-    // Created, Enhanced and Lost features keep the editable dropdown form
-    // (the shared baseline template). Field and client-side dropdown
-    // behaviour is exhaustively covered by baseline-habitat-details.spec.js
-    // against the same shared factory — only what differs on the PI route is
-    // asserted here.
+    // ─── Non-retained area habitats are read-only too (BMD-608) ──────────────
+    // Every PI details page is read-only regardless of retention category
+    // (BMD-608/723/724): a Created or Enhanced feature no longer falls through
+    // to an editable form. Editable, intervention-specific details pages are
+    // deferred to BMD-845.
 
-    test.describe('editable fall-through', { tag: '@regression' }, () => {
-      test.use({ storageState: STORAGE_STATE })
-      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+    test.describe(
+      'non-retained area habitats are read-only',
+      { tag: '@regression' },
+      () => {
+        test.use({ storageState: STORAGE_STATE })
+        test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      test('an Enhanced area habitat renders the editable form with PI chrome', async ({
-        browser,
-        postInterventionHabitatDetailsPage,
-        page
-      }) => {
-        const shared = await getCompleteProject(browser)
-        await postInterventionHabitatDetailsPage.open(
-          shared.id,
-          shared.enhanced
-        )
+        test('an Enhanced area habitat renders read-only with no form controls', async ({
+          browser,
+          postInterventionHabitatDetailsPage
+        }) => {
+          const shared = await getCompleteProject(browser)
+          await postInterventionHabitatDetailsPage.open(
+            shared.id,
+            shared.enhanced
+          )
 
-        const detailsPage = postInterventionHabitatDetailsPage
-        await expect(detailsPage.heading).toHaveText('Habitat H2-3')
-        await expect(detailsPage.postInterventionDetailsHeading).toBeVisible()
-        await expect(detailsPage.viewOnlyHeading).toBeHidden()
-        await expect(detailsPage.broadHabitatSelect).toBeVisible()
-        await expect(detailsPage.habitatTypeSelect).toBeVisible()
-        await expect(detailsPage.conditionSelect).toBeVisible()
-        await expect(detailsPage.saveButton).toBeVisible()
+          // Retention no longer gates the page: a non-retained (Enhanced)
+          // feature gets the same read-only page as a retained one.
+          const detailsPage = postInterventionHabitatDetailsPage
+          await expect(detailsPage.viewOnlyHeading).toBeVisible()
+          await expect(detailsPage.broadHabitatSelect).toBeHidden()
+          await expect(detailsPage.habitatTypeSelect).toBeHidden()
+          await expect(detailsPage.conditionSelect).toBeHidden()
+          await expect(detailsPage.saveButton).toBeHidden()
+          await expect(detailsPage.cancelLink).toBeHidden()
+        })
 
-        // Cancel returns to the PI habitat list (not the baseline list),
-        // anchored to the habitat row.
-        await detailsPage.cancelLink.click()
-        await expect(page).toHaveURL(
-          listAnchorPattern(shared.id, `habitat-${shared.enhanced}`)
-        )
-      })
-
-      test('a Lost area habitat renders the editable form', async ({
-        browser,
-        postInterventionHabitatDetailsPage
-      }) => {
-        const shared = await getCompleteProject(browser)
-        await postInterventionHabitatDetailsPage.open(shared.id, shared.lost)
-
-        await expect(
-          postInterventionHabitatDetailsPage.saveButton
-        ).toBeVisible()
-        await expect(
-          postInterventionHabitatDetailsPage.viewOnlyHeading
-        ).toBeHidden()
-      })
-
-      // No fixture carries a non-retained hedgerow: local + harness PI
-      // fixtures hold only Retained or no-category hedgerows, both of which
-      // render the view-only page. Unblock by synthesising a variant of
-      // HEDGEROWS_FILE with Retention Category 'Enhanced' (same mutation
-      // approach that produced the synthesised hedgerow fixture itself),
-      // upload it here, then un-skip.
-      test.skip('a non-retained hedgerow renders the editable hedgerow form', async ({
-        browser,
-        postInterventionHabitatDetailsPage
-      }) => {
-        const shared = await getHedgerowsProject(browser)
-        await postInterventionHabitatDetailsPage.open(
-          shared.id,
-          shared.enhancedHedgerow
-        )
-        await expect(
-          postInterventionHabitatDetailsPage.habitatTypeSelect
-        ).toBeVisible()
-        await expect(
-          postInterventionHabitatDetailsPage.saveButton
-        ).toBeVisible()
-      })
-    })
+        // Deferred pending backend PR #141 (BMD-531/534): Lost handling is still
+        // changing — currently Lost areas are remapped to Created, but the PO
+        // ruling excludes Lost features from the PI entirely, so a Lost area
+        // will not appear here at all. Re-cover Lost exclusion once #141 lands.
+        test.skip('a Lost area habitat is excluded from the post-intervention view', () => {})
+      }
+    )
 
     // ─── Cross-user access ────────────────────────────────────────────────────
     // The backend scopes projects by owner (visibleToUser), so a direct
@@ -1002,58 +957,4 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       })
     }
   )
-
-  // ─── Save (editable area habitat) ───────────────────────────────────────────
-
-  test.describe('Post-intervention habitat details — save editable area habitat', () => {
-    test.use({ storageState: STORAGE_STATE })
-    test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
-    test.skip(runMode === 'e2e', E2E_UPLOAD_SKIP_REASON)
-
-    test(
-      'saving a changed condition persists it and returns to the list anchored to the habitat',
-      { tag: '@smoke' },
-      async ({
-        createProjectFlow,
-        projectDashboardPage,
-        uploadPostInterventionFileFlow,
-        postInterventionHabitatDetailsPage,
-        postInterventionHabitatListPage,
-        page
-      }) => {
-        // Own upload — this test mutates the project, so it must not share
-        // the read-only projects.
-        const { id } = await setupProject(
-          createProjectFlow,
-          projectDashboardPage,
-          PROJECT_LABEL
-        )
-        await uploadPostInterventionFileFlow.uploadFile(id, COMPLETE_PI_FILE)
-        await page.waitForURL(
-          new RegExp(`/projects/${id}/post-intervention-habitat-list`),
-          { timeout: UPLOAD_TIMEOUT }
-        )
-        const enhanced = await featureIdByRef(page, 'area-habitats', 'H2-3')
-
-        await postInterventionHabitatDetailsPage.open(id, enhanced)
-        const newCondition =
-          await postInterventionHabitatDetailsPage.selectDifferentCondition()
-        await postInterventionHabitatDetailsPage.saveButton.click()
-
-        await expect(page).toHaveURL(
-          listAnchorPattern(id, `habitat-${enhanced}`)
-        )
-        const row = postInterventionHabitatListPage.areaRowByRef('H2-3')
-        await expect(row.getByRole('cell').nth(CONDITION_COL)).toHaveText(
-          newCondition
-        )
-        await expect(row.getByRole('cell').nth(STATUS_COL)).toHaveText(
-          'Complete'
-        )
-        await expect(row.getByRole('cell').nth(UNITS_COL)).toHaveText(
-          HABITAT_UNITS_PATTERN
-        )
-      }
-    )
-  })
 })

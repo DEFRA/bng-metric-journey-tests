@@ -42,14 +42,15 @@ const TREES_COMPLETE_TOTAL_HA = 0.0489
 const MIXED_STATUS_FILE =
   'Post-intervention - mixed complete and incomplete.gpkg'
 
-// Areas-table columns: Ref(0) Habitat type(1) Area(2) Distinctiveness(3)
-// Condition(4) Units(5) Status(6). UNITS_COL (5) and STATUS_COL (6) are
-// shared by the Hedgerows and Watercourses tables, which use the same
-// column layout.
-const AREAS_HABITAT_TYPE_COL = 1
-const AREAS_AREA_COL = 2
-const UNITS_COL = 5
-const STATUS_COL = 6
+// Post-intervention Areas-table columns (BMD-845 added the "Intervention
+// type" column at index 1): Ref(0) Intervention type(1) Habitat type(2)
+// Area(3) Distinctiveness(4) Condition(5) Units(6) Status(7). UNITS_COL (6)
+// and STATUS_COL (7) are shared by the Hedgerows and Watercourses tables,
+// which use the same column layout.
+const AREAS_HABITAT_TYPE_COL = 2
+const AREAS_AREA_COL = 3
+const UNITS_COL = 6
+const STATUS_COL = 7
 const UNITS_VALUE_PATTERN = /^\d+\.\d{2}$/
 
 async function uploadAndNavigateToHabitatList(

@@ -3,20 +3,24 @@
 ## Overview
 
 A BNG Completer opens a feature from the post-intervention habitat list and views its
-details. Retained features — and features with no retention category, which are treated
-as retained — render a read-only details page specific to their feature type (area,
-hedgerow, watercourse). Individual trees render an unsupported-feature placeholder.
-Created, Enhanced and Lost features fall through to the shared editable details form,
-documented canonically in [`habitat-details.flow.md`](habitat-details.flow.md) — this doc
-covers only what differs on the post-intervention route.
+details. **Every post-intervention feature renders a read-only details page regardless of
+its retention category** (BMD-608/723/724): area, hedgerow and watercourse features each
+get a read-only page specific to their type, and individual trees render an
+unsupported-feature placeholder. Retention category no longer gates the page — a Created
+or Enhanced feature gets the same read-only page as a Retained one. Editable,
+intervention-specific details pages are deferred to BMD-845. There is no editable form on
+this route: the `POST /post-intervention-habitat-details` handler now returns
+501 Not Implemented.
 
-Retention is normalised before comparison ("1. Retained" → "Retained"), mirroring the
-backend's `normaliseRetentionCategory`, because the backend never writes the normalised
-value back to the project document.
+The retention category is displayed in the "Intervention" row. It is normalised for
+display ("1. Retained" → "Retained"), mirroring the backend's `normaliseRetentionCategory`.
+The backend (BMD-534) persists a normalised category on the feature root
+(`feature.retentionCategory`); the display lifts it from there, defaulting to "Retained"
+when absent.
 
 ## Steps
 
-### Step 1 — View retained area habitat details (read-only) `[IMPLEMENTED]`
+### Step 1 — View area habitat details (read-only) `[IMPLEMENTED]`
 
 - **Route:** `GET /post-intervention-habitat-details?featureId={featureId}&projectId={projectId}`
 - **Template:** `src/server/habitat-details/pi-habitat-details.njk` (extends `layouts/pi-view-only-page.njk`; BMD-608)
@@ -34,7 +38,7 @@ value back to the project document.
 - **On success:** Renders the read-only area details page
 - **On error:** 400 for invalid/missing query params; 404 if feature does not exist
 
-### Step 2 — View retained hedgerow details (read-only) `[IMPLEMENTED]`
+### Step 2 — View hedgerow details (read-only) `[IMPLEMENTED]`
 
 - **Route:** `GET /post-intervention-habitat-details?featureId={featureId}&projectId={projectId}` (hedgerow feature)
 - **Template:** `src/server/habitat-details/pi-hedgerow-details.njk` (extends `layouts/pi-view-only-page.njk`; BMD-723)
@@ -45,7 +49,7 @@ value back to the project document.
 - **On success:** Renders the read-only hedgerow details page
 - **On error:** Same as Step 1
 
-### Step 3 — View retained watercourse details (read-only) `[IMPLEMENTED]`
+### Step 3 — View watercourse details (read-only) `[IMPLEMENTED]`
 
 - **Route:** `GET /post-intervention-habitat-details?featureId={featureId}&projectId={projectId}` (watercourse feature)
 - **Template:** `src/server/habitat-details/pi-watercourse-details.njk` (extends `layouts/pi-view-only-page.njk`; BMD-724)
@@ -67,28 +71,24 @@ value back to the project document.
 - **On success:** Renders the placeholder page
 - **On error:** Same as Step 1
 
-### Step 5 — Non-retained feature falls through to the editable form `[IMPLEMENTED]`
+### Step 5 — Non-retained features are read-only too `[IMPLEMENTED]`
 
-- **Route:** `GET /post-intervention-habitat-details?featureId={featureId}&projectId={projectId}` (Created / Enhanced / Lost feature of any supported type)
-- **Template:** `src/server/habitat-details/habitat-details.njk` (shared editable template via `createHabitatDetailsControllers`)
+- **Route:** `GET /post-intervention-habitat-details?featureId={featureId}&projectId={projectId}` (Created / Enhanced feature of any supported type)
+- **Template:** The same per-type read-only templates as Steps 1–3 (`pi-habitat-details.njk` / `pi-hedgerow-details.njk` / `pi-watercourse-details.njk`)
 - **Auth required:** Yes (session + BNG Completer role)
-- **Backend endpoint:** Same as Step 1, plus the per-type reference-data endpoints documented in [`habitat-details.flow.md`](habitat-details.flow.md) Step 1
-- **Description:** Features whose normalised `baseline.retentionCategory` is anything other than "Retained" (Created, Enhanced, Lost) keep the editable dropdown form. The post-intervention feature is flattened for display (`proposed.*` promoted to top level). Differences from the baseline form: section heading "Post-intervention Details", form action `/post-intervention-habitat-details`, and back/cancel links rewritten to `/projects/{projectId}/post-intervention-habitat-list`. All field, strategy and client-side dropdown behaviour is as documented in `habitat-details.flow.md` — do not duplicate it here.
+- **Backend endpoint:** Same as Step 1
+- **Description:** Retention category no longer gates the page (BMD-608/723/724): a Created or Enhanced feature renders the same read-only details page as a Retained one, and its Intervention row shows its category. There is no editable dropdown form on this route. **Lost handling is a backend concern in flux (PR #141, BMD-531/534):** the deployed backend remaps Lost area habitats to Created (so they still reach this read-only page) while excluding Lost hedgerows/watercourses at import; the ruled target is to exclude Lost features of every type from the post-intervention view. Editable, intervention-specific details pages are deferred to BMD-845.
 - **Validation:** Same as Step 1
-- **On success:** Renders the editable habitat details form
+- **On success:** Renders the read-only details page for the feature type
 - **On error:** Same as Step 1
 
-### Step 6 — Save post-intervention habitat details `[IMPLEMENTED]`
+### Step 6 — Save is not implemented (read-only route) `[IMPLEMENTED]`
 
 - **Route:** `POST /post-intervention-habitat-details`
-- **Template:** None (redirect only)
+- **Template:** None
 - **Auth required:** Yes (session + BNG Completer role)
-- **Backend endpoint:** `PUT /projects/{projectId}/post-intervention/habitats/{featureId}` — persists broadType / habitatType / condition on the `postIntervention` document, recomputes derived values and units totals under a row lock (5 s timeout), and returns the updated feature. **Area habitats only** (`expectedType: 'habitat'`): a hedgerow or watercourse featureId → 404, surfaced as 502 by the frontend.
-- **Description:** Submits the editable form from Step 5. The backend returns the bare feature document (no `type` wrapper), so the redirect anchor is always the area-habitat form `#habitat-{featureId}`.
-- **Validation (payload):**
-  - `projectId` required UUID; `featureId` required UUID
-  - `broadHabitat` / `habitatType` / `condition` optional strings, empty allowed (coerced to null)
-  - `watercourseEncroachment` / `riparianEncroachment` optional strings, empty allowed (only submitted by the watercourse form; **not persisted** — the PI save endpoint ignores them)
-  - `crumb` optional (CSRF token)
-- **On success:** Redirects to `/projects/{projectId}/post-intervention-habitat-list#habitat-{featureId}`
-- **On error:** Backend 4xx/5xx → 502 Bad Gateway; backend 409 (lock timeout on concurrent edit) → 409 Conflict
+- **Backend endpoint:** None — no page posts to this route.
+- **Description:** Every post-intervention details page is read-only (BMD-608/723/724), so nothing renders a form that submits here. The route stays registered and its handler returns **501 Not Implemented** (`Boom.notImplemented`) so a stale page or client gets an explicit "not implemented" response rather than a 404. The previous editable-form save (which called `PUT /projects/{projectId}/post-intervention/habitats/{featureId}`) has been removed from this route.
+- **Validation:** The GET route still validates `featureId` / `projectId` as required UUIDs; the POST handler takes no payload.
+- **On success:** N/A — the handler always returns 501.
+- **On error:** 501 Not Implemented.
