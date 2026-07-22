@@ -106,12 +106,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         projectTaskListPage,
         page
       }) => {
-        test.skip(
-          true,
-          '/project-details/{id} route not yet registered in router.js — remove this skip once the BMD-276 placeholder route is implemented'
-        )
-
-        const { id } = await setupProject(
+        const { id, name } = await setupProject(
           createProjectFlow,
           projectDashboardPage
         )
@@ -119,6 +114,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await projectTaskListPage.taskItem(TASK_PROJECT_DETAILS).click()
 
         await expect(page).toHaveURL(/\/project-details\//)
+        await expect(
+          page.getByRole('heading', { name: 'Project details' })
+        ).toBeVisible()
+        await expect(page.getByText(name)).toBeVisible()
       })
 
       test('clicking "On-site baseline habitats" task item navigates to the baseline upload page', async ({
@@ -155,40 +154,6 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     }
   )
 
-  // ─── Project Details — site information (not yet built) ───────────────────────
-
-  test.describe(
-    'Project Details — site information',
-    { tag: '@regression' },
-    () => {
-      test.use({ storageState: STORAGE_STATE })
-      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
-
-      // The /project-details/{id} page is not yet registered (only the task-list
-      // route /add-project-details/{id} exists); the nav placeholder in "task item
-      // navigation" above covers reaching it. The backend project model already
-      // carries site.name and site.grid_ref. Enable once the page ships (BMD-276):
-      //   1. add a ProjectDetails page object
-      //   2. enter site name + grid reference, submit, and assert they persist —
-      //      shown on revisit and the "Project Details" task flips to Completed
-      test.skip('entering a site name and grid reference persists them against the project', async ({
-        createProjectFlow,
-        projectDashboardPage,
-        projectTaskListPage,
-        page
-      }) => {
-        const { id } = await setupProject(
-          createProjectFlow,
-          projectDashboardPage
-        )
-        await page.goto(`/project-details/${id}`)
-        // enter site name + grid reference, then submit
-        await projectTaskListPage.open(id)
-        await expect(projectTaskListPage.taskStatus('Completed')).toHaveCount(2)
-      })
-    }
-  )
-
   // ─── Error state ─────────────────────────────────────────────────────────────
 
   test.describe(
@@ -199,11 +164,13 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
       test('unknown project UUID hides the task list body', async ({
-        projectTaskListPage
+        projectTaskListPage,
+        page
       }) => {
         await projectTaskListPage.open('00000000-0000-0000-0000-000000000000')
 
         await expect(projectTaskListPage.heading).toBeVisible()
+        await expect(page.getByText('Project not found')).toBeVisible()
         await expect(projectTaskListPage.informationParagraph).not.toBeVisible()
         await expect(projectTaskListPage.taskList).not.toBeVisible()
       })

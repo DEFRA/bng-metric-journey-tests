@@ -5,6 +5,7 @@ import { ProjectDashboardPage } from '@pages/project-dashboard.page.js'
 import { DefineProjectNamePage } from '@pages/define-project-name.page.js'
 import { ProjectTaskListPage } from '@pages/project-task-list.page.js'
 import { ChangeProjectNamePage } from '@pages/change-project-name.page.js'
+import { ProjectDetailsPage } from '@pages/project-details.page.js'
 import { UploadBaselineFilePage } from '@pages/upload-baseline-file.page.js'
 import { UploadReceivedPage } from '@pages/upload-received.page.js'
 import { ErrorFilePage } from '@pages/error-file.page.js'
@@ -37,6 +38,9 @@ export const test = base.extend({
   },
   changeProjectNamePage: async ({ page }, use) => {
     await use(new ChangeProjectNamePage(page))
+  },
+  projectDetailsPage: async ({ page }, use) => {
+    await use(new ProjectDetailsPage(page))
   },
   uploadBaselineFilePage: async ({ page }, use) => {
     await use(new UploadBaselineFilePage(page))
