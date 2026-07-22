@@ -35,6 +35,9 @@ const PROJECT_LABEL = 'PI habitat details test'
 // - HEDGEROW_BASELINE_FILE: BASELINE_FILE variant whose hedgerow Parcel Refs
 //   are HR1/HR2, so PI hedgerow HR1 has a ref-matching baseline feature and
 //   the "View baseline details" link renders on its view-only page.
+// - WATERCOURSE_BASELINE_FILE: BASELINE_FILE variant whose river Parcel Ref
+//   is WC1, so PI watercourse WC1 has a ref-matching baseline feature and
+//   the "View baseline details" link renders on its view-only page.
 // - MIXED_FILE: H1 Retained with blank proposed columns (proves the
 //   baseline-side value sourcing) plus H2/H3 Enhanced with blank proposed
 //   columns (Incomplete). Its hedgerows (H1/H2) and river (R1) are Lost, so
@@ -45,9 +48,12 @@ const BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
 const HEDGEROWS_FILE = 'Post-intervention - complete with hedgerows.gpkg'
 const HEDGEROW_BASELINE_FILE = 'Baseline - complete with hedgerow refs.gpkg'
 const WATERCOURSES_FILE = 'Post-intervention - complete with watercourses.gpkg'
+const WATERCOURSE_BASELINE_FILE =
+  'Baseline - complete with watercourse refs.gpkg'
 const MIXED_FILE = 'Post-intervention - mixed complete and incomplete.gpkg'
 const TREES_FILE = 'Post-intervention - urban trees all sizes.gpkg'
 const RETAINED_HEDGEROW_REF = 'HR1'
+const RETAINED_WATERCOURSE_REF = 'WC1'
 
 // Post-intervention habitat-list table column order (BMD-845 added the
 // "Intervention type" column at index 1): ref, intervention type, type, size,
@@ -210,16 +216,26 @@ function getHedgerowsProject(browser) {
   )
 }
 
+// Baseline + PI watercourse uploads in one project: retained watercourses
+// for the view-only page, with WC1 ref-matched to a baseline watercourse so
+// the "View baseline details" link renders (BMD-724 AC1/AC3).
 function getWatercoursesProject(browser) {
   return getSharedProject(
     browser,
     'watercourses',
-    { piFile: WATERCOURSES_FILE },
+    { baselineFile: WATERCOURSE_BASELINE_FILE, piFile: WATERCOURSES_FILE },
     async (page) => {
       const listPage = new PostInterventionHabitatListPage(page)
       await listPage.watercoursesTab.click()
       return {
-        retainedWatercourse: await featureIdByRef(page, 'watercourses', 'WC1')
+        retainedWatercourse: await featureIdByRef(
+          page,
+          'watercourses',
+          RETAINED_WATERCOURSE_REF
+        ),
+        retainedWatercourseUnits: await rowUnitsText(
+          listPage.watercourseRowByRef(RETAINED_WATERCOURSE_REF)
+        )
       }
     }
   )
@@ -800,7 +816,12 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     test(
       'retained watercourse renders the read-only page with both encroachment rows',
       { tag: '@smoke' },
-      async ({ browser, postInterventionHabitatDetailsPage, page }) => {
+      async ({
+        browser,
+        postInterventionHabitatDetailsPage,
+        postInterventionHabitatListPage,
+        page
+      }) => {
         const shared = await getWatercoursesProject(browser)
         await postInterventionHabitatDetailsPage.open(
           shared.id,
@@ -832,10 +853,101 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(detailsPage.watercourseEncroachmentSelect).toBeHidden()
         await expect(detailsPage.riparianEncroachmentSelect).toBeHidden()
         await expect(detailsPage.saveButton).toBeHidden()
+        // Baseline WC1 shares the parcel ref, so the link renders.
+        await expect(detailsPage.viewBaselineLink).toBeVisible()
 
         await detailsPage.backLink.click()
         await expect(page).toHaveURL(
           listAnchorPattern(shared.id, 'watercourses')
+        )
+        // "Preselected" is GOV.UK tabs client-side behaviour driven by the
+        // anchor — assert the Watercourses tab really is selected, not just
+        // the URL.
+        await expect(
+          postInterventionHabitatListPage.watercoursesTab
+        ).toHaveAttribute('aria-selected', 'true')
+        await expect(
+          postInterventionHabitatListPage.watercoursesTable
+        ).toBeVisible()
+      }
+    )
+
+    test(
+      'retained watercourse shows its saved values with multiplier formatting',
+      { tag: '@regression' },
+      async ({
+        browser,
+        postInterventionHabitatDetailsPage,
+        postInterventionHabitatListPage,
+        page
+      }) => {
+        const shared = await getWatercoursesProject(browser)
+        // Arrive the way the user does (BMD-724 AC1): select the
+        // Watercourses tab and click the watercourse's ref link rather than
+        // deep-linking.
+        await postInterventionHabitatListPage.open(shared.id)
+        await postInterventionHabitatListPage.watercoursesTab.click()
+        await postInterventionHabitatListPage.watercoursesTable
+          .getByRole('link', { name: RETAINED_WATERCOURSE_REF, exact: true })
+          .click()
+        await expect(page).toHaveURL(/\/post-intervention-habitat-details/)
+
+        await expect(postInterventionHabitatDetailsPage.caption).toHaveText(
+          shared.name
+        )
+        await expect(
+          page.getByText(RETAINED_WATERCOURSE_REF, { exact: true })
+        ).toBeVisible()
+        // WC1: Ditches / Moderate / 90 m (fixture values); "Medium (n)" and
+        // "Moderate (n)" are the engine's reference distinctiveness and
+        // condition for that river type. Length renders in km with trailing
+        // zeros trimmed.
+        await expect(page.getByText('Retained', { exact: true })).toBeVisible()
+        await expect(postInterventionHabitatDetailsPage.lengthValue).toHaveText(
+          /^\s*0\.09\s*$/
+        )
+        await expect(
+          page.getByText(/^\s*Medium \(\d+(\.\d+)?\)\s*$/)
+        ).toBeVisible()
+        await expect(
+          page.getByText(/^\s*Moderate \(\d+(\.\d+)?\)\s*$/)
+        ).toBeVisible()
+        await expect(
+          postInterventionHabitatDetailsPage.strategicSignificanceValue
+        ).toBeVisible()
+        // "Units in this habitat" matches the Units cell of the same
+        // watercourse's habitat-list row.
+        await expect(
+          postInterventionHabitatDetailsPage.habitatUnitsValue
+        ).toHaveText(shared.retainedWatercourseUnits)
+      }
+    )
+
+    test(
+      '"View baseline details" links to the ref-matched baseline watercourse',
+      { tag: '@regression' },
+      async ({ browser, postInterventionHabitatDetailsPage, page }) => {
+        const shared = await getWatercoursesProject(browser)
+        await postInterventionHabitatDetailsPage.open(
+          shared.id,
+          shared.retainedWatercourse
+        )
+
+        await expect(
+          postInterventionHabitatDetailsPage.viewBaselineLink
+        ).toBeVisible()
+        await postInterventionHabitatDetailsPage.viewBaselineLink.click()
+        await expect(page).toHaveURL(/\/baseline-habitat-details/)
+
+        // The baseline and PI uploads assign independent featureIds, so the
+        // link must resolve the baseline feature by parcel ref — a different
+        // featureId from the PI feature the user came from.
+        const baselineFeatureId = new URL(page.url()).searchParams.get(
+          'featureId'
+        )
+        expect(baselineFeatureId).not.toBe(shared.retainedWatercourse)
+        await expect(postInterventionHabitatDetailsPage.heading).toHaveText(
+          `Watercourse ${RETAINED_WATERCOURSE_REF}`
         )
       }
     )
