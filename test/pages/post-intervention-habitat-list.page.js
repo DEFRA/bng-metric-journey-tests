@@ -38,7 +38,7 @@ export class PostInterventionHabitatListPage extends BasePage {
       .getByRole('row')
       .filter({ hasText: 'Total' })
       .getByRole('cell')
-      .nth(2)
+      .nth(3)
     this.areaTableTotalUnitsCell = this.#totalUnitsCell(this.areaHabitatsTable)
     // One row per individual tree (urban or rural) in the Areas table.
     this.treeRows = this.areaHabitatsTable
@@ -55,14 +55,16 @@ export class PostInterventionHabitatListPage extends BasePage {
     )
   }
 
-  // Total-row Units cell for a tab table (Units is column index 5 in the
-  // Areas, Hedgerows and Watercourses tables alike).
+  // Total-row Units cell for a tab table. The footer carries the same
+  // "Intervention type" column (index 1) BMD-845 added to the PI tab tables,
+  // so the Units total sits at column index 6 in the Areas, Hedgerows and
+  // Watercourses tables alike.
   #totalUnitsCell(table) {
     return table
       .getByRole('row')
       .filter({ hasText: 'Total' })
       .getByRole('cell')
-      .nth(5)
+      .nth(6)
   }
 
   // Row in a tab table for a given Ref. Refs are unique, so the substring

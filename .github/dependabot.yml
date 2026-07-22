@@ -14,9 +14,9 @@ updates:
       dev-dependencies:
         dependency-type: development
 
-    # Schedule run every Monday, local time
+    # Schedule run every day, local time
     schedule:
-      interval: weekly
+      interval: daily
       time: '10:30'
       timezone: 'Europe/London'
 
@@ -45,9 +45,9 @@ updates:
   - package-ecosystem: github-actions
     directory: /
 
-    # Schedule run every Monday, local time
+    # Schedule run every day, local time
     schedule:
-      interval: weekly
+      interval: daily
       time: '10:30'
       timezone: 'Europe/London'
 
@@ -60,9 +60,9 @@ updates:
   - package-ecosystem: docker
     directory: /
 
-    # Schedule run every Monday, local time
+    # Schedule run every day, local time
     schedule:
-      interval: weekly
+      interval: daily
       time: '10:30'
       timezone: 'Europe/London'
 
