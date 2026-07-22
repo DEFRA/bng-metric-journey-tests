@@ -92,8 +92,11 @@ its own flow doc.
        "PLACEHOLDER (AWAITING UCD)" + the raw backend message, pending BMD-592.
      - Any unmapped code falls back to the AC1 catch-all copy ("The layer names and column names
        do not match what is required by Natural England…").
-     - The page title is set to the single-error H1. The exactly-one check runs on the **raw**
-       session error array, before the sliver-suppression rule below.
+     - The page title is set to the single-error H1. The exactly-one check runs on the
+       de-duplicated `visibleErrors` list (fixed in frontend PR#160) — i.e. it is judged
+       **after** the sliver-suppression rule below, since `AREA_PARCELS_OUTSIDE_REDLINE`
+       always co-fires with a correlated `SLIVERS_OUTSIDE_REDLINE` for the same escaping
+       geometry, and checking the raw array left AC10's personalised copy unreachable.
   2. **Multiple errors:** GOV.UK error summary plus error blocks grouped by error code; each block
      renders a heading, an optional note (e.g. allowed distinctiveness bands, display-mapped
      "V.High" → "Very high"), and a bulleted list of offending features with an "… and N more"
@@ -104,7 +107,8 @@ its own flow doc.
      links when `projectId` is known, or "Back to start" otherwise.
 - **Validation:**
   - Session error array absent or empty → generic fallback message
-  - Exactly one error → single-error layout (per-code copy); two or more → grouped blocks layout
+  - Exactly one visible error (post-suppression) → single-error layout (per-code copy); two or
+    more → grouped blocks layout
   - `projectId` absent → project-specific action links replaced with a "Back to start" root link,
     and the single-error inline upload link is trimmed to a plain sentence
 - **On success:** Renders the error dropout page
