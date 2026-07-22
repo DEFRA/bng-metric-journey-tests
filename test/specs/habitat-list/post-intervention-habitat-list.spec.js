@@ -327,37 +327,41 @@ test.describe(
     // this route fails safe by omission rather than by status code, so the
     // assertion is on data non-leakage rather than the response status.
 
-    test.describe('cross-user access', { tag: '@regression' }, () => {
-      test.skip(skipInE2e(NO_PROJECTS_STORAGE_STATE), E2E_SKIP_REASON)
+    test.describe(
+      'Post-intervention habitat list — cross-user access',
+      { tag: '@regression' },
+      () => {
+        test.skip(skipInE2e(NO_PROJECTS_STORAGE_STATE), E2E_SKIP_REASON)
 
-      test('a different user opening the URL directly does not see the project owner’s habitat data', async ({
-        browser
-      }) => {
-        const projectId = await uploadFixtureInNewContext(
-          browser,
-          PROJECT_LABEL,
-          COMPLETE_POST_INTERVENTION_FILE
-        )
-        const otherContext = await browser.newContext({
-          storageState: NO_PROJECTS_STORAGE_STATE,
-          baseURL: baseUrl
-        })
-        try {
-          const otherPage = await otherContext.newPage()
-          await otherPage.goto(
-            `/projects/${projectId}/post-intervention-habitat-list`
+        test('a different user opening the URL directly does not see the project owner’s habitat data', async ({
+          browser
+        }) => {
+          const projectId = await uploadFixtureInNewContext(
+            browser,
+            PROJECT_LABEL,
+            COMPLETE_POST_INTERVENTION_FILE
           )
+          const otherContext = await browser.newContext({
+            storageState: NO_PROJECTS_STORAGE_STATE,
+            baseURL: baseUrl
+          })
+          try {
+            const otherPage = await otherContext.newPage()
+            await otherPage.goto(
+              `/projects/${projectId}/post-intervention-habitat-list`
+            )
 
-          // None of the creator's project name or habitat data is rendered.
-          await expect(otherPage.getByText(PROJECT_LABEL)).toBeHidden()
-          await expect(
-            otherPage.getByRole('link', { name: 'H1', exact: true })
-          ).toBeHidden()
-        } finally {
-          await otherContext.close()
-        }
-      })
-    })
+            // None of the creator's project name or habitat data is rendered.
+            await expect(otherPage.getByText(PROJECT_LABEL)).toBeHidden()
+            await expect(
+              otherPage.getByRole('link', { name: 'H1', exact: true })
+            ).toBeHidden()
+          } finally {
+            await otherContext.close()
+          }
+        })
+      }
+    )
 
     // ─── Individual trees (BNG-587) ──────────────────────────────────────────
     // Per-habitat-type stored totals (AC2/AC4) are not surfaced in the UI; those
@@ -759,6 +763,7 @@ test.describe(
     test.describe('Post-intervention habitat list — intervention type column (BMD-845)', () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+      test.describe.configure({ mode: 'serial' })
 
       test.describe('area habitats — mixed retention categories', () => {
         let projectId
