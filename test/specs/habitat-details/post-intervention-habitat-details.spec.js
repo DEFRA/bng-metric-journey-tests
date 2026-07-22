@@ -548,7 +548,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
         test('an Enhanced area habitat renders read-only with no form controls', async ({
           browser,
-          postInterventionHabitatDetailsPage
+          postInterventionHabitatDetailsPage,
+          page
         }) => {
           const shared = await getCompleteProject(browser)
           await postInterventionHabitatDetailsPage.open(
@@ -560,6 +561,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           // feature gets the same read-only page as a retained one.
           const detailsPage = postInterventionHabitatDetailsPage
           await expect(detailsPage.viewOnlyHeading).toBeVisible()
+          await expect(
+            page.getByText('Enhanced', { exact: true })
+          ).toBeVisible()
           await expect(detailsPage.broadHabitatSelect).toBeHidden()
           await expect(detailsPage.habitatTypeSelect).toBeHidden()
           await expect(detailsPage.conditionSelect).toBeHidden()
