@@ -61,6 +61,41 @@ const UNITS_COL = 6
 const STATUS_COL = 7
 const UNITS_VALUE_PATTERN = /^\d+\.\d{2}$/
 
+// BMD-839 AC1/AC2/AC3: each tab's headings and column order must be
+// identical to the baseline-equivalent tab, plus the PI-only "Intervention
+// type" column BMD-845 inserted at index 1. The size-column label differs
+// per feature type (Area/Length/Size), matching the baseline tables.
+const AREA_TABLE_COLUMNS = [
+  'Ref',
+  'Intervention type',
+  'Habitat type',
+  'Area',
+  'Distinctiveness',
+  'Condition',
+  'Units',
+  'Status'
+]
+const HEDGEROW_TABLE_COLUMNS = [
+  'Ref',
+  'Intervention type',
+  'Habitat type',
+  'Length',
+  'Distinctiveness',
+  'Condition',
+  'Units',
+  'Status'
+]
+const WATERCOURSE_TABLE_COLUMNS = [
+  'Ref',
+  'Intervention type',
+  'Habitat type',
+  'Size',
+  'Distinctiveness',
+  'Condition',
+  'Units',
+  'Status'
+]
+
 async function uploadAndNavigateToHabitatList(
   createProjectFlow,
   projectDashboardPage,
@@ -128,6 +163,10 @@ async function expectStatusUnitsPairing(table, page) {
       expect(units).toBe('')
     }
   }
+}
+
+async function expectColumnHeaders(table, columns) {
+  await expect(table.getByRole('columnheader')).toHaveText(columns)
 }
 
 test.describe(
@@ -781,12 +820,12 @@ test.describe(
           async ({ postInterventionHabitatListPage }) => {
             await postInterventionHabitatListPage.open(projectId)
 
-            await expect(
-              postInterventionHabitatListPage.areaHabitatsTable.getByRole(
-                'columnheader',
-                { name: 'Intervention type' }
-              )
-            ).toBeVisible()
+            // BMD-839 AC1: headings and column order identical to the
+            // baseline Areas tab, plus the Intervention type column.
+            await expectColumnHeaders(
+              postInterventionHabitatListPage.areaHabitatsTable,
+              AREA_TABLE_COLUMNS
+            )
 
             const expectedInterventionByRef = [
               ['H1', 'Retained'],
@@ -828,12 +867,12 @@ test.describe(
             await postInterventionHabitatListPage.open(hedgerowsProjectId)
             await postInterventionHabitatListPage.hedgerowsTab.click()
 
-            await expect(
-              postInterventionHabitatListPage.hedgerowsTable.getByRole(
-                'columnheader',
-                { name: 'Intervention type' }
-              )
-            ).toBeVisible()
+            // BMD-839 AC2: headings and column order identical to the
+            // baseline Hedgerows tab, plus the Intervention type column.
+            await expectColumnHeaders(
+              postInterventionHabitatListPage.hedgerowsTable,
+              HEDGEROW_TABLE_COLUMNS
+            )
             await expect(
               postInterventionHabitatListPage
                 .hedgerowRowByRef('HR1')
@@ -850,12 +889,12 @@ test.describe(
             await postInterventionHabitatListPage.open(watercoursesProjectId)
             await postInterventionHabitatListPage.watercoursesTab.click()
 
-            await expect(
-              postInterventionHabitatListPage.watercoursesTable.getByRole(
-                'columnheader',
-                { name: 'Intervention type' }
-              )
-            ).toBeVisible()
+            // BMD-839 AC3: headings and column order identical to the
+            // baseline Watercourses tab, plus the Intervention type column.
+            await expectColumnHeaders(
+              postInterventionHabitatListPage.watercoursesTable,
+              WATERCOURSE_TABLE_COLUMNS
+            )
             await expect(
               postInterventionHabitatListPage
                 .watercourseRowByRef('WC1')
