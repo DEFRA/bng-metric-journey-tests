@@ -137,9 +137,9 @@ function describeStructuralErrors() {
     'Upload baseline — structural validation errors',
     { tag: '@regression' },
     () => {
-      // The fixture trips PARCEL_OVERLAPS alongside distinctiveness and
-      // area-sum-mismatch errors, so the multi-error layout renders (the
-      // BMD-405 single-error page needs exactly one error).
+      // The fixture trips PARCEL_OVERLAPS alongside AREA_SUM_MISMATCH, so the
+      // multi-error layout renders (the BMD-405 single-error page needs exactly
+      // one error).
       test('uploading a .gpkg file with content errors shows error summary on the error-file page', async ({
         createProjectFlow,
         projectDashboardPage,
@@ -453,9 +453,9 @@ function describeOutsideEngland() {
 
 // ─── Geometric validation gates (multi-error layout) ──────────────────────────
 
-// Each fixture trips its named geometric gate, but every one also carries
-// side errors from the shared base data (out-of-scope distinctiveness,
-// area-sum-mismatch), so the grouped multi-error layout renders. The tests
+// Each fixture trips its named geometric gate, and every one also carries
+// AREA_SUM_MISMATCH from the shared base data (the parcels never tile the
+// redline boundary), so the grouped multi-error layout renders. The tests
 // assert the gate's block heading inside the GOV.UK error summary.
 const GEOMETRIC_GATE_CASES = [
   {

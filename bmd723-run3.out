@@ -1,0 +1,70 @@
+
+Running 1 test using 1 worker
+
+PROJECT_ID 19755f43-4d85-447a-8d7f-a5fe4f1760e8
+BASELINE_UPLOADED http://localhost:3000/projects/19755f43-4d85-447a-8d7f-a5fe4f1760e8/baseline-habitat-list
+PI_UPLOADED http://localhost:3000/projects/19755f43-4d85-447a-8d7f-a5fe4f1760e8/post-intervention-habitat-list
+SUMMARY_LIST_START
+Reference
+H2
+Intervention
+Retained
+Length (km)
+0.05
+Habitat type
+Native hedgerow - associated with bank or ditch
+Distinctiveness
+Medium (4)
+Condition
+Good (3)
+Strategic Significance
+Low (1)
+Units in this habitat
+0.60
+SUMMARY_LIST_END
+BACK_HREF /projects/19755f43-4d85-447a-8d7f-a5fe4f1760e8/post-intervention-habitat-list#hedgerows
+VIEW_BASELINE_HREF /baseline-habitat-details?featureId=1b7e66dc-2e28-4220-9231-0743da2e6b68&projectId=19755f43-4d85-447a-8d7f-a5fe4f1760e8
+  ✘  1 test/_bmd723-verify.spec.js:12:1 › BMD-723 retained hedgerow view-only page (27.0s)
+
+
+  1) test/_bmd723-verify.spec.js:12:1 › BMD-723 retained hedgerow view-only page ───────────────────
+
+    Error: [31mTimed out 15000ms waiting for [39m[2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m()[22m
+
+    Locator: getByRole('heading', { name: /^Hedgerow/ })
+    Expected: visible
+    Received: <element(s) not found>
+    Call log:
+    [2m  - expect.toBeVisible with timeout 15000ms[22m
+    [2m  - waiting for getByRole('heading', { name: /^Hedgerow/ })[22m
+
+
+      92 |   await viewBaseline.click()
+      93 |   await page.waitForURL(/\/baseline-habitat-details/)
+    > 94 |   await expect(page.getByRole('heading', { name: /^Hedgerow/ })).toBeVisible()
+         |                                                                  ^
+      95 |   await page.screenshot({ path: 'bmd723-baseline-details.png', fullPage: true })
+      96 |   console.log('BASELINE_DETAILS_URL', page.url())
+      97 | })
+        at /Users/robindunn/dev/bng/bng-metric-journey-tests/test/_bmd723-verify.spec.js:94:66
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/_bmd723-verify-BMD-723-retained-hedgerow-view-only-page/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/_bmd723-verify-BMD-723-retained-hedgerow-view-only-page/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/_bmd723-verify-BMD-723-retained-hedgerow-view-only-page/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/_bmd723-verify-BMD-723-retained-hedgerow-view-only-page/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/_bmd723-verify-BMD-723-retained-hedgerow-view-only-page/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    test/_bmd723-verify.spec.js:12:1 › BMD-723 retained hedgerow view-only page ────────────────────
