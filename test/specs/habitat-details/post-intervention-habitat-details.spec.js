@@ -14,7 +14,6 @@ import { ProjectDashboardPage } from '@pages/project-dashboard.page.js'
 import { PostInterventionHabitatListPage } from '@pages/post-intervention-habitat-list.page.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
-const HTTP_OK = 200
 const HTTP_BAD_REQUEST = 400
 const HTTP_NOT_FOUND = 404
 const STUB_UUID = '00000000-0000-0000-0000-000000000000'
@@ -37,9 +36,9 @@ const PROJECT_LABEL = 'PI habitat details test'
 //   are HR1/HR2, so PI hedgerow HR1 has a ref-matching baseline feature and
 //   the "View baseline details" link renders on its view-only page.
 // - MIXED_FILE: H1 Retained with blank proposed columns (proves the
-//   baseline-side value sourcing), hedgerows with no retention category
-//   (default-Retained), river R1 with retention "Null" (editable
-//   watercourse fall-through).
+//   baseline-side value sourcing) plus H2/H3 Enhanced with blank proposed
+//   columns (Incomplete). Its hedgerows (H1/H2) and river (R1) are Lost, so
+//   the backend excludes them on import — asserted on the habitat list.
 // - TREES_FILE: T001-T004 individual trees (unsupported placeholder page).
 const COMPLETE_PI_FILE = 'Post-intervention - complete.gpkg'
 const BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
@@ -137,8 +136,9 @@ function getSharedProject(browser, key, files, harvest) {
 }
 
 // Baseline + PI complete uploads in one project: retained parcels for the
-// read-only page (H1 with a ref-matching baseline feature, H2-2 without),
-// and an Enhanced parcel to prove retention no longer gates the read-only page.
+// read-only page (H1 with a ref-matching baseline feature, H2-2 without), an
+// Enhanced parcel, and a Lost parcel (H2-1) which the backend imports as
+// Created — both prove retention no longer gates the read-only page.
 function getCompleteProject(browser) {
   return getSharedProject(
     browser,
@@ -152,15 +152,18 @@ function getCompleteProject(browser) {
         retainedNoBaselineUnits: await rowUnitsText(
           listPage.areaRowByRef('H2-2')
         ),
-        enhanced: await featureIdByRef(page, 'area-habitats', 'H2-3')
+        enhanced: await featureIdByRef(page, 'area-habitats', 'H2-3'),
+        lostAsCreated: await featureIdByRef(page, 'area-habitats', 'H2-1')
       }
     }
   )
 }
 
-// PI-only upload of the mixed fixture: a retained parcel whose proposed
-// columns are blank, a hedgerow with no retention category, and a
-// watercourse with retention "Null".
+// PI-only upload of the mixed fixture: an H1 area parcel Retained with blank
+// proposed columns (baseline-side value sourcing) alongside Enhanced parcels
+// with blank proposed columns. The hedgerows and river are Lost, so the
+// backend excludes them on import — that exclusion is asserted on the habitat
+// list, not here.
 function getMixedProject(browser) {
   return getSharedProject(
     browser,
@@ -168,27 +171,15 @@ function getMixedProject(browser) {
     { piFile: MIXED_FILE },
     async (page) => {
       const listPage = new PostInterventionHabitatListPage(page)
-      const retainedBlankProposed = await featureIdByRef(
-        page,
-        'area-habitats',
-        'H1'
-      )
-      const retainedBlankProposedUnits = await rowUnitsText(
-        listPage.areaRowByRef('H1')
-      )
-      await listPage.hedgerowsTab.click()
-      const hedgerowNoRetention = await featureIdByRef(page, 'hedgerows', 'H1')
-      await listPage.watercoursesTab.click()
-      const editableWatercourse = await featureIdByRef(
-        page,
-        'watercourses',
-        'R1'
-      )
       return {
-        retainedBlankProposed,
-        retainedBlankProposedUnits,
-        hedgerowNoRetention,
-        editableWatercourse
+        retainedBlankProposed: await featureIdByRef(
+          page,
+          'area-habitats',
+          'H1'
+        ),
+        retainedBlankProposedUnits: await rowUnitsText(
+          listPage.areaRowByRef('H1')
+        )
       }
     }
   )
@@ -559,11 +550,30 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await expect(detailsPage.cancelLink).toBeHidden()
         })
 
-        // Deferred pending backend PR #141 (BMD-531/534): Lost handling is still
-        // changing — currently Lost areas are remapped to Created, but the PO
-        // ruling excludes Lost features from the PI entirely, so a Lost area
-        // will not appear here at all. Re-cover Lost exclusion once #141 lands.
-        test.skip('a Lost area habitat is excluded from the post-intervention view', () => {})
+        // A Lost area habitat is one whose baseline habitat was removed and
+        // replaced, so the backend maps it to Created (BMD-531/534) — it still
+        // appears, rendering the read-only page with Intervention "Created".
+        // (Lost hedgerows, watercourses and trees are instead excluded
+        // entirely; that is covered in post-intervention-habitat-list.spec.js.)
+        test('a Lost area habitat is imported as Created and renders read-only', async ({
+          browser,
+          postInterventionHabitatDetailsPage,
+          page
+        }) => {
+          const shared = await getCompleteProject(browser)
+          await postInterventionHabitatDetailsPage.open(
+            shared.id,
+            shared.lostAsCreated
+          )
+
+          await expect(
+            postInterventionHabitatDetailsPage.viewOnlyHeading
+          ).toBeVisible()
+          await expect(page.getByText('Created', { exact: true })).toBeVisible()
+          await expect(
+            postInterventionHabitatDetailsPage.saveButton
+          ).toBeHidden()
+        })
       }
     )
 
@@ -652,100 +662,6 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         ).toBeHidden()
       })
     })
-
-    // ─── Default retention category ───────────────────────────────────────────
-    // A feature with no retention category at all is treated as retained: it
-    // gets the view-only page and its Intervention row shows the "Retained"
-    // default.
-
-    test.describe('default retention category', { tag: '@regression' }, () => {
-      test.use({ storageState: STORAGE_STATE })
-      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
-
-      test('hedgerow with no retention category renders read-only with Intervention "Retained"', async ({
-        browser,
-        postInterventionHabitatDetailsPage,
-        page
-      }) => {
-        const shared = await getMixedProject(browser)
-        await postInterventionHabitatDetailsPage.open(
-          shared.id,
-          shared.hedgerowNoRetention
-        )
-
-        await expect(
-          postInterventionHabitatDetailsPage.viewOnlyHeading
-        ).toBeVisible()
-        await expect(page.getByText('Retained', { exact: true })).toBeVisible()
-        await expect(postInterventionHabitatDetailsPage.saveButton).toBeHidden()
-        // No baseline upload in this project, so no ref-matched feature and
-        // no "View baseline details" link.
-        await expect(
-          postInterventionHabitatDetailsPage.viewBaselineLink
-        ).toBeHidden()
-      })
-    })
-
-    // ─── Editable fall-through (non-retained watercourse) ────────────────────
-
-    test.describe(
-      'editable watercourse fall-through',
-      { tag: '@regression' },
-      () => {
-        test.use({ storageState: STORAGE_STATE })
-        test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
-
-        test('a watercourse with retention "Null" renders the editable watercourse form', async ({
-          browser,
-          postInterventionHabitatDetailsPage,
-          page
-        }) => {
-          const shared = await getMixedProject(browser)
-          const response = await page.goto(
-            detailsUrl({
-              projectId: shared.id,
-              featureId: shared.editableWatercourse
-            })
-          )
-
-          expect(response.status()).toBe(HTTP_OK)
-          await expect(
-            postInterventionHabitatDetailsPage.watercourseEncroachmentSelect
-          ).toBeVisible()
-          await expect(
-            postInterventionHabitatDetailsPage.saveButton
-          ).toBeVisible()
-        })
-
-        // The PI save endpoint (PUT /projects/{id}/post-intervention/habitats/
-        // {featureId}) only updates area habitats, so saving the editable form
-        // for a non-retained watercourse currently 404s in the backend and
-        // surfaces as 502 Bad Gateway. That looks like a defect rather than a
-        // contract — confirm the intended behaviour with the team before
-        // asserting it, then either un-skip this as-is (behaviour confirmed
-        // intended) or rewrite it as a redirect assertion (backend gains
-        // linear-feature support).
-        test.skip('saving an editable watercourse surfaces the area-only backend 404 as 502', async ({
-          browser,
-          postInterventionHabitatDetailsPage,
-          page
-        }) => {
-          const shared = await getMixedProject(browser)
-          await postInterventionHabitatDetailsPage.open(
-            shared.id,
-            shared.editableWatercourse
-          )
-          const responsePromise = page.waitForResponse(
-            (response) =>
-              response.url().includes('/post-intervention-habitat-details') &&
-              response.request().method() === 'POST'
-          )
-          await postInterventionHabitatDetailsPage.saveButton.click()
-          const response = await responsePromise
-          expect(response.status()).toBe(502)
-        })
-      }
-    )
   })
 
   // ─── Retained hedgerow — view-only display (BMD-723) ────────────────────────
