@@ -49,9 +49,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       'projects table has "Project name", "Last modified", and "Date created" column headings',
       { tag: '@regression' },
       async ({ createProjectFlow, page }) => {
-        await createProjectFlow.createProject(
-          `Column headings test ${Date.now()}`
-        )
+        const name = `Column headings test ${Date.now()}`
+        await createProjectFlow.createProject(name)
 
         const table = page.getByTestId('projects-table')
         await expect(
@@ -63,6 +62,30 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expect(
           table.getByRole('columnheader', { name: 'Date created' })
         ).toBeVisible()
+
+        // Last modified: "8 July 2026 at 2:05pm"; Date created: "8 July 2026".
+        // \s* absorbs template whitespace — toHaveText only normalizes it for
+        // string expectations, not RegExp ones.
+        const row = table.getByRole('row').filter({ hasText: name })
+        await expect(row.getByRole('cell').nth(1)).toHaveText(
+          /^\s*\d{1,2} [A-Z][a-z]+ \d{4} at \d{1,2}:\d{2}(am|pm)\s*$/
+        )
+        await expect(row.getByRole('cell').nth(2)).toHaveText(
+          /^\s*\d{1,2} [A-Z][a-z]+ \d{4}\s*$/
+        )
+      }
+    )
+
+    test(
+      'clicking a project name navigates to its task list',
+      { tag: '@regression' },
+      async ({ createProjectFlow, projectDashboardPage, page }) => {
+        const name = `Row link test ${Date.now()}`
+        await createProjectFlow.createProject(name)
+        await projectDashboardPage.open()
+        await projectDashboardPage.projectLink(name).click()
+
+        await expect(page).toHaveURL(/\/add-project-details\//)
       }
     )
   })
