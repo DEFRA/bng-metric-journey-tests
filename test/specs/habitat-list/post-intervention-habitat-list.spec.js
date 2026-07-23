@@ -25,6 +25,14 @@ const HEDGEROWS_FILE = 'Post-intervention - complete with hedgerows.gpkg'
 // Provisional — replace with a real surveyed post-intervention-with-watercourses
 // GeoPackage when one is available.
 const WATERCOURSES_FILE = 'Post-intervention - complete with watercourses.gpkg'
+// BMD-845: HEDGEROWS_FILE/WATERCOURSES_FILE are all-Retained, so they cannot
+// prove the Intervention type column's Enhanced/Created value mapping. These
+// mutate a copy of each (Retention Category only — HR1/WC1 stay Retained,
+// HR2/WC2 Enhanced, HR3/WC3 Created) to close that gap.
+const HEDGEROWS_MIXED_FILE =
+  'Post-intervention - hedgerows mixed retention.gpkg'
+const WATERCOURSES_MIXED_FILE =
+  'Post-intervention - watercourses mixed retention.gpkg'
 const HTTP_BAD_REQUEST = 400
 const VALID_UUID_V4 = 'aaaaaaaa-bbbb-4ccc-bddd-eeeeeeeeeeee'
 const STUB_PROJECT_ID = '00000000-0000-0000-0000-000000000000'
@@ -557,13 +565,20 @@ test.describe(
             await expect(postInterventionHabitatListPage.treeRows).toHaveCount(
               3
             )
-            const summarySize = (
-              await postInterventionHabitatListPage.areaHabitatSizeCell.innerText()
-            ).trim()
-            const tableTotal = (
-              await postInterventionHabitatListPage.areaTableTotalSizeCell.innerText()
-            ).trim()
-            expect(summarySize).toBe(tableTotal)
+            const summarySize = parseFloat(
+              (
+                await postInterventionHabitatListPage.areaHabitatSizeCell.innerText()
+              ).trim()
+            )
+            const tableTotal = parseFloat(
+              (
+                await postInterventionHabitatListPage.areaTableTotalSizeCell.innerText()
+              ).trim()
+            )
+            // The summary rounds to 2dp (BMD-722); the table footer shows
+            // full precision — compare numerically at the summary's
+            // precision rather than requiring an exact string match.
+            expect(summarySize).toBeCloseTo(tableTotal, 2)
           }
         )
 
@@ -589,10 +604,13 @@ test.describe(
             // habitats" is inverted; the actual relationship is Site < Area
             // habitats.)
             expect(siteSize).toBeLessThan(areaHabitatsSize)
-            expect(areaHabitatsSize - siteSize).toBeCloseTo(
-              TREES_COMPLETE_TOTAL_HA,
-              4
-            )
+            // Site and Area habitats summary cells are each independently
+            // rounded to 2dp (BMD-722/167), so their difference can be off by
+            // up to ~0.01ha from the true tree total — tolerate that instead
+            // of requiring 4dp precision.
+            expect(
+              Math.abs(areaHabitatsSize - siteSize - TREES_COMPLETE_TOTAL_HA)
+            ).toBeLessThan(0.01)
           }
         )
       })
@@ -795,9 +813,9 @@ test.describe(
     // and Habitat type) to all three tab tables, showing each feature's
     // normalised retention category. COMPLETE_POST_INTERVENTION_FILE carries a
     // mix (H1 Retained, H2-3 Enhanced, H2-1 Lost imported as Created —
-    // BMD-531/534), proving the column's value mapping rather than just its
-    // presence; HEDGEROWS_FILE/WATERCOURSES_FILE are all Retained (see their
-    // own BNG-529/530 sections), so those tabs only prove presence.
+    // BMD-531/534); HEDGEROWS_MIXED_FILE/WATERCOURSES_MIXED_FILE carry the
+    // same Retained/Enhanced/Created mix synthesised for hedgerows and
+    // watercourses, since no shipped fixture has non-Retained linear features.
 
     test.describe('Post-intervention habitat list — intervention type column (BMD-845)', () => {
       test.use({ storageState: STORAGE_STATE })
@@ -844,24 +862,24 @@ test.describe(
         )
       })
 
-      test.describe('hedgerows and watercourses — column presence', () => {
+      test.describe('hedgerows and watercourses — mixed retention categories', () => {
         let hedgerowsProjectId
         let watercoursesProjectId
         test.beforeAll(async ({ browser }) => {
           hedgerowsProjectId = await uploadFixtureInNewContext(
             browser,
             PROJECT_LABEL,
-            HEDGEROWS_FILE
+            HEDGEROWS_MIXED_FILE
           )
           watercoursesProjectId = await uploadFixtureInNewContext(
             browser,
             PROJECT_LABEL,
-            WATERCOURSES_FILE
+            WATERCOURSES_MIXED_FILE
           )
         })
 
         test(
-          'the Hedgerows tab shows Retained in the Intervention type column',
+          'each hedgerow shows its normalised retention category',
           { tag: '@regression' },
           async ({ postInterventionHabitatListPage }) => {
             await postInterventionHabitatListPage.open(hedgerowsProjectId)
@@ -873,17 +891,24 @@ test.describe(
               postInterventionHabitatListPage.hedgerowsTable,
               HEDGEROW_TABLE_COLUMNS
             )
-            await expect(
-              postInterventionHabitatListPage
-                .hedgerowRowByRef('HR1')
-                .getByRole('cell')
-                .nth(INTERVENTION_TYPE_COL)
-            ).toHaveText('Retained')
+            const expectedInterventionByRef = [
+              ['HR1', 'Retained'],
+              ['HR2', 'Enhanced'],
+              ['HR3', 'Created']
+            ]
+            for (const [ref, intervention] of expectedInterventionByRef) {
+              await expect(
+                postInterventionHabitatListPage
+                  .hedgerowRowByRef(ref)
+                  .getByRole('cell')
+                  .nth(INTERVENTION_TYPE_COL)
+              ).toHaveText(intervention)
+            }
           }
         )
 
         test(
-          'the Watercourses tab shows Retained in the Intervention type column',
+          'each watercourse shows its normalised retention category',
           { tag: '@regression' },
           async ({ postInterventionHabitatListPage }) => {
             await postInterventionHabitatListPage.open(watercoursesProjectId)
@@ -895,12 +920,19 @@ test.describe(
               postInterventionHabitatListPage.watercoursesTable,
               WATERCOURSE_TABLE_COLUMNS
             )
-            await expect(
-              postInterventionHabitatListPage
-                .watercourseRowByRef('WC1')
-                .getByRole('cell')
-                .nth(INTERVENTION_TYPE_COL)
-            ).toHaveText('Retained')
+            const expectedInterventionByRef = [
+              ['WC1', 'Retained'],
+              ['WC2', 'Enhanced'],
+              ['WC3', 'Created']
+            ]
+            for (const [ref, intervention] of expectedInterventionByRef) {
+              await expect(
+                postInterventionHabitatListPage
+                  .watercourseRowByRef(ref)
+                  .getByRole('cell')
+                  .nth(INTERVENTION_TYPE_COL)
+              ).toHaveText(intervention)
+            }
           }
         )
       })

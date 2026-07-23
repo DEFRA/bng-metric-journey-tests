@@ -25,6 +25,7 @@ const UPLOAD_TIMEOUT = 120_000
 // 60s timeout.
 const SHARED_BUILD_TEST_TIMEOUT = 180_000
 const PROJECT_LABEL = 'PI habitat details test'
+const DETAILS_URL_PATTERN = /\/post-intervention-habitat-details/
 
 // Fixture reachability (Retention Category per feature, read from the .gpkg):
 // - COMPLETE_PI_FILE areas: H1 + H2-2 Retained, H2-3 + H3 Enhanced, H2-1…
@@ -32,7 +33,9 @@ const PROJECT_LABEL = 'PI habitat details test'
 // - BASELINE_FILE areas: H1, H2, H3 — so in a project holding both uploads
 //   the PI parcel H1 has a ref-matching baseline feature (link shown) while
 //   H2-2 does not (link hidden).
-// - HEDGEROWS_FILE / WATERCOURSES_FILE: HR1-3 / WC1-3 all Retained.
+// - HEDGEROWS_FILE / WATERCOURSES_FILE: HR1/WC1 Retained, HR2/WC2 Enhanced,
+//   HR3/WC3 Created (BMD-845) — synthesised "mixed retention" fixtures, since
+//   no shipped fixture has non-Retained hedgerows or watercourses.
 // - HEDGEROW_BASELINE_FILE: BASELINE_FILE variant whose hedgerow Parcel Refs
 //   are HR1/HR2, so PI hedgerow HR1 has a ref-matching baseline feature and
 //   the "View baseline details" link renders on its view-only page.
@@ -46,15 +49,20 @@ const PROJECT_LABEL = 'PI habitat details test'
 // - TREES_FILE: T001-T004 individual trees (unsupported placeholder page).
 const COMPLETE_PI_FILE = 'Post-intervention - complete.gpkg'
 const BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
-const HEDGEROWS_FILE = 'Post-intervention - complete with hedgerows.gpkg'
+const HEDGEROWS_FILE = 'Post-intervention - hedgerows mixed retention.gpkg'
 const HEDGEROW_BASELINE_FILE = 'Baseline - complete with hedgerow refs.gpkg'
-const WATERCOURSES_FILE = 'Post-intervention - complete with watercourses.gpkg'
+const WATERCOURSES_FILE =
+  'Post-intervention - watercourses mixed retention.gpkg'
 const WATERCOURSE_BASELINE_FILE =
   'Baseline - complete with watercourse refs.gpkg'
 const MIXED_FILE = 'Post-intervention - mixed complete and incomplete.gpkg'
 const TREES_FILE = 'Post-intervention - urban trees all sizes.gpkg'
 const RETAINED_HEDGEROW_REF = 'HR1'
 const RETAINED_WATERCOURSE_REF = 'WC1'
+const ENHANCED_HEDGEROW_REF = 'HR2'
+const CREATED_HEDGEROW_REF = 'HR3'
+const ENHANCED_WATERCOURSE_REF = 'WC2'
+const CREATED_WATERCOURSE_REF = 'WC3'
 
 // Post-intervention habitat-list table column order (BMD-845 added the
 // "Intervention type" column at index 1): ref, intervention type, type, size,
@@ -158,9 +166,7 @@ function getCompleteProject(browser) {
         retainedNoBaseline: await featureIdByRef(page, 'area-habitats', 'H2-2'),
         retainedNoBaselineUnits: await rowUnitsText(
           listPage.areaRowByRef('H2-2')
-        ),
-        enhanced: await featureIdByRef(page, 'area-habitats', 'H2-3'),
-        lostAsCreated: await featureIdByRef(page, 'area-habitats', 'H2-1')
+        )
       }
     }
   )
@@ -352,7 +358,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await page.goto(
           detailsUrl({ projectId: STUB_UUID, featureId: STUB_UUID })
         )
-        await expect(page).not.toHaveURL(/\/post-intervention-habitat-details/)
+        await expect(page).not.toHaveURL(DETAILS_URL_PATTERN)
         await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
       }
     )
@@ -419,7 +425,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await postInterventionHabitatListPage.areaHabitatsTable
             .getByRole('link', { name: 'H2-2', exact: true })
             .click()
-          await expect(page).toHaveURL(/\/post-intervention-habitat-details/)
+          await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
           // H2-2: Grassland / Modified grassland / Moderate (fixture values);
           // "Low (2)" and "Moderate (2)" are the engine's reference
@@ -533,11 +539,13 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       )
     })
 
-    // ─── Non-retained area habitats are read-only too (BMD-608) ──────────────
+    // ─── Non-retained area habitats are read-only too (BMD-608/845) ──────────
     // Every PI details page is read-only regardless of retention category
     // (BMD-608/723/724): a Created or Enhanced feature no longer falls through
-    // to an editable form. Editable, intervention-specific details pages are
-    // deferred to BMD-845.
+    // to an editable form. BMD-845 confirmed there are no per-intervention-type
+    // editable variations to build — Retained/Enhanced/Created features of a
+    // given habitat type all render the same read-only template, differing
+    // only in the "Intervention" row's value.
 
     test.describe(
       'non-retained area habitats are read-only',
@@ -548,14 +556,18 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
         test('an Enhanced area habitat renders read-only with no form controls', async ({
           browser,
+          postInterventionHabitatListPage,
           postInterventionHabitatDetailsPage,
           page
         }) => {
           const shared = await getCompleteProject(browser)
-          await postInterventionHabitatDetailsPage.open(
-            shared.id,
-            shared.enhanced
-          )
+          // Arrive the way the user does (AC4b): click the parcel's Ref link
+          // on the Areas tab rather than deep-linking.
+          await postInterventionHabitatListPage.open(shared.id)
+          await postInterventionHabitatListPage.areaHabitatsTable
+            .getByRole('link', { name: 'H2-3', exact: true })
+            .click()
+          await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
           // Retention no longer gates the page: a non-retained (Enhanced)
           // feature gets the same read-only page as a retained one.
@@ -578,14 +590,18 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         // entirely; that is covered in post-intervention-habitat-list.spec.js.)
         test('a Lost area habitat is imported as Created and renders read-only', async ({
           browser,
+          postInterventionHabitatListPage,
           postInterventionHabitatDetailsPage,
           page
         }) => {
           const shared = await getCompleteProject(browser)
-          await postInterventionHabitatDetailsPage.open(
-            shared.id,
-            shared.lostAsCreated
-          )
+          // Arrive the way the user does (AC4c): click the parcel's Ref link
+          // on the Areas tab rather than deep-linking.
+          await postInterventionHabitatListPage.open(shared.id)
+          await postInterventionHabitatListPage.areaHabitatsTable
+            .getByRole('link', { name: 'H2-1', exact: true })
+            .click()
+          await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
           await expect(
             postInterventionHabitatDetailsPage.viewOnlyHeading
@@ -751,7 +767,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await postInterventionHabitatListPage.hedgerowsTable
           .getByRole('link', { name: RETAINED_HEDGEROW_REF, exact: true })
           .click()
-        await expect(page).toHaveURL(/\/post-intervention-habitat-details/)
+        await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
         await expect(postInterventionHabitatDetailsPage.caption).toHaveText(
           shared.name
@@ -811,6 +827,62 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       }
     )
   })
+
+  // ─── Non-retained hedgerows are read-only too (BMD-845) ─────────────────────
+  // Same read-only template as a Retained hedgerow (BMD-723) — only the
+  // "Intervention" row's value differs — reached the way the user does: click
+  // the Ref link on the Hedgerows tab rather than deep-linking.
+
+  test.describe(
+    'non-retained hedgerow habitats are read-only',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      test('an Enhanced hedgerow renders read-only with its intervention type shown', async ({
+        browser,
+        postInterventionHabitatListPage,
+        postInterventionHabitatDetailsPage,
+        page
+      }) => {
+        const shared = await getHedgerowsProject(browser)
+        await postInterventionHabitatListPage.open(shared.id)
+        await postInterventionHabitatListPage.hedgerowsTab.click()
+        await postInterventionHabitatListPage.hedgerowsTable
+          .getByRole('link', { name: ENHANCED_HEDGEROW_REF, exact: true })
+          .click()
+        await expect(page).toHaveURL(DETAILS_URL_PATTERN)
+
+        const detailsPage = postInterventionHabitatDetailsPage
+        await expect(detailsPage.viewOnlyHeading).toBeVisible()
+        await expect(page.getByText('Enhanced', { exact: true })).toBeVisible()
+        await expect(detailsPage.saveButton).toBeHidden()
+        await expect(detailsPage.habitatTypeSelect).toBeHidden()
+      })
+
+      test('a Created hedgerow renders read-only with its intervention type shown', async ({
+        browser,
+        postInterventionHabitatListPage,
+        postInterventionHabitatDetailsPage,
+        page
+      }) => {
+        const shared = await getHedgerowsProject(browser)
+        await postInterventionHabitatListPage.open(shared.id)
+        await postInterventionHabitatListPage.hedgerowsTab.click()
+        await postInterventionHabitatListPage.hedgerowsTable
+          .getByRole('link', { name: CREATED_HEDGEROW_REF, exact: true })
+          .click()
+        await expect(page).toHaveURL(DETAILS_URL_PATTERN)
+
+        const detailsPage = postInterventionHabitatDetailsPage
+        await expect(detailsPage.viewOnlyHeading).toBeVisible()
+        await expect(page.getByText('Created', { exact: true })).toBeVisible()
+        await expect(detailsPage.saveButton).toBeHidden()
+        await expect(detailsPage.habitatTypeSelect).toBeHidden()
+      })
+    }
+  )
 
   // ─── Retained watercourse — view-only display (BMD-724) ─────────────────────
 
@@ -895,7 +967,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await postInterventionHabitatListPage.watercoursesTable
           .getByRole('link', { name: RETAINED_WATERCOURSE_REF, exact: true })
           .click()
-        await expect(page).toHaveURL(/\/post-intervention-habitat-details/)
+        await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
         await expect(postInterventionHabitatDetailsPage.caption).toHaveText(
           shared.name
@@ -957,6 +1029,62 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       }
     )
   })
+
+  // ─── Non-retained watercourses are read-only too (BMD-845) ──────────────────
+  // Same read-only template as a Retained watercourse (BMD-724) — only the
+  // "Intervention" row's value differs — reached the way the user does: click
+  // the Ref link on the Watercourses tab rather than deep-linking.
+
+  test.describe(
+    'non-retained watercourse habitats are read-only',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      test('an Enhanced watercourse renders read-only with its intervention type shown', async ({
+        browser,
+        postInterventionHabitatListPage,
+        postInterventionHabitatDetailsPage,
+        page
+      }) => {
+        const shared = await getWatercoursesProject(browser)
+        await postInterventionHabitatListPage.open(shared.id)
+        await postInterventionHabitatListPage.watercoursesTab.click()
+        await postInterventionHabitatListPage.watercoursesTable
+          .getByRole('link', { name: ENHANCED_WATERCOURSE_REF, exact: true })
+          .click()
+        await expect(page).toHaveURL(DETAILS_URL_PATTERN)
+
+        const detailsPage = postInterventionHabitatDetailsPage
+        await expect(detailsPage.viewOnlyHeading).toBeVisible()
+        await expect(page.getByText('Enhanced', { exact: true })).toBeVisible()
+        await expect(detailsPage.saveButton).toBeHidden()
+        await expect(detailsPage.watercourseEncroachmentSelect).toBeHidden()
+      })
+
+      test('a Created watercourse renders read-only with its intervention type shown', async ({
+        browser,
+        postInterventionHabitatListPage,
+        postInterventionHabitatDetailsPage,
+        page
+      }) => {
+        const shared = await getWatercoursesProject(browser)
+        await postInterventionHabitatListPage.open(shared.id)
+        await postInterventionHabitatListPage.watercoursesTab.click()
+        await postInterventionHabitatListPage.watercoursesTable
+          .getByRole('link', { name: CREATED_WATERCOURSE_REF, exact: true })
+          .click()
+        await expect(page).toHaveURL(DETAILS_URL_PATTERN)
+
+        const detailsPage = postInterventionHabitatDetailsPage
+        await expect(detailsPage.viewOnlyHeading).toBeVisible()
+        await expect(page.getByText('Created', { exact: true })).toBeVisible()
+        await expect(detailsPage.saveButton).toBeHidden()
+        await expect(detailsPage.watercourseEncroachmentSelect).toBeHidden()
+      })
+    }
+  )
 
   // ─── Unsupported feature placeholder (individual trees) ─────────────────────
 
