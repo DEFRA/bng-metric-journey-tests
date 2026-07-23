@@ -565,13 +565,20 @@ test.describe(
             await expect(postInterventionHabitatListPage.treeRows).toHaveCount(
               3
             )
-            const summarySize = (
-              await postInterventionHabitatListPage.areaHabitatSizeCell.innerText()
-            ).trim()
-            const tableTotal = (
-              await postInterventionHabitatListPage.areaTableTotalSizeCell.innerText()
-            ).trim()
-            expect(summarySize).toBe(tableTotal)
+            const summarySize = parseFloat(
+              (
+                await postInterventionHabitatListPage.areaHabitatSizeCell.innerText()
+              ).trim()
+            )
+            const tableTotal = parseFloat(
+              (
+                await postInterventionHabitatListPage.areaTableTotalSizeCell.innerText()
+              ).trim()
+            )
+            // The summary rounds to 2dp (BMD-722); the table footer shows
+            // full precision — compare numerically at the summary's
+            // precision rather than requiring an exact string match.
+            expect(summarySize).toBeCloseTo(tableTotal, 2)
           }
         )
 
