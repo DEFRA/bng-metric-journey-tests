@@ -604,10 +604,13 @@ test.describe(
             // habitats" is inverted; the actual relationship is Site < Area
             // habitats.)
             expect(siteSize).toBeLessThan(areaHabitatsSize)
-            expect(areaHabitatsSize - siteSize).toBeCloseTo(
-              TREES_COMPLETE_TOTAL_HA,
-              4
-            )
+            // Site and Area habitats summary cells are each independently
+            // rounded to 2dp (BMD-722/167), so their difference can be off by
+            // up to ~0.01ha from the true tree total — tolerate that instead
+            // of requiring 4dp precision.
+            expect(
+              Math.abs(areaHabitatsSize - siteSize - TREES_COMPLETE_TOTAL_HA)
+            ).toBeLessThan(0.01)
           }
         )
       })
