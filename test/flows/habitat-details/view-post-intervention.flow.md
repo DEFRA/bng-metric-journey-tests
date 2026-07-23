@@ -7,10 +7,12 @@ details. **Every post-intervention feature renders a read-only details page rega
 its retention category** (BMD-608/723/724): area, hedgerow and watercourse features each
 get a read-only page specific to their type, and individual trees render an
 unsupported-feature placeholder. Retention category no longer gates the page — a Created
-or Enhanced feature gets the same read-only page as a Retained one. Editable,
-intervention-specific details pages are deferred to BMD-845. There is no editable form on
-this route: the `POST /post-intervention-habitat-details` handler now returns
-501 Not Implemented.
+or Enhanced feature gets the same read-only page as a Retained one. BMD-845 (which added
+the habitat-list "Intervention type" column) confirmed there are no per-intervention-type
+editable variations to build — Retained/Enhanced/Created features of a given type render
+the same read-only template, differing only in the "Intervention" row's value. There is no
+editable form on this route: the `POST /post-intervention-habitat-details` handler now
+returns 501 Not Implemented.
 
 The retention category is displayed in the "Intervention" row. It is normalised for
 display ("1. Retained" → "Retained"), mirroring the backend's `normaliseRetentionCategory`.
@@ -77,7 +79,7 @@ when absent.
 - **Template:** The same per-type read-only templates as Steps 1–3 (`pi-habitat-details.njk` / `pi-hedgerow-details.njk` / `pi-watercourse-details.njk`)
 - **Auth required:** Yes (session + BNG Completer role)
 - **Backend endpoint:** Same as Step 1
-- **Description:** Retention category no longer gates the page (BMD-608/723/724): a Created or Enhanced feature renders the same read-only details page as a Retained one, and its Intervention row shows its category. There is no editable dropdown form on this route. **Lost handling (backend BMD-531/534, PR #141, merged):** a Lost _area_ habitat is one whose baseline habitat was removed and replaced, so the backend maps it to Created — it still reaches this read-only page, with its Intervention row showing "Created". Lost hedgerows, watercourses and trees are truly gone: the backend excludes them at import, so they never reach this route or the habitat list. Editable, intervention-specific details pages are deferred to BMD-845.
+- **Description:** Retention category no longer gates the page (BMD-608/723/724): a Created or Enhanced feature renders the same read-only details page as a Retained one, and its Intervention row shows its category. There is no editable dropdown form on this route. **Lost handling (backend BMD-531/534, PR #141, merged):** a Lost _area_ habitat is one whose baseline habitat was removed and replaced, so the backend maps it to Created — it still reaches this read-only page, with its Intervention row showing "Created". Lost hedgerows, watercourses and trees are truly gone: the backend excludes them at import, so they never reach this route or the habitat list. BMD-845 confirmed there are no per-intervention-type editable variations to build — this shared read-only template, with the correct Intervention value per category, is the final behaviour.
 - **Validation:** Same as Step 1
 - **On success:** Renders the read-only details page for the feature type
 - **On error:** Same as Step 1
