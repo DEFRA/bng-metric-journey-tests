@@ -421,10 +421,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           const shared = await getCompleteProject(browser)
           // Arrive the way the user does (BMD-608 AC1): click the parcel's
           // ref link on the habitat-list Areas tab rather than deep-linking.
-          await postInterventionHabitatListPage.open(shared.id)
-          await postInterventionHabitatListPage.areaHabitatsTable
-            .getByRole('link', { name: 'H2-2', exact: true })
-            .click()
+          await postInterventionHabitatListPage.openAreaHabitatDetails(
+            shared.id,
+            'H2-2'
+          )
           await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
           // H2-2: Grassland / Modified grassland / Moderate (fixture values);
@@ -563,10 +563,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           const shared = await getCompleteProject(browser)
           // Arrive the way the user does (AC4b): click the parcel's Ref link
           // on the Areas tab rather than deep-linking.
-          await postInterventionHabitatListPage.open(shared.id)
-          await postInterventionHabitatListPage.areaHabitatsTable
-            .getByRole('link', { name: 'H2-3', exact: true })
-            .click()
+          await postInterventionHabitatListPage.openAreaHabitatDetails(
+            shared.id,
+            'H2-3'
+          )
           await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
           // Retention no longer gates the page: a non-retained (Enhanced)
@@ -597,10 +597,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           const shared = await getCompleteProject(browser)
           // Arrive the way the user does (AC4c): click the parcel's Ref link
           // on the Areas tab rather than deep-linking.
-          await postInterventionHabitatListPage.open(shared.id)
-          await postInterventionHabitatListPage.areaHabitatsTable
-            .getByRole('link', { name: 'H2-1', exact: true })
-            .click()
+          await postInterventionHabitatListPage.openAreaHabitatDetails(
+            shared.id,
+            'H2-1'
+          )
           await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
           await expect(
@@ -762,11 +762,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         const shared = await getHedgerowsProject(browser)
         // Arrive the way the user does (BMD-723 AC1): select the Hedgerows
         // tab and click the hedgerow's ref link rather than deep-linking.
-        await postInterventionHabitatListPage.open(shared.id)
-        await postInterventionHabitatListPage.hedgerowsTab.click()
-        await postInterventionHabitatListPage.hedgerowsTable
-          .getByRole('link', { name: RETAINED_HEDGEROW_REF, exact: true })
-          .click()
+        await postInterventionHabitatListPage.openHedgerowDetails(
+          shared.id,
+          RETAINED_HEDGEROW_REF
+        )
         await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
         await expect(postInterventionHabitatDetailsPage.caption).toHaveText(
@@ -847,11 +846,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         page
       }) => {
         const shared = await getHedgerowsProject(browser)
-        await postInterventionHabitatListPage.open(shared.id)
-        await postInterventionHabitatListPage.hedgerowsTab.click()
-        await postInterventionHabitatListPage.hedgerowsTable
-          .getByRole('link', { name: ENHANCED_HEDGEROW_REF, exact: true })
-          .click()
+        await postInterventionHabitatListPage.openHedgerowDetails(
+          shared.id,
+          ENHANCED_HEDGEROW_REF
+        )
         await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
         const detailsPage = postInterventionHabitatDetailsPage
@@ -868,11 +866,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         page
       }) => {
         const shared = await getHedgerowsProject(browser)
-        await postInterventionHabitatListPage.open(shared.id)
-        await postInterventionHabitatListPage.hedgerowsTab.click()
-        await postInterventionHabitatListPage.hedgerowsTable
-          .getByRole('link', { name: CREATED_HEDGEROW_REF, exact: true })
-          .click()
+        await postInterventionHabitatListPage.openHedgerowDetails(
+          shared.id,
+          CREATED_HEDGEROW_REF
+        )
         await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
         const detailsPage = postInterventionHabitatDetailsPage
@@ -962,11 +959,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         // Arrive the way the user does (BMD-724 AC1): select the
         // Watercourses tab and click the watercourse's ref link rather than
         // deep-linking.
-        await postInterventionHabitatListPage.open(shared.id)
-        await postInterventionHabitatListPage.watercoursesTab.click()
-        await postInterventionHabitatListPage.watercoursesTable
-          .getByRole('link', { name: RETAINED_WATERCOURSE_REF, exact: true })
-          .click()
+        await postInterventionHabitatListPage.openWatercourseDetails(
+          shared.id,
+          RETAINED_WATERCOURSE_REF
+        )
         await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
         await expect(postInterventionHabitatDetailsPage.caption).toHaveText(
@@ -1049,11 +1045,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         page
       }) => {
         const shared = await getWatercoursesProject(browser)
-        await postInterventionHabitatListPage.open(shared.id)
-        await postInterventionHabitatListPage.watercoursesTab.click()
-        await postInterventionHabitatListPage.watercoursesTable
-          .getByRole('link', { name: ENHANCED_WATERCOURSE_REF, exact: true })
-          .click()
+        await postInterventionHabitatListPage.openWatercourseDetails(
+          shared.id,
+          ENHANCED_WATERCOURSE_REF
+        )
         await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
         const detailsPage = postInterventionHabitatDetailsPage
@@ -1070,11 +1065,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         page
       }) => {
         const shared = await getWatercoursesProject(browser)
-        await postInterventionHabitatListPage.open(shared.id)
-        await postInterventionHabitatListPage.watercoursesTab.click()
-        await postInterventionHabitatListPage.watercoursesTable
-          .getByRole('link', { name: CREATED_WATERCOURSE_REF, exact: true })
-          .click()
+        await postInterventionHabitatListPage.openWatercourseDetails(
+          shared.id,
+          CREATED_WATERCOURSE_REF
+        )
         await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
         const detailsPage = postInterventionHabitatDetailsPage

@@ -93,4 +93,27 @@ export class PostInterventionHabitatListPage extends BasePage {
   async open(id) {
     await super.open(`/projects/${id}/post-intervention-habitat-list`)
   }
+
+  async openAreaHabitatDetails(projectId, ref) {
+    await this.open(projectId)
+    await this.areaHabitatsTable
+      .getByRole('link', { name: ref, exact: true })
+      .click()
+  }
+
+  async openHedgerowDetails(projectId, ref) {
+    await this.open(projectId)
+    await this.hedgerowsTab.click()
+    await this.hedgerowsTable
+      .getByRole('link', { name: ref, exact: true })
+      .click()
+  }
+
+  async openWatercourseDetails(projectId, ref) {
+    await this.open(projectId)
+    await this.watercoursesTab.click()
+    await this.watercoursesTable
+      .getByRole('link', { name: ref, exact: true })
+      .click()
+  }
 }

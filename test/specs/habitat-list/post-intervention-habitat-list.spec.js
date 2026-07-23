@@ -9,6 +9,7 @@ import {
 import { setupProject } from '@utils/project-helpers.js'
 import { ProjectDashboardPage } from '@pages/project-dashboard.page.js'
 import { CreateProjectFlow } from '@flows/project-management/create-project.flow.js'
+import { UploadBaselineFileFlow } from '@flows/upload-baseline/upload-baseline-file.flow.js'
 import { UploadPostInterventionFileFlow } from '@flows/upload-post-intervention/upload-post-intervention-file.flow.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
@@ -33,6 +34,15 @@ const HEDGEROWS_MIXED_FILE =
   'Post-intervention - hedgerows mixed retention.gpkg'
 const WATERCOURSES_MIXED_FILE =
   'Post-intervention - watercourses mixed retention.gpkg'
+// BMD-722: baseline counterparts for HEDGEROWS_FILE/WATERCOURSES_FILE (Parcel
+// Refs HR1/HR2 and WC1), the same baseline fixtures
+// test/specs/habitat-details/post-intervention-habitat-details.spec.js uses.
+// Their overlapping refs give Area habitats, Hedgerows and Watercourses each
+// a non-zero baseline total, needed to populate the Summary table's Baseline
+// units (and the net-change columns derived from it).
+const HEDGEROW_BASELINE_FILE = 'Baseline - complete with hedgerow refs.gpkg'
+const WATERCOURSE_BASELINE_FILE =
+  'Baseline - complete with watercourse refs.gpkg'
 const HTTP_BAD_REQUEST = 400
 const VALID_UUID_V4 = 'aaaaaaaa-bbbb-4ccc-bddd-eeeeeeeeeeee'
 const STUB_PROJECT_ID = '00000000-0000-0000-0000-000000000000'
@@ -68,6 +78,15 @@ const AREAS_AREA_COL = 3
 const UNITS_COL = 6
 const STATUS_COL = 7
 const UNITS_VALUE_PATTERN = /^\d+\.\d{2}$/
+
+// Summary table cell-value patterns (BMD-722): Baseline/Post-intervention
+// units and Net unit change are signed decimals; Net % change is signed and
+// %-suffixed; Size is ha-suffixed for Area habitats or km-suffixed for
+// Hedgerows/Watercourses.
+const SUMMARY_UNITS_PATTERN = /^-?\d+\.\d{2}$/
+const SUMMARY_PERCENT_PATTERN = /^-?\d+(\.\d+)?%$/
+const SUMMARY_AREA_SIZE_PATTERN = /^\d+(\.\d+)?ha$/
+const SUMMARY_LENGTH_SIZE_PATTERN = /^\d+(\.\d+)?km$/
 
 // BMD-839 AC1/AC2/AC3: each tab's headings and column order must be
 // identical to the baseline-equivalent tab, plus the PI-only "Intervention
@@ -150,6 +169,38 @@ async function uploadFixtureInNewContext(browser, label, file) {
   }
 }
 
+// BMD-722: as uploadFixtureInNewContext, but uploads a baseline file first —
+// needed for the Summary table's Baseline units (and the net-change columns
+// derived from it), which every other fixture upload in this file skips.
+async function uploadBaselineAndPiFixtureInNewContext(
+  browser,
+  label,
+  baselineFile,
+  piFile
+) {
+  const context = await browser.newContext({ storageState: STORAGE_STATE })
+  const page = await context.newPage()
+  try {
+    const { id } = await setupProject(
+      new CreateProjectFlow(page),
+      new ProjectDashboardPage(page),
+      label
+    )
+    await new UploadBaselineFileFlow(page).uploadFile(id, baselineFile)
+    await page.waitForURL(new RegExp(`/projects/${id}/baseline-habitat-list`), {
+      timeout: UPLOAD_TIMEOUT
+    })
+    await new UploadPostInterventionFileFlow(page).uploadFile(id, piFile)
+    await page.waitForURL(
+      new RegExp(`/projects/${id}/post-intervention-habitat-list`),
+      { timeout: UPLOAD_TIMEOUT }
+    )
+    return id
+  } finally {
+    await context.close()
+  }
+}
+
 // BMD-531 status/units pairing: every data row (rows carrying a ref link,
 // which excludes the header and Total rows) shows a status of exactly
 // "Complete" or "Incomplete"; a Complete row always shows a calculated
@@ -171,6 +222,19 @@ async function expectStatusUnitsPairing(table, page) {
       expect(units).toBe('')
     }
   }
+}
+
+// BMD-722: the Summary table's Size/Baseline units/Post-intervention
+// units/Net unit change/Net % change cells (columns 1-5) for a given row
+// label are all populated, matching the expected format per column.
+async function expectSummaryRowPopulated(table, rowLabel, sizePattern) {
+  const row = table.getByRole('row').filter({ hasText: rowLabel })
+  const cells = row.getByRole('cell')
+  await expect(cells.nth(1)).toHaveText(sizePattern)
+  await expect(cells.nth(2)).toHaveText(SUMMARY_UNITS_PATTERN)
+  await expect(cells.nth(3)).toHaveText(SUMMARY_UNITS_PATTERN)
+  await expect(cells.nth(4)).toHaveText(SUMMARY_UNITS_PATTERN)
+  await expect(cells.nth(5)).toHaveText(SUMMARY_PERCENT_PATTERN)
 }
 
 async function expectColumnHeaders(table, columns) {
@@ -801,6 +865,77 @@ test.describe(
           await expect(
             postInterventionHabitatListPage.watercourseTableTotalUnitsCell
           ).toHaveText(EXPECTED_UNITS_TOTAL)
+        }
+      )
+    })
+
+    // ─── Summary data population (BMD-722) ───────────────────────────────────
+    // The Summary table's Size, Baseline units, Post-intervention units, Net
+    // unit change and Net % change columns are populated with persisted
+    // project data for the Area habitats, Hedgerows and Watercourses rows
+    // ("Trading rules satisfied" stays empty — out of scope). Baseline units
+    // (and the net-change columns derived from it) are sourced from
+    // `project.baseline.units`, so this needs a project that has been through
+    // both a baseline and a post-intervention upload — every other describe
+    // in this file uploads a post-intervention file only. HEDGEROW_BASELINE_FILE/
+    // WATERCOURSE_BASELINE_FILE (Parcel Refs HR1/HR2 and WC1) are the same
+    // baseline fixtures test/specs/habitat-details/post-intervention-habitat-details.spec.js
+    // uses; paired here with this file's own HEDGEROWS_FILE/WATERCOURSES_FILE
+    // (Refs HR1-3/WC1-3), whose overlapping HR1/HR2 and WC1 give Area
+    // habitats, Hedgerows and Watercourses each a non-zero baseline total.
+
+    test.describe('Post-intervention habitat list — summary data population (BMD-722)', () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+      test.describe.configure({ mode: 'serial' })
+
+      let hedgerowProjectId
+      let watercourseProjectId
+      test.beforeAll(async ({ browser }) => {
+        hedgerowProjectId = await uploadBaselineAndPiFixtureInNewContext(
+          browser,
+          PROJECT_LABEL,
+          HEDGEROW_BASELINE_FILE,
+          HEDGEROWS_FILE
+        )
+        watercourseProjectId = await uploadBaselineAndPiFixtureInNewContext(
+          browser,
+          PROJECT_LABEL,
+          WATERCOURSE_BASELINE_FILE,
+          WATERCOURSES_FILE
+        )
+      })
+
+      test(
+        'AC1 — Area habitats and Hedgerows summary rows are populated with persisted baseline and post-intervention data',
+        { tag: '@regression' },
+        async ({ postInterventionHabitatListPage }) => {
+          await postInterventionHabitatListPage.open(hedgerowProjectId)
+
+          await expectSummaryRowPopulated(
+            postInterventionHabitatListPage.summaryTable,
+            'Area habitats',
+            SUMMARY_AREA_SIZE_PATTERN
+          )
+          await expectSummaryRowPopulated(
+            postInterventionHabitatListPage.summaryTable,
+            'Hedgerows',
+            SUMMARY_LENGTH_SIZE_PATTERN
+          )
+        }
+      )
+
+      test(
+        'AC1 — Watercourses summary row is populated with persisted baseline and post-intervention data',
+        { tag: '@regression' },
+        async ({ postInterventionHabitatListPage }) => {
+          await postInterventionHabitatListPage.open(watercourseProjectId)
+
+          await expectSummaryRowPopulated(
+            postInterventionHabitatListPage.summaryTable,
+            'Watercourses',
+            SUMMARY_LENGTH_SIZE_PATTERN
+          )
         }
       )
     })
