@@ -241,6 +241,14 @@ async function expectColumnHeaders(table, columns) {
   await expect(table.getByRole('columnheader')).toHaveText(columns)
 }
 
+async function expectInterventionTypeByRef(rowByRef, expectedPairs) {
+  for (const [ref, intervention] of expectedPairs) {
+    await expect(
+      rowByRef(ref).getByRole('cell').nth(INTERVENTION_TYPE_COL)
+    ).toHaveText(intervention)
+  }
+}
+
 test.describe(
   'post-intervention-habitat-list',
   { tag: '@habitat-list' },
@@ -890,7 +898,11 @@ test.describe(
     test.describe('Post-intervention habitat list — summary data population (BMD-722)', () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
-      test.describe.configure({ mode: 'serial' })
+      // beforeAll builds two full projects sequentially (baseline + PI upload
+      // each), so the default 60s hook timeout can be tight — see
+      // SHARED_BUILD_TEST_TIMEOUT in post-intervention-habitat-details.spec.js
+      // for the same problem with a single shared build.
+      test.describe.configure({ mode: 'serial', timeout: 240_000 })
 
       let hedgerowProjectId
       let watercourseProjectId
@@ -1026,19 +1038,14 @@ test.describe(
               postInterventionHabitatListPage.hedgerowsTable,
               HEDGEROW_TABLE_COLUMNS
             )
-            const expectedInterventionByRef = [
-              ['HR1', 'Retained'],
-              ['HR2', 'Enhanced'],
-              ['HR3', 'Created']
-            ]
-            for (const [ref, intervention] of expectedInterventionByRef) {
-              await expect(
-                postInterventionHabitatListPage
-                  .hedgerowRowByRef(ref)
-                  .getByRole('cell')
-                  .nth(INTERVENTION_TYPE_COL)
-              ).toHaveText(intervention)
-            }
+            await expectInterventionTypeByRef(
+              (ref) => postInterventionHabitatListPage.hedgerowRowByRef(ref),
+              [
+                ['HR1', 'Retained'],
+                ['HR2', 'Enhanced'],
+                ['HR3', 'Created']
+              ]
+            )
           }
         )
 
@@ -1055,19 +1062,14 @@ test.describe(
               postInterventionHabitatListPage.watercoursesTable,
               WATERCOURSE_TABLE_COLUMNS
             )
-            const expectedInterventionByRef = [
-              ['WC1', 'Retained'],
-              ['WC2', 'Enhanced'],
-              ['WC3', 'Created']
-            ]
-            for (const [ref, intervention] of expectedInterventionByRef) {
-              await expect(
-                postInterventionHabitatListPage
-                  .watercourseRowByRef(ref)
-                  .getByRole('cell')
-                  .nth(INTERVENTION_TYPE_COL)
-              ).toHaveText(intervention)
-            }
+            await expectInterventionTypeByRef(
+              (ref) => postInterventionHabitatListPage.watercourseRowByRef(ref),
+              [
+                ['WC1', 'Retained'],
+                ['WC2', 'Enhanced'],
+                ['WC3', 'Created']
+              ]
+            )
           }
         )
       })
