@@ -499,6 +499,17 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             shared.retainedWithBaseline
           )
 
+          // Read-only on this second retained record too (H2-2 is the only
+          // one checked above) — a BMD-608 QA bounce found some PI pages
+          // rendering editable, not all, so more than one retained record
+          // needs the no-form-controls assertion.
+          const detailsPage = postInterventionHabitatDetailsPage
+          await expect(detailsPage.broadHabitatSelect).toBeHidden()
+          await expect(detailsPage.habitatTypeSelect).toBeHidden()
+          await expect(detailsPage.conditionSelect).toBeHidden()
+          await expect(detailsPage.saveButton).toBeHidden()
+          await expect(detailsPage.cancelLink).toBeHidden()
+
           await expect(
             postInterventionHabitatDetailsPage.viewBaselineLink
           ).toBeVisible()
