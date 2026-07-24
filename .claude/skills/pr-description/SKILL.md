@@ -29,15 +29,12 @@ Brief context on why this change is needed
 
 3. After outputting the description, ask:
 
-   > "Approve this description? On approval I'll stage and commit locally, then say **push** when ready."
+   > "Approve this description? On approval I'll stage, commit, and push automatically."
 
-4. On approval — commit locally only (do NOT push yet):
+4. On approval — stage, commit, and push in one go (no separate "push" trigger needed):
 
    - Stage any unstaged changes that belong to this PR (`git add` specific files — do not use `git add .` or `git add -A`)
    - Commit using the PR title as the commit message (first line) followed by a blank line and the full description body
-   - Confirm with: "Committed locally. Say **push** when ready."
-
-5. When the user says "push":
    - Push the branch with `git push -u origin HEAD`
    - If a PR already exists for this branch, update it with `gh api` PATCH; otherwise create it with `gh pr create`
    - Return the PR URL
