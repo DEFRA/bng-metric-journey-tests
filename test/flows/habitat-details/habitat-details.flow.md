@@ -28,7 +28,7 @@ recompute units from the engine's encroachment multipliers (BMD-597).
     - `GET /reference/trading-rules` — trading rules by distinctiveness band (cached in-process)
     - `GET /reference/conditions?habitatType={type}&featureType=hedgerow` — hedgerow condition options (only when type is set)
   - For watercourses:
-    - `GET /reference/watercourse-types` — watercourse habitat types (cached in-process)
+    - `GET /reference/watercourse-types` — watercourse habitat types, filtered to the in-scope V.Low/Low/Medium distinctiveness bands (High/V.High excluded, e.g. "Priority habitat" and "Other rivers and streams") (cached in-process) (BMD-597)
     - `GET /reference/trading-rules?featureType=watercourse` — watercourse trading rules (cached in-process)
     - `GET /reference/watercourse-encroachments` — watercourse + riparian encroachment option lists (cached in-process)
     - `GET /reference/conditions?habitatType={type}&featureType=watercourse` — watercourse condition options (only when type is set)
