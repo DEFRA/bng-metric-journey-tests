@@ -46,6 +46,14 @@ const NON_CULVERT_RIPARIAN_ENCROACHMENTS = [
   'Minor/No Encroachment',
   'No Encroachment/No Encroachment'
 ]
+// Distinctiveness scope (BMD-597): the Habitat type dropdown is filtered to
+// the in-scope V.Low/Low/Medium bands; High/V.High engine types are excluded
+// (bng-metric-engine/src/reference/watercourse-distinctiveness-categories.json).
+const OUT_OF_SCOPE_WATERCOURSE_TYPES = [
+  'Priority habitat',
+  'Other rivers and streams'
+]
+const IN_SCOPE_WATERCOURSE_TYPES = ['Canals', 'Culvert', 'Ditches']
 const UPLOAD_TIMEOUT = 120_000
 const COMPLETE_BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
 const PROJECT_LABEL = 'Habitat details test'
@@ -2006,6 +2014,26 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         expect(texts[0]).toBe('Choose habitat type')
         expect(texts.length).toBeGreaterThan(1)
         expect(isSortedAscending(texts.slice(1))).toBe(true)
+      })
+
+      // BMD-597 retest fix (PR #146): the watercourse Habitat type dropdown is
+      // filtered to the in-scope V.Low/Low/Medium distinctiveness bands, so
+      // High ("Other rivers and streams") and V.High ("Priority habitat")
+      // engine types must never appear as options.
+      test('Distinctiveness scope — Habitat type dropdown excludes out-of-scope (High / V.High) watercourse types', async ({
+        baselineHabitatDetailsPage
+      }) => {
+        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
+        const texts = await optionTexts(
+          baselineHabitatDetailsPage.habitatTypeSelect
+        )
+
+        for (const outOfScopeType of OUT_OF_SCOPE_WATERCOURSE_TYPES) {
+          expect(texts).not.toContain(outOfScopeType)
+        }
+        for (const inScopeType of IN_SCOPE_WATERCOURSE_TYPES) {
+          expect(texts).toContain(inScopeType)
+        }
       })
 
       test('AC7 — Distinctiveness shows the band and score', async ({
