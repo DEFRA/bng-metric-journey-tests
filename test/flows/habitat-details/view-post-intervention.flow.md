@@ -6,13 +6,17 @@ A BNG Completer opens a feature from the post-intervention habitat list and view
 details. **Every post-intervention feature renders a read-only details page regardless of
 its retention category** (BMD-608/723/724): area, hedgerow and watercourse features each
 get a read-only page specific to their type, and individual trees render an
-unsupported-feature placeholder. Retention category no longer gates the page — a Created
-or Enhanced feature gets the same read-only page as a Retained one. BMD-845 (which added
-the habitat-list "Intervention type" column) confirmed there are no per-intervention-type
-editable variations to build — Retained/Enhanced/Created features of a given type render
-the same read-only template, differing only in the "Intervention" row's value. There is no
-editable form on this route: the `POST /post-intervention-habitat-details` handler now
-returns 501 Not Implemented.
+unsupported-feature placeholder. Retention category no longer gates _whether_ a page
+renders — every supported feature reaches a read-only page. **Enhanced area habitats
+(BMD-725) now render a dedicated two-section read-only page** — habitat details plus a
+"Time to target / difficulty" section — reading their values from `proposed` (where the
+engine writes the Enhanced derivations). All other cases keep the single-list per-type
+page: Retained/Created area features, and Enhanced (and every other category of) hedgerow
+and watercourse features, until their Enhanced variants land. The Enhanced page is still
+read-only — there is no editable form on this route, and the
+`POST /post-intervention-habitat-details` handler returns 501 Not Implemented. BMD-845
+(which added the habitat-list "Intervention type" column) confirmed there are no
+per-intervention-type _editable_ variations to build.
 
 The retention category is displayed in the "Intervention" row. It is normalised for
 display ("1. Retained" → "Retained"), mirroring the backend's `normaliseRetentionCategory`.
@@ -75,16 +79,31 @@ when absent.
 
 ### Step 5 — Non-retained features are read-only too `[IMPLEMENTED]`
 
-- **Route:** `GET /post-intervention-habitat-details?featureId={featureId}&projectId={projectId}` (Created / Enhanced feature of any supported type)
-- **Template:** The same per-type read-only templates as Steps 1–3 (`pi-habitat-details.njk` / `pi-hedgerow-details.njk` / `pi-watercourse-details.njk`)
+- **Route:** `GET /post-intervention-habitat-details?featureId={featureId}&projectId={projectId}` (Created / Enhanced feature — see the Enhanced-area exception below)
+- **Template:** The same per-type read-only templates as Steps 1–3 (`pi-habitat-details.njk` / `pi-hedgerow-details.njk` / `pi-watercourse-details.njk`) — **except an Enhanced _area_ feature, which is routed to the dedicated two-section page in Step 6**
 - **Auth required:** Yes (session + BNG Completer role)
 - **Backend endpoint:** Same as Step 1
-- **Description:** Retention category no longer gates the page (BMD-608/723/724): a Created or Enhanced feature renders the same read-only details page as a Retained one, and its Intervention row shows its category. There is no editable dropdown form on this route. **Lost handling (backend BMD-531/534, PR #141, merged):** a Lost _area_ habitat is one whose baseline habitat was removed and replaced, so the backend maps it to Created — it still reaches this read-only page, with its Intervention row showing "Created". Lost hedgerows, watercourses and trees are truly gone: the backend excludes them at import, so they never reach this route or the habitat list. BMD-845 confirmed there are no per-intervention-type editable variations to build — this shared read-only template, with the correct Intervention value per category, is the final behaviour.
+- **Description:** Retention category no longer gates whether a page renders (BMD-608/723/724): a Created or Enhanced feature renders a read-only details page and its Intervention row shows its category. There is no editable dropdown form on this route. A **Created** area feature, and Enhanced (or any-category) **hedgerow/watercourse** features, still use the single-list per-type template above; only an **Enhanced area** feature diverges (Step 6). **Lost handling (backend BMD-531/534, PR #141, merged):** a Lost _area_ habitat is one whose baseline habitat was removed and replaced, so the backend maps it to Created — it still reaches this read-only page, with its Intervention row showing "Created". Lost hedgerows, watercourses and trees are truly gone: the backend excludes them at import, so they never reach this route or the habitat list. BMD-845 confirmed there are no per-intervention-type _editable_ variations to build — these read-only templates, with the correct Intervention value per category, are the final behaviour.
 - **Validation:** Same as Step 1
 - **On success:** Renders the read-only details page for the feature type
 - **On error:** Same as Step 1
 
-### Step 6 — Save is not implemented (read-only route) `[IMPLEMENTED]`
+### Step 6 — View Enhanced area habitat details (read-only, two-section) `[IMPLEMENTED]`
+
+- **Route:** `GET /post-intervention-habitat-details?featureId={featureId}&projectId={projectId}` (area feature whose normalised `retentionCategory === "Enhanced"`)
+- **Template:** `src/server/habitat-details/pi-habitat-details-enhanced.njk` (extends `layouts/pi-view-only-sections-page.njk`; BMD-725)
+- **Auth required:** Yes (session + BNG Completer role)
+- **Backend endpoint:** Same as Step 1
+- **Description:** The controller's `resolveViewOnlyPage(type, retentionCategory)` routes an area feature (type `habitat`) with a normalised retention category of `Enhanced` to a dedicated two-section stacked-field layout (bold label over value on the next line, not a `govukSummaryList`). Page heading is the feature **ref** (`pageTitle` = ref, falling back to "Post-intervention habitat details"); project name is the caption.
+  - **Section 1 — "Post-intervention habitat details":** Intervention, Area (hectares), Broad habitat, Habitat type, Distinctiveness ("value (score)" via `withMultiplier`), Condition ("value (score)"), Strategic significance (fixed "Low (1)"). The "View baseline details" link renders **after this first section** — to `/baseline-habitat-details?featureId={baselineFeatureId}&projectId={projectId}`, resolved by matching the parcel `ref` across baseline layers; hidden when no baseline feature shares the ref.
+  - **Section 2 — "Time to target / difficulty":** Target condition ("value (score)"), Standard time to target condition (formatted "Baseline condition to target condition - N years"), Standard difficulty, Advance or delay?, Final time to target condition, Applied difficulty multiplier.
+  - **Then** a bordered "Habitat units delivered" summary row (label left, value right).
+  - **Value sourcing differs from the retained area page (Step 1):** every descriptive and derived value reads from `proposed` (where the backend writes the Enhanced derivations), not baseline-first. Back link to `/projects/{projectId}/post-intervention-habitat-list#area-habitats`.
+- **Validation:** Same as Step 1 (`featureId`/`projectId` required UUIDs → 400; BNG Completer role → `/auth/forbidden`; unauthenticated → sign-in; feature not found → 404)
+- **On success:** Renders the Enhanced two-section read-only area details page
+- **On error:** 400 for invalid/missing query params; 404 if feature does not exist
+
+### Step 7 — Save is not implemented (read-only route) `[IMPLEMENTED]`
 
 - **Route:** `POST /post-intervention-habitat-details`
 - **Template:** None

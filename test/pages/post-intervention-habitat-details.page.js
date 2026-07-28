@@ -54,6 +54,61 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     this.unsupportedFeatureMessage = page.getByText(
       'Individual tree and IGGI features are not yet supported in this view.'
     )
+
+    // ─── Enhanced area two-section page (BMD-725) ───────────────────────────
+    // The Enhanced area habitat renders a distinct template
+    // (pi-habitat-details-enhanced.njk) with stacked label-over-value fields in
+    // two <h2> sections plus a "Habitat units delivered" summary row. The page
+    // heading is the feature ref (assert that in the spec via getByRole). The
+    // first section's heading reuses viewOnlyHeading's "Post-intervention
+    // habitat details" text; the second section heading is added here. Labels
+    // are <h3> headings, so getByText matches them.
+    this.timeToTargetSectionHeading = page.getByText(
+      'Time to target / difficulty',
+      { exact: true }
+    )
+    // Section-1 labels that differ from the single-list page: the enhanced page
+    // labels the size row "Area" (not "Area (hectares)") and uses a lower-case
+    // "Strategic significance".
+    this.enhancedAreaKey = page.getByText('Area', { exact: true })
+    this.enhancedStrategicSignificanceKey = page.getByText(
+      'Strategic significance',
+      { exact: true }
+    )
+    // Section-2 (time to target / difficulty) labels.
+    this.targetConditionKey = page.getByText('Target condition', {
+      exact: true
+    })
+    this.standardTimeToTargetKey = page.getByText(
+      'Standard time to target condition',
+      { exact: true }
+    )
+    this.standardDifficultyKey = page.getByText('Standard difficulty', {
+      exact: true
+    })
+    this.advanceOrDelayKey = page.getByText('Advance or delay?', {
+      exact: true
+    })
+    this.finalTimeToTargetKey = page.getByText(
+      'Final time to target condition',
+      { exact: true }
+    )
+    this.appliedDifficultyMultiplierKey = page.getByText(
+      'Applied difficulty multiplier',
+      { exact: true }
+    )
+    // The standard-time-to-target value is formatted "Baseline condition to
+    // target condition - N years", which proves the section-2 values render.
+    this.standardTimeToTargetValue = page.getByText(
+      /Baseline condition to target condition - .+ years/
+    )
+    // The enhanced page's units row is labelled "Habitat units delivered"
+    // (distinct from the single-list "Units in this habitat"). It is the only
+    // summary-list on the page, so its value is the sole <dd> and
+    // habitatUnitsValue (getByRole('definition').last()) still resolves it.
+    this.habitatUnitsDeliveredKey = page.getByText('Habitat units delivered', {
+      exact: true
+    })
   }
 
   async open(projectId, featureId) {

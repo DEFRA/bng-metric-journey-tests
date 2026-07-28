@@ -166,7 +166,16 @@ function getCompleteProject(browser) {
         retainedNoBaseline: await featureIdByRef(page, 'area-habitats', 'H2-2'),
         retainedNoBaselineUnits: await rowUnitsText(
           listPage.areaRowByRef('H2-2')
-        )
+        ),
+        // Enhanced area parcels for the two-section read-only page (BMD-725):
+        // H3 is Enhanced and shares its ref with a baseline feature (View
+        // baseline link shown); H2-3 is Enhanced with no baseline match (link
+        // hidden).
+        enhancedWithBaseline: await featureIdByRef(page, 'area-habitats', 'H3'),
+        enhancedWithBaselineUnits: await rowUnitsText(
+          listPage.areaRowByRef('H3')
+        ),
+        enhancedNoBaseline: await featureIdByRef(page, 'area-habitats', 'H2-3')
       }
     }
   )
@@ -550,13 +559,164 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       )
     })
 
+    // ─── Enhanced area habitat — two-section view-only display (BMD-725) ──────
+    // An Enhanced area habitat renders a dedicated two-section read-only page
+    // (pi-habitat-details-enhanced.njk): a "Post-intervention habitat details"
+    // section, a "Time to target / difficulty" section, and a "Habitat units
+    // delivered" summary row. The page heading is the feature ref, and every
+    // value is sourced from the feature's `proposed` side. H3 is Enhanced and
+    // shares its ref with a baseline feature (View baseline link shown); H2-3
+    // is Enhanced with no baseline match (link hidden).
+
+    test.describe('Enhanced area habitat display', () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      test(
+        'Enhanced area habitat renders the two-section read-only page with every row and no form controls',
+        { tag: '@smoke' },
+        async ({
+          browser,
+          postInterventionHabitatListPage,
+          postInterventionHabitatDetailsPage,
+          page
+        }) => {
+          const shared = await getCompleteProject(browser)
+          // Arrive the way the user does (BMD-725): click the parcel's Ref link
+          // on the Areas tab rather than deep-linking.
+          await postInterventionHabitatListPage.openAreaHabitatDetails(
+            shared.id,
+            'H3'
+          )
+          await expect(page).toHaveURL(DETAILS_URL_PATTERN)
+
+          const detailsPage = postInterventionHabitatDetailsPage
+          // Page heading is the feature ref; project name stays the caption.
+          await expect(
+            page.getByRole('heading', { name: 'H3', exact: true })
+          ).toBeVisible()
+          await expect(detailsPage.caption).toHaveText(shared.name)
+
+          // Section 1 — "Post-intervention habitat details" (viewOnlyHeading
+          // matches its <h2>) with its stacked rows and the Intervention value.
+          await expect(detailsPage.viewOnlyHeading).toBeVisible()
+          await expect(detailsPage.interventionKey).toBeVisible()
+          await expect(
+            page.getByText('Enhanced', { exact: true })
+          ).toBeVisible()
+          await expect(detailsPage.enhancedAreaKey).toBeVisible()
+          await expect(detailsPage.broadHabitatKey).toBeVisible()
+          await expect(detailsPage.habitatTypeKey).toBeVisible()
+          await expect(detailsPage.distinctivenessKey).toBeVisible()
+          await expect(detailsPage.conditionKey).toBeVisible()
+          await expect(
+            detailsPage.enhancedStrategicSignificanceKey
+          ).toBeVisible()
+          // "View baseline details" renders after section 1 (H3 is ref-matched).
+          await expect(detailsPage.viewBaselineLink).toBeVisible()
+
+          // Section 2 — "Time to target / difficulty" with all six rows.
+          await expect(detailsPage.timeToTargetSectionHeading).toBeVisible()
+          await expect(detailsPage.targetConditionKey).toBeVisible()
+          await expect(detailsPage.standardTimeToTargetKey).toBeVisible()
+          await expect(detailsPage.standardDifficultyKey).toBeVisible()
+          await expect(detailsPage.advanceOrDelayKey).toBeVisible()
+          await expect(detailsPage.finalTimeToTargetKey).toBeVisible()
+          await expect(detailsPage.appliedDifficultyMultiplierKey).toBeVisible()
+
+          // "Habitat units delivered" summary row.
+          await expect(detailsPage.habitatUnitsDeliveredKey).toBeVisible()
+
+          // Read-only: no dropdowns, no Save, no Cancel.
+          await expect(detailsPage.broadHabitatSelect).toBeHidden()
+          await expect(detailsPage.habitatTypeSelect).toBeHidden()
+          await expect(detailsPage.conditionSelect).toBeHidden()
+          await expect(detailsPage.saveButton).toBeHidden()
+          await expect(detailsPage.cancelLink).toBeHidden()
+        }
+      )
+
+      test(
+        'Enhanced area habitat shows its section-2 values and units delivered',
+        { tag: '@regression' },
+        async ({ browser, postInterventionHabitatDetailsPage }) => {
+          const shared = await getCompleteProject(browser)
+          await postInterventionHabitatDetailsPage.open(
+            shared.id,
+            shared.enhancedWithBaseline
+          )
+
+          // The standard time-to-target value proves the section-2 values
+          // render ("Baseline condition to target condition - N years").
+          await expect(
+            postInterventionHabitatDetailsPage.standardTimeToTargetValue
+          ).toBeVisible()
+          // "Habitat units delivered" matches the Units cell of the same
+          // parcel's habitat-list row.
+          await expect(
+            postInterventionHabitatDetailsPage.habitatUnitsValue
+          ).toHaveText(shared.enhancedWithBaselineUnits)
+        }
+      )
+
+      test(
+        '"View baseline details" is hidden when no baseline feature shares the ref',
+        { tag: '@regression' },
+        async ({ browser, postInterventionHabitatDetailsPage }) => {
+          const shared = await getCompleteProject(browser)
+          // H2-3 is Enhanced but exists only in the PI upload (baseline has
+          // H1/H2/H3), so it still renders the two-section page with no link.
+          await postInterventionHabitatDetailsPage.open(
+            shared.id,
+            shared.enhancedNoBaseline
+          )
+
+          await expect(
+            postInterventionHabitatDetailsPage.timeToTargetSectionHeading
+          ).toBeVisible()
+          await expect(
+            postInterventionHabitatDetailsPage.viewBaselineLink
+          ).toBeHidden()
+        }
+      )
+
+      test(
+        'back link returns to the post-intervention habitat list Areas tab',
+        { tag: '@regression' },
+        async ({
+          browser,
+          postInterventionHabitatDetailsPage,
+          postInterventionHabitatListPage,
+          page
+        }) => {
+          const shared = await getCompleteProject(browser)
+          await postInterventionHabitatDetailsPage.open(
+            shared.id,
+            shared.enhancedWithBaseline
+          )
+          await postInterventionHabitatDetailsPage.backLink.click()
+
+          await expect(page).toHaveURL(
+            listAnchorPattern(shared.id, 'area-habitats')
+          )
+          await expect(
+            postInterventionHabitatListPage.areasTab
+          ).toHaveAttribute('aria-selected', 'true')
+          await expect(
+            postInterventionHabitatListPage.areaHabitatsTable
+          ).toBeVisible()
+        }
+      )
+    })
+
     // ─── Non-retained area habitats are read-only too (BMD-608/845) ──────────
-    // Every PI details page is read-only regardless of retention category
-    // (BMD-608/723/724): a Created or Enhanced feature no longer falls through
-    // to an editable form. BMD-845 confirmed there are no per-intervention-type
-    // editable variations to build — Retained/Enhanced/Created features of a
-    // given habitat type all render the same read-only template, differing
-    // only in the "Intervention" row's value.
+    // A Created area feature still uses the single-list read-only template
+    // (BMD-608/723/724): retention no longer gates whether a page renders.
+    // BMD-845 confirmed there are no per-intervention-type editable variations
+    // to build. The Enhanced area habitat is the one exception — it renders the
+    // dedicated two-section page (BMD-725) covered in the "Enhanced area
+    // habitat display" describe above — so this block covers the Created case
+    // (via a Lost→Created parcel), which keeps the single-list template.
 
     test.describe(
       'non-retained area habitats are read-only',
@@ -564,35 +724,6 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       () => {
         test.use({ storageState: STORAGE_STATE })
         test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
-
-        test('an Enhanced area habitat renders read-only with no form controls', async ({
-          browser,
-          postInterventionHabitatListPage,
-          postInterventionHabitatDetailsPage,
-          page
-        }) => {
-          const shared = await getCompleteProject(browser)
-          // Arrive the way the user does (AC4b): click the parcel's Ref link
-          // on the Areas tab rather than deep-linking.
-          await postInterventionHabitatListPage.openAreaHabitatDetails(
-            shared.id,
-            'H2-3'
-          )
-          await expect(page).toHaveURL(DETAILS_URL_PATTERN)
-
-          // Retention no longer gates the page: a non-retained (Enhanced)
-          // feature gets the same read-only page as a retained one.
-          const detailsPage = postInterventionHabitatDetailsPage
-          await expect(detailsPage.viewOnlyHeading).toBeVisible()
-          await expect(
-            page.getByText('Enhanced', { exact: true })
-          ).toBeVisible()
-          await expect(detailsPage.broadHabitatSelect).toBeHidden()
-          await expect(detailsPage.habitatTypeSelect).toBeHidden()
-          await expect(detailsPage.conditionSelect).toBeHidden()
-          await expect(detailsPage.saveButton).toBeHidden()
-          await expect(detailsPage.cancelLink).toBeHidden()
-        })
 
         // A Lost area habitat is one whose baseline habitat was removed and
         // replaced, so the backend maps it to Created (BMD-531/534) — it still
