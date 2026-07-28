@@ -660,6 +660,39 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       )
 
       test(
+        '"View baseline details" links to the ref-matched baseline feature',
+        { tag: '@regression' },
+        async ({ browser, postInterventionHabitatDetailsPage, page }) => {
+          const shared = await getCompleteProject(browser)
+          await postInterventionHabitatDetailsPage.open(
+            shared.id,
+            shared.enhancedWithBaseline
+          )
+
+          // The click-through is exercised on the two-section Enhanced template
+          // specifically — the retained single-list page proves the same
+          // mechanism elsewhere, but the Enhanced page renders the link via a
+          // distinct template that positions it after section 1.
+          await expect(
+            postInterventionHabitatDetailsPage.viewBaselineLink
+          ).toBeVisible()
+          await postInterventionHabitatDetailsPage.viewBaselineLink.click()
+          await expect(page).toHaveURL(/\/baseline-habitat-details/)
+
+          // The baseline and PI uploads assign independent featureIds, so the
+          // link must resolve the baseline feature by parcel ref — a different
+          // featureId from the PI feature the user came from.
+          const baselineFeatureId = new URL(page.url()).searchParams.get(
+            'featureId'
+          )
+          expect(baselineFeatureId).not.toBe(shared.enhancedWithBaseline)
+          await expect(postInterventionHabitatDetailsPage.heading).toHaveText(
+            'Habitat H3'
+          )
+        }
+      )
+
+      test(
         '"View baseline details" is hidden when no baseline feature shares the ref',
         { tag: '@regression' },
         async ({ browser, postInterventionHabitatDetailsPage }) => {
