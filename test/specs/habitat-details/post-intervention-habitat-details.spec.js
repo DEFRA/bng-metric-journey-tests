@@ -209,7 +209,9 @@ function getMixedProject(browser) {
 
 // Baseline + PI hedgerow uploads in one project: retained hedgerows for the
 // view-only page, with HR1 ref-matched to a baseline hedgerow so the
-// "View baseline details" link renders (BMD-723 AC1/AC3).
+// "View baseline details" link renders (BMD-723 AC1/AC3). HR2 is Enhanced and
+// also ref-matched (the baseline file has HR1/HR2), so it drives the two-section
+// Enhanced hedgerow page with its View-baseline link shown (BMD-733).
 function getHedgerowsProject(browser) {
   return getSharedProject(
     browser,
@@ -226,6 +228,16 @@ function getHedgerowsProject(browser) {
         ),
         retainedHedgerowUnits: await rowUnitsText(
           listPage.hedgerowRowByRef(RETAINED_HEDGEROW_REF)
+        ),
+        // HR2 — Enhanced hedgerow, ref-matched to a baseline hedgerow (View
+        // baseline link shown) — for the two-section Enhanced page (BMD-733).
+        enhancedHedgerow: await featureIdByRef(
+          page,
+          'hedgerows',
+          ENHANCED_HEDGEROW_REF
+        ),
+        enhancedHedgerowUnits: await rowUnitsText(
+          listPage.hedgerowRowByRef(ENHANCED_HEDGEROW_REF)
         )
       }
     }
@@ -1002,25 +1014,32 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     )
   })
 
-  // ─── Non-retained hedgerows are read-only too (BMD-845) ─────────────────────
-  // Same read-only template as a Retained hedgerow (BMD-723) — only the
-  // "Intervention" row's value differs — reached the way the user does: click
-  // the Ref link on the Hedgerows tab rather than deep-linking.
+  // ─── Enhanced hedgerow — two-section view-only display (BMD-733) ─────────────
+  // An Enhanced hedgerow renders a dedicated two-section read-only page
+  // (pi-hedgerow-details-enhanced.njk): a "Post-intervention habitat details"
+  // section, a "Time to target / difficulty" section, and a "Habitat units
+  // delivered" summary row. Like the single-list hedgerow page it has no Broad
+  // habitat row and labels the size row "Length" (km); like the Enhanced area
+  // page (BMD-725) every value is sourced from the feature's `proposed` side and
+  // the page heading is the feature ref. HR2 is Enhanced and shares its ref with
+  // a baseline hedgerow (View baseline link shown).
 
-  test.describe(
-    'non-retained hedgerow habitats are read-only',
-    { tag: '@regression' },
-    () => {
-      test.use({ storageState: STORAGE_STATE })
-      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+  test.describe('Post-intervention habitat details — Enhanced hedgerow display', () => {
+    test.use({ storageState: STORAGE_STATE })
+    test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      test('an Enhanced hedgerow renders read-only with its intervention type shown', async ({
+    test(
+      'Enhanced hedgerow renders the two-section read-only page with every row and no form controls',
+      { tag: '@smoke' },
+      async ({
         browser,
         postInterventionHabitatListPage,
         postInterventionHabitatDetailsPage,
         page
       }) => {
         const shared = await getHedgerowsProject(browser)
+        // Arrive the way the user does (BMD-733 AC1): select the Hedgerows tab
+        // and click the hedgerow's Ref link rather than deep-linking.
         await postInterventionHabitatListPage.openHedgerowDetails(
           shared.id,
           ENHANCED_HEDGEROW_REF
@@ -1028,11 +1047,126 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
         const detailsPage = postInterventionHabitatDetailsPage
+        // Page heading is the feature ref; project name stays the caption.
+        await expect(
+          page.getByRole('heading', {
+            name: ENHANCED_HEDGEROW_REF,
+            exact: true
+          })
+        ).toBeVisible()
+        await expect(detailsPage.caption).toHaveText(shared.name)
+
+        // Section 1 — "Post-intervention habitat details" (viewOnlyHeading
+        // matches its <h2>) with its stacked rows and the Intervention value.
+        // Hedgerow specifics: size row is "Length", and there is no Broad
+        // habitat row.
         await expect(detailsPage.viewOnlyHeading).toBeVisible()
+        await expect(detailsPage.interventionKey).toBeVisible()
         await expect(page.getByText('Enhanced', { exact: true })).toBeVisible()
-        await expect(detailsPage.saveButton).toBeHidden()
+        await expect(detailsPage.enhancedLengthKey).toBeVisible()
+        await expect(detailsPage.broadHabitatKey).toBeHidden()
+        await expect(detailsPage.habitatTypeKey).toBeVisible()
+        await expect(detailsPage.distinctivenessKey).toBeVisible()
+        await expect(detailsPage.conditionKey).toBeVisible()
+        await expect(detailsPage.enhancedStrategicSignificanceKey).toBeVisible()
+        // "View baseline details" renders after section 1 (HR2 is ref-matched).
+        await expect(detailsPage.viewBaselineLink).toBeVisible()
+
+        // Section 2 — "Time to target / difficulty" with all six rows.
+        await expect(detailsPage.timeToTargetSectionHeading).toBeVisible()
+        await expect(detailsPage.targetConditionKey).toBeVisible()
+        await expect(detailsPage.standardTimeToTargetKey).toBeVisible()
+        await expect(detailsPage.standardDifficultyKey).toBeVisible()
+        await expect(detailsPage.advanceOrDelayKey).toBeVisible()
+        await expect(detailsPage.finalTimeToTargetKey).toBeVisible()
+        await expect(detailsPage.appliedDifficultyMultiplierKey).toBeVisible()
+
+        // "Habitat units delivered" summary row.
+        await expect(detailsPage.habitatUnitsDeliveredKey).toBeVisible()
+
+        // Read-only: no dropdowns, no Save, no Cancel.
         await expect(detailsPage.habitatTypeSelect).toBeHidden()
-      })
+        await expect(detailsPage.conditionSelect).toBeHidden()
+        await expect(detailsPage.saveButton).toBeHidden()
+        await expect(detailsPage.cancelLink).toBeHidden()
+      }
+    )
+
+    test(
+      'back link returns to the post-intervention habitat list Hedgerows tab',
+      { tag: '@regression' },
+      async ({
+        browser,
+        postInterventionHabitatDetailsPage,
+        postInterventionHabitatListPage,
+        page
+      }) => {
+        const shared = await getHedgerowsProject(browser)
+        await postInterventionHabitatDetailsPage.open(
+          shared.id,
+          shared.enhancedHedgerow
+        )
+        await postInterventionHabitatDetailsPage.backLink.click()
+
+        await expect(page).toHaveURL(listAnchorPattern(shared.id, 'hedgerows'))
+        // "Preselected" is GOV.UK tabs client-side behaviour driven by the
+        // anchor — assert the Hedgerows tab really is selected, not just the URL.
+        await expect(
+          postInterventionHabitatListPage.hedgerowsTab
+        ).toHaveAttribute('aria-selected', 'true')
+        await expect(
+          postInterventionHabitatListPage.hedgerowsTable
+        ).toBeVisible()
+      }
+    )
+
+    test(
+      '"View baseline details" links to the ref-matched baseline hedgerow',
+      { tag: '@regression' },
+      async ({ browser, postInterventionHabitatDetailsPage, page }) => {
+        const shared = await getHedgerowsProject(browser)
+        await postInterventionHabitatDetailsPage.open(
+          shared.id,
+          shared.enhancedHedgerow
+        )
+
+        // The click-through is exercised on the two-section Enhanced template
+        // specifically — the retained single-list hedgerow proves the same
+        // mechanism, but the Enhanced page renders the link via a distinct
+        // template that positions it after section 1.
+        await expect(
+          postInterventionHabitatDetailsPage.viewBaselineLink
+        ).toBeVisible()
+        await postInterventionHabitatDetailsPage.viewBaselineLink.click()
+        await expect(page).toHaveURL(/\/baseline-habitat-details/)
+
+        // The baseline and PI uploads assign independent featureIds, so the
+        // link must resolve the baseline feature by parcel ref — a different
+        // featureId from the PI feature the user came from.
+        const baselineFeatureId = new URL(page.url()).searchParams.get(
+          'featureId'
+        )
+        expect(baselineFeatureId).not.toBe(shared.enhancedHedgerow)
+        await expect(postInterventionHabitatDetailsPage.heading).toHaveText(
+          `Hedgerow ${ENHANCED_HEDGEROW_REF}`
+        )
+      }
+    )
+  })
+
+  // ─── Non-retained hedgerows are read-only too (BMD-845) ─────────────────────
+  // A Created hedgerow still uses the single-list read-only template (BMD-723) —
+  // only the "Intervention" row's value differs — reached the way the user does:
+  // click the Ref link on the Hedgerows tab rather than deep-linking. (The
+  // Enhanced hedgerow is the exception — it renders the dedicated two-section
+  // page (BMD-733) covered in the "Enhanced hedgerow display" describe above.)
+
+  test.describe(
+    'non-retained hedgerow habitats are read-only',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
       test('a Created hedgerow renders read-only with its intervention type shown', async ({
         browser,

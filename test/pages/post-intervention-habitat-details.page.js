@@ -71,6 +71,9 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     // labels the size row "Area" (not "Area (hectares)") and uses a lower-case
     // "Strategic significance".
     this.enhancedAreaKey = page.getByText('Area', { exact: true })
+    // The Enhanced hedgerow page (BMD-733) labels the size row "Length" (not
+    // the single-list page's "Length (km)").
+    this.enhancedLengthKey = page.getByText('Length', { exact: true })
     this.enhancedStrategicSignificanceKey = page.getByText(
       'Strategic significance',
       { exact: true }
