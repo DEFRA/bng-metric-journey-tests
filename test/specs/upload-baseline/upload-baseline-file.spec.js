@@ -7,6 +7,10 @@ import {
 } from '@utils/access-checks.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
+const PROJECT_LABEL = 'Upload baseline test'
+const ERROR_NO_FILE = 'Select a GeoPackage (.gpkg) file'
+const ERROR_WRONG_EXTENSION = 'The selected file must be a GeoPackage (.gpkg)'
+const NON_GPKG_FILE = 'not-a-geopackage.txt'
 
 test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
   // ─── Form display ────────────────────────────────────────────────────────────
@@ -16,28 +20,128 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
     test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
     test(
-      'form renders with heading, instruction text, file input, and Continue button',
+      'form renders with heading, caption, instruction text, file input, Continue and Cancel',
       { tag: '@smoke' },
       async ({
         createProjectFlow,
         projectDashboardPage,
+        uploadBaselineFilePage,
+        page
+      }) => {
+        const { id, name } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
+        )
+        await uploadBaselineFilePage.open(id)
+
+        await expect(uploadBaselineFilePage.heading).toBeVisible()
+        await expect(page.getByText(name)).toBeVisible()
+        await expect(uploadBaselineFilePage.instructionText).toBeVisible()
+        await expect(uploadBaselineFilePage.noFileChosenText).toBeVisible()
+        await expect(uploadBaselineFilePage.continueButton).toBeVisible()
+        await expect(uploadBaselineFilePage.backLink).toBeVisible()
+        await expect(uploadBaselineFilePage.cancelLink).toBeVisible()
+      }
+    )
+  })
+
+  // ─── Form navigation ─────────────────────────────────────────────────────────
+
+  test.describe(
+    'Upload baseline file — form navigation',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      test('Back link returns to the project task list', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFilePage,
+        page
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
+        )
+        await uploadBaselineFilePage.open(id)
+        await uploadBaselineFilePage.backLink.click()
+
+        await expect(page).toHaveURL(new RegExp(`/add-project-details/${id}`))
+      })
+
+      test('Cancel link returns to the project task list', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFilePage,
+        page
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
+        )
+        await uploadBaselineFilePage.open(id)
+        await uploadBaselineFilePage.cancelLink.click()
+
+        await expect(page).toHaveURL(new RegExp(`/add-project-details/${id}`))
+      })
+    }
+  )
+
+  // ─── Client-side validation ──────────────────────────────────────────────────
+
+  test.describe(
+    'Upload baseline file — client-side validation',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      test('Continue with no file selected shows the required-file error', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFilePage,
+        page
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
+        )
+        await uploadBaselineFilePage.open(id)
+        await uploadBaselineFilePage.continueButton.click()
+
+        await expect(
+          uploadBaselineFilePage.clientError(ERROR_NO_FILE)
+        ).toBeVisible()
+        await expect(page).toHaveURL(/\/upload-baseline-file/)
+      })
+
+      test('selecting a non-.gpkg file shows the wrong-extension error', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
         uploadBaselineFilePage
       }) => {
         const { id } = await setupProject(
           createProjectFlow,
           projectDashboardPage,
-          'Upload baseline test'
+          PROJECT_LABEL
         )
         await uploadBaselineFilePage.open(id)
+        await uploadBaselineFilePage.fileInput.setInputFiles(
+          uploadBaselineFileFlow.filePath(NON_GPKG_FILE)
+        )
 
-        await expect(uploadBaselineFilePage.heading).toBeVisible()
-        await expect(uploadBaselineFilePage.instructionText).toBeVisible()
-        await expect(uploadBaselineFilePage.noFileChosenText).toBeVisible()
-        await expect(uploadBaselineFilePage.continueButton).toBeVisible()
-        await expect(uploadBaselineFilePage.backLink).toBeVisible()
-      }
-    )
-  })
+        await expect(
+          uploadBaselineFilePage.clientError(ERROR_WRONG_EXTENSION)
+        ).toBeVisible()
+      })
+    }
+  )
 
   // ─── Role enforcement ────────────────────────────────────────────────────────
 
