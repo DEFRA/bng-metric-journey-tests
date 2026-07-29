@@ -1,6 +1,15 @@
 import { test, expect } from '@fixtures'
-import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
+import {
+  STORAGE_STATE,
+  NO_PROJECTS_STORAGE_STATE,
+  skipInE2e,
+  baseUrl
+} from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
+import { CreateProjectFlow } from '@flows/project-management/create-project.flow.js'
+import { UploadBaselineFileFlow } from '@flows/upload-baseline/upload-baseline-file.flow.js'
+import { ProjectDashboardPage } from '@pages/project-dashboard.page.js'
+import { ErrorFilePage } from '@pages/error-file.page.js'
 
 const TASK_BASELINE_HABITATS = 'On-site baseline habitats'
 
@@ -91,6 +100,79 @@ function describeNoPendingUpload() {
   )
 }
 
+// ─── Cross-user access ────────────────────────────────────────────────────────
+
+// The backend correctly denies the persist for a project the requesting user
+// doesn't own (persist-baseline.js's visibleToUser(sub) check, 404 on write),
+// but the frontend doesn't propagate that: the GET step silently falls back to
+// a generic "Project" caption, and the POST /baseline/validate/{uploadId} 404
+// is caught by validateHabitatUpload's generic 4xx handler and surfaces as a
+// VALIDATION_FAILED error — which has no dedicated single-error copy, so it
+// falls through to the AC1 Natural England catch-all. A different user
+// uploading a fully VALID file against someone else's project id therefore
+// reaches a misleading "your file is invalid" page rather than any access
+// error, even though nothing is persisted. Verified directly against the
+// running stack (not inferred) before writing these assertions.
+function describeCrossUserAccess() {
+  test.describe(
+    'Upload baseline — cross-user access',
+    { tag: '@regression' },
+    () => {
+      test.skip(
+        skipInE2e(NO_PROJECTS_STORAGE_STATE),
+        'Requires a second stub-auth profile — not available in e2e mode'
+      )
+
+      test('uploading a valid file against another user’s project id reaches the misleading catch-all error page, and nothing is persisted', async ({
+        browser
+      }) => {
+        const ownerContext = await browser.newContext({
+          storageState: STORAGE_STATE,
+          baseURL: baseUrl
+        })
+        const ownerPage = await ownerContext.newPage()
+        const { id: ownerProjectId } = await setupProject(
+          new CreateProjectFlow(ownerPage),
+          new ProjectDashboardPage(ownerPage),
+          PROJECT_LABEL
+        )
+        await ownerContext.close()
+
+        const otherContext = await browser.newContext({
+          storageState: NO_PROJECTS_STORAGE_STATE,
+          baseURL: baseUrl
+        })
+        try {
+          const otherPage = await otherContext.newPage()
+          const otherErrorFilePage = new ErrorFilePage(otherPage)
+
+          const getResponse = await otherPage.goto(
+            `/projects/${ownerProjectId}/upload-baseline-file`
+          )
+          // The GET step doesn't block on ownership — it renders the form
+          // regardless (see comment above), so this is 200 not 404/403.
+          expect(getResponse.status()).toBe(200)
+
+          await new UploadBaselineFileFlow(otherPage).uploadFile(
+            ownerProjectId,
+            COMPLETE_BASELINE_FILE
+          )
+          await otherPage.waitForURL('/error-file', {
+            timeout: UPLOAD_TIMEOUT
+          })
+
+          await expect(otherErrorFilePage.geopackageErrorHeading).toBeVisible()
+          await expect(
+            otherPage.getByText(NATURAL_ENGLAND_MISMATCH_COPY)
+          ).toBeVisible()
+        } finally {
+          await otherContext.close()
+        }
+      })
+    }
+  )
+}
+
 // ─── Format error ────────────────────────────────────────────────────────────
 
 function describeFormatError() {
@@ -166,6 +248,12 @@ function describeStructuralErrors() {
         )
         await expect(errorFilePage.errorSummary).toContainText(
           'One or more area habitat parcels overlap with other parcels'
+        )
+        // This fixture's shared base data also trips an out-of-scope
+        // distinctiveness error, so the multi-error layout's distinctiveness
+        // block renders the allowed-bands note.
+        await expect(errorFilePage.errorSummary).toContainText(
+          'Allowed distinctiveness: Medium, Low and Very low.'
         )
         await expect(errorFilePage.baselineRejectedHeading).toBeVisible()
         await expect(errorFilePage.uploadDifferentFileLink).toBeVisible()
@@ -268,11 +356,10 @@ function describeDistinctivenessError() {
           'target',
           '_blank'
         )
-        await expect(errorFilePage.uploadDifferentFileLink).toBeVisible()
-        await expect(errorFilePage.uploadDifferentFileLink).toHaveAttribute(
-          'href',
-          `/projects/${id}/upload-baseline-file`
-        )
+        // QA fix (frontend PR#175): the single-error layout no longer shows
+        // the "Upload a different file" button or "Back to project" link.
+        await expect(errorFilePage.uploadDifferentFileLink).not.toBeVisible()
+        await expect(errorFilePage.backToProjectLink).not.toBeVisible()
       })
     }
   )
@@ -595,8 +682,14 @@ const SINGLE_ERROR_CASES = [
     body: 'These parcels are overlapping. Draw the parcels again and'
   },
   {
-    // Slivers are uncovered gap pieces (BMD-300 AC7) carrying no parcel ref,
-    // so the page uses the generic H1 rather than "This parcel {ref}…".
+    // QA-clarified 2026-07-23 (BMD-405 Jira thread): a sliver CAN carry a
+    // parcel ref like any other polygon, so AC9 expects the personalised
+    // "This parcel {ref} contains an error" H1 here too — NOT the generic
+    // catch-all. This assertion still targets the generic H1 because that is
+    // what current (unfixed) source renders (single-error-copy.js's
+    // sliverEntry() ignores the ref). Flip `heading` to
+    // /This parcel .+ contains an error/ once the frontend ships the fix —
+    // changing it now would fail against unfixed source.
     title: 'sliver parcel alone shows the "parcel is a sliver" page',
     fixture: 'Baseline - only sliver.gpkg',
     heading: GEOPACKAGE_ERROR_H1,
@@ -659,6 +752,15 @@ const SINGLE_ERROR_PENDING_FIXTURE_CASES = [
     fixture: 'Baseline - only tree outside.gpkg',
     placeholder: true,
     body: 'One or more trees are not entirely within the redline boundary'
+  },
+  {
+    // The REDLINE_AREA_TOO_LARGE gate is built (backend error-builders.js
+    // emits "...exceeds the 100 sq km limit") but the harness has no >100 sq
+    // km fixture yet.
+    title: 'redline area too large alone shows the placeholder page',
+    fixture: 'Baseline - redline area too large.gpkg',
+    placeholder: true,
+    body: 'exceeds the 100 sq km limit'
   }
 ]
 
@@ -695,10 +797,10 @@ function singleErrorTest({ title, fixture, heading, body, placeholder }, opts) {
           `/projects/${id}/upload-baseline-file`
         )
       }
-      await expect(errorFilePage.uploadDifferentFileLink).toHaveAttribute(
-        'href',
-        `/projects/${id}/upload-baseline-file`
-      )
+      // QA fix (frontend PR#175): the single-error layout no longer shows
+      // the "Upload a different file" button or "Back to project" link.
+      await expect(errorFilePage.uploadDifferentFileLink).not.toBeVisible()
+      await expect(errorFilePage.backToProjectLink).not.toBeVisible()
     }
   )
 }
@@ -743,42 +845,87 @@ function describeSingleErrorDropout() {
   )
 }
 
-// ─── Redline area too large (no fixture yet) ──────────────────────────────────
+// ─── Uploader-level rejection (reachability unconfirmed) ──────────────────────
 
-function describeAreaTooLarge() {
+function describeUploaderRejection() {
   test.describe(
-    'Upload baseline — redline area too large',
+    'Upload baseline — CDP Uploader rejection',
     { tag: '@regression' },
     () => {
-      // The REDLINE_AREA_TOO_LARGE gate is built (backend error-builders.js emits
-      // "...exceeds the 100 sq km limit") but the harness has no >100 sq km fixture.
-      // To enable once one exists:
-      //   1. copy the >100 sq km fixture into test/example-files/
-      //   2. replace the fixture name below and remove this test.skip
-      test.skip('uploading a file whose redline area exceeds 100 sq km is rejected on the error-file page', async ({
-        createProjectFlow,
-        projectDashboardPage,
-        uploadBaselineFileFlow,
-        errorFilePage,
-        page
-      }) => {
-        const { id } = await setupProject(
-          createProjectFlow,
-          projectDashboardPage,
-          PROJECT_LABEL
-        )
+      // The upload-received controller has a distinct `rejected` branch (clears
+      // session, stores an empty error array, redirects to /error-file with the
+      // generic "We couldn't accept your file" message) for files the CDP
+      // Uploader itself rejects — a different code path from a `ready` status
+      // followed by our backend's own GPKG/content validation. No fixture or
+      // technique in this repo currently drives that branch (not a virus-scan
+      // test file, not an oversized file). To enable:
+      //   1. confirm what makes the CDP Uploader return `rejected` (virus scan?
+      //      MIME/size limit at the uploader layer specifically) and whether
+      //      it's reproducible against the local/github stub
+      //   2. add the fixture/technique and remove this test.skip
+      test.skip('a file rejected by the CDP Uploader shows the generic error-file message', async () => {})
+    }
+  )
+}
 
-        await uploadBaselineFileFlow.uploadFile(
-          id,
-          'Baseline - redline area too large.gpkg'
-        )
+// ─── Upload timeout (impractical without a fast-forward hook) ─────────────────
 
-        await page.waitForURL('/error-file', { timeout: UPLOAD_TIMEOUT })
+function describeUploadTimeout() {
+  test.describe(
+    'Upload baseline — upload check timeout',
+    { tag: '@regression' },
+    () => {
+      // Elapsed > MAX_WAIT_SECONDS (120s, hardcoded in
+      // habitat-upload-received-controller.js) clears the session, sets the
+      // "The file check timed out. Please try again." flash, and redirects to
+      // the upload form. A real 2-minute wait isn't viable in this suite. To
+      // enable:
+      //   1. make MAX_WAIT_SECONDS env-overridable in the frontend (test-only)
+      //   2. drive a `pending` status for longer than the shortened window and
+      //      assert the flash + redirect, then remove this test.skip
+      test.skip('an upload stuck pending for over 120s shows the timeout flash on the upload form', async () => {})
+    }
+  )
+}
 
-        await expect(errorFilePage.errorSummary).toContainText(
-          'exceeds the 100 sq km limit'
-        )
-      })
+// ─── PARCEL_OVERLAPS without both feature refs (reachability unconfirmed) ─────
+
+function describePartialOverlapRefs() {
+  test.describe(
+    'Upload baseline — overlap without both feature refs',
+    { tag: '@regression' },
+    () => {
+      // single-error-copy.js's PARCEL_OVERLAPS handler falls back to "Some
+      // parcels in this file are overlapping…" (generic H1, different body
+      // copy from the two-ref case) when the backend sample doesn't carry both
+      // feature_ref_a/feature_ref_b (or _a/_b fid). All current overlap
+      // fixtures produce refs on both sides, so this branch is unreached. To
+      // enable:
+      //   1. confirm whether real GeoPackage data can produce an overlap
+      //      sample missing a ref (e.g. an unref'd parcel) — may not be
+      //      naturally reachable
+      //   2. add the fixture and remove this test.skip
+      test.skip('overlapping parcels with a missing feature ref show the generic fallback copy', async () => {})
+    }
+  )
+}
+
+// ─── Truncated error sample ("… and N more") ───────────────────────────────────
+
+function describeTruncatedSample() {
+  test.describe(
+    'Upload baseline — truncated error sample',
+    { tag: '@regression' },
+    () => {
+      // The multi-error layout appends "… and N more" when the backend's
+      // details.count exceeds details.sample.length (backend SAMPLE_CAP = 50,
+      // e.g. distinctiveness-check.js). No current fixture has 51+ offending
+      // features of one type. To enable:
+      //   1. generate a fixture with 51+ offenders of a single error type
+      //      (e.g. via the mutate-and-verify technique used for the BMD-405
+      //      single-defect fixtures)
+      //   2. add it to test/example-files/ and remove this test.skip
+      test.skip('a fixture with more than 50 offending features shows the "and N more" tail', async () => {})
     }
   )
 }
@@ -949,6 +1096,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
 
   describeHappyPath()
   describeNoPendingUpload()
+  describeCrossUserAccess()
   describeFormatError()
   describeStructuralErrors()
   describeSuppression()
@@ -957,7 +1105,10 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
   describeOutsideEngland()
   describeGeometricGateErrors()
   describeSingleErrorDropout()
-  describeAreaTooLarge()
+  describeUploaderRejection()
+  describeUploadTimeout()
+  describePartialOverlapRefs()
+  describeTruncatedSample()
   describeIrreplaceableHabitat()
   describeBaselineHabitatDetailsFlow()
 })
