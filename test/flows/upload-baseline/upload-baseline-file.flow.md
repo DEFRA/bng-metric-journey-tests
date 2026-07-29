@@ -48,7 +48,7 @@ its own flow doc.
 - **Auth required:** Yes (session + approved BNG Completer role — Defra ID enrolment status 3, scoped to `currentRelationshipId` when present)
 - **Backend endpoints:**
   - `GET /upload/{uploadId}/status` — polls upload status (treats `numberOfRejectedFiles > 0` as `rejected`)
-  - `POST /baseline/validate/{uploadId}` (body: `{ projectId }`) — triggered once status is `ready`; validates the file contents and persists the baseline; forwards the user's Defra ID bearer via `backendRequest`. Content validation includes a distinctiveness-scope check (BMD-352): any habitat — area habitats, hedgerows, or watercourses — whose distinctiveness is **High** or **Very high** is rejected with error code `HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE` (the error names the offending feature ref; allowed bands are Medium, Low, Very low). This drives the structured-error branch below.
+  - `POST /baseline/validate/{uploadId}` (body: `{ projectId }`) — triggered once status is `ready`; validates the file contents and persists the baseline; forwards the user's Defra ID bearer via `backendRequest`. Content validation includes a distinctiveness-scope check (BMD-352): any habitat — area habitats, hedgerows, or watercourses — whose distinctiveness is **High** or **Very high** is rejected with error code `HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE` (the error names the offending feature ref; allowed bands are Medium, Low, Very low). This drives the structured-error branch below. Content validation also rejects (BMD-883) any habitat that sets **both** "Habitat created in advance/years" and "Delay in starting habitat creation/years" — error code `ADVANCE_AND_DELAY_BOTH_SET` — naming the offending feature refs; use one or the other, not both.
 - **Description:** Rendered by the shared `createUploadReceivedController(HABITAT_UPLOAD_TYPES.baseline, validateBaseline)` factory. The template renders a "Checking your file" message with a `<meta http-equiv="refresh" content="5">` tag so the browser re-hits the handler every 5 seconds. On each request the handler checks `pendingUploadId` from the session, polls upload status, and tracks elapsed time in `uploadStartedAt`. Once status is `ready` it calls baseline validation and clears both session keys. The rejected and structured-error branches also set `validationUploadType = 'baseline'` in session (consumed by the shared error-file page). Possible outcomes are listed below.
 - **Validation / branching:**
   - `pendingUploadId` missing → redirect to `GET /projects/{id}/upload-baseline-file`
@@ -84,6 +84,10 @@ its own flow doc.
        "Your Geopackage (.gpkg) file contains an error") plus an instruction sentence ending in
        an inline "upload a new file" link back to the upload form. When projectId is unknown the
        link is dropped and the sentence is closed with a full stop.
+     - `PARCEL_OVERLAPS` specifically falls back to different body copy ("Some parcels in this
+       file are overlapping. Draw the affected parcels again and…") — not the generic catch-all
+       — when the sample doesn't carry both `feature_ref_a`/`feature_ref_b` (or `_a`/`_b` `fid`)
+       values, keeping the generic H1 in that case too.
      - `distinctiveness` — `HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE` renders H1 "Very high and high
        distinctiveness habitats are not yet included in this service" and a link to the statutory
        biodiversity metric tool on GOV.UK (opens in a new tab).

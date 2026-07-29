@@ -221,11 +221,10 @@ function describeStructuralErrors() {
           'href',
           `/projects/${id}/upload-post-intervention-file`
         )
-        await expect(errorFilePage.uploadDifferentFileLink).toBeVisible()
-        await expect(errorFilePage.backToProjectLink).toHaveAttribute(
-          'href',
-          `/add-project-details/${id}`
-        )
+        // QA fix (frontend PR#175): the single-error layout no longer shows
+        // the "Upload a different file" button or "Back to project" link.
+        await expect(errorFilePage.uploadDifferentFileLink).not.toBeVisible()
+        await expect(errorFilePage.backToProjectLink).not.toBeVisible()
       })
     }
   )
