@@ -1,4 +1,4 @@
-# View Post-Intervention User Flow
+# Post-Intervention Habitat Details User Flow (read-only view)
 
 ## Overview
 

@@ -12,6 +12,10 @@ This flow shares its controllers and templates with the baseline upload flow via
 path, and page copy differ. The baseline variant is documented in
 `test/flows/upload-baseline/upload-baseline-file.flow.md`.
 
+An acceptance-criteria coverage matrix for this flow — mirrored from the baseline ACs by
+workshop title and reconciled against the live implementation — lives alongside this doc in
+[`upload-post-intervention-file.ac.md`](upload-post-intervention-file.ac.md).
+
 ## Steps
 
 ### Step 1 — View file upload form `[IMPLEMENTED]`
