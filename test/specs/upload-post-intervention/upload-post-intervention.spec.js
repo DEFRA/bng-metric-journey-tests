@@ -262,7 +262,7 @@ function describeContentValidationErrors() {
       // BMD-405 AC9: the slivers fixture trips a single sliver error, so the
       // single-error sliver copy renders (this variant has no reachable
       // baseline fixture — see the upload-baseline pending-fixture skips).
-      name: 'slivers inside the redline boundary',
+      name: 'a habitat parcel too small to be a real habitat',
       file: SLIVERS_FILE,
       layout: 'single',
       expected: 'This parcel is a sliver (a thin strip of land)'

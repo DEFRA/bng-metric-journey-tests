@@ -93,17 +93,17 @@ distinctiveness eligibility).
 | PI-UV-5a | RLB layer with no geometry column → dropout "Missing required feature layer in GeoPackage".                                    | `Post-intervention - no geometry column in RLB layer.gpkg`        | ✅ content validation errors              |
 | PI-UV-5b | RLB layer with multiple geometry columns → dropout "expected exactly one geometry column … found 2".                           | `Post-intervention - multiple geometry columns in RLB layer.gpkg` | ✅ content validation errors              |
 | PI-UV-5c | RLB layer with the wrong geometry type → dropout "expected geometry type POLYGON … found POINT" / "Zero red line boundaries…". | `Post-intervention - wrong geometry in RLB layer.gpkg`            | ✅ content validation errors              |
-| PI-UV-6  | A file containing slivers → dropout slivers error.                                                                             | `Post-intervention - complete with slivers.gpkg`                  | ✅ content validation errors              |
+| PI-UV-6  | A file containing a habitat parcel too small to be real → dropout slivers error.                                               | `Post-intervention - complete with slivers.gpkg`                  | ✅ content validation errors              |
 | PI-UV-7  | A valid file passing all validation lands on the post-intervention habitat list.                                               | `Post-intervention - complete.gpkg`                               | ✅ happy path (full assert in Happy Path) |
 
 **Dropped after discovery:** PI-UV-4 (`Post-intervention - incorrect geom column name.gpkg`)
 is **accepted** by post-intervention validation — it passes and reaches the habitat list, so
 it is not a rejection scenario (redundant with the happy path).
 
-**Finding (backend copy):** the slivers dropout message reads _"Baseline file contains
-slivers…"_ on a **post-intervention** upload — the shared backend message is not
-parameterised by upload type. App behaviour is correct (rejects); wording is baseline-specific.
-Flagged for the team; the test asserts the text as-is.
+**Resolved (BMD-882):** the slivers dropout message used to read _"Baseline file contains
+slivers…"_ on a **post-intervention** upload, because the shared backend message was not
+parameterised by upload type. The check is now per-parcel and its message — _"One or more area
+habitat parcels are slivers…"_ — reads correctly at either stage.
 
 **Deferred to the Postgres File Processing / integration title** (shared backend logic, no
 post-intervention browser fixtures): virus scan (BMD-356), exhaustive geospatial rules

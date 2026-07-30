@@ -556,9 +556,9 @@ const GEOMETRIC_GATE_CASES = [
     summaryText: 'One or more area habitat polygons have invalid geometry'
   },
   {
-    title: 'rejects a file with slivers inside the redline boundary',
+    title: 'rejects a file containing a habitat parcel too small to be real',
     fixture: 'Baseline - sliver.gpkg',
-    summaryText: 'Baseline file contains slivers inside the redline boundary'
+    summaryText: 'One or more area habitat parcels are slivers'
   },
   {
     title: 'rejects a hedgerow outside the redline boundary',
@@ -691,6 +691,9 @@ const SINGLE_ERROR_CASES = [
     // /This parcel .+ contains an error/ once the frontend ships the fix —
     // changing it now would fail against unfixed source.
     title: 'sliver parcel alone shows the "parcel is a sliver" page',
+    // BMD-882: the fixture is a valid baseline with one hairline parcel carved
+    // out of a neighbour, so the parcels still tile the redline exactly and the
+    // sliver is the only error.
     fixture: 'Baseline - only sliver.gpkg',
     heading: GEOPACKAGE_ERROR_H1,
     body: 'This parcel is a sliver (a thin strip of land). Draw the parcel again and'
