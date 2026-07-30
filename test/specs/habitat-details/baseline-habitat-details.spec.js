@@ -113,11 +113,6 @@ async function getRowRefAndFeatureId(page, panelId) {
   return refAndFeatureIdFromLink(link)
 }
 
-async function getFeatureIdFromTable(page, panelId) {
-  const { featureId } = await getRowRefAndFeatureId(page, panelId)
-  return featureId
-}
-
 function conditionsProxyUrl(habitatType, featureType) {
   let url = `/api/reference/conditions?habitatType=${encodeURIComponent(habitatType)}`
   if (featureType) {
@@ -556,16 +551,19 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         createProjectFlow,
         projectDashboardPage,
         uploadBaselineFileFlow,
+        habitatListPage,
         baselineHabitatDetailsPage,
         page
       }) => {
-        projectId = await uploadAndGetProjectId(
+        const shared = await getSharedBaseline({
           createProjectFlow,
           projectDashboardPage,
           uploadBaselineFileFlow,
+          habitatListPage,
           page
-        )
-        areaFeatureId = await getFeatureIdFromTable(page, 'area-habitats')
+        })
+        projectId = shared.id
+        areaFeatureId = shared.area.featureId
 
         await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
 
@@ -1164,16 +1162,15 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         habitatListPage,
         page
       }) => {
-        projectId = await uploadAndGetProjectId(
+        const shared = await getSharedBaseline({
           createProjectFlow,
           projectDashboardPage,
           uploadBaselineFileFlow,
+          habitatListPage,
           page
-        )
-        // The Hedgerows panel is hidden by GOV.UK Tabs JS until the tab is clicked;
-        // clicking first makes the links visible so getByRole can find them.
-        await habitatListPage.hedgerowsTab.click()
-        hedgerowFeatureId = await getFeatureIdFromTable(page, 'hedgerows')
+        })
+        projectId = shared.id
+        hedgerowFeatureId = shared.hedgerow.featureId
 
         await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
 
