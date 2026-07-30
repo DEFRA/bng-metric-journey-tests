@@ -268,7 +268,7 @@ function describeContentValidationErrors() {
       file: SLIVERS_FILE,
       layout: 'single',
       heading: /This parcel .+ contains an error/,
-      expected: 'This parcel is a sliver (a thin strip of land)'
+      expected: 'This parcel is smaller than 1 square metre'
     }
   ]
 

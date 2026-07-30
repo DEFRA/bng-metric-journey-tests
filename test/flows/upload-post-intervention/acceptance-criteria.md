@@ -93,7 +93,7 @@ distinctiveness eligibility).
 | PI-UV-5a | RLB layer with no geometry column → dropout "Missing required feature layer in GeoPackage".                                    | `Post-intervention - no geometry column in RLB layer.gpkg`        | ✅ content validation errors              |
 | PI-UV-5b | RLB layer with multiple geometry columns → dropout "expected exactly one geometry column … found 2".                           | `Post-intervention - multiple geometry columns in RLB layer.gpkg` | ✅ content validation errors              |
 | PI-UV-5c | RLB layer with the wrong geometry type → dropout "expected geometry type POLYGON … found POINT" / "Zero red line boundaries…". | `Post-intervention - wrong geometry in RLB layer.gpkg`            | ✅ content validation errors              |
-| PI-UV-6  | A file containing a habitat parcel too small to be real → dropout slivers error.                                               | `Post-intervention - complete with slivers.gpkg`                  | ✅ content validation errors              |
+| PI-UV-6  | A file containing a habitat parcel under the 1 m² minimum area → dropout "parcel is smaller than 1 square metre".              | `Post-intervention - complete with slivers.gpkg`                  | ✅ content validation errors              |
 | PI-UV-7  | A valid file passing all validation lands on the post-intervention habitat list.                                               | `Post-intervention - complete.gpkg`                               | ✅ happy path (full assert in Happy Path) |
 
 **Dropped after discovery:** PI-UV-4 (`Post-intervention - incorrect geom column name.gpkg`)
@@ -103,7 +103,9 @@ it is not a rejection scenario (redundant with the happy path).
 **Resolved (BMD-882):** the slivers dropout message used to read _"Baseline file contains
 slivers…"_ on a **post-intervention** upload, because the shared backend message was not
 parameterised by upload type. The check is now per-parcel and its message — _"One or more area
-habitat parcels are slivers…"_ — reads correctly at either stage.
+habitat parcels are smaller than 1 square metre"_ — reads correctly at either stage. The copy
+also no longer calls the parcel a sliver or a thin strip: the check is on area alone, so a
+compact parcel under 1 m² is rejected just the same.
 
 **Deferred to the Postgres File Processing / integration title** (shared backend logic, no
 post-intervention browser fixtures): virus scan (BMD-356), exhaustive geospatial rules

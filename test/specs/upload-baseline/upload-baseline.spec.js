@@ -556,9 +556,10 @@ const GEOMETRIC_GATE_CASES = [
     summaryText: 'One or more area habitat polygons have invalid geometry'
   },
   {
-    title: 'rejects a file containing a habitat parcel too small to be real',
+    title: 'rejects a file containing a habitat parcel under the minimum area',
     fixture: 'Baseline - sliver.gpkg',
-    summaryText: 'One or more area habitat parcels are slivers'
+    summaryText:
+      'One or more area habitat parcels are smaller than 1 square metre'
   },
   {
     title: 'rejects a hedgerow outside the redline boundary',
@@ -688,13 +689,13 @@ const SINGLE_ERROR_CASES = [
     // catch-all. Delivered by BMD-882: the sliver check now reports the
     // offending parcel rather than a derived gap, so there is a ref to name.
     title:
-      'sliver parcel alone shows the personalised "parcel is a sliver" page',
+      'undersized parcel alone shows the personalised "parcel too small" page',
     // The fixture is a valid baseline with a 0.8 m² parcel carved out of a
     // neighbour, so the parcels still tile the redline exactly and the
     // under-minimum area is the only error.
     fixture: 'Baseline - only sliver.gpkg',
     heading: /This parcel .+ contains an error/,
-    body: 'This parcel is a sliver (a thin strip of land). Draw the parcel again and'
+    body: 'This parcel is smaller than 1 square metre. Draw the parcel again and'
   },
   {
     title:
