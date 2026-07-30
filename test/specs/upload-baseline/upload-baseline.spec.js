@@ -689,9 +689,9 @@ const SINGLE_ERROR_CASES = [
     // offending parcel rather than a derived gap, so there is a ref to name.
     title:
       'sliver parcel alone shows the personalised "parcel is a sliver" page',
-    // The fixture is a valid baseline with one hairline parcel carved out of a
-    // neighbour, so the parcels still tile the redline exactly and the sliver
-    // is the only error.
+    // The fixture is a valid baseline with a 0.8 m² parcel carved out of a
+    // neighbour, so the parcels still tile the redline exactly and the
+    // under-minimum area is the only error.
     fixture: 'Baseline - only sliver.gpkg',
     heading: /This parcel .+ contains an error/,
     body: 'This parcel is a sliver (a thin strip of land). Draw the parcel again and'
