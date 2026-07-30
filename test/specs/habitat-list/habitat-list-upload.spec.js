@@ -1,32 +1,68 @@
 import { test, expect } from '@fixtures'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
+import { ProjectDashboardPage } from '@pages/project-dashboard.page.js'
+import { CreateProjectFlow } from '@flows/project-management/create-project.flow.js'
+import { UploadBaselineFileFlow } from '@flows/upload-baseline/upload-baseline-file.flow.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const UPLOAD_TIMEOUT = 120_000
 const COMPLETE_BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
 const NO_HEDGEROWS_FILE = 'Baseline - no hedgerows.gpkg'
+const NO_WATERCOURSES_FILE = 'Baseline - no watercourses.gpkg'
 const PROJECT_LABEL = 'Habitat list test'
 const NO_DATA_TEXT = 'No data'
 const HABITAT_TYPE_COL = 'Habitat type'
 
-async function uploadAndNavigateToHabitatList(
-  createProjectFlow,
-  projectDashboardPage,
-  uploadBaselineFileFlow,
-  page,
-  file
-) {
-  const { id } = await setupProject(
-    createProjectFlow,
-    projectDashboardPage,
-    PROJECT_LABEL
-  )
-  await uploadBaselineFileFlow.uploadFile(id, file)
-  await page.waitForURL(new RegExp(`/projects/${id}/baseline-habitat-list`), {
-    timeout: UPLOAD_TIMEOUT
-  })
-  return id
+// Create a project in its own context and upload a baseline fixture once,
+// returning its id/name. Each fixture is uploaded a single time and shared
+// (memoised below) by every read-only describe that needs it — avoiding the
+// CDP-uploader contention of many parallel uploads.
+async function buildBaselineProject(browser, file) {
+  const context = await browser.newContext({ storageState: STORAGE_STATE })
+  const page = await context.newPage()
+  try {
+    const { id, name } = await setupProject(
+      new CreateProjectFlow(page),
+      new ProjectDashboardPage(page),
+      PROJECT_LABEL
+    )
+    await new UploadBaselineFileFlow(page).uploadFile(id, file)
+    await page.waitForURL(new RegExp(`/projects/${id}/baseline-habitat-list`), {
+      timeout: UPLOAD_TIMEOUT
+    })
+    return { id, name }
+  } finally {
+    await context.close()
+  }
+}
+
+// Memoised per worker, keyed by fixture file; a failed build is not cached so a
+// transient upload failure can retry on the next caller. The file runs serially
+// in one worker (see the configure below), so each fixture is uploaded once.
+const sharedProjects = new Map()
+
+function getSharedProject(browser, file) {
+  if (!sharedProjects.has(file)) {
+    const promise = buildBaselineProject(browser, file).catch((err) => {
+      sharedProjects.delete(file)
+      throw err
+    })
+    sharedProjects.set(file, promise)
+  }
+  return sharedProjects.get(file)
+}
+
+function getCompleteProject(browser) {
+  return getSharedProject(browser, COMPLETE_BASELINE_FILE)
+}
+
+function getNoHedgerowsProject(browser) {
+  return getSharedProject(browser, NO_HEDGEROWS_FILE)
+}
+
+function getNoWatercoursesProject(browser) {
+  return getSharedProject(browser, NO_WATERCOURSES_FILE)
 }
 
 async function getHabitatTypeHeader(habitatListPage, page, projectId) {
@@ -106,24 +142,15 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
       test.describe.configure({ mode: 'serial' })
 
       let projectId
+      test.beforeAll(async ({ browser }) => {
+        projectId = (await getCompleteProject(browser)).id
+      })
 
-      // Single upload shared across all tests in this group — avoids parallel
-      // Redis session contamination that occurs when beforeEach uploads are
-      // interleaved with uploads in other spec files.
       test('area habitat size shown in ha format and units in 2dp decimal format', async ({
-        createProjectFlow,
-        projectDashboardPage,
-        uploadBaselineFileFlow,
         habitatListPage,
         page
       }) => {
-        projectId = await uploadAndNavigateToHabitatList(
-          createProjectFlow,
-          projectDashboardPage,
-          uploadBaselineFileFlow,
-          page,
-          COMPLETE_BASELINE_FILE
-        )
+        await page.goto(`/projects/${projectId}/baseline-habitat-list`)
 
         await expect(habitatListPage.areaHabitatSizeCell).toHaveText(
           /^\d+(\.\d+)?ha$/
@@ -186,23 +213,19 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
       // individual trees (Urban Trees layer), so a single upload covers both the
       // hedgerow "No data" checks and the tree checks below.
       let noHedgerowsProjectId
+      test.beforeAll(async ({ browser }) => {
+        noHedgerowsProjectId = (await getNoHedgerowsProject(browser)).id
+      })
 
       const sizeInHa = async (cell) =>
         Number((await cell.innerText()).replace(/[^\d.]/g, ''))
 
       test('hedgerow size shows "No data" when file has no hedgerow features', async ({
-        createProjectFlow,
-        projectDashboardPage,
-        uploadBaselineFileFlow,
         habitatListPage,
         page
       }) => {
-        noHedgerowsProjectId = await uploadAndNavigateToHabitatList(
-          createProjectFlow,
-          projectDashboardPage,
-          uploadBaselineFileFlow,
-          page,
-          NO_HEDGEROWS_FILE
+        await page.goto(
+          `/projects/${noHedgerowsProjectId}/baseline-habitat-list`
         )
 
         await expect(habitatListPage.hedgerowSizeCell).toHaveText(NO_DATA_TEXT)
@@ -272,22 +295,17 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
       test.describe.configure({ mode: 'serial' })
 
-      const NO_WATERCOURSES_FILE = 'Baseline - no watercourses.gpkg'
       let noWatercoursesProjectId
+      test.beforeAll(async ({ browser }) => {
+        noWatercoursesProjectId = (await getNoWatercoursesProject(browser)).id
+      })
 
       test('watercourse size shows "No data" when file has no watercourse features', async ({
-        createProjectFlow,
-        projectDashboardPage,
-        uploadBaselineFileFlow,
         habitatListPage,
         page
       }) => {
-        noWatercoursesProjectId = await uploadAndNavigateToHabitatList(
-          createProjectFlow,
-          projectDashboardPage,
-          uploadBaselineFileFlow,
-          page,
-          NO_WATERCOURSES_FILE
+        await page.goto(
+          `/projects/${noWatercoursesProjectId}/baseline-habitat-list`
         )
 
         await expect(habitatListPage.watercourseSizeCell).toHaveText(
@@ -320,20 +338,14 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
       test.describe.configure({ mode: 'serial' })
 
       let projectId
+      test.beforeAll(async ({ browser }) => {
+        projectId = (await getCompleteProject(browser)).id
+      })
 
       test('area habitats section heading is displayed after upload', async ({
-        createProjectFlow,
-        projectDashboardPage,
-        uploadBaselineFileFlow,
         page
       }) => {
-        projectId = await uploadAndNavigateToHabitatList(
-          createProjectFlow,
-          projectDashboardPage,
-          uploadBaselineFileFlow,
-          page,
-          COMPLETE_BASELINE_FILE
-        )
+        await page.goto(`/projects/${projectId}/baseline-habitat-list`)
 
         await expect(
           page
@@ -523,21 +535,15 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
       test.describe.configure({ mode: 'serial' })
 
       let projectId
+      test.beforeAll(async ({ browser }) => {
+        projectId = (await getCompleteProject(browser)).id
+      })
 
       test('hedgerows section heading is displayed after upload', async ({
-        createProjectFlow,
-        projectDashboardPage,
-        uploadBaselineFileFlow,
         habitatListPage,
         page
       }) => {
-        projectId = await uploadAndNavigateToHabitatList(
-          createProjectFlow,
-          projectDashboardPage,
-          uploadBaselineFileFlow,
-          page,
-          COMPLETE_BASELINE_FILE
-        )
+        await page.goto(`/projects/${projectId}/baseline-habitat-list`)
 
         await habitatListPage.hedgerowsTab.click()
         await expect(
@@ -546,23 +552,12 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
       })
 
       test('hedgerows tab shows "No hedgerow data uploaded." when file has no hedgerow habitats', async ({
-        createProjectFlow,
-        projectDashboardPage,
-        uploadBaselineFileFlow,
+        browser,
         habitatListPage,
         page
       }) => {
-        const { id } = await setupProject(
-          createProjectFlow,
-          projectDashboardPage,
-          PROJECT_LABEL
-        )
-        await uploadBaselineFileFlow.uploadFile(id, NO_HEDGEROWS_FILE)
-        await page.waitForURL(
-          new RegExp(`/projects/${id}/baseline-habitat-list`),
-          { timeout: UPLOAD_TIMEOUT }
-        )
-        await habitatListPage.hedgerowsTab.click()
+        const { id } = await getNoHedgerowsProject(browser)
+        await habitatListPage.openTab(id, 'hedgerows')
         await expect(
           page.locator('#hedgerows').getByText('No hedgerow data uploaded.')
         ).toBeVisible()
@@ -741,21 +736,15 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
       test.describe.configure({ mode: 'serial' })
 
       let projectId
+      test.beforeAll(async ({ browser }) => {
+        projectId = (await getCompleteProject(browser)).id
+      })
 
       test('watercourses section heading is displayed after upload', async ({
-        createProjectFlow,
-        projectDashboardPage,
-        uploadBaselineFileFlow,
         habitatListPage,
         page
       }) => {
-        projectId = await uploadAndNavigateToHabitatList(
-          createProjectFlow,
-          projectDashboardPage,
-          uploadBaselineFileFlow,
-          page,
-          COMPLETE_BASELINE_FILE
-        )
+        await page.goto(`/projects/${projectId}/baseline-habitat-list`)
 
         await habitatListPage.watercoursesTab.click()
         await expect(
@@ -944,22 +933,12 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
       test.describe.configure({ mode: 'serial' })
 
-      const NO_WATERCOURSES_FILE = 'Baseline - no watercourses.gpkg'
-
       test('watercourses tab panel shows "No watercourse data uploaded." when file has no watercourse features', async ({
-        createProjectFlow,
-        projectDashboardPage,
-        uploadBaselineFileFlow,
+        browser,
         habitatListPage,
         page
       }) => {
-        const projectId = await uploadAndNavigateToHabitatList(
-          createProjectFlow,
-          projectDashboardPage,
-          uploadBaselineFileFlow,
-          page,
-          NO_WATERCOURSES_FILE
-        )
+        const { id: projectId } = await getNoWatercoursesProject(browser)
 
         await habitatListPage.openTab(projectId, 'watercourses')
         await expect(
@@ -986,17 +965,12 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
       //   1. copy the GIS-trees-layer fixture into test/example-files/
       //   2. upload it and assert the trees layer's units render on the habitat list
       test.skip('units render for a GIS-mapped trees layer', async ({
-        createProjectFlow,
-        projectDashboardPage,
-        uploadBaselineFileFlow,
+        browser,
         habitatListPage,
         page
       }) => {
-        const projectId = await uploadAndNavigateToHabitatList(
-          createProjectFlow,
-          projectDashboardPage,
-          uploadBaselineFileFlow,
-          page,
+        const { id: projectId } = await buildBaselineProject(
+          browser,
           'Baseline - gis trees layer.gpkg'
         )
         await page.goto(`/projects/${projectId}/baseline-habitat-list`)
