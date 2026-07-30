@@ -120,7 +120,10 @@ function describeFormatError() {
     'Upload post-intervention — format error',
     { tag: '@regression' },
     () => {
-      test('uploading a non-GeoPackage file shows the error summary with heading and error link', async ({
+      // One upload covers both the error-summary render and the link's
+      // focus-move: the format error is a one-time session flash, so a fresh
+      // navigation would lose it — the two assertions must share a page session.
+      test('uploading a non-GeoPackage file shows the error summary, and its link moves focus to the file-selection button', async ({
         createProjectFlow,
         projectDashboardPage,
         uploadPostInterventionFileFlow,
@@ -145,34 +148,12 @@ function describeFormatError() {
         await expect(
           summary.getByRole('heading', { name: ERROR_SUMMARY_TITLE })
         ).toBeVisible()
-        await expect(
-          summary.getByRole('link', { name: FORMAT_ERROR_MESSAGE })
-        ).toBeVisible()
-      })
+        const errorLink = summary.getByRole('link', {
+          name: FORMAT_ERROR_MESSAGE
+        })
+        await expect(errorLink).toBeVisible()
 
-      test('clicking the error-summary link moves focus to the file-selection button', async ({
-        createProjectFlow,
-        projectDashboardPage,
-        uploadPostInterventionFileFlow,
-        uploadPostInterventionFilePage,
-        page
-      }) => {
-        const { id } = await setupProject(
-          createProjectFlow,
-          projectDashboardPage,
-          PROJECT_LABEL
-        )
-
-        await uploadPostInterventionFileFlow.uploadFile(id, FORMAT_ERROR_FILE)
-
-        await page.waitForURL(
-          new RegExp(`/projects/${id}/upload-post-intervention-file`),
-          { timeout: UPLOAD_TIMEOUT }
-        )
-
-        await uploadPostInterventionFilePage.errorSummary
-          .getByRole('link', { name: FORMAT_ERROR_MESSAGE })
-          .click()
+        await errorLink.click()
 
         await expect(
           uploadPostInterventionFilePage.chooseFileButton
