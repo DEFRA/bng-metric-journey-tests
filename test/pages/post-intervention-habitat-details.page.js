@@ -41,7 +41,9 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     // Area page only — on the hedgerow/watercourse pages the third row is
     // Length, not Area.
     this.areaValue = page.getByRole('definition').nth(2)
-    // Hedgerow/watercourse pages only — same third row, Length instead.
+    // Hedgerow page only — same third row, Length instead. (The retained
+    // watercourse page no longer renders a summary list; see the stacked
+    // locators below.)
     this.lengthValue = page.getByRole('definition').nth(2)
 
     // Shown only when a baseline feature shares the parcel ref (the baseline
@@ -112,6 +114,18 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     this.habitatUnitsDeliveredKey = page.getByText('Habitat units delivered', {
       exact: true
     })
+
+    // ─── Retained watercourse stacked page ──────────────────────────────────
+    // The retained watercourse page now uses the same stacked
+    // label-over-value layout as the Enhanced pages, with a single section.
+    // Its size row is labelled "Size (kilometres)" with a plain numeric
+    // value — the label names the unit.
+    this.sizeKilometresKey = page.getByText('Size (kilometres)', {
+      exact: true
+    })
+    this.sizeKilometresValue = page
+      .locator('.app-stacked-fields__item', { hasText: 'Size (kilometres)' })
+      .locator('p')
   }
 
   async open(projectId, featureId) {

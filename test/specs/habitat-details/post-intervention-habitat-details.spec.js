@@ -1212,11 +1212,22 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         )
 
         const detailsPage = postInterventionHabitatDetailsPage
+        // Page heading is the parcel ref; the fixed page name is the single
+        // section heading (viewOnlyHeading matches its <h2>), and the
+        // Reference row moved into the heading.
+        await expect(
+          page.getByRole('heading', {
+            name: RETAINED_WATERCOURSE_REF,
+            exact: true
+          })
+        ).toBeVisible()
         await expect(detailsPage.viewOnlyHeading).toBeVisible()
+        await expect(detailsPage.referenceKey).toBeHidden()
         await expect(detailsPage.interventionKey).toBeVisible()
-        await expect(detailsPage.lengthKey).toBeVisible()
+        await expect(detailsPage.sizeKilometresKey).toBeVisible()
         await expect(detailsPage.watercourseEncroachmentKey).toBeVisible()
         await expect(detailsPage.riparianEncroachmentKey).toBeVisible()
+        await expect(detailsPage.habitatUnitsDeliveredKey).toBeVisible()
         await expect(page.getByText('Ditches', { exact: true })).toBeVisible()
         // Encroachment values come from the baseline side and render as
         // "Value (multiplier)"; the multiplier is engine data, so assert the
@@ -1278,16 +1289,20 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           shared.name
         )
         await expect(
-          page.getByText(RETAINED_WATERCOURSE_REF, { exact: true })
+          page.getByRole('heading', {
+            name: RETAINED_WATERCOURSE_REF,
+            exact: true
+          })
         ).toBeVisible()
         // WC1: Ditches / Moderate / 90 m (fixture values); "Medium (n)" and
         // "Moderate (n)" are the engine's reference distinctiveness and
         // condition for that river type. Length renders in km with trailing
-        // zeros trimmed.
+        // zeros trimmed and no unit suffix — the "Size (kilometres)" label
+        // names the unit.
         await expect(page.getByText('Retained', { exact: true })).toBeVisible()
-        await expect(postInterventionHabitatDetailsPage.lengthValue).toHaveText(
-          /^\s*0\.09\s*$/
-        )
+        await expect(
+          postInterventionHabitatDetailsPage.sizeKilometresValue
+        ).toHaveText(/^\s*0\.09\s*$/)
         await expect(
           page.getByText(/^\s*Medium \(\d+(\.\d+)?\)\s*$/)
         ).toBeVisible()
@@ -1297,7 +1312,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(
           postInterventionHabitatDetailsPage.strategicSignificanceValue
         ).toBeVisible()
-        // "Units in this habitat" matches the Units cell of the same
+        // "Habitat units delivered" matches the Units cell of the same
         // watercourse's habitat-list row.
         await expect(
           postInterventionHabitatDetailsPage.habitatUnitsValue

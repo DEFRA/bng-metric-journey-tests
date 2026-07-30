@@ -10,9 +10,11 @@ unsupported-feature placeholder. Retention category no longer gates _whether_ a 
 renders — every supported feature reaches a read-only page. **Enhanced area habitats
 (BMD-725) now render a dedicated two-section read-only page** — habitat details plus a
 "Time to target / difficulty" section — reading their values from `proposed` (where the
-engine writes the Enhanced derivations). All other cases keep the single-list per-type
-page: Retained/Created area features, and Enhanced (and every other category of) hedgerow
-and watercourse features, until their Enhanced variants land. The Enhanced page is still
+engine writes the Enhanced derivations). **Retained watercourses now use the same
+stacked label-over-value layout with a single section** — the parcel ref is the page
+heading and the units row is the bordered "Habitat units delivered" summary (Step 3).
+Retained area and hedgerow features keep the single-list per-type page. The redesigned
+pages are still
 read-only — there is no editable form on this route, and the
 `POST /post-intervention-habitat-details` handler returns 501 Not Implemented. BMD-845
 (which added the habitat-list "Intervention type" column) confirmed there are no
@@ -58,10 +60,10 @@ when absent.
 ### Step 3 — View watercourse details (read-only) `[IMPLEMENTED]`
 
 - **Route:** `GET /post-intervention-habitat-details?featureId={featureId}&projectId={projectId}` (watercourse feature)
-- **Template:** `src/server/habitat-details/pi-watercourse-details.njk` (extends `layouts/pi-view-only-page.njk`; BMD-724)
+- **Template:** `src/server/habitat-details/pi-watercourse-details.njk` (extends `layouts/pi-view-only-sections-page.njk`)
 - **Auth required:** Yes (session + BNG Completer role)
 - **Backend endpoint:** Same as Step 1
-- **Description:** Same shared chrome and value sourcing as Step 1. Rows: Reference, Intervention, Length (km), Habitat type, Distinctiveness, Condition, **Watercourse encroachment**, **Riparian encroachment**, Strategic Significance, Units in this habitat. Encroachment _values_ come from the baseline side (falling back to proposed) — the engine's multipliers on `proposed` are derived from the baseline encroachments — and render as "Value (multiplier)" via `withMultiplier` using `proposed.waterEncroachmentMultiplier` / `proposed.riparianEncroachmentMultiplier`. Back link anchors to `#watercourses`.
+- **Description:** Stacked label-over-value read-only layout. Page heading is the feature **ref** (`pageTitle` = ref, falling back to "Post-intervention habitat details"); project name is the caption. A single "Post-intervention habitat details" section with rows: Intervention, Size (kilometres) (plain number, no "km" suffix — the label names the unit), Habitat type, Distinctiveness, Condition, **Watercourse encroachment**, **Riparian encroachment**, Strategic significance (fixed "Low (1)"), then a bordered "Habitat units delivered" summary row. There is no Reference row — the ref moved into the heading. Value sourcing as Step 1; encroachment _values_ come from the baseline side (falling back to proposed) — the engine's multipliers on `proposed` are derived from the baseline encroachments — and render as "Value (multiplier)" via `withMultiplier` using `proposed.waterEncroachmentMultiplier` / `proposed.riparianEncroachmentMultiplier`. Back link anchors to `#watercourses`.
 - **Validation:** Same as Step 1
 - **On success:** Renders the read-only watercourse details page
 - **On error:** Same as Step 1
