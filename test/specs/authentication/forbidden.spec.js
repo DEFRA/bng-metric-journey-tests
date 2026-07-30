@@ -95,4 +95,21 @@ test.describe('authentication', { tag: '@authentication' }, () => {
       })
     }
   )
+
+  // ─── Blocked: OIDC login/callback failure → forbidden ────────────────────────
+  // auth/controller.js redirects to /auth/forbidden when login initiation, the
+  // token exchange, or the callback fails (IdP error response, or the identity
+  // provider itself returning an `error` param). This cannot be driven from the
+  // browser under the stub, which always issues a valid authorization response.
+  //
+  // Unblock: add a stub error-injection hook (or a test double for getOidcConfig
+  // / authorizationCodeGrant) that forces a callback failure, then assert the
+  // redirect to /auth/forbidden.
+  test.skip('a failed OIDC callback redirects to /auth/forbidden', async ({
+    page
+  }) => {
+    // Ready-to-run once the stub can force a callback error:
+    // await page.goto('/auth/callback?error=access_denied&state=bad')
+    // await expect(page).toHaveURL(/\/auth\/forbidden/)
+  })
 })

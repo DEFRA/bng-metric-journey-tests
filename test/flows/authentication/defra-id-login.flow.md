@@ -45,6 +45,14 @@ github runs continue to use the stub.
 - **Description:** Defra ID redirects back with an auth code; the frontend
   exchanges it for a session, persists the session to the backend (best-effort),
   and lands on the project dashboard.
+- **Login metric:** At the callback the frontend also records a login outcome
+  metric (`auth-metrics.js`) — `LoginSucceeded` when the claims carry an approved
+  `bng completer` role, otherwise `LoginFailed` (RBAC). This is separate from the
+  backend `login_audit` row written by `POST {backend}/auth/session`.
+- **Role-less user:** The callback redirects to `/manage-projects` regardless of
+  role. A user without an approved `bng completer` role is **not** bounced here —
+  the per-route role gate (`requireBngCompleterRole`) redirects them to
+  `/auth/forbidden` on that first protected request (see `access-denied.flow.md`).
 
 ## Notes
 
