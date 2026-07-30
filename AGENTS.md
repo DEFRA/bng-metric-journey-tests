@@ -113,6 +113,15 @@ test/specs/my-domain/
   footer.spec.js               ← shared footer (if not already covered)
 ```
 
+### Sharing uploads in read-only specs
+
+Uploads are the slowest, flakiest step — each polls the CDP Uploader for up to ~120s. In an upload-heavy spec where several describes only **read** the resulting page, upload the fixture **once** and share it: memoise one project per distinct fixture in a `beforeAll` (see `getSharedProject` in `test/specs/habitat-details/post-intervention-habitat-details.spec.js`) and re-point each read-only describe at it. Two rules:
+
+- Keep the sharing **worker-scoped and serial** (`test.describe.configure({ mode: 'serial' })` / single worker). Concurrent uploads of the same type clobber the single `pendingUploadId` yar session key and import the wrong file into the project.
+- Any **mutating** test (e.g. a save that writes to the shared project) must run **last** in the serial block.
+
+Tests that need an isolated mutable project (edit/save persistence) keep their own upload.
+
 ---
 
 ## Selectors — Priority Order
