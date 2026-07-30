@@ -5,8 +5,8 @@ import { BaselineHabitatDetailsPage } from './baseline-habitat-details.page.js'
 // details page for area/hedgerow/watercourse features, or an
 // unsupported-feature placeholder for individual trees. Area pages (and the
 // Created/Enhanced hedgerow/watercourse pages) use the stacked
-// label-over-value layout from the figma spec; retained hedgerows and
-// watercourses still render a summary list. POST to this route answers 501 —
+// label-over-value layout; retained hedgerows and watercourses still
+// render a summary list. POST to this route answers 501 —
 // there is no editable form. Extending the baseline page object inherits its
 // select/save locators only so the "hidden on a read-only page" assertions
 // in this file's specs have something to check against; the locators added
@@ -28,8 +28,8 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     // <h3> labels on the area pages; getByText matches both.
     this.interventionKey = page.getByText('Intervention', { exact: true })
     // "Area (hectares)" no longer appears on any PI page (the retained area
-    // page now labels its size row "Size (hectares)", BMD-608) — kept for
-    // the hedgerow spec's hidden-row assertion.
+    // page now labels its size row "Size (hectares)") — kept for the
+    // hedgerow spec's hidden-row assertion.
     this.areaKey = page.getByText('Area (hectares)', { exact: true })
     this.lengthKey = page.getByText('Length (km)', { exact: true })
     this.broadHabitatKey = page.getByText('Broad habitat', { exact: true })
@@ -59,12 +59,12 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
       'Individual tree and IGGI features are not yet supported in this view.'
     )
 
-    // ─── Stacked label-over-value pages (BMD-725/608) ───────────────────────
+    // ─── Stacked label-over-value pages ─────────────────────────────────────
     // The Enhanced area habitat renders a distinct template
     // (pi-habitat-details-enhanced.njk) with stacked label-over-value fields in
     // two <h2> sections plus a "Habitat units delivered" summary row. The
     // retained area page (pi-habitat-details.njk) uses the same layout with a
-    // single section (BMD-608 figma design). The page heading is the feature
+    // single section. The page heading is the feature
     // ref (assert that in the spec via getByRole). The first section's heading
     // reuses viewOnlyHeading's "Post-intervention habitat details" text; the
     // second section heading is added here. Labels are <h3> headings, so
@@ -77,8 +77,8 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     // labels the size row "Area" (not "Area (hectares)") and uses a lower-case
     // "Strategic significance".
     this.enhancedAreaKey = page.getByText('Area', { exact: true })
-    // The retained area page labels its size row "Size (hectares)" (BMD-608
-    // figma design) with a plain numeric value — the label names the unit.
+    // The retained area page labels its size row "Size (hectares)" with a
+    // plain numeric value — the label names the unit.
     this.sizeHectaresKey = page.getByText('Size (hectares)', { exact: true })
     this.sizeHectaresValue = page
       .locator('.app-stacked-fields__item', { hasText: 'Size (hectares)' })

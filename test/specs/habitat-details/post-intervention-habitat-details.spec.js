@@ -407,9 +407,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           )
 
           const detailsPage = postInterventionHabitatDetailsPage
-          // Page heading is the parcel ref (BMD-608 figma design); the fixed
-          // page name is the single section heading (viewOnlyHeading matches
-          // its <h2>), and the Reference row moved into the heading.
+          // Page heading is the parcel ref; the fixed page name is the
+          // single section heading (viewOnlyHeading matches its <h2>), and
+          // the Reference row moved into the heading.
           await expect(
             page.getByRole('heading', { name: 'H2-2', exact: true })
           ).toBeVisible()
