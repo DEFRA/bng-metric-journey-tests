@@ -29,4 +29,25 @@ test.describe('authentication', { tag: '@authentication' }, () => {
       )
     })
   })
+
+  // ─── Blocked: interactive logout click-through ───────────────────────────────
+  // Clicking "Sign out" hits /auth/logout, whose handler calls yar.reset() and
+  // redirects through the OIDC end-session endpoint back to /auth/signed-out.
+  // reset() destroys the SHARED completer session server-side, cascading failures
+  // across every other authenticated test in the run. The two endpoints are
+  // covered non-destructively instead: the header link target (above) and the
+  // /auth/signed-out render (signed-out.spec.js).
+  //
+  // Unblock: mint a dedicated throwaway completer session in auth.setup.js so
+  // resetting it cannot affect other tests, then drive the full click-through.
+  test.skip('clicking "Sign out" ends the session and lands on /auth/signed-out', async ({
+    homePage,
+    layoutPage,
+    page
+  }) => {
+    // Ready-to-run once a disposable completer session exists:
+    // await homePage.open()
+    // await layoutPage.signOutLink.click()
+    // await expect(page).toHaveURL(/\/auth\/signed-out/)
+  })
 })

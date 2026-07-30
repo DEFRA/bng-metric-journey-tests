@@ -13,6 +13,7 @@ import { HabitatListPage } from '@pages/habitat-list.page.js'
 import { BaselineHabitatDetailsPage } from '@pages/baseline-habitat-details.page.js'
 import { ForbiddenPage } from '@pages/forbidden.page.js'
 import { SignedOutPage } from '@pages/signed-out.page.js'
+import { SessionExpiredPage } from '@pages/session-expired.page.js'
 import { UploadPostInterventionFilePage } from '@pages/upload-post-intervention-file.page.js'
 import { PostInterventionHabitatListPage } from '@pages/post-intervention-habitat-list.page.js'
 import { PostInterventionHabitatDetailsPage } from '@pages/post-intervention-habitat-details.page.js'
@@ -62,6 +63,9 @@ export const test = base.extend({
   },
   signedOutPage: async ({ page }, use) => {
     await use(new SignedOutPage(page))
+  },
+  sessionExpiredPage: async ({ page }, use) => {
+    await use(new SessionExpiredPage(page))
   },
   uploadPostInterventionFilePage: async ({ page }, use) => {
     await use(new UploadPostInterventionFilePage(page))
