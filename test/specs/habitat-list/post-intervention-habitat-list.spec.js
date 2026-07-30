@@ -14,6 +14,9 @@ import { UploadPostInterventionFileFlow } from '@flows/upload-post-intervention/
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const UPLOAD_TIMEOUT = 120_000
+// The first test needing a shared project pays its build (create + upload),
+// which overruns the default 60s per-test timeout.
+const SHARED_BUILD_TEST_TIMEOUT = 180_000
 const COMPLETE_POST_INTERVENTION_FILE = 'Post-intervention - complete.gpkg'
 // BNG-529: no shipped post-intervention fixture contains hedgerows, so this is a
 // synthesised file (Hedgerows layer added to the complete area fixture) held
@@ -123,82 +126,78 @@ const WATERCOURSE_TABLE_COLUMNS = [
   'Status'
 ]
 
-async function uploadAndNavigateToHabitatList(
-  createProjectFlow,
-  projectDashboardPage,
-  uploadPostInterventionFileFlow,
-  page,
-  label
-) {
-  const { id, name } = await setupProject(
-    createProjectFlow,
-    projectDashboardPage,
-    label
-  )
-  await uploadPostInterventionFileFlow.uploadFile(
-    id,
-    COMPLETE_POST_INTERVENTION_FILE
-  )
-  await page.waitForURL(
-    new RegExp(`/projects/${id}/post-intervention-habitat-list`),
-    { timeout: UPLOAD_TIMEOUT }
-  )
-  return { id, name }
-}
-
-// Create a project and upload a fixture once in its own context, returning the
-// project id for read-only tests to navigate to. Sharing a single upload per
-// fixture avoids CDP-uploader contention from many parallel uploads.
-async function uploadFixtureInNewContext(browser, label, file) {
+// Create a project in its own context, optionally upload a baseline file, then
+// upload the post-intervention fixture once, handing the live page to an
+// optional harvest callback before closing. Sharing a single upload per fixture
+// avoids CDP-uploader contention from many parallel uploads.
+async function buildProject(browser, { baselineFile, piFile }, harvest) {
   const context = await browser.newContext({ storageState: STORAGE_STATE })
   const page = await context.newPage()
   try {
-    const { id } = await setupProject(
+    const { id, name } = await setupProject(
       new CreateProjectFlow(page),
       new ProjectDashboardPage(page),
-      label
+      PROJECT_LABEL
     )
-    await new UploadPostInterventionFileFlow(page).uploadFile(id, file)
-    await page.waitForURL(
-      new RegExp(`/projects/${id}/post-intervention-habitat-list`),
-      { timeout: UPLOAD_TIMEOUT }
-    )
-    return id
-  } finally {
-    await context.close()
-  }
-}
-
-// BMD-722: as uploadFixtureInNewContext, but uploads a baseline file first —
-// needed for the Summary table's Baseline units (and the net-change columns
-// derived from it), which every other fixture upload in this file skips.
-async function uploadBaselineAndPiFixtureInNewContext(
-  browser,
-  label,
-  baselineFile,
-  piFile
-) {
-  const context = await browser.newContext({ storageState: STORAGE_STATE })
-  const page = await context.newPage()
-  try {
-    const { id } = await setupProject(
-      new CreateProjectFlow(page),
-      new ProjectDashboardPage(page),
-      label
-    )
-    await new UploadBaselineFileFlow(page).uploadFile(id, baselineFile)
-    await page.waitForURL(new RegExp(`/projects/${id}/baseline-habitat-list`), {
-      timeout: UPLOAD_TIMEOUT
-    })
+    if (baselineFile) {
+      await new UploadBaselineFileFlow(page).uploadFile(id, baselineFile)
+      await page.waitForURL(
+        new RegExp(`/projects/${id}/baseline-habitat-list`),
+        { timeout: UPLOAD_TIMEOUT }
+      )
+    }
     await new UploadPostInterventionFileFlow(page).uploadFile(id, piFile)
     await page.waitForURL(
       new RegExp(`/projects/${id}/post-intervention-habitat-list`),
       { timeout: UPLOAD_TIMEOUT }
     )
-    return id
+    const harvested = harvest ? await harvest(page) : {}
+    return { id, name, ...harvested }
   } finally {
     await context.close()
   }
+}
+
+// Memoised per worker; a failed build is not cached, so a transient upload
+// failure can retry on the next caller. The file runs in one worker (see the
+// mode 'default' configure below), so each shared project is built once.
+const sharedProjects = new Map()
+
+function getSharedProject(browser, key, files, harvest) {
+  if (!sharedProjects.has(key)) {
+    const promise = buildProject(browser, files, harvest).catch((err) => {
+      sharedProjects.delete(key)
+      throw err
+    })
+    sharedProjects.set(key, promise)
+  }
+  return sharedProjects.get(key)
+}
+
+// COMPLETE_POST_INTERVENTION_FILE is read (never mutated) by six describes —
+// page display, tab interaction, cross-user access, area units, intervention
+// type and habitat status — so it is uploaded once and shared by all of them.
+function getCompleteProject(browser) {
+  return getSharedProject(browser, 'complete', {
+    piFile: COMPLETE_POST_INTERVENTION_FILE
+  })
+}
+
+// Create a project and upload a single post-intervention fixture, returning its
+// id — for the distinct-fixture describes that each need their own upload.
+async function uploadFixtureInNewContext(browser, file) {
+  return (await buildProject(browser, { piFile: file })).id
+}
+
+// BMD-722: as uploadFixtureInNewContext, but uploads a baseline file first —
+// needed for the Summary table's Baseline units (and the net-change columns
+// derived from it), which a post-intervention-only upload leaves empty.
+async function uploadBaselineAndPiFixtureInNewContext(
+  browser,
+  baselineFile,
+  piFile
+) {
+  return (await buildProject(browser, { baselineFile, piFile })).id
 }
 
 // BMD-531 status/units pairing: every data row (rows carrying a ref link,
@@ -253,6 +252,18 @@ test.describe(
   'post-intervention-habitat-list',
   { tag: '@habitat-list' },
   () => {
+    // The whole file runs sequentially in one worker (mode 'default' overrides
+    // fullyParallel without serial-mode failure cascades). Concurrent
+    // post-intervention uploads under the shared STORAGE_STATE session clobber
+    // the single pendingUploadId yar key, so the first project would import the
+    // second upload's file. Single-worker scheduling also lets the shared
+    // COMPLETE project (getCompleteProject) build exactly once. The timeout is
+    // the shared-build upload budget, which overruns the default 60s.
+    test.describe.configure({
+      mode: 'default',
+      timeout: SHARED_BUILD_TEST_TIMEOUT
+    })
+
     test.describe(
       'Post-intervention habitat list — page display',
       { tag: '@smoke' },
@@ -260,20 +271,16 @@ test.describe(
         test.use({ storageState: STORAGE_STATE })
         test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
+        let project
+        test.beforeAll(async ({ browser }) => {
+          project = await getCompleteProject(browser)
+        })
+
         test('page renders header, summary section and buttons after upload', async ({
-          createProjectFlow,
-          projectDashboardPage,
-          uploadPostInterventionFileFlow,
-          postInterventionHabitatListPage,
-          page
+          postInterventionHabitatListPage
         }) => {
-          const { id, name } = await uploadAndNavigateToHabitatList(
-            createProjectFlow,
-            projectDashboardPage,
-            uploadPostInterventionFileFlow,
-            page,
-            PROJECT_LABEL
-          )
+          const { id, name } = project
+          await postInterventionHabitatListPage.open(id)
 
           // AC1: page header — back button, project name, H1 title
           await expect(postInterventionHabitatListPage.backLink).toBeVisible()
@@ -349,20 +356,15 @@ test.describe(
         test.use({ storageState: STORAGE_STATE })
         test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
+        let project
+        test.beforeAll(async ({ browser }) => {
+          project = await getCompleteProject(browser)
+        })
+
         test('3 tabs are displayed and tab-switching updates the selected tab', async ({
-          createProjectFlow,
-          projectDashboardPage,
-          uploadPostInterventionFileFlow,
-          postInterventionHabitatListPage,
-          page
+          postInterventionHabitatListPage
         }) => {
-          await uploadAndNavigateToHabitatList(
-            createProjectFlow,
-            projectDashboardPage,
-            uploadPostInterventionFileFlow,
-            page,
-            PROJECT_LABEL
-          )
+          await postInterventionHabitatListPage.open(project.id)
 
           // AC3: 3 tabs — Areas, Hedgerows, Watercourses
           await expect(postInterventionHabitatListPage.areasTab).toBeVisible()
@@ -455,11 +457,7 @@ test.describe(
         test('a different user opening the URL directly does not see the project owner’s habitat data', async ({
           browser
         }) => {
-          const projectId = await uploadFixtureInNewContext(
-            browser,
-            PROJECT_LABEL,
-            COMPLETE_POST_INTERVENTION_FILE
-          )
+          const { id: projectId } = await getCompleteProject(browser)
           const otherContext = await browser.newContext({
             storageState: NO_PROJECTS_STORAGE_STATE,
             baseURL: baseUrl
@@ -498,7 +496,6 @@ test.describe(
         test.beforeAll(async ({ browser }) => {
           projectId = await uploadFixtureInNewContext(
             browser,
-            PROJECT_LABEL,
             TREES_ALL_SIZES_FILE
           )
         })
@@ -548,7 +545,6 @@ test.describe(
         test.beforeAll(async ({ browser }) => {
           projectId = await uploadFixtureInNewContext(
             browser,
-            PROJECT_LABEL,
             TREES_RURAL_URBAN_FILE
           )
         })
@@ -588,11 +584,7 @@ test.describe(
       test.describe('lost tree exclusion', () => {
         let projectId
         test.beforeAll(async ({ browser }) => {
-          projectId = await uploadFixtureInNewContext(
-            browser,
-            PROJECT_LABEL,
-            TREE_LOST_FILE
-          )
+          projectId = await uploadFixtureInNewContext(browser, TREE_LOST_FILE)
         })
 
         test(
@@ -621,7 +613,6 @@ test.describe(
         test.beforeAll(async ({ browser }) => {
           projectId = await uploadFixtureInNewContext(
             browser,
-            PROJECT_LABEL,
             TREES_COMPLETE_FILE
           )
         })
@@ -715,11 +706,7 @@ test.describe(
 
       let projectId
       test.beforeAll(async ({ browser }) => {
-        projectId = await uploadFixtureInNewContext(
-          browser,
-          PROJECT_LABEL,
-          COMPLETE_POST_INTERVENTION_FILE
-        )
+        projectId = (await getCompleteProject(browser)).id
       })
 
       test(
@@ -775,11 +762,7 @@ test.describe(
 
       let projectId
       test.beforeAll(async ({ browser }) => {
-        projectId = await uploadFixtureInNewContext(
-          browser,
-          PROJECT_LABEL,
-          HEDGEROWS_FILE
-        )
+        projectId = await uploadFixtureInNewContext(browser, HEDGEROWS_FILE)
       })
 
       test(
@@ -840,11 +823,7 @@ test.describe(
 
       let projectId
       test.beforeAll(async ({ browser }) => {
-        projectId = await uploadFixtureInNewContext(
-          browser,
-          PROJECT_LABEL,
-          WATERCOURSES_FILE
-        )
+        projectId = await uploadFixtureInNewContext(browser, WATERCOURSES_FILE)
       })
 
       test(
@@ -909,13 +888,11 @@ test.describe(
       test.beforeAll(async ({ browser }) => {
         hedgerowProjectId = await uploadBaselineAndPiFixtureInNewContext(
           browser,
-          PROJECT_LABEL,
           HEDGEROW_BASELINE_FILE,
           HEDGEROWS_FILE
         )
         watercourseProjectId = await uploadBaselineAndPiFixtureInNewContext(
           browser,
-          PROJECT_LABEL,
           WATERCOURSE_BASELINE_FILE,
           WATERCOURSES_FILE
         )
@@ -972,11 +949,7 @@ test.describe(
       test.describe('area habitats — mixed retention categories', () => {
         let projectId
         test.beforeAll(async ({ browser }) => {
-          projectId = await uploadFixtureInNewContext(
-            browser,
-            PROJECT_LABEL,
-            COMPLETE_POST_INTERVENTION_FILE
-          )
+          projectId = (await getCompleteProject(browser)).id
         })
 
         test(
@@ -1015,12 +988,10 @@ test.describe(
         test.beforeAll(async ({ browser }) => {
           hedgerowsProjectId = await uploadFixtureInNewContext(
             browser,
-            PROJECT_LABEL,
             HEDGEROWS_MIXED_FILE
           )
           watercoursesProjectId = await uploadFixtureInNewContext(
             browser,
-            PROJECT_LABEL,
             WATERCOURSES_MIXED_FILE
           )
         })
@@ -1092,11 +1063,7 @@ test.describe(
       test.describe('file with all required values', () => {
         let projectId
         test.beforeAll(async ({ browser }) => {
-          projectId = await uploadFixtureInNewContext(
-            browser,
-            PROJECT_LABEL,
-            COMPLETE_POST_INTERVENTION_FILE
-          )
+          projectId = (await getCompleteProject(browser)).id
         })
 
         test(
@@ -1127,7 +1094,6 @@ test.describe(
         test.beforeAll(async ({ browser }) => {
           projectId = await uploadFixtureInNewContext(
             browser,
-            PROJECT_LABEL,
             MIXED_STATUS_FILE
           )
         })
