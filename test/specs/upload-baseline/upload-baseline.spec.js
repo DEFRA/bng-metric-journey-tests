@@ -685,17 +685,15 @@ const SINGLE_ERROR_CASES = [
     // QA-clarified 2026-07-23 (BMD-405 Jira thread): a sliver CAN carry a
     // parcel ref like any other polygon, so AC9 expects the personalised
     // "This parcel {ref} contains an error" H1 here too — NOT the generic
-    // catch-all. This assertion still targets the generic H1 because that is
-    // what current (unfixed) source renders (single-error-copy.js's
-    // sliverEntry() ignores the ref). Flip `heading` to
-    // /This parcel .+ contains an error/ once the frontend ships the fix —
-    // changing it now would fail against unfixed source.
-    title: 'sliver parcel alone shows the "parcel is a sliver" page',
-    // BMD-882: the fixture is a valid baseline with one hairline parcel carved
-    // out of a neighbour, so the parcels still tile the redline exactly and the
-    // sliver is the only error.
+    // catch-all. Delivered by BMD-882: the sliver check now reports the
+    // offending parcel rather than a derived gap, so there is a ref to name.
+    title:
+      'sliver parcel alone shows the personalised "parcel is a sliver" page',
+    // The fixture is a valid baseline with one hairline parcel carved out of a
+    // neighbour, so the parcels still tile the redline exactly and the sliver
+    // is the only error.
     fixture: 'Baseline - only sliver.gpkg',
-    heading: GEOPACKAGE_ERROR_H1,
+    heading: /This parcel .+ contains an error/,
     body: 'This parcel is a sliver (a thin strip of land). Draw the parcel again and'
   },
   {

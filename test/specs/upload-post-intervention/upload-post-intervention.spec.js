@@ -262,9 +262,12 @@ function describeContentValidationErrors() {
       // BMD-405 AC9: the slivers fixture trips a single sliver error, so the
       // single-error sliver copy renders (this variant has no reachable
       // baseline fixture — see the upload-baseline pending-fixture skips).
+      // Since BMD-882 the check reports the offending parcel, so the heading
+      // names it instead of falling back to the generic one.
       name: 'a habitat parcel too small to be a real habitat',
       file: SLIVERS_FILE,
       layout: 'single',
+      heading: /This parcel .+ contains an error/,
       expected: 'This parcel is a sliver (a thin strip of land)'
     }
   ]
@@ -273,7 +276,7 @@ function describeContentValidationErrors() {
     'Upload post-intervention — content validation errors',
     { tag: '@regression' },
     () => {
-      for (const { name, file, layout, expected } of cases) {
+      for (const { name, file, layout, heading, expected } of cases) {
         test(`uploading ${name} is rejected on the error-file page`, async ({
           createProjectFlow,
           projectDashboardPage,
@@ -291,7 +294,13 @@ function describeContentValidationErrors() {
           await page.waitForURL('/error-file', { timeout: UPLOAD_TIMEOUT })
 
           if (layout === 'single') {
-            await expect(errorFilePage.geopackageErrorHeading).toBeVisible()
+            // Personalised headings name the offending feature; the rest fall
+            // back to the generic "your Geopackage contains an error".
+            await expect(
+              heading
+                ? errorFilePage.singleErrorHeading(heading)
+                : errorFilePage.geopackageErrorHeading
+            ).toBeVisible()
             await expect(errorFilePage.errorSummary).not.toBeVisible()
             await expect(errorFilePage.uploadNewFileLink).toHaveAttribute(
               'href',

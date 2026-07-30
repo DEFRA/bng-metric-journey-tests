@@ -80,7 +80,8 @@ its own flow doc.
      ACs). Three variants:
      - `standard` — H1 (personalised with the offending feature ref(s) for
        `AREA_PARCELS_INVALID_GEOMETRY`, `PARCEL_OVERLAPS`, `AREA_PARCELS_OUTSIDE_REDLINE`,
-       `HEDGEROWS_OUTSIDE_REDLINE`, `WATERCOURSES_OUTSIDE_REDLINE`; otherwise
+       `AREA_PARCELS_TOO_SMALL`, `HEDGEROWS_OUTSIDE_REDLINE`,
+       `WATERCOURSES_OUTSIDE_REDLINE`; otherwise
        "Your Geopackage (.gpkg) file contains an error") plus an instruction sentence ending in
        an inline "upload a new file" link back to the upload form. When projectId is unknown the
        link is dropped and the sentence is closed with a full stop.
