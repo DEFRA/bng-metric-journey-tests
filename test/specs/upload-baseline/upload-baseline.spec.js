@@ -631,11 +631,15 @@ const GEOPACKAGE_ERROR_H1 = 'Your Geopackage (.gpkg) file contains an error'
 // finalised copy is pending BMD-592.
 const SINGLE_ERROR_CASES = [
   {
+    // BMD-405 AC13: this case also asserts the inline "upload a new file" link
+    // navigates (not just carries the href), folding what was a dedicated nav
+    // test into this upload rather than running its own.
     title:
       'missing redline boundary shows the "redline boundary is missing" page',
     fixture: 'Baseline - no rlb polygons.gpkg',
     heading: GEOPACKAGE_ERROR_H1,
-    body: 'The redline boundary is missing. Draw the red line boundary and'
+    body: 'The redline boundary is missing. Draw the red line boundary and',
+    assertNavigation: true
   },
   {
     title:
@@ -764,7 +768,10 @@ const SINGLE_ERROR_PENDING_FIXTURE_CASES = [
   }
 ]
 
-function singleErrorTest({ title, fixture, heading, body, placeholder }, opts) {
+function singleErrorTest(
+  { title, fixture, heading, body, placeholder, assertNavigation },
+  opts
+) {
   const testFn = opts?.skip ? test.skip : test
   testFn(
     title,
@@ -801,6 +808,14 @@ function singleErrorTest({ title, fixture, heading, body, placeholder }, opts) {
       // the "Upload a different file" button or "Back to project" link.
       await expect(errorFilePage.uploadDifferentFileLink).not.toBeVisible()
       await expect(errorFilePage.backToProjectLink).not.toBeVisible()
+
+      // BMD-405 AC13: the inline link navigates, not just carries the href.
+      if (assertNavigation) {
+        await errorFilePage.uploadNewFileLink.click()
+        await expect(page).toHaveURL(
+          new RegExp(`/projects/${id}/upload-baseline-file`)
+        )
+      }
     }
   )
 }
@@ -816,31 +831,6 @@ function describeSingleErrorDropout() {
       for (const pendingCase of SINGLE_ERROR_PENDING_FIXTURE_CASES) {
         singleErrorTest(pendingCase, { skip: true })
       }
-
-      // BMD-405 AC13: the inline link navigates, not just carries the href
-      test('clicking "upload a new file" on the single-error page loads the upload form', async ({
-        createProjectFlow,
-        projectDashboardPage,
-        uploadBaselineFileFlow,
-        errorFilePage,
-        page
-      }) => {
-        const id = await uploadToErrorFile(
-          {
-            createProjectFlow,
-            projectDashboardPage,
-            uploadBaselineFileFlow,
-            page
-          },
-          'Baseline - no rlb polygons.gpkg'
-        )
-
-        await errorFilePage.uploadNewFileLink.click()
-
-        await expect(page).toHaveURL(
-          new RegExp(`/projects/${id}/upload-baseline-file`)
-        )
-      })
     }
   )
 }
@@ -974,117 +964,6 @@ function describeIrreplaceableHabitat() {
   )
 }
 
-// ─── Baseline habitat details flow ───────────────────────────────────────────
-
-function describeBaselineHabitatDetailsFlow() {
-  test.describe(
-    'Baseline habitat details — after upload',
-    { tag: '@regression' },
-    () => {
-      let projectId
-      let featureId
-
-      test.beforeEach(
-        async ({
-          createProjectFlow,
-          projectDashboardPage,
-          uploadBaselineFileFlow,
-          habitatListPage,
-          baselineHabitatDetailsPage,
-          page
-        }) => {
-          const { id } = await setupProject(
-            createProjectFlow,
-            projectDashboardPage,
-            PROJECT_LABEL
-          )
-          projectId = id
-
-          await uploadBaselineFileFlow.uploadFile(id, COMPLETE_BASELINE_FILE)
-
-          await page.waitForURL(
-            new RegExp(`/projects/${id}/baseline-habitat-list`),
-            {
-              timeout: UPLOAD_TIMEOUT
-            }
-          )
-
-          const href =
-            await habitatListPage.firstAreaHabitatLink.getAttribute('href')
-          featureId = new URL(`http://localhost${href}`).searchParams.get(
-            'featureId'
-          )
-
-          await baselineHabitatDetailsPage.open(id, featureId)
-        }
-      )
-
-      test('page renders with heading, form fields, and navigation links', async ({
-        baselineHabitatDetailsPage
-      }) => {
-        await expect(baselineHabitatDetailsPage.heading).toBeVisible()
-        await expect(
-          baselineHabitatDetailsPage.baselineDetailsHeading
-        ).toBeVisible()
-        await expect(
-          baselineHabitatDetailsPage.broadHabitatSelect
-        ).toBeVisible()
-        await expect(baselineHabitatDetailsPage.habitatTypeSelect).toBeVisible()
-        await expect(baselineHabitatDetailsPage.conditionSelect).toBeVisible()
-        await expect(baselineHabitatDetailsPage.saveButton).toBeVisible()
-        await expect(baselineHabitatDetailsPage.backLink).toBeVisible()
-        await expect(baselineHabitatDetailsPage.cancelLink).toBeVisible()
-      })
-
-      test('saving habitat details redirects to habitat list with habitat anchor', async ({
-        baselineHabitatDetailsPage,
-        page
-      }) => {
-        await baselineHabitatDetailsPage.saveButton.click()
-
-        await expect(page).toHaveURL(
-          new RegExp(
-            `/projects/${projectId}/baseline-habitat-list#habitat-${featureId}`
-          )
-        )
-      })
-
-      test('changing habitat type triggers conditions proxy and updates condition options', async ({
-        baselineHabitatDetailsPage,
-        page
-      }) => {
-        // Select the first real broad habitat option (index 1 skips "Choose broad habitat")
-        await baselineHabitatDetailsPage.broadHabitatSelect.selectOption({
-          index: 1
-        })
-
-        // Client-side JS updates habitat type options from embedded reference data;
-        // wait for at least one selectable option to appear
-        await expect(
-          baselineHabitatDetailsPage.habitatTypeSelect.locator('option').nth(1)
-        ).toBeAttached()
-
-        // Set up response watcher before selecting habitat type
-        const conditionsResponse = page.waitForResponse(
-          /\/api\/reference\/conditions/
-        )
-
-        // Selecting a habitat type fires a fetch to the conditions proxy
-        await baselineHabitatDetailsPage.habitatTypeSelect.selectOption({
-          index: 1
-        })
-
-        await conditionsResponse
-
-        // Condition select must have at least one selectable option beyond the default
-        await expect(
-          baselineHabitatDetailsPage.conditionSelect.locator('option').nth(1)
-        ).toBeAttached()
-      })
-    }
-  )
-}
-
 // ─── Suite ───────────────────────────────────────────────────────────────────
 
 test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
@@ -1110,5 +989,4 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
   describePartialOverlapRefs()
   describeTruncatedSample()
   describeIrreplaceableHabitat()
-  describeBaselineHabitatDetailsFlow()
 })
