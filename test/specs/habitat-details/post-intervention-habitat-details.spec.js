@@ -397,9 +397,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
       test(
-        'retained area habitat renders the read-only page with every summary row and no form controls',
+        'retained area habitat renders the read-only page with every stacked row and no form controls',
         { tag: '@smoke' },
-        async ({ browser, postInterventionHabitatDetailsPage }) => {
+        async ({ browser, postInterventionHabitatDetailsPage, page }) => {
           const shared = await getCompleteProject(browser)
           await postInterventionHabitatDetailsPage.open(
             shared.id,
@@ -407,17 +407,25 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           )
 
           const detailsPage = postInterventionHabitatDetailsPage
+          // Page heading is the parcel ref (BMD-608 figma design); the fixed
+          // page name is the single section heading (viewOnlyHeading matches
+          // its <h2>), and the Reference row moved into the heading.
+          await expect(
+            page.getByRole('heading', { name: 'H2-2', exact: true })
+          ).toBeVisible()
           await expect(detailsPage.viewOnlyHeading).toBeVisible()
           await expect(detailsPage.caption).toHaveText(shared.name)
-          await expect(detailsPage.referenceKey).toBeVisible()
+          await expect(detailsPage.referenceKey).toBeHidden()
           await expect(detailsPage.interventionKey).toBeVisible()
-          await expect(detailsPage.areaKey).toBeVisible()
+          await expect(detailsPage.sizeHectaresKey).toBeVisible()
           await expect(detailsPage.broadHabitatKey).toBeVisible()
           await expect(detailsPage.habitatTypeKey).toBeVisible()
           await expect(detailsPage.distinctivenessKey).toBeVisible()
           await expect(detailsPage.conditionKey).toBeVisible()
-          await expect(detailsPage.strategicSignificanceKey).toBeVisible()
-          await expect(detailsPage.habitatUnitsKey).toBeVisible()
+          await expect(
+            detailsPage.enhancedStrategicSignificanceKey
+          ).toBeVisible()
+          await expect(detailsPage.habitatUnitsDeliveredKey).toBeVisible()
 
           // Read-only: no dropdowns, no Save, and no trading-rules row
           // (dropped relative to the baseline details page).
@@ -451,11 +459,14 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           // H2-2: Grassland / Modified grassland / Moderate (fixture values);
           // "Low (2)" and "Moderate (2)" are the engine's reference
           // distinctiveness and condition for that habitat type.
-          await expect(page.getByText('H2-2', { exact: true })).toBeVisible()
-          // Area renders as "<value>ha" (10 significant figures).
-          await expect(postInterventionHabitatDetailsPage.areaValue).toHaveText(
-            /^\s*\d+(\.\d+)?ha\s*$/
-          )
+          await expect(
+            page.getByRole('heading', { name: 'H2-2', exact: true })
+          ).toBeVisible()
+          // Size renders as a plain number (10 significant figures) — the
+          // "Size (hectares)" label names the unit, so no "ha" suffix.
+          await expect(
+            postInterventionHabitatDetailsPage.sizeHectaresValue
+          ).toHaveText(/^\s*\d+(\.\d+)?\s*$/)
           await expect(
             page.getByText('Retained', { exact: true })
           ).toBeVisible()
@@ -472,7 +483,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await expect(
             postInterventionHabitatDetailsPage.strategicSignificanceValue
           ).toBeVisible()
-          // "Units in this habitat" matches the Units cell of the same
+          // "Habitat units delivered" matches the Units cell of the same
           // parcel's habitat-list row.
           await expect(
             postInterventionHabitatDetailsPage.habitatUnitsValue
@@ -682,9 +693,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           )
 
           // The click-through is exercised on the two-section Enhanced template
-          // specifically — the retained single-list page proves the same
-          // mechanism elsewhere, but the Enhanced page renders the link via a
-          // distinct template that positions it after section 1.
+          // specifically — the retained area page proves the same mechanism
+          // elsewhere, but the Enhanced page renders the link via a distinct
+          // template that positions it after section 1.
           await expect(
             postInterventionHabitatDetailsPage.viewBaselineLink
           ).toBeVisible()

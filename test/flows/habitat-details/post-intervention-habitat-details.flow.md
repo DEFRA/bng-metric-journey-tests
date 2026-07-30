@@ -10,9 +10,11 @@ unsupported-feature placeholder. Retention category no longer gates _whether_ a 
 renders — every supported feature reaches a read-only page. **Enhanced area habitats
 (BMD-725) now render a dedicated two-section read-only page** — habitat details plus a
 "Time to target / difficulty" section — reading their values from `proposed` (where the
-engine writes the Enhanced derivations). All other cases keep the single-list per-type
-page: Retained/Created area features, and Enhanced (and every other category of) hedgerow
-and watercourse features, until their Enhanced variants land. The Enhanced page is still
+engine writes the Enhanced derivations). **Retained area habitats now use the same
+stacked label-over-value layout with a single section (BMD-608 figma design)** — the
+parcel ref is the page heading and the units row is the bordered "Habitat units
+delivered" summary. Retained hedgerow and watercourse features keep the single-list
+per-type page. The redesigned pages are still
 read-only — there is no editable form on this route, and the
 `POST /post-intervention-habitat-details` handler returns 501 Not Implemented. BMD-845
 (which added the habitat-list "Intervention type" column) confirmed there are no
@@ -29,12 +31,12 @@ when absent.
 ### Step 1 — View area habitat details (read-only) `[IMPLEMENTED]`
 
 - **Route:** `GET /post-intervention-habitat-details?featureId={featureId}&projectId={projectId}`
-- **Template:** `src/server/habitat-details/pi-habitat-details.njk` (extends `layouts/pi-view-only-page.njk`; BMD-608)
+- **Template:** `src/server/habitat-details/pi-habitat-details.njk` (extends `layouts/pi-view-only-sections-page.njk`; BMD-608)
 - **Auth required:** Yes (session + BNG Completer role)
 - **Backend endpoints:**
   - `GET /projects/{projectId}/post-intervention/features/{featureId}` — returns `{ type, feature }` with a type discriminator (`habitat`, `tree`, `hedgerow`, `watercourse`); 404 if not found
   - `GET /projects/{projectId}` — fetches the project name for the caption **and** the baseline feature lists used to resolve the "View baseline details" link by ref; failures are swallowed (name falls back to `"Project"`, link is hidden)
-- **Description:** Read-only `govukSummaryList` rows: Reference, Intervention, Area (hectares), Broad habitat, Habitat type, Distinctiveness, Condition, Strategic Significance (fixed "Low (1)"), Units in this habitat. No dropdowns, no Save button, and no trading-rules row (dropped relative to the baseline details page). Value sourcing: descriptive values (broad habitat, habitat type, condition, encroachments) read from the feature's `baseline` sub-object falling back to `proposed` — for a retained feature the engine derives everything from the baseline side; derived scores/multipliers read from `proposed`, where the backend writes them. Distinctiveness and Condition render as "Value (score)" via `withMultiplier`. The Intervention row shows the normalised retention category, defaulting to "Retained" when absent. Below the list, a "View baseline details" link to `/baseline-habitat-details?featureId={baselineFeatureId}&projectId={projectId}` — the baseline feature is matched by parcel `ref` across all baseline layers (baseline and post-intervention uploads have independent featureIds); hidden when no baseline feature shares the ref (e.g. no baseline uploaded). Back link to `/projects/{projectId}/post-intervention-habitat-list#area-habitats`.
+- **Description:** Stacked label-over-value read-only layout (BMD-608 figma design). Page heading is the feature **ref** (`pageTitle` = ref, falling back to "Post-intervention habitat details"); project name is the caption. A single "Post-intervention habitat details" section with rows: Intervention, Size (hectares) (plain number, no "ha" suffix — the label names the unit), Broad habitat, Habitat type, Distinctiveness, Condition, Strategic significance (fixed "Low (1)"), then a bordered "Habitat units delivered" summary row (label left, value right). There is no Reference row — the ref moved into the heading. No dropdowns, no Save button, and no trading-rules row (dropped relative to the baseline details page). Value sourcing: descriptive values (broad habitat, habitat type, condition, encroachments) read from the feature's `baseline` sub-object falling back to `proposed` — for a retained feature the engine derives everything from the baseline side; derived scores/multipliers read from `proposed`, where the backend writes them. Distinctiveness and Condition render as "Value (score)" via `withMultiplier`. The Intervention row shows the normalised retention category, defaulting to "Retained" when absent. After the section, a "View baseline details" link to `/baseline-habitat-details?featureId={baselineFeatureId}&projectId={projectId}` — the baseline feature is matched by parcel `ref` across all baseline layers (baseline and post-intervention uploads have independent featureIds); hidden when no baseline feature shares the ref (e.g. no baseline uploaded). Back link to `/projects/{projectId}/post-intervention-habitat-list#area-habitats`.
 - **Validation:**
   - `featureId` required, valid UUID → 400 if missing or invalid
   - `projectId` required, valid UUID → 400 if missing or invalid
