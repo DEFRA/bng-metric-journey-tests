@@ -16,12 +16,13 @@ Flows encapsulate **multi-step user journeys** that span more than one page. The
 
 ## File naming
 
-Each flow has two files:
+Most flows have two files; some add an optional third:
 
-| File                                         | Purpose                                                                                    |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `test/flows/<domain>/<journey-name>.flow.md` | Living doc — step-by-step description with status markers; updated by `/analyse-user-flow` |
-| `test/flows/<domain>/<journey-name>.flow.js` | JavaScript flow class — orchestrates page objects for that journey                         |
+| File                                         | Purpose                                                                                               |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `test/flows/<domain>/<journey-name>.flow.md` | Living doc — step-by-step description with status markers; updated by `/analyse-user-flow`            |
+| `test/flows/<domain>/<journey-name>.flow.js` | JavaScript flow class — orchestrates page objects for that journey                                    |
+| `test/flows/<domain>/<journey-name>.ac.md`   | AC-coverage matrix (optional companion) — maps acceptance criteria to specs; not consumed by commands |
 
 ## Keeping flow docs up to date
 
@@ -107,18 +108,24 @@ export class CreateProjectFlow {
 
 ## Journey Status
 
-| Journey                                                  | Flow doc                                                         | Flow class                                     | Status          |
-| -------------------------------------------------------- | ---------------------------------------------------------------- | ---------------------------------------------- | --------------- |
-| project-management / create-project                      | `project-management/create-project.flow.md`                      | `project-management/create-project.flow.js`    | `[IMPLEMENTED]` |
-| project-management / project-dashboard                   | `project-management/project-dashboard.flow.md`                   | —                                              | `[IMPLEMENTED]` |
-| project-management / change-project-name                 | `project-management/change-project-name.flow.md`                 | —                                              | `[IMPLEMENTED]` |
-| authentication / defra-id-login                          | `authentication/defra-id-login.flow.md`                          | `authentication/defra-id-login.flow.js`        | `[IMPLEMENTED]` |
-| authentication / sign-out                                | `authentication/sign-out.flow.md`                                | —                                              | `[IMPLEMENTED]` |
-| authentication / access-denied                           | `authentication/access-denied.flow.md`                           | —                                              | `[IMPLEMENTED]` |
-| upload-baseline / upload-baseline-file                   | `upload-baseline/upload-baseline-file.flow.md`                   | `upload-baseline/upload-baseline-file.flow.js` | `[IMPLEMENTED]` |
-| upload-post-intervention / upload-post-intervention-file | `upload-post-intervention/upload-post-intervention-file.flow.md` | —                                              | `[IMPLEMENTED]` |
-| habitat-list / habitat-list                              | `habitat-list/habitat-list.flow.md`                              | —                                              | `[IMPLEMENTED]` |
-| habitat-list / baseline-habitat-details                  | `habitat-list/baseline-habitat-details.flow.md`                  | —                                              | `[IMPLEMENTED]` |
-| habitat-list / post-intervention-habitat-list            | `habitat-list/post-intervention-habitat-list.flow.md`            | —                                              | `[IMPLEMENTED]` |
-| habitat-details / habitat-details                        | `habitat-details/habitat-details.flow.md`                        | —                                              | `[IMPLEMENTED]` |
-| habitat-details / view-post-intervention                 | `habitat-details/view-post-intervention.flow.md`                 | —                                              | `[IMPLEMENTED]` |
+| Journey                                                  | Flow doc                                                         | Flow class                                                       | Status           |
+| -------------------------------------------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------- | ---------------- |
+| project-management / create-project                      | `project-management/create-project.flow.md`                      | `project-management/create-project.flow.js`                      | `[IMPLEMENTED]`  |
+| project-management / project-dashboard                   | `project-management/project-dashboard.flow.md`                   | —                                                                | `[IMPLEMENTED]`  |
+| project-management / change-project-name                 | `project-management/change-project-name.flow.md`                 | —                                                                | `[IMPLEMENTED]`  |
+| project-management / project-details                     | `project-management/project-details.flow.md`                     | —                                                                | `[IMPLEMENTED]`  |
+| authentication / defra-id-login                          | `authentication/defra-id-login.flow.md`                          | `authentication/defra-id-login.flow.js`                          | `[IMPLEMENTED]`  |
+| authentication / sign-out                                | `authentication/sign-out.flow.md`                                | —                                                                | `[IMPLEMENTED]`  |
+| authentication / access-denied                           | `authentication/access-denied.flow.md`                           | —                                                                | `[IMPLEMENTED]`  |
+| authentication / session-expired                         | `authentication/session-expired.flow.md`                         | —                                                                | `[IMPLEMENTED]`* |
+| upload-baseline / upload-baseline-file                   | `upload-baseline/upload-baseline-file.flow.md`                   | `upload-baseline/upload-baseline-file.flow.js`                   | `[IMPLEMENTED]`  |
+| upload-post-intervention / upload-post-intervention-file | `upload-post-intervention/upload-post-intervention-file.flow.md` | `upload-post-intervention/upload-post-intervention-file.flow.js` | `[IMPLEMENTED]`  |
+| habitat-list / habitat-list                              | `habitat-list/habitat-list.flow.md`                              | —                                                                | `[IMPLEMENTED]`  |
+| habitat-list / baseline-habitat-details                  | `habitat-list/baseline-habitat-details.flow.md`                  | — (stub → habitat-details)                                       | `[IMPLEMENTED]`  |
+| habitat-list / post-intervention-habitat-list            | `habitat-list/post-intervention-habitat-list.flow.md`            | —                                                                | `[IMPLEMENTED]`  |
+| habitat-details / habitat-details                        | `habitat-details/habitat-details.flow.md`                        | —                                                                | `[IMPLEMENTED]`  |
+| habitat-details / post-intervention-habitat-details      | `habitat-details/post-intervention-habitat-details.flow.md`      | —                                                                | `[IMPLEMENTED]`  |
+| happy-path / capture-happy-path                          | `happy-path/capture-happy-path.flow.md`                          | — (screenshots spec)                                             | `[IMPLEMENTED]`† |
+
+\* Session-expired's interactive redirect trigger is `[BLOCKED: shared server-side session]`; coverage is via the sign-out link `href` and the rendered signed-out page.
+† Not a regression journey — a local-only UCD screenshot export run via `npm run screenshots` (`playwright.screenshots.config.js`), excluded from `test:local`/`test:github`/`test:e2e`.
