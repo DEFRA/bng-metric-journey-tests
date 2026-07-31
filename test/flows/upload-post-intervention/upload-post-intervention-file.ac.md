@@ -93,17 +93,17 @@ distinctiveness eligibility).
 | PI-UV-5a | RLB layer with no geometry column → dropout "Missing required feature layer in GeoPackage".                                    | `Post-intervention - no geometry column in RLB layer.gpkg`        | ✅ content validation errors              |
 | PI-UV-5b | RLB layer with multiple geometry columns → dropout "expected exactly one geometry column … found 2".                           | `Post-intervention - multiple geometry columns in RLB layer.gpkg` | ✅ content validation errors              |
 | PI-UV-5c | RLB layer with the wrong geometry type → dropout "expected geometry type POLYGON … found POINT" / "Zero red line boundaries…". | `Post-intervention - wrong geometry in RLB layer.gpkg`            | ✅ content validation errors              |
-| PI-UV-6  | A file containing slivers → dropout slivers error.                                                                             | `Post-intervention - complete with slivers.gpkg`                  | ✅ content validation errors              |
+| PI-UV-6  | A file containing internal slivers. **Removed (BMD-882):** derived sliver check dropped as redundant; fixture is now accepted. | `Post-intervention - complete with slivers.gpkg`                  | ➖ removed (BMD-882)                      |
 | PI-UV-7  | A valid file passing all validation lands on the post-intervention habitat list.                                               | `Post-intervention - complete.gpkg`                               | ✅ happy path (full assert in Happy Path) |
 
 **Dropped after discovery:** PI-UV-4 (`Post-intervention - incorrect geom column name.gpkg`)
 is **accepted** by post-intervention validation — it passes and reaches the habitat list, so
 it is not a rejection scenario (redundant with the happy path).
 
-**Finding (backend copy):** the slivers dropout message reads _"Baseline file contains
-slivers…"_ on a **post-intervention** upload — the shared backend message is not
-parameterised by upload type. App behaviour is correct (rejects); wording is baseline-specific.
-Flagged for the team; the test asserts the text as-is.
+**Removed (BMD-882):** the derived `SLIVERS_INSIDE_REDLINE` check was dropped as redundant
+(`AREA_SUM_MISMATCH` now catches internal gaps ≥ 0.5 m²). `Post-intervention - complete with
+slivers.gpkg` no longer trips a rejection and is accepted, so PI-UV-6 and its content-validation
+test case were removed.
 
 **Deferred to the Postgres File Processing / integration title** (shared backend logic, no
 post-intervention browser fixtures): virus scan (BMD-356), exhaustive geospatial rules
