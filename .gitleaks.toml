@@ -1,0 +1,11 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Journey-tests allowlist"
+paths = [
+  '''node_modules/''',
+  '''playwright-report/''',
+  '''playwright-results/''',
+  '''package-lock\.json''',
+]

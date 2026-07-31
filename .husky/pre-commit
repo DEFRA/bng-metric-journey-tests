@@ -1,2 +1,2 @@
+node scripts/run-gitleaks.mjs
 npm run git:pre-commit-hook
-
