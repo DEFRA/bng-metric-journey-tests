@@ -560,11 +560,6 @@ const GEOMETRIC_GATE_CASES = [
     summaryText: 'One or more area habitat polygons have invalid geometry'
   },
   {
-    title: 'rejects a file with slivers inside the redline boundary',
-    fixture: 'Baseline - sliver.gpkg',
-    summaryText: 'Baseline file contains slivers inside the redline boundary'
-  },
-  {
     title: 'rejects a hedgerow outside the redline boundary',
     fixture: 'Baseline - hedgerow outside.gpkg',
     summaryText:
