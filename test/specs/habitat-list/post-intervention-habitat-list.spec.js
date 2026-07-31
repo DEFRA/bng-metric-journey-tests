@@ -7,6 +7,7 @@ import {
   baseUrl
 } from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
+import { createProjectCache } from '@utils/shared-project.js'
 import { ProjectDashboardPage } from '@pages/project-dashboard.page.js'
 import { CreateProjectFlow } from '@flows/project-management/create-project.flow.js'
 import { UploadBaselineFileFlow } from '@flows/upload-baseline/upload-baseline-file.flow.js'
@@ -158,20 +159,12 @@ async function buildProject(browser, { baselineFile, piFile }, harvest) {
   }
 }
 
-// Memoised per worker; a failed build is not cached, so a transient upload
-// failure can retry on the next caller. The file runs in one worker (see the
-// mode 'default' configure below), so each shared project is built once.
-const sharedProjects = new Map()
+// Memoised per worker (createProjectCache): the file runs in one worker (see
+// the mode 'default' configure below), so each shared project is built once.
+const getOrBuildProject = createProjectCache()
 
 function getSharedProject(browser, key, files, harvest) {
-  if (!sharedProjects.has(key)) {
-    const promise = buildProject(browser, files, harvest).catch((err) => {
-      sharedProjects.delete(key)
-      throw err
-    })
-    sharedProjects.set(key, promise)
-  }
-  return sharedProjects.get(key)
+  return getOrBuildProject(key, () => buildProject(browser, files, harvest))
 }
 
 // COMPLETE_POST_INTERVENTION_FILE is read (never mutated) by six describes —

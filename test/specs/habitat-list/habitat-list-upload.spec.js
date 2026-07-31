@@ -1,6 +1,7 @@
 import { test, expect } from '@fixtures'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
+import { createProjectCache } from '@utils/shared-project.js'
 import { ProjectDashboardPage } from '@pages/project-dashboard.page.js'
 import { CreateProjectFlow } from '@flows/project-management/create-project.flow.js'
 import { UploadBaselineFileFlow } from '@flows/upload-baseline/upload-baseline-file.flow.js'
@@ -37,20 +38,13 @@ async function buildBaselineProject(browser, file) {
   }
 }
 
-// Memoised per worker, keyed by fixture file; a failed build is not cached so a
-// transient upload failure can retry on the next caller. The file runs serially
-// in one worker (see the configure below), so each fixture is uploaded once.
-const sharedProjects = new Map()
+// Memoised per worker, keyed by fixture file (createProjectCache): the file runs
+// serially in one worker (see the configure below), so each fixture is uploaded
+// once.
+const getOrBuildProject = createProjectCache()
 
 function getSharedProject(browser, file) {
-  if (!sharedProjects.has(file)) {
-    const promise = buildBaselineProject(browser, file).catch((err) => {
-      sharedProjects.delete(file)
-      throw err
-    })
-    sharedProjects.set(file, promise)
-  }
-  return sharedProjects.get(file)
+  return getOrBuildProject(file, () => buildBaselineProject(browser, file))
 }
 
 function getCompleteProject(browser) {
