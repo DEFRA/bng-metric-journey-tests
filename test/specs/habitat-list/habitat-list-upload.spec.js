@@ -421,56 +421,58 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         ).toBeVisible()
       })
 
-      test('default sort on page load is Ref ascending with all other columns unsorted', async ({
-        habitatListPage,
-        page
-      }) => {
-        await page.goto(`/projects/${projectId}/baseline-habitat-list`)
+      test(
+        'default sort on page load is Ref ascending with all other columns unsorted',
+        { tag: ['@happy-path'] },
+        async ({ habitatListPage, page }) => {
+          await page.goto(`/projects/${projectId}/baseline-habitat-list`)
 
-        await expect(
-          habitatListPage.areaHabitatsTable.getByRole('columnheader', {
-            name: 'Ref'
-          })
-        ).toHaveAttribute('aria-sort', 'ascending')
-        await expect(
-          habitatListPage.areaHabitatsTable.getByRole('columnheader', {
-            name: HABITAT_TYPE_COL
-          })
-        ).toHaveAttribute('aria-sort', 'none')
-        await expect(
-          habitatListPage.areaHabitatsTable.getByRole('columnheader', {
-            name: 'Area'
-          })
-        ).toHaveAttribute('aria-sort', 'none')
-        await expect(
-          habitatListPage.areaHabitatsTable.getByRole('columnheader', {
-            name: 'Condition'
-          })
-        ).toHaveAttribute('aria-sort', 'none')
-        await expect(
-          habitatListPage.areaHabitatsTable.getByRole('columnheader', {
-            name: 'Units'
-          })
-        ).toHaveAttribute('aria-sort', 'none')
-        await expect(
-          habitatListPage.areaHabitatsTable.getByRole('columnheader', {
-            name: 'Status'
-          })
-        ).toHaveAttribute('aria-sort', 'none')
-      })
+          await expect(
+            habitatListPage.areaHabitatsTable.getByRole('columnheader', {
+              name: 'Ref'
+            })
+          ).toHaveAttribute('aria-sort', 'ascending')
+          await expect(
+            habitatListPage.areaHabitatsTable.getByRole('columnheader', {
+              name: HABITAT_TYPE_COL
+            })
+          ).toHaveAttribute('aria-sort', 'none')
+          await expect(
+            habitatListPage.areaHabitatsTable.getByRole('columnheader', {
+              name: 'Area'
+            })
+          ).toHaveAttribute('aria-sort', 'none')
+          await expect(
+            habitatListPage.areaHabitatsTable.getByRole('columnheader', {
+              name: 'Condition'
+            })
+          ).toHaveAttribute('aria-sort', 'none')
+          await expect(
+            habitatListPage.areaHabitatsTable.getByRole('columnheader', {
+              name: 'Units'
+            })
+          ).toHaveAttribute('aria-sort', 'none')
+          await expect(
+            habitatListPage.areaHabitatsTable.getByRole('columnheader', {
+              name: 'Status'
+            })
+          ).toHaveAttribute('aria-sort', 'none')
+        }
+      )
 
-      test('clicking a non-active column header sorts rows ascending', async ({
-        habitatListPage,
-        page
-      }) => {
-        const header = await getHabitatTypeHeader(
-          habitatListPage,
-          page,
-          projectId
-        )
-        await header.getByRole('button').click()
-        await expect(header).toHaveAttribute('aria-sort', 'ascending')
-      })
+      test(
+        'clicking a non-active column header sorts rows ascending',
+        { tag: ['@happy-path'] },
+        async ({ habitatListPage, page }) => {
+          const header = await getHabitatTypeHeader(
+            habitatListPage,
+            page,
+            projectId
+          )
+          await header.getByRole('button').click()
+          await expect(header).toHaveAttribute('aria-sort', 'ascending')
+        }
+      )
 
       test('clicking an ascending column header sorts rows descending', async ({
         habitatListPage,
@@ -501,20 +503,21 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         await expect(header).toHaveAttribute('aria-sort', 'ascending')
       })
 
-      test('clicking the habitat reference link navigates to the Habitat Details page', async ({
-        habitatListPage,
-        page
-      }) => {
-        await page.goto(`/projects/${projectId}/baseline-habitat-list`)
-        const refLink = habitatListPage.areaHabitatsTable
-          .getByRole('row')
-          .nth(1)
-          .getByRole('cell')
-          .nth(0)
-          .getByRole('link')
-        await refLink.click()
-        await expect(page).toHaveURL(/\/baseline-habitat-details/)
-      })
+      test(
+        'clicking the habitat reference link navigates to the Habitat Details page',
+        { tag: ['@happy-path'] },
+        async ({ habitatListPage, page }) => {
+          await page.goto(`/projects/${projectId}/baseline-habitat-list`)
+          const refLink = habitatListPage.areaHabitatsTable
+            .getByRole('row')
+            .nth(1)
+            .getByRole('cell')
+            .nth(0)
+            .getByRole('link')
+          await refLink.click()
+          await expect(page).toHaveURL(/\/baseline-habitat-details/)
+        }
+      )
     }
   )
 
@@ -634,48 +637,52 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         )
       })
 
-      test('default sort on page load is Ref ascending with all other columns unsorted', async ({
-        habitatListPage
-      }) => {
-        await habitatListPage.openTab(projectId, 'hedgerows')
+      test(
+        'default sort on page load is Ref ascending with all other columns unsorted',
+        { tag: ['@happy-path'] },
+        async ({ habitatListPage }) => {
+          await habitatListPage.openTab(projectId, 'hedgerows')
 
-        await expect(
-          habitatListPage.hedgerowsTable.getByRole('columnheader', {
-            name: 'Ref'
-          })
-        ).toHaveAttribute('aria-sort', 'ascending')
-        await expect(
-          habitatListPage.hedgerowsTable.getByRole('columnheader', {
-            name: HABITAT_TYPE_COL
-          })
-        ).toHaveAttribute('aria-sort', 'none')
-        await expect(
-          habitatListPage.hedgerowsTable.getByRole('columnheader', {
-            name: 'Length'
-          })
-        ).toHaveAttribute('aria-sort', 'none')
-        await expect(
-          habitatListPage.hedgerowsTable.getByRole('columnheader', {
-            name: 'Condition'
-          })
-        ).toHaveAttribute('aria-sort', 'none')
-        await expect(
-          habitatListPage.hedgerowsTable.getByRole('columnheader', {
-            name: 'Units'
-          })
-        ).toHaveAttribute('aria-sort', 'none')
-      })
+          await expect(
+            habitatListPage.hedgerowsTable.getByRole('columnheader', {
+              name: 'Ref'
+            })
+          ).toHaveAttribute('aria-sort', 'ascending')
+          await expect(
+            habitatListPage.hedgerowsTable.getByRole('columnheader', {
+              name: HABITAT_TYPE_COL
+            })
+          ).toHaveAttribute('aria-sort', 'none')
+          await expect(
+            habitatListPage.hedgerowsTable.getByRole('columnheader', {
+              name: 'Length'
+            })
+          ).toHaveAttribute('aria-sort', 'none')
+          await expect(
+            habitatListPage.hedgerowsTable.getByRole('columnheader', {
+              name: 'Condition'
+            })
+          ).toHaveAttribute('aria-sort', 'none')
+          await expect(
+            habitatListPage.hedgerowsTable.getByRole('columnheader', {
+              name: 'Units'
+            })
+          ).toHaveAttribute('aria-sort', 'none')
+        }
+      )
 
-      test('clicking a non-active column header sorts hedgerow rows ascending', async ({
-        habitatListPage
-      }) => {
-        const header = await getHedgerowHabitatTypeHeader(
-          habitatListPage,
-          projectId
-        )
-        await header.getByRole('button').click()
-        await expect(header).toHaveAttribute('aria-sort', 'ascending')
-      })
+      test(
+        'clicking a non-active column header sorts hedgerow rows ascending',
+        { tag: ['@happy-path'] },
+        async ({ habitatListPage }) => {
+          const header = await getHedgerowHabitatTypeHeader(
+            habitatListPage,
+            projectId
+          )
+          await header.getByRole('button').click()
+          await expect(header).toHaveAttribute('aria-sort', 'ascending')
+        }
+      )
 
       test('clicking an ascending column header sorts hedgerow rows descending', async ({
         habitatListPage
@@ -702,20 +709,21 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         await expect(header).toHaveAttribute('aria-sort', 'ascending')
       })
 
-      test('clicking a hedgerow reference link navigates to the Habitat Details page', async ({
-        habitatListPage,
-        page
-      }) => {
-        await habitatListPage.openTab(projectId, 'hedgerows')
-        const refLink = habitatListPage.hedgerowsTable
-          .getByRole('row')
-          .nth(1)
-          .getByRole('cell')
-          .nth(0)
-          .getByRole('link')
-        await refLink.click()
-        await expect(page).toHaveURL(/\/baseline-habitat-details/)
-      })
+      test(
+        'clicking a hedgerow reference link navigates to the Habitat Details page',
+        { tag: ['@happy-path'] },
+        async ({ habitatListPage, page }) => {
+          await habitatListPage.openTab(projectId, 'hedgerows')
+          const refLink = habitatListPage.hedgerowsTable
+            .getByRole('row')
+            .nth(1)
+            .getByRole('cell')
+            .nth(0)
+            .getByRole('link')
+          await refLink.click()
+          await expect(page).toHaveURL(/\/baseline-habitat-details/)
+        }
+      )
     }
   )
 
@@ -758,20 +766,21 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         )
       })
 
-      test('clicking a watercourse reference link navigates to the Habitat Details page', async ({
-        habitatListPage,
-        page
-      }) => {
-        await habitatListPage.openTab(projectId, 'watercourses')
-        const refLink = habitatListPage.watercoursesTable
-          .getByRole('row')
-          .nth(1)
-          .getByRole('cell')
-          .nth(0)
-          .getByRole('link')
-        await refLink.click()
-        await expect(page).toHaveURL(/\/baseline-habitat-details/)
-      })
+      test(
+        'clicking a watercourse reference link navigates to the Habitat Details page',
+        { tag: ['@happy-path'] },
+        async ({ habitatListPage, page }) => {
+          await habitatListPage.openTab(projectId, 'watercourses')
+          const refLink = habitatListPage.watercoursesTable
+            .getByRole('row')
+            .nth(1)
+            .getByRole('cell')
+            .nth(0)
+            .getByRole('link')
+          await refLink.click()
+          await expect(page).toHaveURL(/\/baseline-habitat-details/)
+        }
+      )
 
       test('watercourse data row shows linked ref, non-empty habitat type, numeric size and units', async ({
         habitatListPage
@@ -847,48 +856,52 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         )
       })
 
-      test('default sort on page load is Ref ascending with all other columns unsorted', async ({
-        habitatListPage
-      }) => {
-        await habitatListPage.openTab(projectId, 'watercourses')
+      test(
+        'default sort on page load is Ref ascending with all other columns unsorted',
+        { tag: ['@happy-path'] },
+        async ({ habitatListPage }) => {
+          await habitatListPage.openTab(projectId, 'watercourses')
 
-        await expect(
-          habitatListPage.watercoursesTable.getByRole('columnheader', {
-            name: 'Ref'
-          })
-        ).toHaveAttribute('aria-sort', 'ascending')
-        await expect(
-          habitatListPage.watercoursesTable.getByRole('columnheader', {
-            name: HABITAT_TYPE_COL
-          })
-        ).toHaveAttribute('aria-sort', 'none')
-        await expect(
-          habitatListPage.watercoursesTable.getByRole('columnheader', {
-            name: 'Size'
-          })
-        ).toHaveAttribute('aria-sort', 'none')
-        await expect(
-          habitatListPage.watercoursesTable.getByRole('columnheader', {
-            name: 'Condition'
-          })
-        ).toHaveAttribute('aria-sort', 'none')
-        await expect(
-          habitatListPage.watercoursesTable.getByRole('columnheader', {
-            name: 'Units'
-          })
-        ).toHaveAttribute('aria-sort', 'none')
-      })
+          await expect(
+            habitatListPage.watercoursesTable.getByRole('columnheader', {
+              name: 'Ref'
+            })
+          ).toHaveAttribute('aria-sort', 'ascending')
+          await expect(
+            habitatListPage.watercoursesTable.getByRole('columnheader', {
+              name: HABITAT_TYPE_COL
+            })
+          ).toHaveAttribute('aria-sort', 'none')
+          await expect(
+            habitatListPage.watercoursesTable.getByRole('columnheader', {
+              name: 'Size'
+            })
+          ).toHaveAttribute('aria-sort', 'none')
+          await expect(
+            habitatListPage.watercoursesTable.getByRole('columnheader', {
+              name: 'Condition'
+            })
+          ).toHaveAttribute('aria-sort', 'none')
+          await expect(
+            habitatListPage.watercoursesTable.getByRole('columnheader', {
+              name: 'Units'
+            })
+          ).toHaveAttribute('aria-sort', 'none')
+        }
+      )
 
-      test('clicking a non-active column header sorts watercourse rows ascending', async ({
-        habitatListPage
-      }) => {
-        const header = await getWatercourseHabitatTypeHeader(
-          habitatListPage,
-          projectId
-        )
-        await header.getByRole('button').click()
-        await expect(header).toHaveAttribute('aria-sort', 'ascending')
-      })
+      test(
+        'clicking a non-active column header sorts watercourse rows ascending',
+        { tag: ['@happy-path'] },
+        async ({ habitatListPage }) => {
+          const header = await getWatercourseHabitatTypeHeader(
+            habitatListPage,
+            projectId
+          )
+          await header.getByRole('button').click()
+          await expect(header).toHaveAttribute('aria-sort', 'ascending')
+        }
+      )
 
       test('clicking an ascending column header sorts watercourse rows descending', async ({
         habitatListPage

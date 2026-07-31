@@ -19,14 +19,15 @@ test.describe('authentication', { tag: '@authentication' }, () => {
       await expect(signedOutPage.returnHomeLink).toBeVisible()
     })
 
-    test('return link navigates to the home page', async ({
-      signedOutPage,
-      page
-    }) => {
-      await signedOutPage.open()
-      await signedOutPage.returnHomeLink.click()
+    test(
+      'return link navigates to the home page',
+      { tag: ['@happy-path'] },
+      async ({ signedOutPage, page }) => {
+        await signedOutPage.open()
+        await signedOutPage.returnHomeLink.click()
 
-      await expect(page).toHaveTitle('Home - Biodiversity Net Gain')
-    })
+        await expect(page).toHaveTitle('Home - Biodiversity Net Gain')
+      }
+    )
   })
 })

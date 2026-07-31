@@ -78,7 +78,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
     test(
       'form renders with heading, caption, back link and all fields empty',
-      { tag: '@smoke' },
+      { tag: ['@smoke', '@happy-path'] },
       async ({
         createProjectFlow,
         projectDashboardPage,
@@ -293,29 +293,36 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   // ─── Happy path ──────────────────────────────────────────────────────────────
 
-  test.describe('Project details — happy path', { tag: '@smoke' }, () => {
-    test.use({ storageState: STORAGE_STATE })
-    test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+  test.describe(
+    'Project details — happy path',
+    { tag: ['@smoke', '@happy-path'] },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-    test('submitting valid values redirects to the project task list', async ({
-      createProjectFlow,
-      projectDashboardPage,
-      projectDetailsPage,
-      page
-    }) => {
-      const { id } = await setupProject(createProjectFlow, projectDashboardPage)
-      await fillAndSave(projectDetailsPage, page, id, {
-        localPlanningAuthority: 'Test Borough Council',
-        surveyCompleters: 'J. Smith, A. Jones',
-        day: '15',
-        month: '3',
-        year: '2026',
-        developmentType: 'Small site',
-        nsips: 'No',
-        applicant: 'Acme Developments Ltd'
+      test('submitting valid values redirects to the project task list', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        projectDetailsPage,
+        page
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage
+        )
+        await fillAndSave(projectDetailsPage, page, id, {
+          localPlanningAuthority: 'Test Borough Council',
+          surveyCompleters: 'J. Smith, A. Jones',
+          day: '15',
+          month: '3',
+          year: '2026',
+          developmentType: 'Small site',
+          nsips: 'No',
+          applicant: 'Acme Developments Ltd'
+        })
       })
-    })
-  })
+    }
+  )
 
   // ─── Persistence ─────────────────────────────────────────────────────────────
 
@@ -325,7 +332,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
     test(
       'form pre-fills from previously saved values, and resubmitting updates them (not create-only)',
-      { tag: '@smoke' },
+      { tag: ['@smoke', '@happy-path'] },
       async ({
         createProjectFlow,
         projectDashboardPage,
@@ -390,23 +397,30 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   // ─── Back link ───────────────────────────────────────────────────────────────
 
-  test.describe('Project details — back link', { tag: '@regression' }, () => {
-    test.use({ storageState: STORAGE_STATE })
-    test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+  test.describe(
+    'Project details — back link',
+    { tag: ['@regression', '@happy-path'] },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-    test('clicking "Back" navigates to the project task list', async ({
-      createProjectFlow,
-      projectDashboardPage,
-      projectDetailsPage,
-      page
-    }) => {
-      const { id } = await setupProject(createProjectFlow, projectDashboardPage)
-      await projectDetailsPage.open(id)
-      await projectDetailsPage.backLink.click()
+      test('clicking "Back" navigates to the project task list', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        projectDetailsPage,
+        page
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage
+        )
+        await projectDetailsPage.open(id)
+        await projectDetailsPage.backLink.click()
 
-      await expect(page).toHaveURL(new RegExp(`/add-project-details/${id}`))
-    })
-  })
+        await expect(page).toHaveURL(new RegExp(`/add-project-details/${id}`))
+      })
+    }
+  )
 
   // ─── Role enforcement ────────────────────────────────────────────────────────
 

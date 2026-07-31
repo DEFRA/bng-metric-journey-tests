@@ -30,7 +30,7 @@ const NATURAL_ENGLAND_MISMATCH_COPY =
 function describeHappyPath() {
   test.describe(
     'Upload post-intervention — happy path',
-    { tag: '@smoke' },
+    { tag: ['@smoke', '@happy-path'] },
     () => {
       test('uploading a valid .gpkg file reaches the habitat list and marks the task list item as Completed', async ({
         createProjectFlow,

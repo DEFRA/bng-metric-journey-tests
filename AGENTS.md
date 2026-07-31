@@ -269,6 +269,83 @@ Apply the tag at the **describe block level** when all tests inside are non-smok
 PROFILE=@regression npm run test:github   # Run all non-smoke tests
 ```
 
+### @happy-path — what to tag
+
+`@happy-path` selects the **concise CDP functional-journey suite** — the real user
+journeys run against the **live CDP environment** without the error and
+unhappy-path scenarios tripping its monitoring alerts:
+
+```sh
+PROFILE=@happy-path npm run test:e2e   # CDP portal — functional journeys only, no alerts
+```
+
+Running the error and unhappy-path scenarios on CDP fires the environment's
+monitoring alerts (upload rejections, `4xx` responses, error pages). `@happy-path`
+is the allow-list that keeps those off CDP while still exercising the real user
+journeys against the deployed service.
+
+**`@happy-path` is its own dimension — _not_ a subset of `@smoke`.** A functional
+journey tagged `@regression` (a sort, a tab switch, a back-link, a dashboard
+navigation) qualifies just as much as a `@smoke` one. Add `@happy-path` to a test
+when **all four** hold:
+
+1. **It runs on CDP** — it is _not_ skipped in e2e (no `test.skip(runMode === 'e2e', …)`
+   and not a stub-only `no-role`/`no-projects` profile). The tag's whole purpose is
+   to select the CDP run, so a test that always skips there must not carry it.
+2. **It is a functional journey** — the user _does_ something (signs in, submits a
+   form, uploads a file, navigates, switches a tab, sorts a table, clicks through)
+   and the test asserts the resulting navigation / state / outcome — **or it is the
+   entry-form display that opens such a journey**.
+3. **It is not an unhappy scenario** — nothing under validation, role enforcement,
+   unauthenticated, error/single-error page, forbidden, session-expired, or
+   empty-state (those are what trip the CDP alerts).
+4. **It adds coverage** — for repetitive interaction variants (e.g. sort
+   _ascending_ / _descending_ / _toggle_ on the same table, or the same back/cancel
+   link across sibling pages) tag **one representative**, not every permutation.
+5. **It is independently runnable** — `PROFILE=@happy-path` grep-selects a _subset_
+   of the suite, so a test in a `mode: 'serial'` describe must **self-contain its
+   setup** (open the page, harvest its own ids). If it relies on an earlier,
+   _untagged_ sibling test having run first, it will fail when selected alone — tag
+   the whole describe or leave it out. This is the one rule the static guard cannot
+   check; the `PROFILE=@happy-path` run is what catches it (see below).
+
+Do **not** tag `@happy-path`:
+
+| test is…                                                                                  | `@happy-path`? |
+| ----------------------------------------------------------------------------------------- | -------------- |
+| a functional journey (action → outcome), `@smoke` **or** `@regression`                    | **yes**        |
+| the entry-form display that opens a journey                                               | **yes**        |
+| a read-only content/data display (page-content, list/units/status, view-only detail page) | no             |
+| page furniture (header, footer)                                                           | no             |
+| a redundant variant of a journey already tagged (rule 4)                                  | no             |
+| skipped on CDP / an unhappy scenario                                                      | no             |
+
+Apply it at the describe or individual-test level (add it to whatever tag the test
+already carries):
+
+```js
+// whole describe qualifies
+test.describe('Upload baseline — happy path', { tag: ['@smoke', '@happy-path'] }, () => { ... })
+// one functional test inside an otherwise-display describe
+test('clicking a project name navigates to its task list', { tag: ['@regression', '@happy-path'] }, …)
+```
+
+**When adding any test, evaluate it against the five-part rule above** and add
+`@happy-path` if it qualifies. Two of the rules are enforced mechanically, in CI
+and the pre-commit hook, by `npm run check:happy-path-tags`, which reads
+Playwright's own `RUN_MODE=e2e` test list and fails the build on a violation:
+
+- **Rule 1** (_runs on CDP_) — fails if a `@happy-path` test is skipped in e2e.
+- **Rule 3** (_not unhappy_) — fails if a `@happy-path` test sits in an unhappy describe.
+
+The rest are caught differently:
+
+- **Rule 5** (_independently runnable_) cannot be checked statically — it surfaces
+  at runtime, so **validate with an actual `PROFILE=@happy-path npm run test:github`
+  run** after tagging (a serial-dependent tag fails there, not in the guard).
+- **Rules 2 and 4** (is it a functional journey? a redundant variant?) are **your**
+  judgement — the guard cannot tell a render from an action.
+
 ### @\<domain\> — what to tag
 
 Every spec file belongs to exactly one **user-flow domain** (e.g. `project-management`). Tag all tests in the file with the domain name using a named outer `test.describe` with a `tag` option:
@@ -297,14 +374,15 @@ Rules:
 - **The domain tag matches the spec folder name** under `test/specs/` (e.g. files in `test/specs/project-management/` all use `@project-management`).
 - This lets you run all tests for a domain without knowing individual file names:
 
-**Mandatory: every test must have all three tag dimensions:**
+**Mandatory: every test must carry the domain and the smoke/regression dimensions; `@happy-path` is an additional tag on the qualifying subset:**
 
-| Dimension                 | Rule                                                                                              |
-| ------------------------- | ------------------------------------------------------------------------------------------------- |
-| `@<domain>`               | Inherited from the outer named describe — do not omit the outer wrapper                           |
-| `@smoke` or `@regression` | Every test carries exactly one — `@smoke` if it meets the smoke criteria, `@regression` otherwise |
+| Dimension                 | Rule                                                                                                                               |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `@<domain>`               | Inherited from the outer named describe — do not omit the outer wrapper                                                            |
+| `@smoke` or `@regression` | Every test carries exactly one — `@smoke` if it meets the smoke criteria, `@regression` otherwise                                  |
+| `@happy-path`             | Add **in addition to** the `@smoke`/`@regression` tag when the test is a CDP-runnable functional journey — see "@happy-path" above |
 
-When adding a new spec file or describe block, verify both dimensions are present before committing.
+When adding a new spec file or describe block, verify the domain and smoke/regression dimensions are present, and evaluate whether the smoke tests also qualify for `@happy-path`, before committing.
 
 ```sh
 PROFILE=@project-management npm run test:github
@@ -323,6 +401,7 @@ PROFILE=@project-management npm run test:github
 | `BROWSER=firefox npm run test:local`              | Override browser                                                                                                              |
 | `PROFILE=@smoke npm run test:github`              | Run only `@smoke`-tagged tests against Docker Compose stack                                                                   |
 | `PROFILE=@smoke npm run test:e2e`                 | Run only `@smoke`-tagged tests on the CDP portal                                                                              |
+| `PROFILE=@happy-path npm run test:e2e`            | Run only happy-path journeys on the CDP portal — avoids tripping its monitoring alerts (see **@happy-path**)                  |
 | `PROFILE=@regression npm run test:github`         | Run only `@regression`-tagged (non-smoke) tests                                                                               |
 | `PROFILE=@habitat-list npm run test:github`       | Run tests for the `habitat-list` domain                                                                                       |
 | `PROFILE=@project-management npm run test:github` | Run tests for the `project-management` domain                                                                                 |
@@ -336,6 +415,7 @@ PROFILE=@project-management npm run test:github
 - No proxy configuration needed — Playwright connects directly to the deployed service URL.
 - Report: Playwright HTML reporter writes `playwright-report/index.html`. `bin/publish-tests.sh` uploads this to S3. The CDP Portal renders the `index.html` entry point.
 - `PROFILE` env var filters tests by tag (e.g. `PROFILE=@smoke`). Uses Playwright `{ tag }` annotations — see **Test Tagging** above.
+- **CDP Portal runs should use `PROFILE=@happy-path`.** The error and unhappy-path scenarios trip the environment's monitoring alerts; `@happy-path` restricts the run to successful journeys. See **@happy-path** under Test Tagging.
 - The **Run Journey Tests** GitHub workflow accepts an optional `profile` input (`@smoke`, `@project-management`, etc.). Leave it blank to run all tests.
 
 ---

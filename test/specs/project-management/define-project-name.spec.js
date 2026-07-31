@@ -13,7 +13,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
     test(
       'form renders with input, hint, back link, and submit button',
-      { tag: '@smoke' },
+      { tag: ['@smoke', '@happy-path'] },
       async ({ defineProjectNamePage, page }) => {
         await defineProjectNamePage.open()
 
@@ -122,7 +122,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   test.describe(
     'Define project name — back link',
-    { tag: '@regression' },
+    { tag: ['@regression', '@happy-path'] },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)

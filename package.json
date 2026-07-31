@@ -16,8 +16,9 @@
     "screenshots": "RUN_MODE=local playwright test --config=playwright.screenshots.config.js",
     "format": "prettier --write 'test/**/*.js' '**/*.{js,md,json,config.js}'",
     "format:check": "prettier --check 'test/**/*.js' '**/*.{js,md,json,config.js}'",
-    "git:pre-commit-hook": "npm run format:check && npm run lint",
+    "git:pre-commit-hook": "npm run format:check && npm run lint && npm run check:happy-path-tags",
     "lint": "eslint .",
+    "check:happy-path-tags": "node test/utils/check-happy-path-tags.js",
     "lint:fix": "eslint . --fix",
     "postinstall": "npm run setup:husky",
     "setup:husky": "node -e \"try { (await import('husky')).default() } catch (e) { if (e.code !== 'ERR_MODULE_NOT_FOUND') throw e }\" --input-type module"

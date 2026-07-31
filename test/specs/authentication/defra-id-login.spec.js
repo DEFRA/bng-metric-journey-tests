@@ -17,7 +17,7 @@ test.describe('authentication', { tag: '@authentication' }, () => {
 
     test(
       'completer session is signed in and reaches the project area',
-      { tag: '@smoke' },
+      { tag: ['@smoke', '@happy-path'] },
       async ({ homePage, page }) => {
         await homePage.open()
 

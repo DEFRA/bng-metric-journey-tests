@@ -24,7 +24,7 @@ test.describe(
 
       test(
         'form renders with heading, caption, instruction, file input, Continue and Cancel',
-        { tag: '@smoke' },
+        { tag: ['@smoke', '@happy-path'] },
         async ({
           createProjectFlow,
           projectDashboardPage,
@@ -59,7 +59,7 @@ test.describe(
 
     test.describe(
       'Upload post-intervention file — form navigation',
-      { tag: '@regression' },
+      { tag: ['@regression', '@happy-path'] },
       () => {
         test.use({ storageState: STORAGE_STATE })
         test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)

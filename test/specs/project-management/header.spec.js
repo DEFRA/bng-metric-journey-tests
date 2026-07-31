@@ -39,7 +39,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
     test(
       'clicking "Projects" link loads the project management area',
-      { tag: '@smoke' },
+      { tag: ['@smoke', '@happy-path'] },
       async ({ layoutPage, page }) => {
         await page.goto('/')
         await layoutPage.projectsNavLink.click()

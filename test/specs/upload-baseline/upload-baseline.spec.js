@@ -26,47 +26,51 @@ const NATURAL_ENGLAND_MISMATCH_COPY =
 // ─── E2E happy path ─────────────────────────────────────────────────────────
 
 function describeHappyPath() {
-  test.describe('Upload baseline — happy path', { tag: '@smoke' }, () => {
-    test('uploading a valid .gpkg file reaches the habitat list and marks task list item as Completed', async ({
-      createProjectFlow,
-      projectDashboardPage,
-      uploadBaselineFileFlow,
-      habitatListPage,
-      projectTaskListPage,
-      page
-    }) => {
-      const { id } = await setupProject(
+  test.describe(
+    'Upload baseline — happy path',
+    { tag: ['@smoke', '@happy-path'] },
+    () => {
+      test('uploading a valid .gpkg file reaches the habitat list and marks task list item as Completed', async ({
         createProjectFlow,
         projectDashboardPage,
-        PROJECT_LABEL
-      )
+        uploadBaselineFileFlow,
+        habitatListPage,
+        projectTaskListPage,
+        page
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
+        )
 
-      await uploadBaselineFileFlow.uploadFile(id, COMPLETE_BASELINE_FILE)
+        await uploadBaselineFileFlow.uploadFile(id, COMPLETE_BASELINE_FILE)
 
-      await page.waitForURL(
-        new RegExp(`/projects/${id}/baseline-habitat-list`),
-        {
-          timeout: UPLOAD_TIMEOUT
-        }
-      )
+        await page.waitForURL(
+          new RegExp(`/projects/${id}/baseline-habitat-list`),
+          {
+            timeout: UPLOAD_TIMEOUT
+          }
+        )
 
-      await expect(habitatListPage.heading).toBeVisible()
-      await expect(habitatListPage.firstAreaHabitatLink).toBeVisible()
-      await expect(habitatListPage.firstCompleteStatus).toBeVisible()
+        await expect(habitatListPage.heading).toBeVisible()
+        await expect(habitatListPage.firstAreaHabitatLink).toBeVisible()
+        await expect(habitatListPage.firstCompleteStatus).toBeVisible()
 
-      await projectTaskListPage.open(id)
+        await projectTaskListPage.open(id)
 
-      await expect(
-        projectTaskListPage.taskItem(TASK_BASELINE_HABITATS)
-      ).toHaveAttribute('href', `/projects/${id}/baseline-habitat-list`)
-      // After baseline upload: Project Name + On-site baseline are Completed;
-      // Project Details + On-site post intervention remain Not yet started.
-      await expect(projectTaskListPage.taskStatus('Completed')).toHaveCount(2)
-      await expect(
-        projectTaskListPage.taskStatus('Not yet started')
-      ).toHaveCount(2)
-    })
-  })
+        await expect(
+          projectTaskListPage.taskItem(TASK_BASELINE_HABITATS)
+        ).toHaveAttribute('href', `/projects/${id}/baseline-habitat-list`)
+        // After baseline upload: Project Name + On-site baseline are Completed;
+        // Project Details + On-site post intervention remain Not yet started.
+        await expect(projectTaskListPage.taskStatus('Completed')).toHaveCount(2)
+        await expect(
+          projectTaskListPage.taskStatus('Not yet started')
+        ).toHaveCount(2)
+      })
+    }
+  )
 }
 
 // ─── No pending upload ───────────────────────────────────────────────────────

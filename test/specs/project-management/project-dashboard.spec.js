@@ -35,7 +35,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
     test(
       'clicking "Create project" button navigates to /project-name',
-      { tag: '@regression' },
+      { tag: ['@regression', '@happy-path'] },
       async ({ createProjectFlow, projectDashboardPage, page }) => {
         await createProjectFlow.createProject(`Setup ${Date.now()}`)
         await projectDashboardPage.open()
@@ -78,7 +78,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
     test(
       'clicking a project name navigates to its task list',
-      { tag: '@regression' },
+      { tag: ['@regression', '@happy-path'] },
       async ({ createProjectFlow, projectDashboardPage, page }) => {
         const name = `Row link test ${Date.now()}`
         await createProjectFlow.createProject(name)

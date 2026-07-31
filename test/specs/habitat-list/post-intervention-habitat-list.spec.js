@@ -344,7 +344,7 @@ test.describe(
 
     test.describe(
       'Post-intervention habitat list — tab interaction',
-      { tag: '@regression' },
+      { tag: ['@regression', '@happy-path'] },
       () => {
         test.use({ storageState: STORAGE_STATE })
         test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
