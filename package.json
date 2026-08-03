@@ -23,7 +23,7 @@
     "setup:husky": "node -e \"try { (await import('husky')).default() } catch (e) { if (e.code !== 'ERR_MODULE_NOT_FOUND') throw e }\" --input-type module"
   },
   "devDependencies": {
-    "@playwright/test": "1.61.1",
+    "@playwright/test": "1.62.0",
     "dotenv": "17.4.2",
     "eslint": "9.39.5",
     "eslint-config-prettier": "10.1.8",
