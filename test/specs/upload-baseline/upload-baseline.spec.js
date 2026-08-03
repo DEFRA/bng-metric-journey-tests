@@ -685,20 +685,6 @@ const SINGLE_ERROR_CASES = [
     body: 'These parcels are overlapping. Draw the parcels again and'
   },
   {
-    // QA-clarified 2026-07-23 (BMD-405 Jira thread): a sliver CAN carry a
-    // parcel ref like any other polygon, so AC9 expects the personalised
-    // "This parcel {ref} contains an error" H1 here too — NOT the generic
-    // catch-all. This assertion still targets the generic H1 because that is
-    // what current (unfixed) source renders (single-error-copy.js's
-    // sliverEntry() ignores the ref). Flip `heading` to
-    // /This parcel .+ contains an error/ once the frontend ships the fix —
-    // changing it now would fail against unfixed source.
-    title: 'sliver parcel alone shows the "parcel is a sliver" page',
-    fixture: 'Baseline - only sliver.gpkg',
-    heading: GEOPACKAGE_ERROR_H1,
-    body: 'This parcel is a sliver (a thin strip of land). Draw the parcel again and'
-  },
-  {
     title:
       'hedgerow outside the redline alone shows the personalised hedgerow page',
     fixture: 'Baseline - only hedgerow outside.gpkg',
@@ -744,6 +730,29 @@ const SINGLE_ERROR_CASES = [
 // IGGI or Urban Trees layers to mutate, and every generator fixture trips
 // side errors. Needs a valid 5-layer base fixture first.
 const SINGLE_ERROR_PENDING_FIXTURE_CASES = [
+  {
+    // Unreachable since backend BMD-882 (#185) deleted the derived
+    // "slivers inside the redline" check: `Baseline - only sliver.gpkg`'s sole
+    // defect was an internal gap, so the file is now *accepted* and the upload
+    // lands on the habitat list instead of /error-file.
+    //
+    // The copy this asserts is still live frontend code —
+    // single-error-copy.js maps SLIVERS_OUTSIDE_REDLINE to the "thin strip of
+    // land" wording — but nothing can reach it alone: the only fixture that
+    // fires SLIVERS_OUTSIDE_REDLINE is `Baseline - only parcel outside
+    // redline.gpkg`, where the frontend suppresses the sliver in favour of the
+    // co-firing AREA_PARCELS_OUTSIDE_REDLINE.
+    //
+    // To unblock: add a fixture whose parcels overhang the redline *without*
+    // tripping AREA_PARCELS_OUTSIDE_REDLINE, then move this back into
+    // SINGLE_ERROR_CASES. (The separate BMD-882 replacement check,
+    // AREA_PARCELS_TOO_SMALL — "This parcel is smaller than 1 square metre" —
+    // has no coverage at all and needs a sub-1 m² parcel fixture.)
+    title: 'sliver parcel alone shows the "parcel is a sliver" page',
+    fixture: 'Baseline - only sliver.gpkg',
+    heading: GEOPACKAGE_ERROR_H1,
+    body: 'This parcel is a sliver (a thin strip of land). Draw the parcel again and'
+  },
   {
     title: 'IGGI outside the redline alone shows the placeholder page',
     fixture: 'Baseline - only iggi outside.gpkg',
