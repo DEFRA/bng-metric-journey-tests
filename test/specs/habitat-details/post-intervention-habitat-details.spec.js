@@ -624,48 +624,20 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
           const detailsPage = postInterventionHabitatDetailsPage
-          // Page heading is the feature ref; project name stays the caption.
-          await expect(
-            page.getByRole('heading', { name: 'H3', exact: true })
-          ).toBeVisible()
+          await detailsPage.assertTwoSectionLayout({
+            ref: 'H3',
+            intervention: 'Enhanced'
+          })
           await expect(detailsPage.caption).toHaveText(shared.name)
-
-          // Section 1 — "Post-intervention habitat details" (viewOnlyHeading
-          // matches its <h2>) with its stacked rows and the Intervention value.
-          await expect(detailsPage.viewOnlyHeading).toBeVisible()
-          await expect(detailsPage.interventionKey).toBeVisible()
-          await expect(
-            page.getByText('Enhanced', { exact: true })
-          ).toBeVisible()
+          // Area specifics: the size row is "Area" and there is a Broad habitat
+          // row, neither of which the hedgerow/watercourse pages carry.
           await expect(detailsPage.enhancedAreaKey).toBeVisible()
           await expect(detailsPage.broadHabitatKey).toBeVisible()
-          await expect(detailsPage.habitatTypeKey).toBeVisible()
-          await expect(detailsPage.distinctivenessKey).toBeVisible()
-          await expect(detailsPage.conditionKey).toBeVisible()
-          await expect(
-            detailsPage.stackedStrategicSignificanceKey
-          ).toBeVisible()
           // "View baseline details" renders after section 1 (H3 is ref-matched).
           await expect(detailsPage.viewBaselineLink).toBeVisible()
-
-          // Section 2 — "Time to target / difficulty" with all six rows.
-          await expect(detailsPage.timeToTargetSectionHeading).toBeVisible()
-          await expect(detailsPage.targetConditionKey).toBeVisible()
-          await expect(detailsPage.standardTimeToTargetKey).toBeVisible()
-          await expect(detailsPage.standardDifficultyKey).toBeVisible()
-          await expect(detailsPage.advanceOrDelayKey).toBeVisible()
-          await expect(detailsPage.finalTimeToTargetKey).toBeVisible()
-          await expect(detailsPage.appliedDifficultyMultiplierKey).toBeVisible()
-
-          // "Habitat units delivered" summary row.
-          await expect(detailsPage.habitatUnitsDeliveredKey).toBeVisible()
-
-          // Read-only: no dropdowns, no Save, no Cancel.
           await expect(detailsPage.broadHabitatSelect).toBeHidden()
           await expect(detailsPage.habitatTypeSelect).toBeHidden()
           await expect(detailsPage.conditionSelect).toBeHidden()
-          await expect(detailsPage.saveButton).toBeHidden()
-          await expect(detailsPage.cancelLink).toBeHidden()
         }
       )
 
@@ -1071,48 +1043,19 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
         const detailsPage = postInterventionHabitatDetailsPage
-        // Page heading is the feature ref; project name stays the caption.
-        await expect(
-          page.getByRole('heading', {
-            name: ENHANCED_HEDGEROW_REF,
-            exact: true
-          })
-        ).toBeVisible()
+        await detailsPage.assertTwoSectionLayout({
+          ref: ENHANCED_HEDGEROW_REF,
+          intervention: 'Enhanced'
+        })
         await expect(detailsPage.caption).toHaveText(shared.name)
-
-        // Section 1 — "Post-intervention habitat details" (viewOnlyHeading
-        // matches its <h2>) with its stacked rows and the Intervention value.
-        // Hedgerow specifics: size row is "Length", and there is no Broad
+        // Hedgerow specifics: the size row is "Length" and there is no Broad
         // habitat row.
-        await expect(detailsPage.viewOnlyHeading).toBeVisible()
-        await expect(detailsPage.interventionKey).toBeVisible()
-        await expect(page.getByText('Enhanced', { exact: true })).toBeVisible()
         await expect(detailsPage.enhancedLengthKey).toBeVisible()
         await expect(detailsPage.broadHabitatKey).toBeHidden()
-        await expect(detailsPage.habitatTypeKey).toBeVisible()
-        await expect(detailsPage.distinctivenessKey).toBeVisible()
-        await expect(detailsPage.conditionKey).toBeVisible()
-        await expect(detailsPage.stackedStrategicSignificanceKey).toBeVisible()
         // "View baseline details" renders after section 1 (HR2 is ref-matched).
         await expect(detailsPage.viewBaselineLink).toBeVisible()
-
-        // Section 2 — "Time to target / difficulty" with all six rows.
-        await expect(detailsPage.timeToTargetSectionHeading).toBeVisible()
-        await expect(detailsPage.targetConditionKey).toBeVisible()
-        await expect(detailsPage.standardTimeToTargetKey).toBeVisible()
-        await expect(detailsPage.standardDifficultyKey).toBeVisible()
-        await expect(detailsPage.advanceOrDelayKey).toBeVisible()
-        await expect(detailsPage.finalTimeToTargetKey).toBeVisible()
-        await expect(detailsPage.appliedDifficultyMultiplierKey).toBeVisible()
-
-        // "Habitat units delivered" summary row.
-        await expect(detailsPage.habitatUnitsDeliveredKey).toBeVisible()
-
-        // Read-only: no dropdowns, no Save, no Cancel.
         await expect(detailsPage.habitatTypeSelect).toBeHidden()
         await expect(detailsPage.conditionSelect).toBeHidden()
-        await expect(detailsPage.saveButton).toBeHidden()
-        await expect(detailsPage.cancelLink).toBeHidden()
       }
     )
 
