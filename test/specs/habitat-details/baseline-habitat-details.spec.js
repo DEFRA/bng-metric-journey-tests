@@ -372,33 +372,37 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      test('navigating to a watercourse feature renders the details page', async ({
-        createProjectFlow,
-        projectDashboardPage,
-        uploadBaselineFileFlow,
-        habitatListPage,
-        baselineHabitatDetailsPage,
-        page
-      }) => {
-        const shared = await getSharedBaseline({
+      test(
+        'navigating to a watercourse feature renders the details page',
+        { tag: ['@happy-path'] },
+        async ({
           createProjectFlow,
           projectDashboardPage,
           uploadBaselineFileFlow,
           habitatListPage,
+          baselineHabitatDetailsPage,
           page
-        })
+        }) => {
+          const shared = await getSharedBaseline({
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            habitatListPage,
+            page
+          })
 
-        // BMD-502 registered the watercourse strategy, so the page now renders
-        // (200) instead of throwing in the strategy lookup (500). Watercourse
-        // editing/saving remains unsupported (the backend rejects the PUT).
-        const response = await page.goto(
-          `/baseline-habitat-details?projectId=${shared.id}&featureId=${shared.watercourse.featureId}`
-        )
-        expect(response.status()).toBe(HTTP_OK)
-        await expect(
-          baselineHabitatDetailsPage.baselineDetailsHeading
-        ).toBeVisible()
-      })
+          // BMD-502 registered the watercourse strategy, so the page now renders
+          // (200) instead of throwing in the strategy lookup (500). Watercourse
+          // editing/saving remains unsupported (the backend rejects the PUT).
+          const response = await page.goto(
+            `/baseline-habitat-details?projectId=${shared.id}&featureId=${shared.watercourse.featureId}`
+          )
+          expect(response.status()).toBe(HTTP_OK)
+          await expect(
+            baselineHabitatDetailsPage.baselineDetailsHeading
+          ).toBeVisible()
+        }
+      )
     }
   )
 

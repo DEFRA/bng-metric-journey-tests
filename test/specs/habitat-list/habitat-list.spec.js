@@ -115,7 +115,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
 
   test.describe(
     'Habitat list — tab interaction',
-    { tag: '@regression' },
+    { tag: ['@regression', '@happy-path'] },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
@@ -212,7 +212,7 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
 
   test.describe(
     'Habitat list — continue button navigation',
-    { tag: '@regression' },
+    { tag: ['@regression', '@happy-path'] },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)

@@ -34,6 +34,7 @@ jobs:
       - run: npm ci
       - run: npm run format:check
       - run: npm run lint
+      - run: npm run check:happy-path-tags
 
   sonarcloud:
     name: SonarCloud Analysis

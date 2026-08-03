@@ -79,7 +79,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   test.describe(
     'Project task list — task item navigation',
-    { tag: '@smoke' },
+    { tag: ['@smoke', '@happy-path'] },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)

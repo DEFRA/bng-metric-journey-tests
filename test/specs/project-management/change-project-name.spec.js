@@ -23,7 +23,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
     test(
       'form renders pre-populated with existing project name',
-      { tag: '@smoke' },
+      { tag: ['@smoke', '@happy-path'] },
       async ({
         createProjectFlow,
         projectDashboardPage,
@@ -151,42 +151,49 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   // ─── Happy path ──────────────────────────────────────────────────────────────
 
-  test.describe('Change project name — happy path', { tag: '@smoke' }, () => {
-    test.use({ storageState: STORAGE_STATE })
-    test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+  test.describe(
+    'Change project name — happy path',
+    { tag: ['@smoke', '@happy-path'] },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-    test('valid name updates project and redirects to task list', async ({
-      createProjectFlow,
-      projectDashboardPage,
-      changeProjectNamePage,
-      page
-    }) => {
-      const { id } = await setupProject(createProjectFlow, projectDashboardPage)
-      const newName = `Renamed project ${Date.now()}`
+      test('valid name updates project and redirects to task list', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        changeProjectNamePage,
+        page
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage
+        )
+        const newName = `Renamed project ${Date.now()}`
 
-      await changeProjectNamePage.open(id)
-      await changeProjectNamePage.enterName(newName)
-      await changeProjectNamePage.submit()
+        await changeProjectNamePage.open(id)
+        await changeProjectNamePage.enterName(newName)
+        await changeProjectNamePage.submit()
 
-      await expect(page).toHaveURL(new RegExp(`/add-project-details/${id}`))
-      await expect(page.getByText(newName)).toBeVisible()
+        await expect(page).toHaveURL(new RegExp(`/add-project-details/${id}`))
+        await expect(page.getByText(newName)).toBeVisible()
 
-      await projectDashboardPage.open()
-      const projectRow = page
-        .getByTestId('projects-table')
-        .getByRole('row')
-        .filter({ hasText: newName })
-      await expect(projectRow.getByRole('cell').nth(1)).toContainText(
-        /\d{1,2} \w+ \d{4} at \d{1,2}:\d{2}(am|pm)/
-      )
-    })
-  })
+        await projectDashboardPage.open()
+        const projectRow = page
+          .getByTestId('projects-table')
+          .getByRole('row')
+          .filter({ hasText: newName })
+        await expect(projectRow.getByRole('cell').nth(1)).toContainText(
+          /\d{1,2} \w+ \d{4} at \d{1,2}:\d{2}(am|pm)/
+        )
+      })
+    }
+  )
 
   // ─── Back link ───────────────────────────────────────────────────────────────
 
   test.describe(
     'Change project name — back link',
-    { tag: '@regression' },
+    { tag: ['@regression', '@happy-path'] },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)

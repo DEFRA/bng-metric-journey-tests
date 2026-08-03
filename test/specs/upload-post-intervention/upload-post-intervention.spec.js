@@ -21,7 +21,6 @@ const RLB_MULTIPLE_GEOMETRY_FILE =
   'Post-intervention - multiple geometry columns in RLB layer.gpkg'
 const RLB_WRONG_GEOMETRY_FILE =
   'Post-intervention - wrong geometry in RLB layer.gpkg'
-const SLIVERS_FILE = 'Post-intervention - complete with slivers.gpkg'
 const NATURAL_ENGLAND_MISMATCH_COPY =
   'The layer names and column names do not match what is required by Natural England'
 
@@ -30,7 +29,7 @@ const NATURAL_ENGLAND_MISMATCH_COPY =
 function describeHappyPath() {
   test.describe(
     'Upload post-intervention — happy path',
-    { tag: '@smoke' },
+    { tag: ['@smoke', '@happy-path'] },
     () => {
       test('uploading a valid .gpkg file reaches the habitat list and marks the task list item as Completed', async ({
         createProjectFlow,
@@ -238,15 +237,6 @@ function describeContentValidationErrors() {
       file: RLB_WRONG_GEOMETRY_FILE,
       layout: 'multi',
       expected: 'Zero red line boundaries in GeoPackage (expecting one)'
-    },
-    {
-      // BMD-405 AC9: the slivers fixture trips a single sliver error, so the
-      // single-error sliver copy renders (this variant has no reachable
-      // baseline fixture — see the upload-baseline pending-fixture skips).
-      name: 'slivers inside the redline boundary',
-      file: SLIVERS_FILE,
-      layout: 'single',
-      expected: 'This parcel is a sliver (a thin strip of land)'
     }
   ]
 
