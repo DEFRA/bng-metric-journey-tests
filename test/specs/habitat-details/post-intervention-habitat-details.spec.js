@@ -392,7 +392,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       test(
         'retained area habitat renders the read-only page with every summary row and no form controls',
         { tag: '@smoke' },
-        async ({ browser, postInterventionHabitatDetailsPage }) => {
+        async ({ browser, postInterventionHabitatDetailsPage, page }) => {
           const shared = await getCompleteProject(browser)
           await postInterventionHabitatDetailsPage.open(
             shared.id,
@@ -400,17 +400,27 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           )
 
           const detailsPage = postInterventionHabitatDetailsPage
+          // BMD-608 (PR#191) moved this page to the stacked sections layout:
+          // the parcel ref is the H1 (there is no longer a "Reference" row),
+          // "Post-intervention habitat details" is the section <h2>, the size
+          // label carries the unit, and the units row is the bordered
+          // "Habitat units delivered" summary row.
+          await expect(
+            page.getByRole('heading', { name: 'H2-2', exact: true })
+          ).toBeVisible()
           await expect(detailsPage.viewOnlyHeading).toBeVisible()
           await expect(detailsPage.caption).toHaveText(shared.name)
-          await expect(detailsPage.referenceKey).toBeVisible()
+          await expect(detailsPage.referenceKey).toBeHidden()
           await expect(detailsPage.interventionKey).toBeVisible()
-          await expect(detailsPage.areaKey).toBeVisible()
+          await expect(detailsPage.sizeHectaresKey).toBeVisible()
           await expect(detailsPage.broadHabitatKey).toBeVisible()
           await expect(detailsPage.habitatTypeKey).toBeVisible()
           await expect(detailsPage.distinctivenessKey).toBeVisible()
           await expect(detailsPage.conditionKey).toBeVisible()
-          await expect(detailsPage.strategicSignificanceKey).toBeVisible()
-          await expect(detailsPage.habitatUnitsKey).toBeVisible()
+          await expect(
+            detailsPage.stackedStrategicSignificanceKey
+          ).toBeVisible()
+          await expect(detailsPage.habitatUnitsDeliveredKey).toBeVisible()
 
           // Read-only: no dropdowns, no Save, and no trading-rules row
           // (dropped relative to the baseline details page).
@@ -445,10 +455,12 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           // "Low (2)" and "Moderate (2)" are the engine's reference
           // distinctiveness and condition for that habitat type.
           await expect(page.getByText('H2-2', { exact: true })).toBeVisible()
-          // Area renders as "<value>ha" (10 significant figures).
-          await expect(postInterventionHabitatDetailsPage.areaValue).toHaveText(
-            /^\s*\d+(\.\d+)?ha\s*$/
-          )
+          // The "Size (hectares)" label carries the unit, so the value renders
+          // bare (10 significant figures) — formatAreaHectaresValue, not
+          // formatAreaHectares.
+          await expect(
+            postInterventionHabitatDetailsPage.stackedSizeValue
+          ).toHaveText(/^\s*\d+(\.\d+)?\s*$/)
           await expect(
             page.getByText('Retained', { exact: true })
           ).toBeVisible()
@@ -615,7 +627,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await expect(detailsPage.distinctivenessKey).toBeVisible()
           await expect(detailsPage.conditionKey).toBeVisible()
           await expect(
-            detailsPage.enhancedStrategicSignificanceKey
+            detailsPage.stackedStrategicSignificanceKey
           ).toBeVisible()
           // "View baseline details" renders after section 1 (H3 is ref-matched).
           await expect(detailsPage.viewBaselineLink).toBeVisible()
@@ -909,7 +921,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(detailsPage.habitatTypeKey).toBeVisible()
         // Hedgerows have no broad-habitat dimension and no area size row.
         await expect(detailsPage.broadHabitatKey).toBeHidden()
-        await expect(detailsPage.areaKey).toBeHidden()
+        await expect(detailsPage.sizeHectaresKey).toBeHidden()
         await expect(
           page.getByText('Native hedgerow', { exact: true })
         ).toBeVisible()
@@ -1061,7 +1073,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(detailsPage.habitatTypeKey).toBeVisible()
         await expect(detailsPage.distinctivenessKey).toBeVisible()
         await expect(detailsPage.conditionKey).toBeVisible()
-        await expect(detailsPage.enhancedStrategicSignificanceKey).toBeVisible()
+        await expect(detailsPage.stackedStrategicSignificanceKey).toBeVisible()
         // "View baseline details" renders after section 1 (HR2 is ref-matched).
         await expect(detailsPage.viewBaselineLink).toBeVisible()
 
@@ -1205,11 +1217,17 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         )
 
         const detailsPage = postInterventionHabitatDetailsPage
+        // BMD-724 (PR#192) moved this page to the stacked sections layout: the
+        // parcel ref is the H1, and the size label is "Size (kilometres)" —
+        // the summary-list "Length (km)" row survives only on the retained
+        // hedgerow page.
         await expect(detailsPage.viewOnlyHeading).toBeVisible()
         await expect(detailsPage.interventionKey).toBeVisible()
-        await expect(detailsPage.lengthKey).toBeVisible()
+        await expect(detailsPage.sizeKilometresKey).toBeVisible()
+        await expect(detailsPage.lengthKey).toBeHidden()
         await expect(detailsPage.watercourseEncroachmentKey).toBeVisible()
         await expect(detailsPage.riparianEncroachmentKey).toBeVisible()
+        await expect(detailsPage.stackedStrategicSignificanceKey).toBeVisible()
         await expect(page.getByText('Ditches', { exact: true })).toBeVisible()
         // Encroachment values come from the baseline side and render as
         // "Value (multiplier)"; the multiplier is engine data, so assert the
@@ -1275,12 +1293,12 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         ).toBeVisible()
         // WC1: Ditches / Moderate / 90 m (fixture values); "Medium (n)" and
         // "Moderate (n)" are the engine's reference distinctiveness and
-        // condition for that river type. Length renders in km with trailing
-        // zeros trimmed.
+        // condition for that river type. The "Size (kilometres)" label carries
+        // the unit, so the value renders bare with trailing zeros trimmed.
         await expect(page.getByText('Retained', { exact: true })).toBeVisible()
-        await expect(postInterventionHabitatDetailsPage.lengthValue).toHaveText(
-          /^\s*0\.09\s*$/
-        )
+        await expect(
+          postInterventionHabitatDetailsPage.stackedSizeValue
+        ).toHaveText(/^\s*0\.09\s*$/)
         await expect(
           page.getByText(/^\s*Medium \(\d+(\.\d+)?\)\s*$/)
         ).toBeVisible()
