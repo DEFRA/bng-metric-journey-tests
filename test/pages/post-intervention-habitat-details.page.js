@@ -1,3 +1,5 @@
+import { expect } from '@playwright/test'
+
 import { BaselineHabitatDetailsPage } from './baseline-habitat-details.page.js'
 
 // The /post-intervention-habitat-details route renders a read-only page for
@@ -155,5 +157,40 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
       `/post-intervention-habitat-details?projectId=${projectId}&featureId=${featureId}`
     )
     await this.page.waitForLoadState('domcontentloaded')
+  }
+
+  /**
+   * Assert the shape every Created/Enhanced two-section read-only page shares:
+   * the feature ref as the H1, the habitat-details section with its
+   * intervention value, all six time-to-target rows, the "Habitat units
+   * delivered" summary row, and no form controls. The size row differs per
+   * feature type ("Area" vs "Length"), so it is asserted by the caller.
+   */
+  async assertTwoSectionLayout({ ref, intervention }) {
+    await expect(
+      this.page.getByRole('heading', { name: ref, exact: true })
+    ).toBeVisible()
+    await expect(this.viewOnlyHeading).toBeVisible()
+    await expect(this.interventionKey).toBeVisible()
+    await expect(
+      this.page.getByText(intervention, { exact: true })
+    ).toBeVisible()
+    await expect(this.habitatTypeKey).toBeVisible()
+    await expect(this.distinctivenessKey).toBeVisible()
+    await expect(this.conditionKey).toBeVisible()
+    await expect(this.stackedStrategicSignificanceKey).toBeVisible()
+
+    await expect(this.timeToTargetSectionHeading).toBeVisible()
+    await expect(this.targetConditionKey).toBeVisible()
+    await expect(this.standardTimeToTargetKey).toBeVisible()
+    await expect(this.standardDifficultyKey).toBeVisible()
+    await expect(this.advanceOrDelayKey).toBeVisible()
+    await expect(this.finalTimeToTargetKey).toBeVisible()
+    await expect(this.appliedDifficultyMultiplierKey).toBeVisible()
+
+    await expect(this.habitatUnitsDeliveredKey).toBeVisible()
+
+    await expect(this.saveButton).toBeHidden()
+    await expect(this.cancelLink).toBeHidden()
   }
 }
