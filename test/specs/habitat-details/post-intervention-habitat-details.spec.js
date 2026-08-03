@@ -333,11 +333,27 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      test('valid UUIDs for a non-existent feature returns 404', async ({
+      test('valid UUIDs for a non-existent project returns 404', async ({
         page
       }) => {
         const response = await page.goto(
           detailsUrl({ projectId: VALID_UUID_V4, featureId: VALID_UUID_V4 })
+        )
+        expect(response.status()).toBe(HTTP_NOT_FOUND)
+      })
+
+      // The test above never reaches the feature lookup — the project itself
+      // does not exist, so the backend 404s before scanning any layer. This one
+      // uses a real project the user owns, so the 404 can only come from
+      // findFeature failing to match the featureId across the post-intervention
+      // habitats, trees, hedgerows and watercourses.
+      test('a real project with an unknown featureId returns 404', async ({
+        browser,
+        page
+      }) => {
+        const shared = await getCompleteProject(browser)
+        const response = await page.goto(
+          detailsUrl({ projectId: shared.id, featureId: VALID_UUID_V4 })
         )
         expect(response.status()).toBe(HTTP_NOT_FOUND)
       })
@@ -392,7 +408,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       test(
         'retained area habitat renders the read-only page with every summary row and no form controls',
         { tag: '@smoke' },
-        async ({ browser, postInterventionHabitatDetailsPage }) => {
+        async ({ browser, postInterventionHabitatDetailsPage, page }) => {
           const shared = await getCompleteProject(browser)
           await postInterventionHabitatDetailsPage.open(
             shared.id,
@@ -400,17 +416,27 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           )
 
           const detailsPage = postInterventionHabitatDetailsPage
+          // BMD-608 (PR#191) moved this page to the stacked sections layout:
+          // the parcel ref is the H1 (there is no longer a "Reference" row),
+          // "Post-intervention habitat details" is the section <h2>, the size
+          // label carries the unit, and the units row is the bordered
+          // "Habitat units delivered" summary row.
+          await expect(
+            page.getByRole('heading', { name: 'H2-2', exact: true })
+          ).toBeVisible()
           await expect(detailsPage.viewOnlyHeading).toBeVisible()
           await expect(detailsPage.caption).toHaveText(shared.name)
-          await expect(detailsPage.referenceKey).toBeVisible()
+          await expect(detailsPage.referenceKey).toBeHidden()
           await expect(detailsPage.interventionKey).toBeVisible()
-          await expect(detailsPage.areaKey).toBeVisible()
+          await expect(detailsPage.sizeHectaresKey).toBeVisible()
           await expect(detailsPage.broadHabitatKey).toBeVisible()
           await expect(detailsPage.habitatTypeKey).toBeVisible()
           await expect(detailsPage.distinctivenessKey).toBeVisible()
           await expect(detailsPage.conditionKey).toBeVisible()
-          await expect(detailsPage.strategicSignificanceKey).toBeVisible()
-          await expect(detailsPage.habitatUnitsKey).toBeVisible()
+          await expect(
+            detailsPage.stackedStrategicSignificanceKey
+          ).toBeVisible()
+          await expect(detailsPage.habitatUnitsDeliveredKey).toBeVisible()
 
           // Read-only: no dropdowns, no Save, and no trading-rules row
           // (dropped relative to the baseline details page).
@@ -445,10 +471,12 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           // "Low (2)" and "Moderate (2)" are the engine's reference
           // distinctiveness and condition for that habitat type.
           await expect(page.getByText('H2-2', { exact: true })).toBeVisible()
-          // Area renders as "<value>ha" (10 significant figures).
-          await expect(postInterventionHabitatDetailsPage.areaValue).toHaveText(
-            /^\s*\d+(\.\d+)?ha\s*$/
-          )
+          // The "Size (hectares)" label carries the unit, so the value renders
+          // bare (10 significant figures) — formatAreaHectaresValue, not
+          // formatAreaHectares.
+          await expect(
+            postInterventionHabitatDetailsPage.stackedSizeValue
+          ).toHaveText(/^\s*\d+(\.\d+)?\s*$/)
           await expect(
             page.getByText('Retained', { exact: true })
           ).toBeVisible()
@@ -596,48 +624,20 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
           const detailsPage = postInterventionHabitatDetailsPage
-          // Page heading is the feature ref; project name stays the caption.
-          await expect(
-            page.getByRole('heading', { name: 'H3', exact: true })
-          ).toBeVisible()
+          await detailsPage.assertTwoSectionLayout({
+            ref: 'H3',
+            intervention: 'Enhanced'
+          })
           await expect(detailsPage.caption).toHaveText(shared.name)
-
-          // Section 1 — "Post-intervention habitat details" (viewOnlyHeading
-          // matches its <h2>) with its stacked rows and the Intervention value.
-          await expect(detailsPage.viewOnlyHeading).toBeVisible()
-          await expect(detailsPage.interventionKey).toBeVisible()
-          await expect(
-            page.getByText('Enhanced', { exact: true })
-          ).toBeVisible()
+          // Area specifics: the size row is "Area" and there is a Broad habitat
+          // row, neither of which the hedgerow/watercourse pages carry.
           await expect(detailsPage.enhancedAreaKey).toBeVisible()
           await expect(detailsPage.broadHabitatKey).toBeVisible()
-          await expect(detailsPage.habitatTypeKey).toBeVisible()
-          await expect(detailsPage.distinctivenessKey).toBeVisible()
-          await expect(detailsPage.conditionKey).toBeVisible()
-          await expect(
-            detailsPage.enhancedStrategicSignificanceKey
-          ).toBeVisible()
           // "View baseline details" renders after section 1 (H3 is ref-matched).
           await expect(detailsPage.viewBaselineLink).toBeVisible()
-
-          // Section 2 — "Time to target / difficulty" with all six rows.
-          await expect(detailsPage.timeToTargetSectionHeading).toBeVisible()
-          await expect(detailsPage.targetConditionKey).toBeVisible()
-          await expect(detailsPage.standardTimeToTargetKey).toBeVisible()
-          await expect(detailsPage.standardDifficultyKey).toBeVisible()
-          await expect(detailsPage.advanceOrDelayKey).toBeVisible()
-          await expect(detailsPage.finalTimeToTargetKey).toBeVisible()
-          await expect(detailsPage.appliedDifficultyMultiplierKey).toBeVisible()
-
-          // "Habitat units delivered" summary row.
-          await expect(detailsPage.habitatUnitsDeliveredKey).toBeVisible()
-
-          // Read-only: no dropdowns, no Save, no Cancel.
           await expect(detailsPage.broadHabitatSelect).toBeHidden()
           await expect(detailsPage.habitatTypeSelect).toBeHidden()
           await expect(detailsPage.conditionSelect).toBeHidden()
-          await expect(detailsPage.saveButton).toBeHidden()
-          await expect(detailsPage.cancelLink).toBeHidden()
         }
       )
 
@@ -747,14 +747,12 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       )
     })
 
-    // ─── Non-retained area habitats are read-only too (BMD-608/845) ──────────
-    // A Created area feature still uses the single-list read-only template
-    // (BMD-608/723/724): retention no longer gates whether a page renders.
-    // BMD-845 confirmed there are no per-intervention-type editable variations
-    // to build. The Enhanced area habitat is the one exception — it renders the
-    // dedicated two-section page (BMD-725) covered in the "Enhanced area
-    // habitat display" describe above — so this block covers the Created case
-    // (via a Lost→Created parcel), which keeps the single-list template.
+    // ─── Created area habitats (BMD-736) ─────────────────────────────────────
+    // A Created area feature renders its own two-section read-only page
+    // (pi-habitat-details-created.njk, frontend PR#180) — the same shape as the
+    // Enhanced area page, differing only in the Intervention value. Retention
+    // never gates whether a page renders, and BMD-845 confirmed there are no
+    // per-intervention-type *editable* variations to build.
 
     test.describe(
       'non-retained area habitats are read-only',
@@ -765,10 +763,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
         // A Lost area habitat is one whose baseline habitat was removed and
         // replaced, so the backend maps it to Created (BMD-531/534) — it still
-        // appears, rendering the read-only page with Intervention "Created".
+        // appears, rendering the Created two-section page.
         // (Lost hedgerows, watercourses and trees are instead excluded
         // entirely; that is covered in post-intervention-habitat-list.spec.js.)
-        test('a Lost area habitat is imported as Created and renders read-only', async ({
+        test('a Lost area habitat is imported as Created and renders the two-section read-only page', async ({
           browser,
           postInterventionHabitatListPage,
           postInterventionHabitatDetailsPage,
@@ -783,13 +781,18 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           )
           await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
+          await postInterventionHabitatDetailsPage.assertTwoSectionLayout({
+            ref: 'H2-1',
+            intervention: 'Created'
+          })
+          // Area habitats label the size row "Area", with the unit on the
+          // value — unlike the retained area page's "Size (hectares)".
           await expect(
-            postInterventionHabitatDetailsPage.viewOnlyHeading
+            postInterventionHabitatDetailsPage.enhancedAreaKey
           ).toBeVisible()
-          await expect(page.getByText('Created', { exact: true })).toBeVisible()
           await expect(
-            postInterventionHabitatDetailsPage.saveButton
-          ).toBeHidden()
+            postInterventionHabitatDetailsPage.broadHabitatKey
+          ).toBeVisible()
         })
       }
     )
@@ -909,7 +912,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(detailsPage.habitatTypeKey).toBeVisible()
         // Hedgerows have no broad-habitat dimension and no area size row.
         await expect(detailsPage.broadHabitatKey).toBeHidden()
-        await expect(detailsPage.areaKey).toBeHidden()
+        await expect(detailsPage.sizeHectaresKey).toBeHidden()
         await expect(
           page.getByText('Native hedgerow', { exact: true })
         ).toBeVisible()
@@ -1040,48 +1043,19 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
         const detailsPage = postInterventionHabitatDetailsPage
-        // Page heading is the feature ref; project name stays the caption.
-        await expect(
-          page.getByRole('heading', {
-            name: ENHANCED_HEDGEROW_REF,
-            exact: true
-          })
-        ).toBeVisible()
+        await detailsPage.assertTwoSectionLayout({
+          ref: ENHANCED_HEDGEROW_REF,
+          intervention: 'Enhanced'
+        })
         await expect(detailsPage.caption).toHaveText(shared.name)
-
-        // Section 1 — "Post-intervention habitat details" (viewOnlyHeading
-        // matches its <h2>) with its stacked rows and the Intervention value.
-        // Hedgerow specifics: size row is "Length", and there is no Broad
+        // Hedgerow specifics: the size row is "Length" and there is no Broad
         // habitat row.
-        await expect(detailsPage.viewOnlyHeading).toBeVisible()
-        await expect(detailsPage.interventionKey).toBeVisible()
-        await expect(page.getByText('Enhanced', { exact: true })).toBeVisible()
         await expect(detailsPage.enhancedLengthKey).toBeVisible()
         await expect(detailsPage.broadHabitatKey).toBeHidden()
-        await expect(detailsPage.habitatTypeKey).toBeVisible()
-        await expect(detailsPage.distinctivenessKey).toBeVisible()
-        await expect(detailsPage.conditionKey).toBeVisible()
-        await expect(detailsPage.enhancedStrategicSignificanceKey).toBeVisible()
         // "View baseline details" renders after section 1 (HR2 is ref-matched).
         await expect(detailsPage.viewBaselineLink).toBeVisible()
-
-        // Section 2 — "Time to target / difficulty" with all six rows.
-        await expect(detailsPage.timeToTargetSectionHeading).toBeVisible()
-        await expect(detailsPage.targetConditionKey).toBeVisible()
-        await expect(detailsPage.standardTimeToTargetKey).toBeVisible()
-        await expect(detailsPage.standardDifficultyKey).toBeVisible()
-        await expect(detailsPage.advanceOrDelayKey).toBeVisible()
-        await expect(detailsPage.finalTimeToTargetKey).toBeVisible()
-        await expect(detailsPage.appliedDifficultyMultiplierKey).toBeVisible()
-
-        // "Habitat units delivered" summary row.
-        await expect(detailsPage.habitatUnitsDeliveredKey).toBeVisible()
-
-        // Read-only: no dropdowns, no Save, no Cancel.
         await expect(detailsPage.habitatTypeSelect).toBeHidden()
         await expect(detailsPage.conditionSelect).toBeHidden()
-        await expect(detailsPage.saveButton).toBeHidden()
-        await expect(detailsPage.cancelLink).toBeHidden()
       }
     )
 
@@ -1147,12 +1121,12 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     )
   })
 
-  // ─── Non-retained hedgerows are read-only too (BMD-845) ─────────────────────
-  // A Created hedgerow still uses the single-list read-only template (BMD-723) —
-  // only the "Intervention" row's value differs — reached the way the user does:
-  // click the Ref link on the Hedgerows tab rather than deep-linking. (The
-  // Enhanced hedgerow is the exception — it renders the dedicated two-section
-  // page (BMD-733) covered in the "Enhanced hedgerow display" describe above.)
+  // ─── Created hedgerows (frontend PR#186) ────────────────────────────────────
+  // A Created hedgerow shares the Enhanced hedgerow's two-section template
+  // (pi-hedgerow-details-enhanced.njk) but is built by its own view model,
+  // which forces baselineFeatureId to null so the "View baseline details" link
+  // is never offered — a created hedgerow has no baseline counterpart. Reached
+  // the way the user does: click the Ref link on the Hedgerows tab.
 
   test.describe(
     'non-retained hedgerow habitats are read-only',
@@ -1161,7 +1135,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      test('a Created hedgerow renders read-only with its intervention type shown', async ({
+      test('a Created hedgerow renders the two-section read-only page', async ({
         browser,
         postInterventionHabitatListPage,
         postInterventionHabitatDetailsPage,
@@ -1175,9 +1149,14 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
         const detailsPage = postInterventionHabitatDetailsPage
-        await expect(detailsPage.viewOnlyHeading).toBeVisible()
-        await expect(page.getByText('Created', { exact: true })).toBeVisible()
-        await expect(detailsPage.saveButton).toBeHidden()
+        await detailsPage.assertTwoSectionLayout({
+          ref: CREATED_HEDGEROW_REF,
+          intervention: 'Created'
+        })
+        // Hedgerows label the size row "Length" (unit on the value) and have
+        // no broad-habitat dimension.
+        await expect(detailsPage.enhancedLengthKey).toBeVisible()
+        await expect(detailsPage.broadHabitatKey).toBeHidden()
         await expect(detailsPage.habitatTypeSelect).toBeHidden()
       })
     }
@@ -1205,11 +1184,17 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         )
 
         const detailsPage = postInterventionHabitatDetailsPage
+        // BMD-724 (PR#192) moved this page to the stacked sections layout: the
+        // parcel ref is the H1, and the size label is "Size (kilometres)" —
+        // the summary-list "Length (km)" row survives only on the retained
+        // hedgerow page.
         await expect(detailsPage.viewOnlyHeading).toBeVisible()
         await expect(detailsPage.interventionKey).toBeVisible()
-        await expect(detailsPage.lengthKey).toBeVisible()
+        await expect(detailsPage.sizeKilometresKey).toBeVisible()
+        await expect(detailsPage.lengthKey).toBeHidden()
         await expect(detailsPage.watercourseEncroachmentKey).toBeVisible()
         await expect(detailsPage.riparianEncroachmentKey).toBeVisible()
+        await expect(detailsPage.stackedStrategicSignificanceKey).toBeVisible()
         await expect(page.getByText('Ditches', { exact: true })).toBeVisible()
         // Encroachment values come from the baseline side and render as
         // "Value (multiplier)"; the multiplier is engine data, so assert the
@@ -1275,12 +1260,12 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         ).toBeVisible()
         // WC1: Ditches / Moderate / 90 m (fixture values); "Medium (n)" and
         // "Moderate (n)" are the engine's reference distinctiveness and
-        // condition for that river type. Length renders in km with trailing
-        // zeros trimmed.
+        // condition for that river type. The "Size (kilometres)" label carries
+        // the unit, so the value renders bare with trailing zeros trimmed.
         await expect(page.getByText('Retained', { exact: true })).toBeVisible()
-        await expect(postInterventionHabitatDetailsPage.lengthValue).toHaveText(
-          /^\s*0\.09\s*$/
-        )
+        await expect(
+          postInterventionHabitatDetailsPage.stackedSizeValue
+        ).toHaveText(/^\s*0\.09\s*$/)
         await expect(
           page.getByText(/^\s*Medium \(\d+(\.\d+)?\)\s*$/)
         ).toBeVisible()
@@ -1328,10 +1313,15 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     )
   })
 
-  // ─── Non-retained watercourses are read-only too (BMD-845) ──────────────────
-  // Same read-only template as a Retained watercourse (BMD-724) — only the
-  // "Intervention" row's value differs — reached the way the user does: click
-  // the Ref link on the Watercourses tab rather than deep-linking.
+  // ─── Created / Enhanced watercourses (BMD-739, BMD-735) ─────────────────────
+  // Both render their own two-section template (pi-watercourse-details-created
+  // / -enhanced, frontend PR#187/#188) rather than the retained watercourse's
+  // single-section page. They carry the same rows, in an order that differs
+  // from the retained page: Strategic significance sits *above* the two
+  // encroachment rows. Their encroachment values are read from `proposed`,
+  // where the engine takes its inputs for a created/enhanced watercourse —
+  // the retained page reads them baseline-first. Reached the way the user
+  // does: click the Ref link on the Watercourses tab.
 
   test.describe(
     'non-retained watercourse habitats are read-only',
@@ -1340,45 +1330,37 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      test('an Enhanced watercourse renders read-only with its intervention type shown', async ({
-        browser,
-        postInterventionHabitatListPage,
-        postInterventionHabitatDetailsPage,
-        page
-      }) => {
-        const shared = await getWatercoursesProject(browser)
-        await postInterventionHabitatListPage.openWatercourseDetails(
-          shared.id,
-          ENHANCED_WATERCOURSE_REF
-        )
-        await expect(page).toHaveURL(DETAILS_URL_PATTERN)
+      for (const { label, ref } of [
+        { label: 'an Enhanced', ref: ENHANCED_WATERCOURSE_REF },
+        { label: 'a Created', ref: CREATED_WATERCOURSE_REF }
+      ]) {
+        const intervention = label === 'an Enhanced' ? 'Enhanced' : 'Created'
 
-        const detailsPage = postInterventionHabitatDetailsPage
-        await expect(detailsPage.viewOnlyHeading).toBeVisible()
-        await expect(page.getByText('Enhanced', { exact: true })).toBeVisible()
-        await expect(detailsPage.saveButton).toBeHidden()
-        await expect(detailsPage.watercourseEncroachmentSelect).toBeHidden()
-      })
+        test(`${label} watercourse renders the two-section read-only page`, async ({
+          browser,
+          postInterventionHabitatListPage,
+          postInterventionHabitatDetailsPage,
+          page
+        }) => {
+          const shared = await getWatercoursesProject(browser)
+          await postInterventionHabitatListPage.openWatercourseDetails(
+            shared.id,
+            ref
+          )
+          await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
-      test('a Created watercourse renders read-only with its intervention type shown', async ({
-        browser,
-        postInterventionHabitatListPage,
-        postInterventionHabitatDetailsPage,
-        page
-      }) => {
-        const shared = await getWatercoursesProject(browser)
-        await postInterventionHabitatListPage.openWatercourseDetails(
-          shared.id,
-          CREATED_WATERCOURSE_REF
-        )
-        await expect(page).toHaveURL(DETAILS_URL_PATTERN)
-
-        const detailsPage = postInterventionHabitatDetailsPage
-        await expect(detailsPage.viewOnlyHeading).toBeVisible()
-        await expect(page.getByText('Created', { exact: true })).toBeVisible()
-        await expect(detailsPage.saveButton).toBeHidden()
-        await expect(detailsPage.watercourseEncroachmentSelect).toBeHidden()
-      })
+          const detailsPage = postInterventionHabitatDetailsPage
+          await detailsPage.assertTwoSectionLayout({ ref, intervention })
+          // Watercourse specifics: the size row is "Length" (unit on the
+          // value), plus the two encroachment rows the hedgerow page lacks.
+          await expect(detailsPage.enhancedLengthKey).toBeVisible()
+          await expect(detailsPage.watercourseEncroachmentKey).toBeVisible()
+          await expect(detailsPage.riparianEncroachmentKey).toBeVisible()
+          await expect(detailsPage.broadHabitatKey).toBeHidden()
+          await expect(detailsPage.watercourseEncroachmentSelect).toBeHidden()
+          await expect(detailsPage.riparianEncroachmentSelect).toBeHidden()
+        })
+      }
     }
   )
 
