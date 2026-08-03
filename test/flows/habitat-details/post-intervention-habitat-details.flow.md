@@ -3,113 +3,329 @@
 ## Overview
 
 A BNG Completer opens a feature from the post-intervention habitat list and views its
-details. **Every post-intervention feature renders a read-only details page regardless of
-its retention category** (BMD-608/723/724): area, hedgerow and watercourse features each
-get a read-only page specific to their type, and individual trees render an
-unsupported-feature placeholder. Retention category no longer gates _whether_ a page
-renders — every supported feature reaches a read-only page. **Enhanced area habitats
-(BMD-725) now render a dedicated two-section read-only page** — habitat details plus a
-"Time to target / difficulty" section — reading their values from `proposed` (where the
-engine writes the Enhanced derivations). All other cases keep the single-list per-type
-page: Retained/Created area features, and Enhanced (and every other category of) hedgerow
-and watercourse features, until their Enhanced variants land. The Enhanced page is still
-read-only — there is no editable form on this route, and the
-`POST /post-intervention-habitat-details` handler returns 501 Not Implemented. BMD-845
-(which added the habitat-list "Intervention type" column) confirmed there are no
-per-intervention-type _editable_ variations to build.
+details. **Every post-intervention feature renders a read-only page** — area, hedgerow and
+watercourse features each get a page specific to their type _and_ their intervention
+(retention) category; individual trees render an unsupported-feature placeholder. There is
+no editable form on this route: `POST /post-intervention-habitat-details` returns
+**501 Not Implemented**.
 
-The retention category is displayed in the "Intervention" row. It is normalised for
-display ("1. Retained" → "Retained"), mirroring the backend's `normaliseRetentionCategory`.
-The backend (BMD-534) persists a normalised category on the feature root
-(`feature.retentionCategory`); the display lifts it from there, defaulting to "Retained"
-when absent.
+**Layout: the stacked "sections" design is now the norm.** Seven of the eight rendered
+pages extend `layouts/pi-view-only-sections-page.njk` (bold label on one line, value on the
+next; no `govukSummaryList` rows; a bordered "Habitat units delivered" summary row at the
+bottom; the parcel **ref** as the H1). The **retained hedgerow** page is the only one still
+on the older `layouts/pi-view-only-page.njk` `govukSummaryList` design, with the generic
+"Post-intervention habitat details" H1 and a "Units in this habitat" row.
+
+### Page routing
+
+The controller calls `resolveViewOnlyPage(type, retentionCategory)`, where `type` is the
+backend's discriminator (`habitat`, `tree`, `hedgerow`, `watercourse`) and
+`retentionCategory` is `normaliseRetentionCategory(feature.retentionCategory)` — a leading
+`"N. "` list prefix and surrounding whitespace are stripped ("1. Enhanced" → "Enhanced"),
+`null` when there is no usable value.
+
+| Feature type            | `Enhanced`                         | `Created`                                        | anything else (incl. `Retained`, unrecognised, absent) |
+| ----------------------- | ---------------------------------- | ------------------------------------------------ | ------------------------------------------------------ |
+| `habitat`               | `pi-habitat-details-enhanced`      | `pi-habitat-details-created`                     | `pi-habitat-details` (Step 1)                          |
+| `hedgerow`              | `pi-hedgerow-details-enhanced`     | `pi-hedgerow-details-enhanced` (different model) | `pi-hedgerow-details` (Step 2)                         |
+| `watercourse`           | `pi-watercourse-details-enhanced`  | `pi-watercourse-details-created`                 | `pi-watercourse-details` (Step 3)                      |
+| `tree` / any other type | `pi-feature-unsupported` (Step 10) | —                                                | —                                                      |
+
+A category the map does not know (the backend only persists `Retained`/`Created`/`Enhanced`,
+so this is defensive) falls through to the retained page for its type, with the Intervention
+row showing the raw normalised value.
+
+### Value sourcing
+
+- **`proposed`-first is the norm.** `buildSharedPiViewOnlyFields` reads distinctiveness,
+  condition and their scores from `feature.proposed`; the sections pages additionally read
+  `proposed.broadType` / `proposed.type` and every time/difficulty derivation from
+  `proposed`. This covers the retained area page, the retained hedgerow page and all six
+  Created/Enhanced pages.
+- **The retained watercourse page (Step 3) is the sole exception** — it still uses
+  `buildViewOnlyViewModel`, whose `retained(key)` helper reads `baseline[key] ?? proposed[key] ?? ''`
+  for descriptive values (habitat type, condition, both encroachments) while taking scores
+  and multipliers from `proposed`. For a retained watercourse the engine derives its
+  multipliers from the baseline encroachments, so reading value and multiplier from
+  different sides would pair a value with a multiplier not computed from it.
+- **A `proposed`-read still shows baseline-derived values for a Retained feature** — the
+  _backend_ does the fallback, not the frontend. At import,
+  `copyRetainedProposedFromBaseline` (backend `utilities/baseline/`) copies the baseline
+  identity fields onto `proposed` whenever a Retained feature's proposed identity side is
+  entirely empty: `type`/`broadType`/`condition`/`strategicSignificance` for areas,
+  `type`/`condition` for hedgerows, plus both encroachments for watercourses. So a fixture
+  with blank Proposed GPKG columns still renders its baseline values on the retained pages.
+  This is why moving the retained area page to a `proposed`-only read (BMD-608) was not a
+  visible behaviour change — but it does mean the two layers must be considered together
+  when reasoning about a blank row.
+- Distinctiveness and Condition render as `"Value (score)"` via `withMultiplier`; a missing
+  score yields the bare value, a missing value yields an empty cell.
+- Strategic significance is the fixed string `"Low (1)"` on every page (MVS).
+- "Habitat units delivered" / "Units in this habitat" is `formatHabitatUnits(feature.units)`
+  — 2 decimal places, capped at 7 significant figures.
+
+The **Intervention** row shows the normalised retention category, defaulting to
+`"Retained"` when the feature carries none (`interventionDisplay`).
+
+### "View baseline details" link
+
+Resolved by matching the parcel `ref` across every baseline layer (habitats, trees,
+hedgerows, watercourses) — baseline and post-intervention are independent uploads with
+independent `featureId`s, so `ref` is the only stable join key. Hidden when no baseline
+feature shares the ref (e.g. no baseline uploaded). On a sections page the link renders
+**after the first section**, before the units row. **Created hedgerows suppress the link
+unconditionally** (`buildCreatedHedgerowViewOnlyViewModel` forces `baselineFeatureId: null`)
+— Created areas and Created watercourses do **not**, and still resolve it by ref.
+
+### Shared route contract
+
+Every GET step below shares this contract, so it is stated once rather than repeated:
+
+- **Route:** `GET /post-intervention-habitat-details?featureId={featureId}&projectId={projectId}`
+- **Auth required:** Yes (session + approved BNG Completer role)
+- **Backend endpoints:**
+  - `GET /projects/{projectId}/post-intervention/features/{featureId}` — returns
+    `{ type, feature }` with `type` in `habitat | tree | hedgerow | watercourse`; 404 if the
+    project or feature is not found (mapped to `Boom.notFound` by the frontend)
+  - `GET /projects/{projectId}` — supplies the project name for the caption **and** the
+    baseline feature lists used to resolve the "View baseline details" link. Failures are
+    swallowed: the caption falls back to `"Project"` and the link is hidden
+- **Validation:** `featureId` and `projectId` are both required UUIDs → **400** if missing
+  or malformed; BNG Completer role required → redirect to `/auth/forbidden`;
+  unauthenticated → redirect to sign-in; feature not found → **404**
+- **On error:** 400 for invalid/missing query params; 404 if the feature does not exist
 
 ## Steps
 
-### Step 1 — View area habitat details (read-only) `[IMPLEMENTED]`
+### Step 1 — View retained area habitat details (read-only) `[IMPLEMENTED]`
 
-- **Route:** `GET /post-intervention-habitat-details?featureId={featureId}&projectId={projectId}`
-- **Template:** `src/server/habitat-details/pi-habitat-details.njk` (extends `layouts/pi-view-only-page.njk`; BMD-608)
-- **Auth required:** Yes (session + BNG Completer role)
-- **Backend endpoints:**
-  - `GET /projects/{projectId}/post-intervention/features/{featureId}` — returns `{ type, feature }` with a type discriminator (`habitat`, `tree`, `hedgerow`, `watercourse`); 404 if not found
-  - `GET /projects/{projectId}` — fetches the project name for the caption **and** the baseline feature lists used to resolve the "View baseline details" link by ref; failures are swallowed (name falls back to `"Project"`, link is hidden)
-- **Description:** Read-only `govukSummaryList` rows: Reference, Intervention, Area (hectares), Broad habitat, Habitat type, Distinctiveness, Condition, Strategic Significance (fixed "Low (1)"), Units in this habitat. No dropdowns, no Save button, and no trading-rules row (dropped relative to the baseline details page). Value sourcing: descriptive values (broad habitat, habitat type, condition, encroachments) read from the feature's `baseline` sub-object falling back to `proposed` — for a retained feature the engine derives everything from the baseline side; derived scores/multipliers read from `proposed`, where the backend writes them. Distinctiveness and Condition render as "Value (score)" via `withMultiplier`. The Intervention row shows the normalised retention category, defaulting to "Retained" when absent. Below the list, a "View baseline details" link to `/baseline-habitat-details?featureId={baselineFeatureId}&projectId={projectId}` — the baseline feature is matched by parcel `ref` across all baseline layers (baseline and post-intervention uploads have independent featureIds); hidden when no baseline feature shares the ref (e.g. no baseline uploaded). Back link to `/projects/{projectId}/post-intervention-habitat-list#area-habitats`.
-- **Validation:**
-  - `featureId` required, valid UUID → 400 if missing or invalid
-  - `projectId` required, valid UUID → 400 if missing or invalid
-  - BNG Completer role required → redirects to `/auth/forbidden` if missing
-  - Unauthenticated → redirects to sign-in
-  - Feature not found → 404
-- **On success:** Renders the read-only area details page
-- **On error:** 400 for invalid/missing query params; 404 if feature does not exist
+- **Route:** shared GET contract (area feature; retention category not `Enhanced`/`Created`)
+- **Template:** `src/server/habitat-details/pi-habitat-details.njk` (extends `layouts/pi-view-only-sections-page.njk`; BMD-608, frontend PR#191)
+- **Backend endpoint:** shared GET contract
+- **Description:** Single-section stacked page. H1 is the parcel **ref** (`pageTitle` falls
+  back to "Post-intervention habitat details" when the feature has no ref); the project name
+  is the caption; the section heading is "Post-intervention habitat details". Rows, in
+  order: **Intervention**, **Size (hectares)**, **Broad habitat**, **Habitat type**,
+  **Distinctiveness**, **Condition**, **Strategic significance**. Then the "View baseline
+  details" link, then the bordered **"Habitat units delivered"** row. There is **no
+  Reference row** (the ref is the H1), **no "Units in this habitat" row** (replaced by the
+  units summary row) and no trading-rules row. Size uses `formatAreaHectaresValue`
+  (10 significant figures, **no `ha` suffix** — the label carries the unit). Broad habitat
+  and habitat type read `proposed.broadType` / `proposed.type`. Back link to
+  `/projects/{projectId}/post-intervention-habitat-list#area-habitats`.
+- **Validation:** shared GET contract
+- **On success:** Renders the read-only stacked area details page
+- **On error:** shared GET contract
 
-### Step 2 — View hedgerow details (read-only) `[IMPLEMENTED]`
+---
 
-- **Route:** `GET /post-intervention-habitat-details?featureId={featureId}&projectId={projectId}` (hedgerow feature)
+### Step 2 — View retained hedgerow details (read-only, summary list) `[IMPLEMENTED]`
+
+- **Route:** shared GET contract (hedgerow feature; retention category not `Enhanced`/`Created`)
 - **Template:** `src/server/habitat-details/pi-hedgerow-details.njk` (extends `layouts/pi-view-only-page.njk`; BMD-723)
-- **Auth required:** Yes (session + BNG Completer role)
-- **Backend endpoint:** Same as Step 1
-- **Description:** Same shared chrome and value sourcing as Step 1. Rows: Reference, Intervention, Length (km), Habitat type, Distinctiveness, Condition, Strategic Significance, Units in this habitat — no Broad habitat row (hedgerows have no broad-habitat dimension). Back link anchors to `#hedgerows`.
-- **Validation:** Same as Step 1
-- **On success:** Renders the read-only hedgerow details page
-- **On error:** Same as Step 1
+- **Backend endpoint:** shared GET contract
+- **Description:** **The only remaining `govukSummaryList` page.** H1 is the generic
+  "Post-intervention habitat details" (not the ref); the project name is the caption. Rows:
+  **Reference**, **Intervention**, **Length (km)**, **Habitat type**, **Distinctiveness**,
+  **Condition**, **Strategic Significance**, **Units in this habitat**. Below the list, the
+  "View baseline details" link. There is no "Habitat units delivered" summary row and no
+  Broad habitat row (hedgerows have no broad-habitat dimension). Length uses `formatLengthKm`
+  (7 significant figures, **no `km` suffix** — the label carries the unit). All values
+  including habitat type come from `proposed`. Back link anchors to `#hedgerows`.
+- **Validation:** shared GET contract
+- **On success:** Renders the read-only hedgerow summary-list page
+- **On error:** shared GET contract
 
-### Step 3 — View watercourse details (read-only) `[IMPLEMENTED]`
+---
 
-- **Route:** `GET /post-intervention-habitat-details?featureId={featureId}&projectId={projectId}` (watercourse feature)
-- **Template:** `src/server/habitat-details/pi-watercourse-details.njk` (extends `layouts/pi-view-only-page.njk`; BMD-724)
-- **Auth required:** Yes (session + BNG Completer role)
-- **Backend endpoint:** Same as Step 1
-- **Description:** Same shared chrome and value sourcing as Step 1. Rows: Reference, Intervention, Length (km), Habitat type, Distinctiveness, Condition, **Watercourse encroachment**, **Riparian encroachment**, Strategic Significance, Units in this habitat. Encroachment _values_ come from the baseline side (falling back to proposed) — the engine's multipliers on `proposed` are derived from the baseline encroachments — and render as "Value (multiplier)" via `withMultiplier` using `proposed.waterEncroachmentMultiplier` / `proposed.riparianEncroachmentMultiplier`. Back link anchors to `#watercourses`.
-- **Validation:** Same as Step 1
-- **On success:** Renders the read-only watercourse details page
-- **On error:** Same as Step 1
+### Step 3 — View retained watercourse details (read-only) `[IMPLEMENTED]`
 
-### Step 4 — Unsupported feature placeholder (individual trees) `[IMPLEMENTED]`
+- **Route:** shared GET contract (watercourse feature; retention category not `Enhanced`/`Created`)
+- **Template:** `src/server/habitat-details/pi-watercourse-details.njk` (extends `layouts/pi-view-only-sections-page.njk`; BMD-724, frontend PR#192)
+- **Backend endpoint:** shared GET contract
+- **Description:** Single-section stacked page, same chrome as Step 1. H1 is the parcel
+  **ref**. Rows: **Intervention**, **Size (kilometres)**, **Habitat type**,
+  **Distinctiveness**, **Condition**, **Watercourse encroachment**, **Riparian
+  encroachment**, **Strategic significance**. Then the "View baseline details" link, then
+  the bordered "Habitat units delivered" row. Size uses `formatLengthKm` (no `km` suffix).
+  **This is the one page that still sources descriptive values baseline-first** (see
+  _Value sourcing_): habitat type, condition and both encroachment values read
+  `baseline.* ?? proposed.* ?? ''`, paired with `proposed.conditionScore`,
+  `proposed.waterEncroachmentMultiplier` and `proposed.riparianEncroachmentMultiplier`.
+  Back link anchors to `#watercourses`.
+- **Validation:** shared GET contract
+- **On success:** Renders the read-only stacked watercourse details page
+- **On error:** shared GET contract
 
-- **Route:** `GET /post-intervention-habitat-details?featureId={featureId}&projectId={projectId}` (tree feature)
-- **Template:** `src/server/habitat-details/pi-feature-unsupported.njk`
-- **Auth required:** Yes (session + BNG Completer role)
-- **Backend endpoint:** Same as Step 1
-- **Description:** Individual trees (and IGGIs, if ever reachable) have no details page yet. Renders the "Post-intervention habitat details" heading with the message "Individual tree and IGGI features are not yet supported in this view." Back link to `/projects/{projectId}/post-intervention-habitat-list#area-habitats`.
-- **Validation:** Same as Step 1
-- **On success:** Renders the placeholder page
-- **On error:** Same as Step 1
+---
 
-### Step 5 — Non-retained features are read-only too `[IMPLEMENTED]`
+### Step 4 — View Created area habitat details (read-only, two-section) `[IMPLEMENTED]`
 
-- **Route:** `GET /post-intervention-habitat-details?featureId={featureId}&projectId={projectId}` (Created / Enhanced feature — see the Enhanced-area exception below)
-- **Template:** The same per-type read-only templates as Steps 1–3 (`pi-habitat-details.njk` / `pi-hedgerow-details.njk` / `pi-watercourse-details.njk`) — **except an Enhanced _area_ feature, which is routed to the dedicated two-section page in Step 6**
-- **Auth required:** Yes (session + BNG Completer role)
-- **Backend endpoint:** Same as Step 1
-- **Description:** Retention category no longer gates whether a page renders (BMD-608/723/724): a Created or Enhanced feature renders a read-only details page and its Intervention row shows its category. There is no editable dropdown form on this route. A **Created** area feature, and Enhanced (or any-category) **hedgerow/watercourse** features, still use the single-list per-type template above; only an **Enhanced area** feature diverges (Step 6). **Lost handling (backend BMD-531/534, PR #141, merged):** a Lost _area_ habitat is one whose baseline habitat was removed and replaced, so the backend maps it to Created — it still reaches this read-only page, with its Intervention row showing "Created". Lost hedgerows, watercourses and trees are truly gone: the backend excludes them at import, so they never reach this route or the habitat list. BMD-845 confirmed there are no per-intervention-type _editable_ variations to build — these read-only templates, with the correct Intervention value per category, are the final behaviour.
-- **Validation:** Same as Step 1
-- **On success:** Renders the read-only details page for the feature type
-- **On error:** Same as Step 1
+- **Route:** shared GET contract (area feature whose normalised `retentionCategory === "Created"`)
+- **Template:** `src/server/habitat-details/pi-habitat-details-created.njk` (extends `layouts/pi-view-only-sections-page.njk`; BMD-736, frontend PR#180)
+- **Backend endpoint:** shared GET contract
+- **Description:** Two-section stacked page, H1 = parcel ref, caption = project name.
+  - **Section 1 — "Post-intervention habitat details":** Intervention, **Area**, Broad
+    habitat, Habitat type, Distinctiveness, Condition, Strategic significance. Note the
+    label is `Area` (not "Area (hectares)") and the value carries its own **`ha` suffix**
+    via `formatAreaHectares` — the opposite convention to the retained area page in Step 1.
+  - **"View baseline details"** link renders here, after the first section.
+  - **Section 2 — "Time to target / difficulty":** Target condition, Standard time to
+    target condition, Standard difficulty, Advance or delay?, Final time to target
+    condition, Applied difficulty multiplier.
+  - Then the bordered **"Habitat units delivered"** row.
+  - **Standard time to target condition** renders the condition _transition_:
+    `"<baseline condition> to <proposed condition> - N years"` (frontend PR#193), with any
+    `"N. "` prefix stripped from both conditions; it renders **empty** if the baseline
+    condition, the target condition or the year count is missing.
+  - **Target condition and Condition render the identical string** — both are
+    `withMultiplier(stripConditionPrefix(proposed.condition), proposed.conditionScore)`.
+  - Every value on this page reads from `proposed`.
+  - Back link to `/projects/{projectId}/post-intervention-habitat-list#area-habitats`.
+- **Validation:** shared GET contract
+- **On success:** Renders the Created two-section read-only area details page
+- **On error:** shared GET contract
 
-### Step 6 — View Enhanced area habitat details (read-only, two-section) `[IMPLEMENTED]`
+---
 
-- **Route:** `GET /post-intervention-habitat-details?featureId={featureId}&projectId={projectId}` (area feature whose normalised `retentionCategory === "Enhanced"`)
-- **Template:** `src/server/habitat-details/pi-habitat-details-enhanced.njk` (extends `layouts/pi-view-only-sections-page.njk`; BMD-725)
-- **Auth required:** Yes (session + BNG Completer role)
-- **Backend endpoint:** Same as Step 1
-- **Description:** The controller's `resolveViewOnlyPage(type, retentionCategory)` routes an area feature (type `habitat`) with a normalised retention category of `Enhanced` to a dedicated two-section stacked-field layout (bold label over value on the next line, not a `govukSummaryList`). Page heading is the feature **ref** (`pageTitle` = ref, falling back to "Post-intervention habitat details"); project name is the caption.
-  - **Section 1 — "Post-intervention habitat details":** Intervention, Area (hectares), Broad habitat, Habitat type, Distinctiveness ("value (score)" via `withMultiplier`), Condition ("value (score)"), Strategic significance (fixed "Low (1)"). The "View baseline details" link renders **after this first section** — to `/baseline-habitat-details?featureId={baselineFeatureId}&projectId={projectId}`, resolved by matching the parcel `ref` across baseline layers; hidden when no baseline feature shares the ref.
-  - **Section 2 — "Time to target / difficulty":** Target condition ("value (score)"), Standard time to target condition (formatted "Baseline condition to target condition - N years"), Standard difficulty, Advance or delay?, Final time to target condition, Applied difficulty multiplier.
-  - **Then** a bordered "Habitat units delivered" summary row (label left, value right).
-  - **Value sourcing differs from the retained area page (Step 1):** every descriptive and derived value reads from `proposed` (where the backend writes the Enhanced derivations), not baseline-first. Back link to `/projects/{projectId}/post-intervention-habitat-list#area-habitats`.
-- **Validation:** Same as Step 1 (`featureId`/`projectId` required UUIDs → 400; BNG Completer role → `/auth/forbidden`; unauthenticated → sign-in; feature not found → 404)
+### Step 5 — View Enhanced area habitat details (read-only, two-section) `[IMPLEMENTED]`
+
+- **Route:** shared GET contract (area feature whose normalised `retentionCategory === "Enhanced"`)
+- **Template:** `src/server/habitat-details/pi-habitat-details-enhanced.njk` (extends `layouts/pi-view-only-sections-page.njk`; BMD-725, frontend PR#170)
+- **Backend endpoint:** shared GET contract
+- **Description:** **Identical in every respect to Step 4** — the two templates set the same
+  `sections` structure and both view models delegate to
+  `buildAreaSectionsViewOnlyFields`. They differ only in the Intervention row value
+  ("Enhanced" vs "Created") and in the template file selected. Same row labels (including
+  `Area` with the `ha` suffix), same time/difficulty section, same baseline-link placement,
+  same `proposed`-only sourcing.
+- **Validation:** shared GET contract
 - **On success:** Renders the Enhanced two-section read-only area details page
-- **On error:** 400 for invalid/missing query params; 404 if feature does not exist
+- **On error:** shared GET contract
 
-### Step 7 — Save is not implemented (read-only route) `[IMPLEMENTED]`
+---
+
+### Step 6 — View Enhanced hedgerow details (read-only, two-section) `[IMPLEMENTED]`
+
+- **Route:** shared GET contract (hedgerow feature whose normalised `retentionCategory === "Enhanced"`)
+- **Template:** `src/server/habitat-details/pi-hedgerow-details-enhanced.njk` (extends `layouts/pi-view-only-sections-page.njk`; frontend PR#179)
+- **Backend endpoint:** shared GET contract
+- **Description:** Two-section stacked page, H1 = feature ref.
+  - **Section 1 — "Post-intervention habitat details":** Intervention, **Length**, Habitat
+    type, Distinctiveness, Condition, Strategic significance. No Broad habitat row. Length
+    uses `formatLengthDisplay` — the value carries its own **`km` suffix**, unlike the
+    retained hedgerow page in Step 2.
+  - **"View baseline details"** link after the first section, resolved by ref.
+  - **Section 2 — "Time to target / difficulty":** the same six rows as Step 4.
+  - Then the bordered "Habitat units delivered" row. All values read from `proposed`.
+  - Back link anchors to `#hedgerows`.
+- **Validation:** shared GET contract
+- **On success:** Renders the Enhanced two-section read-only hedgerow details page
+- **On error:** shared GET contract
+
+---
+
+### Step 7 — View Created hedgerow details (read-only, two-section) `[IMPLEMENTED]`
+
+- **Route:** shared GET contract (hedgerow feature whose normalised `retentionCategory === "Created"`)
+- **Template:** `src/server/habitat-details/pi-hedgerow-details-enhanced.njk` — **the same template as Step 6**, rendered with `buildCreatedHedgerowViewOnlyViewModel` (frontend PR#186)
+- **Backend endpoint:** shared GET contract
+- **Description:** Same rows, same two sections and same formatting as Step 6. **The one
+  behavioural difference: the "View baseline details" link is never shown.** The Created
+  view model calls the Enhanced builder with `baselineFeatureId: null`, because a created
+  hedgerow has no baseline counterpart — so the link stays hidden even if an unrelated
+  baseline feature happens to share the same ref. The Intervention row shows "Created".
+- **Validation:** shared GET contract
+- **On success:** Renders the Created two-section read-only hedgerow details page, with no baseline link
+- **On error:** shared GET contract
+
+---
+
+### Step 8 — View Created watercourse details (read-only, two-section) `[IMPLEMENTED]`
+
+- **Route:** shared GET contract (watercourse feature whose normalised `retentionCategory === "Created"`)
+- **Template:** `src/server/habitat-details/pi-watercourse-details-created.njk` (extends `layouts/pi-view-only-sections-page.njk`; BMD-739, frontend PR#187)
+- **Backend endpoint:** shared GET contract
+- **Description:** Two-section stacked page, H1 = feature ref.
+  - **Section 1 — "Post-intervention habitat details":** Intervention, **Length**, Habitat
+    type, Distinctiveness, Condition, **Strategic significance**, **Watercourse
+    encroachment**, **Riparian encroachment**. Note the order differs from the retained
+    watercourse page in Step 3 — here Strategic significance sits **above** the two
+    encroachment rows. Length carries its own `km` suffix (`formatLengthDisplay`).
+  - **"View baseline details"** link after the first section, resolved by ref (**not**
+    suppressed, unlike the Created hedgerow in Step 7).
+  - **Section 2 — "Time to target / difficulty":** the same six rows as Step 4.
+  - Then the bordered "Habitat units delivered" row.
+  - **Encroachment values read from `proposed`**, not baseline-first — for a created or
+    enhanced watercourse the engine takes its encroachment inputs from the proposed side.
+    This is the opposite of the retained watercourse page (Step 3).
+  - Back link anchors to `#watercourses`.
+- **Validation:** shared GET contract
+- **On success:** Renders the Created two-section read-only watercourse details page
+- **On error:** shared GET contract
+
+---
+
+### Step 9 — View Enhanced watercourse details (read-only, two-section) `[IMPLEMENTED]`
+
+- **Route:** shared GET contract (watercourse feature whose normalised `retentionCategory === "Enhanced"`)
+- **Template:** `src/server/habitat-details/pi-watercourse-details-enhanced.njk` (extends `layouts/pi-view-only-sections-page.njk`; BMD-735, frontend PR#188)
+- **Backend endpoint:** shared GET contract
+- **Description:** **Identical in every respect to Step 8** — the two templates set the same
+  `sections` structure and both view models delegate to
+  `buildWatercourseSectionsViewOnlyFields`. They differ only in the Intervention row value
+  ("Enhanced" vs "Created") and in the template file selected.
+- **Validation:** shared GET contract
+- **On success:** Renders the Enhanced two-section read-only watercourse details page
+- **On error:** shared GET contract
+
+---
+
+### Step 10 — Unsupported feature placeholder (individual trees) `[IMPLEMENTED]`
+
+- **Route:** shared GET contract (tree feature, or any type with no view-only page)
+- **Template:** `src/server/habitat-details/pi-feature-unsupported.njk` (extends `layouts/page.njk` directly — neither view-only layout)
+- **Backend endpoint:** shared GET contract
+- **Description:** Individual trees (and IGGIs, if ever reachable) have no details page yet.
+  Renders the "Post-intervention habitat details" heading with the project name as caption
+  and the message "Individual tree and IGGI features are not yet supported in this view."
+  No rows, no baseline link, no units row. Back link to
+  `/projects/{projectId}/post-intervention-habitat-list#area-habitats`.
+- **Validation:** shared GET contract
+- **On success:** Renders the placeholder page
+- **On error:** shared GET contract
+
+---
+
+### Step 11 — Save is not implemented (read-only route) `[IMPLEMENTED]`
 
 - **Route:** `POST /post-intervention-habitat-details`
 - **Template:** None
-- **Auth required:** Yes (session + BNG Completer role)
-- **Backend endpoint:** None — no page posts to this route.
-- **Description:** Every post-intervention details page is read-only (BMD-608/723/724), so nothing renders a form that submits here. The route stays registered and its handler returns **501 Not Implemented** (`Boom.notImplemented`) so a stale page or client gets an explicit "not implemented" response rather than a 404. The previous editable-form save (which called `PUT /projects/{projectId}/post-intervention/habitats/{featureId}`) has been removed from this route.
-- **Validation:** The GET route still validates `featureId` / `projectId` as required UUIDs; the POST handler takes no payload.
-- **On success:** N/A — the handler always returns 501.
+- **Auth required:** Yes (session + approved BNG Completer role — the route keeps the same
+  `auth: 'session'` + `requireBngCompleterRole` guards as the GET)
+- **Backend endpoint:** None — no page renders a form that posts here.
+- **Description:** Every post-intervention details page is read-only, so nothing submits to
+  this route. It stays registered and its handler throws `Boom.notImplemented` so a stale
+  page or client gets an explicit **501** rather than a 404. The previous editable-form save
+  (which called `PUT /projects/{projectId}/post-intervention/habitats/{featureId}`) has been
+  removed from this route; the backend endpoint still exists but is no longer called from
+  here. BMD-845 (which added the habitat-list "Intervention type" column) confirmed there
+  are no per-intervention-type _editable_ variations to build.
+- **Validation:** None — the handler declares no payload schema and reads no input.
+- **On success:** N/A — the handler always throws.
 - **On error:** 501 Not Implemented.
+
+---
+
+## Notes on retention categories
+
+- The backend persists only `Retained`, `Created` and `Enhanced` on the feature root
+  (`feature.retentionCategory`). A **Lost area habitat** is a baseline habitat that was
+  removed and replaced, so the backend maps it to **Created** at import — it reaches Step 4
+  with its Intervention row showing "Created". **Lost hedgerows, watercourses and trees are
+  excluded at import** and never reach this route or the habitat list.
+- Both the frontend (`normaliseRetentionCategory` in
+  `post-intervention-habitat-details/retention.js`) and the backend
+  (`utilities/baseline/retention-category.js`) strip a `"N. "` list prefix. The project
+  document keeps whatever the upload carried, so the frontend must normalise before
+  comparing or displaying.
