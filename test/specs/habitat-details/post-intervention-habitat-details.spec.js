@@ -65,6 +65,18 @@ const CREATED_HEDGEROW_REF = 'HR3'
 const ENHANCED_WATERCOURSE_REF = 'WC2'
 const CREATED_WATERCOURSE_REF = 'WC3'
 
+// H2-2's size in COMPLETE_PI_FILE, as formatAreaHectaresValue renders it: the
+// fixture's m² value at 10 significant figures. Asserting the exact string
+// pins BMD-608 AC1's precision rule — a bare-number pattern would pass at any
+// precision.
+const RETAINED_NO_BASELINE_SIZE = '0.1619213922'
+// Habitat units render to 2 decimal places (BMD-608 AC1). Asserted separately
+// from the habitat-list cell comparison, which shares formatHabitatUnits and
+// so cannot catch a change to the formatter itself. toHaveText normalises
+// whitespace only for string matching, not regex, so the surrounding template
+// whitespace has to be matched explicitly.
+const UNITS_TWO_DP_PATTERN = /^\s*\d+\.\d{2}\s*$/
+
 // Post-intervention habitat-list table column order (BMD-845 added the
 // "Intervention type" column at index 1): ref, intervention type, type, size,
 // distinctiveness, condition, units, status.
@@ -476,7 +488,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           // formatAreaHectares.
           await expect(
             postInterventionHabitatDetailsPage.stackedSizeValue
-          ).toHaveText(/^\s*\d+(\.\d+)?\s*$/)
+          ).toHaveText(RETAINED_NO_BASELINE_SIZE)
           await expect(
             page.getByText('Retained', { exact: true })
           ).toBeVisible()
@@ -493,8 +505,11 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await expect(
             postInterventionHabitatDetailsPage.strategicSignificanceValue
           ).toBeVisible()
-          // "Units in this habitat" matches the Units cell of the same
-          // parcel's habitat-list row.
+          // "Habitat units delivered" renders to 2 decimal places and matches
+          // the Units cell of the same parcel's habitat-list row.
+          await expect(
+            postInterventionHabitatDetailsPage.habitatUnitsValue
+          ).toHaveText(UNITS_TWO_DP_PATTERN)
           await expect(
             postInterventionHabitatDetailsPage.habitatUnitsValue
           ).toHaveText(shared.retainedNoBaselineUnits)
