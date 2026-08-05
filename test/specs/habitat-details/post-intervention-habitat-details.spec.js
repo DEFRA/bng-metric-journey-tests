@@ -58,9 +58,23 @@ const WATERCOURSE_BASELINE_FILE =
   'Baseline - complete with watercourse refs.gpkg'
 const MIXED_FILE = 'Post-intervention - mixed complete and incomplete.gpkg'
 const TREES_FILE = 'Post-intervention - urban trees all sizes.gpkg'
+// The mixed hedgerow fixture's only Enhanced hedge, HR2, is Good→Good (no
+// condition uplift), so its time-to-target section renders blank — fine for the
+// label-only structural assertions but useless for pinning the dynamic
+// condition-transition text (frontend PR#193). The "all unit and intervention
+// types" fixture is the only shipped file with an Enhanced hedge that actually
+// improves: HG018 goes Poor→Moderate, so its "Standard time to target
+// condition" reads "Poor to Moderate - 20 years". Its baseline file has HG018
+// too, so the "View baseline details" link still resolves.
+const ALL_TYPES_PI_FILE =
+  'Post-intervention - all unit and intervention types.gpkg'
+const ALL_TYPES_BASELINE_FILE =
+  'Baseline - all unit and intervention types.gpkg'
 const RETAINED_HEDGEROW_REF = 'HR1'
 const RETAINED_WATERCOURSE_REF = 'WC1'
 const ENHANCED_HEDGEROW_REF = 'HR2'
+const ENHANCED_UPLIFT_HEDGEROW_REF = 'HG018'
+const ENHANCED_UPLIFT_HEDGEROW_TIME = 'Poor to Moderate - 20 years'
 const CREATED_HEDGEROW_REF = 'HR3'
 const ENHANCED_WATERCOURSE_REF = 'WC2'
 const CREATED_WATERCOURSE_REF = 'WC3'
@@ -243,6 +257,33 @@ function getHedgerowsProject(browser) {
         ),
         enhancedHedgerowUnits: await rowUnitsText(
           listPage.hedgerowRowByRef(ENHANCED_HEDGEROW_REF)
+        )
+      }
+    }
+  )
+}
+
+// Baseline + PI "all unit and intervention types" uploads in one project: the
+// only shipped fixture with an Enhanced hedge that improves condition (HG018,
+// Poor→Moderate), so it can pin the dynamic condition-transition time text
+// (frontend PR#193) on a hedgerow. HG018 is ref-matched to a baseline hedgerow,
+// so the "View baseline details" link resolves.
+function getAllTypesProject(browser) {
+  return getSharedProject(
+    browser,
+    'all-types',
+    { baselineFile: ALL_TYPES_BASELINE_FILE, piFile: ALL_TYPES_PI_FILE },
+    async (page) => {
+      const listPage = new PostInterventionHabitatListPage(page)
+      await listPage.hedgerowsTab.click()
+      return {
+        enhancedUpliftHedgerow: await featureIdByRef(
+          page,
+          'hedgerows',
+          ENHANCED_UPLIFT_HEDGEROW_REF
+        ),
+        enhancedUpliftHedgerowUnits: await rowUnitsText(
+          listPage.hedgerowRowByRef(ENHANCED_UPLIFT_HEDGEROW_REF)
         )
       }
     }
@@ -1077,6 +1118,39 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(detailsPage.viewBaselineLink).toBeVisible()
         await expect(detailsPage.habitatTypeSelect).toBeHidden()
         await expect(detailsPage.conditionSelect).toBeHidden()
+      }
+    )
+
+    test(
+      'Enhanced hedgerow shows its section-2 values and the dynamic condition-transition time (PR#193)',
+      { tag: '@regression' },
+      async ({ browser, postInterventionHabitatDetailsPage }) => {
+        // HR2 (the mixed fixture's Enhanced hedge) is Good→Good, so its
+        // time-to-target renders blank — the dynamic transition can only be
+        // pinned on a hedge that actually improves. HG018 goes Poor→Moderate.
+        const shared = await getAllTypesProject(browser)
+        await postInterventionHabitatDetailsPage.open(
+          shared.id,
+          shared.enhancedUpliftHedgerow
+        )
+
+        // The standard time-to-target value proves the section-2 values render
+        // *and* pins the dynamic condition transition frontend PR#193 introduced:
+        // "<baseline condition> to <target condition> - N years". A shape-only
+        // assertion would also pass on the old static "Baseline condition to
+        // target condition - N years" wording this ticket was re-worked away
+        // from, so assert the exact transition and exclude that stale text.
+        await expect(
+          postInterventionHabitatDetailsPage.standardTimeToTargetValue
+        ).toHaveText(ENHANCED_UPLIFT_HEDGEROW_TIME)
+        await expect(
+          postInterventionHabitatDetailsPage.standardTimeToTargetValue
+        ).not.toContainText('Baseline condition to target condition')
+        // "Habitat units delivered" matches the Units cell of the same
+        // hedgerow's habitat-list row.
+        await expect(
+          postInterventionHabitatDetailsPage.habitatUnitsValue
+        ).toHaveText(shared.enhancedUpliftHedgerowUnits)
       }
     )
 
