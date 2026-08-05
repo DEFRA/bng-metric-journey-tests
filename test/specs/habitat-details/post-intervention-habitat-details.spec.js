@@ -665,10 +665,18 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           )
 
           // The standard time-to-target value proves the section-2 values
-          // render ("Baseline condition to target condition - N years").
+          // render *and* pins the dynamic condition transition frontend PR#193
+          // introduced: "<baseline condition> to <target condition> - N years"
+          // (H3 improves Poor → Good over 10 years). A shape-only assertion
+          // would also pass on the old static "Baseline condition to target
+          // condition - N years" wording this ticket was re-worked away from, so
+          // assert the exact transition and explicitly exclude that stale text.
           await expect(
             postInterventionHabitatDetailsPage.standardTimeToTargetValue
-          ).toBeVisible()
+          ).toHaveText('Poor to Good - 10 years')
+          await expect(
+            postInterventionHabitatDetailsPage.standardTimeToTargetValue
+          ).not.toContainText('Baseline condition to target condition')
           // "Habitat units delivered" matches the Units cell of the same
           // parcel's habitat-list row.
           await expect(
