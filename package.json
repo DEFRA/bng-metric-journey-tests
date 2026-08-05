@@ -20,8 +20,9 @@
     "lint": "eslint .",
     "check:happy-path-tags": "node test/utils/check-happy-path-tags.js",
     "lint:fix": "eslint . --fix",
-    "postinstall": "npm run setup:husky",
-    "setup:husky": "node -e \"try { (await import('husky')).default() } catch (e) { if (e.code !== 'ERR_MODULE_NOT_FOUND') throw e }\" --input-type module"
+    "postinstall": "node scripts/postinstall.mjs",
+    "setup:husky": "node -e \"try { (await import('husky')).default() } catch (e) { if (e.code !== 'ERR_MODULE_NOT_FOUND') throw e }\" --input-type module",
+    "install:gitleaks": "node scripts/install-gitleaks.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",

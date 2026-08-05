@@ -23,5 +23,13 @@ export default [
     rules: {
       'no-console': 'error'
     }
+  },
+  {
+    // CLI tooling scripts (husky hooks, gitleaks install) report progress to
+    // the developer's terminal — console is the correct output channel here.
+    files: ['scripts/**/*.mjs'],
+    rules: {
+      'no-console': 'off'
+    }
   }
 ]
