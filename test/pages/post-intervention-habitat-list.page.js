@@ -1,6 +1,13 @@
+import { expect } from '@playwright/test'
+
 import { BasePage } from './base.page.js'
 
 export class PostInterventionHabitatListPage extends BasePage {
+  // Tab name → its tab control and the table inside its panel. The locator
+  // names are not uniform (areasTab pairs with areaHabitatsTable), so the
+  // pairing is spelled out rather than derived from the tab name.
+  #panels
+
   constructor(page) {
     super(page)
     this.caption = page.getByTestId('app-heading-caption')
@@ -53,6 +60,28 @@ export class PostInterventionHabitatListPage extends BasePage {
     this.watercourseTableTotalUnitsCell = this.#totalUnitsCell(
       this.watercoursesTable
     )
+
+    this.#panels = {
+      areas: { tab: this.areasTab, table: this.areaHabitatsTable },
+      hedgerows: { tab: this.hedgerowsTab, table: this.hedgerowsTable },
+      watercourses: {
+        tab: this.watercoursesTab,
+        table: this.watercoursesTable
+      }
+    }
+  }
+
+  /**
+   * Assert a tab is the selected one and its panel is showing. "Preselected"
+   * after an anchored navigation is GOV.UK Tabs client-side behaviour, so the
+   * URL anchor alone does not prove it — aria-selected does.
+   *
+   * @param {'areas'|'hedgerows'|'watercourses'} tabName
+   */
+  async assertTabPreselected(tabName) {
+    const { tab, table } = this.#panels[tabName]
+    await expect(tab).toHaveAttribute('aria-selected', 'true')
+    await expect(table).toBeVisible()
   }
 
   // Total-row Units cell for a tab table. The footer carries the same
