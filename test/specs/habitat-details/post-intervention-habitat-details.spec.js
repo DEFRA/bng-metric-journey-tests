@@ -69,7 +69,7 @@ const CREATED_WATERCOURSE_REF = 'WC3'
 // fixture's m² value at 10 significant figures. Asserting the exact string
 // pins BMD-608 AC1's precision rule — a bare-number pattern would pass at any
 // precision.
-const RETAINED_NO_BASELINE_SIZE = '0.1619213922'
+const RETAINED_NO_BASELINE_SIZE_HECTARES = '0.1619213922'
 // Habitat units render to 2 decimal places (BMD-608 AC1). Asserted separately
 // from the habitat-list cell comparison, which shares formatHabitatUnits and
 // so cannot catch a change to the formatter itself. toHaveText normalises
@@ -488,7 +488,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           // formatAreaHectares.
           await expect(
             postInterventionHabitatDetailsPage.stackedSizeValue
-          ).toHaveText(RETAINED_NO_BASELINE_SIZE)
+          ).toHaveText(RETAINED_NO_BASELINE_SIZE_HECTARES)
           await expect(
             page.getByText('Retained', { exact: true })
           ).toBeVisible()
@@ -507,12 +507,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           ).toBeVisible()
           // "Habitat units delivered" renders to 2 decimal places and matches
           // the Units cell of the same parcel's habitat-list row.
-          await expect(
+          const unitsValue =
             postInterventionHabitatDetailsPage.habitatUnitsValue
-          ).toHaveText(UNITS_TWO_DP_PATTERN)
-          await expect(
-            postInterventionHabitatDetailsPage.habitatUnitsValue
-          ).toHaveText(shared.retainedNoBaselineUnits)
+          await expect(unitsValue).toHaveText(UNITS_TWO_DP_PATTERN)
+          await expect(unitsValue).toHaveText(shared.retainedNoBaselineUnits)
         }
       )
 
