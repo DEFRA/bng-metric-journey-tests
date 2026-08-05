@@ -78,6 +78,15 @@ const ENHANCED_UPLIFT_HEDGEROW_TIME = 'Poor to Moderate - 20 years'
 const CREATED_HEDGEROW_REF = 'HR3'
 const ENHANCED_WATERCOURSE_REF = 'WC2'
 const CREATED_WATERCOURSE_REF = 'WC3'
+// The same fixture pair carries the only Enhanced watercourse that can reach
+// the whole of BMD-735's AC1 — see the Enhanced watercourse describe below.
+// R007 improves Fairly Poor → Fairly Good over 4 years.
+const ENHANCED_UPLIFT_WATERCOURSE_REF = 'R007'
+const ENHANCED_UPLIFT_WATERCOURSE_TIME = 'Fairly Poor to Fairly Good - 4 years'
+// Created/Enhanced pages put the unit on the value (formatLengthDisplay), so
+// the length reads "0.1774495km" under a bare "Length" label — the retained
+// watercourse page does the opposite (bare value, "Size (kilometres)" label).
+const LENGTH_KM_PATTERN = /^\s*[\d.]+km\s*$/
 
 // H2-2's size in COMPLETE_PI_FILE, as formatAreaHectaresValue renders it: the
 // fixture's m² value at 10 significant figures. Asserting the exact string
@@ -267,7 +276,10 @@ function getHedgerowsProject(browser) {
 // only shipped fixture with an Enhanced hedge that improves condition (HG018,
 // Poor→Moderate), so it can pin the dynamic condition-transition time text
 // (frontend PR#193) on a hedgerow. HG018 is ref-matched to a baseline hedgerow,
-// so the "View baseline details" link resolves.
+// so the "View baseline details" link resolves. The same pair is the only one
+// whose Enhanced *watercourse* (R007) both improves condition and ref-matches
+// a baseline river, so it carries the BMD-735 tests too — one project, two
+// feature types, no extra upload.
 function getAllTypesProject(browser) {
   return getSharedProject(
     browser,
@@ -276,7 +288,7 @@ function getAllTypesProject(browser) {
     async (page) => {
       const listPage = new PostInterventionHabitatListPage(page)
       await listPage.hedgerowsTab.click()
-      return {
+      const hedgerow = {
         enhancedUpliftHedgerow: await featureIdByRef(
           page,
           'hedgerows',
@@ -284,6 +296,20 @@ function getAllTypesProject(browser) {
         ),
         enhancedUpliftHedgerowUnits: await rowUnitsText(
           listPage.hedgerowRowByRef(ENHANCED_UPLIFT_HEDGEROW_REF)
+        )
+      }
+      // Each tab panel is hidden until its tab is active, and hidden links
+      // expose no ARIA role — so switch tabs before harvesting the river.
+      await listPage.watercoursesTab.click()
+      return {
+        ...hedgerow,
+        enhancedUpliftWatercourse: await featureIdByRef(
+          page,
+          'watercourses',
+          ENHANCED_UPLIFT_WATERCOURSE_REF
+        ),
+        enhancedUpliftWatercourseUnits: await rowUnitsText(
+          listPage.watercourseRowByRef(ENHANCED_UPLIFT_WATERCOURSE_REF)
         )
       }
     }
@@ -574,14 +600,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await expect(page).toHaveURL(
             listAnchorPattern(shared.id, 'area-habitats')
           )
-          // "Preselected" is GOV.UK tabs client-side behaviour driven by the
-          // anchor — assert the Areas tab really is selected, not just the URL.
-          await expect(
-            postInterventionHabitatListPage.areasTab
-          ).toHaveAttribute('aria-selected', 'true')
-          await expect(
-            postInterventionHabitatListPage.areaHabitatsTable
-          ).toBeVisible()
+          await postInterventionHabitatListPage.assertTabPreselected('areas')
         }
       )
 
@@ -799,12 +818,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await expect(page).toHaveURL(
             listAnchorPattern(shared.id, 'area-habitats')
           )
-          await expect(
-            postInterventionHabitatListPage.areasTab
-          ).toHaveAttribute('aria-selected', 'true')
-          await expect(
-            postInterventionHabitatListPage.areaHabitatsTable
-          ).toBeVisible()
+          await postInterventionHabitatListPage.assertTabPreselected('areas')
         }
       )
     })
@@ -983,15 +997,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
         await detailsPage.backLink.click()
         await expect(page).toHaveURL(listAnchorPattern(shared.id, 'hedgerows'))
-        // "Preselected" is GOV.UK tabs client-side behaviour driven by the
-        // anchor — assert the Hedgerows tab really is selected, not just the
-        // URL.
-        await expect(
-          postInterventionHabitatListPage.hedgerowsTab
-        ).toHaveAttribute('aria-selected', 'true')
-        await expect(
-          postInterventionHabitatListPage.hedgerowsTable
-        ).toBeVisible()
+        await postInterventionHabitatListPage.assertTabPreselected('hedgerows')
       }
     )
 
@@ -1171,14 +1177,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await postInterventionHabitatDetailsPage.backLink.click()
 
         await expect(page).toHaveURL(listAnchorPattern(shared.id, 'hedgerows'))
-        // "Preselected" is GOV.UK tabs client-side behaviour driven by the
-        // anchor — assert the Hedgerows tab really is selected, not just the URL.
-        await expect(
-          postInterventionHabitatListPage.hedgerowsTab
-        ).toHaveAttribute('aria-selected', 'true')
-        await expect(
-          postInterventionHabitatListPage.hedgerowsTable
-        ).toBeVisible()
+        await postInterventionHabitatListPage.assertTabPreselected('hedgerows')
       }
     )
 
@@ -1316,15 +1315,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(page).toHaveURL(
           listAnchorPattern(shared.id, 'watercourses')
         )
-        // "Preselected" is GOV.UK tabs client-side behaviour driven by the
-        // anchor — assert the Watercourses tab really is selected, not just
-        // the URL.
-        await expect(
-          postInterventionHabitatListPage.watercoursesTab
-        ).toHaveAttribute('aria-selected', 'true')
-        await expect(
-          postInterventionHabitatListPage.watercoursesTable
-        ).toBeVisible()
+        await postInterventionHabitatListPage.assertTabPreselected(
+          'watercourses'
+        )
       }
     )
 
@@ -1408,6 +1401,137 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     )
   })
 
+  // ─── Enhanced watercourse — values, navigation and baseline link (BMD-735) ──
+  // The Enhanced watercourse page's *structure* is asserted in the parametrised
+  // "non-retained watercourse habitats are read-only" block below, which reads
+  // the mixed-retention fixture. That fixture cannot reach the rest of BMD-735's
+  // ACs: its Enhanced watercourse (WC2) is Moderate→Moderate, so the
+  // time-to-target section renders blank, and its baseline file carries only
+  // WC1 — so WC2 has no ref-matching baseline feature and the "View baseline
+  // details" link is correctly hidden, putting AC1's link and all of AC3 out of
+  // reach. R007 in the "all unit and intervention types" pair is Enhanced,
+  // improves Fairly Poor → Fairly Good, and exists in the baseline upload.
+
+  test.describe('Post-intervention habitat details — Enhanced watercourse display', () => {
+    test.use({ storageState: STORAGE_STATE })
+    test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+    test(
+      'Enhanced watercourse shows its km length, proposed-side encroachments and section-2 values',
+      { tag: '@regression' },
+      async ({ browser, postInterventionHabitatDetailsPage, page }) => {
+        const shared = await getAllTypesProject(browser)
+        await postInterventionHabitatDetailsPage.open(
+          shared.id,
+          shared.enhancedUpliftWatercourse
+        )
+
+        const detailsPage = postInterventionHabitatDetailsPage
+        // BMD-735's headline deviation from the area-habitat design: the size
+        // row is "Length" and the value carries the km unit — asserting the
+        // label alone would pass on an "expressed in hectares" regression.
+        await expect(detailsPage.enhancedLengthKey).toBeVisible()
+        await expect(detailsPage.stackedSizeValue).toHaveText(LENGTH_KM_PATTERN)
+
+        // Encroachments are read from `proposed` on a Created/Enhanced
+        // watercourse — the opposite of the retained page's baseline-first
+        // read. R007 differs on both sides (watercourse Major → No
+        // Encroachment; riparian No Encroachment/No Encroachment → Minor/No
+        // Encroachment), so asserting the proposed values *and* the absence of
+        // the baseline ones is what distinguishes the two sourcing rules.
+        // getByText regexes match raw, un-normalised text, so allow
+        // surrounding whitespace; the anchors keep the rows distinct, since
+        // one encroachment value is a substring of the other.
+        await expect(
+          page.getByText(/^\s*No Encroachment( \(.+\))?\s*$/)
+        ).toBeVisible()
+        await expect(
+          page.getByText(/^\s*Minor\/No Encroachment( \(.+\))?\s*$/)
+        ).toBeVisible()
+        await expect(page.getByText(/^\s*Major( \(.+\))?\s*$/)).toHaveCount(0)
+        await expect(
+          page.getByText(/^\s*No Encroachment\/No Encroachment( \(.+\))?\s*$/)
+        ).toHaveCount(0)
+
+        // The standard time-to-target value proves the section-2 values render
+        // *and* pins the dynamic condition transition frontend PR#193
+        // introduced: "<baseline condition> to <target condition> - N years".
+        // A shape-only assertion would also pass on the old static "Baseline
+        // condition to target condition" wording, so assert the exact
+        // transition and exclude that stale text.
+        await expect(detailsPage.standardTimeToTargetValue).toHaveText(
+          ENHANCED_UPLIFT_WATERCOURSE_TIME
+        )
+        await expect(detailsPage.standardTimeToTargetValue).not.toContainText(
+          'Baseline condition to target condition'
+        )
+        // "Habitat units delivered" matches the Units cell of the same
+        // watercourse's habitat-list row.
+        await expect(detailsPage.habitatUnitsValue).toHaveText(
+          shared.enhancedUpliftWatercourseUnits
+        )
+      }
+    )
+
+    test(
+      'back link returns to the post-intervention habitat list Watercourses tab',
+      { tag: '@regression' },
+      async ({
+        browser,
+        postInterventionHabitatDetailsPage,
+        postInterventionHabitatListPage,
+        page
+      }) => {
+        const shared = await getAllTypesProject(browser)
+        await postInterventionHabitatDetailsPage.open(
+          shared.id,
+          shared.enhancedUpliftWatercourse
+        )
+        await postInterventionHabitatDetailsPage.backLink.click()
+
+        await expect(page).toHaveURL(
+          listAnchorPattern(shared.id, 'watercourses')
+        )
+        await postInterventionHabitatListPage.assertTabPreselected(
+          'watercourses'
+        )
+      }
+    )
+
+    test(
+      '"View baseline details" links to the ref-matched baseline watercourse',
+      { tag: '@regression' },
+      async ({ browser, postInterventionHabitatDetailsPage, page }) => {
+        const shared = await getAllTypesProject(browser)
+        await postInterventionHabitatDetailsPage.open(
+          shared.id,
+          shared.enhancedUpliftWatercourse
+        )
+
+        // The click-through is exercised on the two-section Enhanced
+        // watercourse template specifically — the retained watercourse page
+        // proves the same mechanism, but the Enhanced page renders the link
+        // via a distinct template that positions it after section 1.
+        await expect(
+          postInterventionHabitatDetailsPage.viewBaselineLink
+        ).toBeVisible()
+        await postInterventionHabitatDetailsPage.viewBaselineLink.click()
+        await expect(page).toHaveURL(/\/baseline-habitat-details/)
+
+        // The baseline and PI uploads assign independent featureIds, so the
+        // link must resolve the baseline feature by parcel ref — a different
+        // featureId from the PI feature the user came from.
+        const baselineFeatureId = new URL(page.url()).searchParams.get(
+          'featureId'
+        )
+        expect(baselineFeatureId).not.toBe(shared.enhancedUpliftWatercourse)
+        await expect(postInterventionHabitatDetailsPage.heading).toHaveText(
+          `Watercourse ${ENHANCED_UPLIFT_WATERCOURSE_REF}`
+        )
+      }
+    )
+  })
+
   // ─── Created / Enhanced watercourses (BMD-739, BMD-735) ─────────────────────
   // Both render their own two-section template (pi-watercourse-details-created
   // / -enhanced, frontend PR#187/#188) rather than the retained watercourse's
@@ -1446,6 +1570,11 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
           const detailsPage = postInterventionHabitatDetailsPage
           await detailsPage.assertTwoSectionLayout({ ref, intervention })
+          // Page chrome (BMD-735 AC1): the back link and the project-name
+          // caption sit outside the two sections, so assertTwoSectionLayout
+          // does not reach them.
+          await expect(detailsPage.backLink).toBeVisible()
+          await expect(detailsPage.caption).toHaveText(shared.name)
           // Watercourse specifics: the size row is "Length" (unit on the
           // value), plus the two encroachment rows the hedgerow page lacks.
           await expect(detailsPage.enhancedLengthKey).toBeVisible()
