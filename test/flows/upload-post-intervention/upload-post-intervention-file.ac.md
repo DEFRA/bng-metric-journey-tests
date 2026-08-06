@@ -11,9 +11,9 @@ against the **live implementation** (this is a regression suite for shipped beha
 - Coverage markers: ✅ covered · 🟡 partial · ❌ gap — snapshot at authoring time;
   the authoritative gap analysis is produced per title by `/validate-ac-automated`.
 - Flow reference: [upload-post-intervention-file.flow.md](upload-post-intervention-file.flow.md).
-- **Last reconciled against source:** 2026-08-03 (frontend `main` @ `0eefccc`, backend `main`
-  @ `54e83dd`) — see §3 for the BMD-882 sliver-check split and §5 for the codes still
-  unexercised by this suite.
+- **Last reconciled against source:** 2026-08-06 (frontend `main` @ `0eefccc`, backend `main`
+  @ `ee38918`) — see §3 for the BMD-882 sliver-check split, PI-UV-8/PI-UV-9 for the two
+  branches newly mirrored, and §5 for the codes still unexercised by this suite.
 
 ---
 
@@ -88,16 +88,18 @@ distinctiveness eligibility).
 
 **Precondition:** a file has been chosen on the post-intervention upload form and Continue clicked.
 
-| Ref      | Acceptance criterion                                                                                                        | Fixture                                                           | Coverage                                  |
-| -------- | --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------- |
-| PI-UV-1  | A valid file uploads and shows the "Checking your file" polling page while validation runs.                                 | `Post-intervention - complete.gpkg`                               | ✅ happy path                             |
-| PI-UV-2  | A non-GeoPackage file is rejected with a format flash error on the upload form.                                             | `Not a valid geopackage.gpkg`                                     | ✅ format error                           |
-| PI-UV-3  | A file with missing/incomplete data is rejected on the error-file dropout page (single-error catch-all copy).               | `Post-intervention (missing data) - fails validation.gpkg`        | ✅ structural validation errors           |
-| PI-UV-5a | RLB layer with no geometry column → **single-error** dropout, Natural England layer/column catch-all copy.                  | `Post-intervention - no geometry column in RLB layer.gpkg`        | ✅ content validation errors              |
-| PI-UV-5b | RLB layer with multiple geometry columns → **single-error** dropout, same catch-all copy.                                   | `Post-intervention - multiple geometry columns in RLB layer.gpkg` | ✅ content validation errors              |
-| PI-UV-5c | RLB layer with the wrong geometry type → **multi-error** dropout, "Zero red line boundaries in GeoPackage (expecting one)". | `Post-intervention - wrong geometry in RLB layer.gpkg`            | ✅ content validation errors              |
-| PI-UV-6  | A file containing internal slivers. **Removed (BMD-882)** — the derived check is gone and the fixture is now accepted.      | `Post-intervention - complete with slivers.gpkg`                  | ➖ removed (BMD-882)                      |
-| PI-UV-7  | A valid file passing all validation lands on the post-intervention habitat list.                                            | `Post-intervention - complete.gpkg`                               | ✅ happy path (full assert in Happy Path) |
+| Ref      | Acceptance criterion                                                                                                                                                         | Fixture                                                           | Coverage                                                                                          |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| PI-UV-1  | A valid file uploads and shows the "Checking your file" polling page while validation runs.                                                                                  | `Post-intervention - complete.gpkg`                               | 🟡 upload covered by the happy path; the polling page itself is **not** asserted (see note below) |
+| PI-UV-2  | A non-GeoPackage file is rejected with a format flash error on the upload form.                                                                                              | `Not a valid geopackage.gpkg`                                     | ✅ format error                                                                                   |
+| PI-UV-3  | A file with missing/incomplete data is rejected on the error-file dropout page (single-error catch-all copy).                                                                | `Post-intervention (missing data) - fails validation.gpkg`        | ✅ structural validation errors                                                                   |
+| PI-UV-5a | RLB layer with no geometry column → **single-error** dropout, Natural England layer/column catch-all copy.                                                                   | `Post-intervention - no geometry column in RLB layer.gpkg`        | ✅ content validation errors                                                                      |
+| PI-UV-5b | RLB layer with multiple geometry columns → **single-error** dropout, same catch-all copy.                                                                                    | `Post-intervention - multiple geometry columns in RLB layer.gpkg` | ✅ content validation errors                                                                      |
+| PI-UV-5c | RLB layer with the wrong geometry type → **multi-error** dropout, "Zero red line boundaries in GeoPackage (expecting one)".                                                  | `Post-intervention - wrong geometry in RLB layer.gpkg`            | ✅ content validation errors                                                                      |
+| PI-UV-8  | A habitat setting **both** advance and delayed creation → **single-error** dropout, "A habitat has both advance and delayed creation set…" (BMD-883).                        | `Post-intervention - advance and delay both set.gpkg`             | ✅ content validation errors                                                                      |
+| PI-UV-9  | A habitat whose **proposed** type is High/Very High distinctiveness → **single-error** distinctiveness dropout with the statutory metric-tool link (BMD-352/BMD-405 AC6a–b). | `Post-intervention - habitat distinctiveness out of scope.gpkg`   | ✅ high distinctiveness habitat                                                                   |
+| PI-UV-6  | A file containing internal slivers. **Removed (BMD-882)** — the derived check is gone and the fixture is now accepted.                                                       | `Post-intervention - complete with slivers.gpkg`                  | ➖ removed (BMD-882)                                                                              |
+| PI-UV-7  | A valid file passing all validation lands on the post-intervention habitat list.                                                                                             | `Post-intervention - complete.gpkg`                               | ✅ happy path (full assert in Happy Path)                                                         |
 
 **Dropped after discovery:** PI-UV-4 (`Post-intervention - incorrect geom column name.gpkg`)
 is **accepted** by post-intervention validation — it passes and reaches the habitat list, so
@@ -120,10 +122,27 @@ content-validation test case were removed rather than rewritten. The surviving
 `SLIVERS_OUTSIDE_REDLINE` check — parcel parts outside the boundary — is untouched, and no
 post-intervention fixture currently reaches it.
 
-**Not yet mirrored:** `ADVANCE_AND_DELAY_BOTH_SET` (backend BMD-883 / frontend BMD-883
-PR#185) gained dedicated single-error copy — "A habitat has both advance and delayed
-creation set…". No post-intervention fixture sets both advance and delay years, so the
-branch is unexercised in this suite; it is frontend-unit and backend-integration tested.
+**Now mirrored (PI-UV-8/PI-UV-9).** Two branches previously recorded here as unexercised are
+covered:
+
+- `ADVANCE_AND_DELAY_BOTH_SET` (backend BMD-883 / frontend PR#185) — the harness catalogued
+  `attribute-problems/Post-intervention - advance and delay both set.gpkg` (BMD-883, 2026-07-29)
+  after this doc was last reconciled; it is copied into `test/example-files/` and drives
+  PI-UV-8. The check reads the **Proposed** advance/delay columns, so it applies to a
+  post-intervention file exactly as to a baseline one.
+- `HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE` on the **Proposed** columns — no harness fixture
+  exists, so `Post-intervention - habitat distinctiveness out of scope.gpkg` is generated by
+  `test/example-files/fixture-mutations.py` from the complete fixture (one parcel's proposed
+  pair retargeted at "Grassland - Lowland meadows", V.High). This is the one place the
+  post-intervention **variant selection** is observable end-to-end: wire the check to the
+  Baseline columns by mistake and every baseline test still passes.
+
+**Polling page (PI-UV-1).** The "Checking your file" page is rendered by the shared
+`upload-received.njk` between the uploader redirect and the validation result. Against the
+local/github stack the uploader returns `ready` almost immediately, so asserting the interim
+render is a race; the happy path waits for the final habitat-list URL instead. The page is
+covered by the frontend controller unit tests. Unblocking would need a stub uploader that can
+be pinned `pending` — the same hook the 120s-timeout placeholder needs.
 
 **Deferred to the Postgres File Processing / integration title** (shared backend logic, no
 post-intervention browser fixtures): virus scan (BMD-356), exhaustive geospatial rules
@@ -194,6 +213,11 @@ after uploading `Not a valid geopackage.gpkg`).
   those two actions.
 - Generic fallback (no session) + unauthenticated `/error-file`: ✅ shared baseline
   [error-file.spec.js](../../specs/upload-baseline/error-file.spec.js) (the page is shared and upload-type-agnostic here).
+- **Cross-user access (IDOR)**: uploading a valid post-intervention file against another
+  user's project id — the form GET renders (200, ownership isn't checked there) but validation
+  can't resolve the project for that user, so it drops out on the catch-all error page and
+  nothing is persisted: ✅ `upload-post-intervention.spec.js` — "cross-user access" (stub-only:
+  needs a second profile).
 - **Role enforcement and unauthenticated access** for both
   `/projects/{id}/upload-post-intervention-file` and
   `/projects/{id}/post-intervention-upload-received`: ✅ [upload-post-intervention-file.spec.js](../../specs/upload-post-intervention/upload-post-intervention-file.spec.js) via the shared
@@ -202,20 +226,23 @@ after uploading `Not a valid geopackage.gpkg`).
   `post-intervention-upload-received/controller.test.js` ("redirects to dropout page when
   post-intervention upload is rejected") + backend `upload.test.js`. Redirects to `/error-file`
   with empty errors → the generic dropout, covered above. Not browser-triggerable (client JS
-  blocks a non-`.gpkg` submit), so no journey test.
+  blocks a non-`.gpkg` submit), so no journey test — tracked as a documented `test.skip`
+  placeholder ("Upload post-intervention — CDP Uploader rejection") carrying its unblock steps.
 
 **Deferred / not mirrorable:**
 
 - **120s timeout** flash ("The file check timed out") — impractical to exercise in a browser
-  test; handled at the controller/unit level.
+  test; handled at the controller/unit level. Tracked as a documented `test.skip` placeholder
+  ("Upload post-intervention — upload check timeout") carrying its unblock steps.
 - **`SLIVERS_OUTSIDE_REDLINE` suppression** + "… and N more" truncation — no post-intervention
   fixture triggers the suppression branch (only `Baseline - parcel outside redline.gpkg` has
   `AREA_PARCELS_OUTSIDE_REDLINE`), and a geospatial-error `.gpkg` can't be generated by
   copy/rename. The suppression/grouping logic is on the **shared** `/error-file` page and is
   baseline-tested.
-- **`ADVANCE_AND_DELAY_BOTH_SET` single-error copy** (BMD-883) and **`AREA_PARCELS_TOO_SMALL`
-  single-error copy** (BMD-882) — no post-intervention fixture trips either code. Both are
-  frontend-unit tested (`single-error-copy.test.js`) and backend-integration tested.
+- **`AREA_PARCELS_TOO_SMALL` single-error copy** (BMD-882) — no post-intervention fixture
+  trips the code (it needs a geometry mutation, not an attribute one). Frontend-unit tested
+  (`single-error-copy.test.js`) and backend-integration tested.
+  (`ADVANCE_AND_DELAY_BOTH_SET` is no longer in this list — see PI-UV-8 in §3.)
 - **BMD-367 skeleton** (pathname `invalid-file`, "Dropout Page (Skeleton)" placeholder) —
   superseded; the real `/error-file` page is covered.
 

@@ -16,6 +16,15 @@ An acceptance-criteria coverage matrix for this flow — mirrored from the basel
 workshop title and reconciled against the live implementation — lives alongside this doc in
 [`upload-post-intervention-file.ac.md`](upload-post-intervention-file.ac.md).
 
+## Entry point
+
+The flow is entered from the project task list (`GET /add-project-details/{id}`,
+`projects/task-list.njk`). The "On-site post intervention habitats" row links to
+`GET /projects/{id}/upload-post-intervention-file` with a blue "Not yet started" tag while
+`project.postIntervention` is absent, and flips to `GET /projects/{id}/post-intervention-habitat-list`
+with "Completed" once it exists — so **the task list stops offering a re-upload after the first
+successful upload**. The row is not gated on the baseline being uploaded first.
+
 ## Steps
 
 ### Step 1 — View file upload form `[IMPLEMENTED]`
@@ -28,6 +37,7 @@ workshop title and reconciled against the live implementation — lives alongsid
   - `POST /upload/initiate` — creates a CDP upload session; returns `uploadId` and `uploadUrl`
 - **Description:** Renders the shared GOV.UK file-upload form whose `action` points directly to the CDP Uploader URL (not the app). The handler reads and immediately clears any `postInterventionUploadError` flash from the session and stores the new `uploadId` as `postInterventionPendingUploadId`. The response sets `Cache-Control: no-store`. Page title is "Upload Post-intervention File"; the instruction text references post-intervention habitat parcels. Upload metadata sent to the CDP Uploader includes `uploadType: 'postIntervention'`. Backend calls forward the user's Defra ID bearer via `backendRequest`. Back link and Cancel link both navigate to `/add-project-details/{projectId}`.
 - **Validation:** None (display-only). If `uploadUrl` is absent the template renders a fallback message ("Unable to start file upload") instead of the form.
+- **Route parameters:** `{id}` is **not** validated (no Joi `params` schema on this route, unlike `/projects/{id}/post-intervention-habitat-list` which requires a uuidv4). A non-UUID id does not 400 — `GET /projects/{id}` fails, the caption falls back to "Project", and the form still renders. The same applies to `post-intervention-upload-received`.
 - **On success:** Renders the file-upload form
 - **On error:** Renders the form with the session flash error message in a GOV.UK error summary (then cleared)
 
@@ -54,6 +64,11 @@ workshop title and reconciled against the live implementation — lives alongsid
 - **Backend endpoints:**
   - `GET /upload/{uploadId}/status` — polls upload status (treats `numberOfRejectedFiles > 0` as `rejected`)
   - `POST /post-intervention/validate/{uploadId}` (body: `{ projectId }`) — triggered once status is `ready`; validates and persists the post-intervention data; forwards the user's Defra ID bearer via `backendRequest`
+- **Backend content validation (post-intervention specifics):** the validate route runs the same pipeline as baseline but with `projectDocumentKey: 'postIntervention'`, which changes:
+  - **Distinctiveness scope** — `checkHabitatDistinctiveness` reads the **Proposed\*** columns (not Baseline\*); High / V.High area habitats, hedgerows or watercourses reject with `HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE`. `DUPLICATE_HABITAT_REF` and `ADVANCE_AND_DELAY_BOTH_SET` apply unchanged.
+  - **Retention Category (BMD-534)** — values are normalised (a leading "N. " list prefix is stripped). Area habitats with `Lost` are mapped to `Created`; hedgerows, watercourses and trees with `Lost` are **excluded** from the saved document and from sizing. Any other value derives to `null`, which fails `postInterventionDataSchema` (`retentionCategory` required, one of Retained / Created / Enhanced) → `INVALID_FILE_METADATA` with `valid: false` → structured-error branch → `/error-file`, where it hits the catch-all "layer names and column names" copy.
+  - **Enrichment against the stored baseline** — post-intervention units are enriched using the project's stored `baseline` (watercourse/hedgerow lengths by ref, and baseline unit totals for net change). Uploading post-intervention **before** a baseline is not blocked; features that cannot be calculated are marked `Incomplete`.
+- **Backend failure statuses:** 4xx from the backend (404 unknown project, 409 concurrent persist for the same project, 413 file > 100 MB, 422 upload rejected) are surfaced as structured errors — the backend's `errors` array when present, otherwise a single `VALIDATION_FAILED` carrying the backend message — and land on `/error-file`. 5xx / 504 / network errors instead throw `Boom.badGateway`, so the user gets the shared 502 error page ("Something went wrong"), **not** a redirect. File metadata that fails `habitatDataSchema` (over-long filename or size) returns `INVALID_FILE_METADATA` the same way as a content failure.
 - **Description:** Rendered by the shared `createUploadReceivedController(HABITAT_UPLOAD_TYPES.postIntervention, validatePostIntervention)` factory. The template renders a "Checking your file" message with a `<meta http-equiv="refresh" content="5">` tag so the browser re-hits the handler every 5 seconds. On each request the handler checks `postInterventionPendingUploadId` from the session, polls upload status, and tracks elapsed time in `postInterventionUploadStartedAt`. Once status is `ready` it calls post-intervention validation and clears both session keys. Possible outcomes are listed below.
 - **Validation / branching:**
   - `postInterventionPendingUploadId` missing → redirect to `GET /projects/{id}/upload-post-intervention-file`
@@ -63,6 +78,7 @@ workshop title and reconciled against the live implementation — lives alongsid
   - Status `ready` + validation passes → redirect to `GET /projects/{id}/post-intervention-habitat-list`
   - Elapsed > 120 seconds → clear session keys, set `postInterventionUploadError` flash "The file check timed out. Please try again." → redirect to upload form
   - Any other status (e.g. `pending`, `unknown`, `error`) → re-render the polling page
+- **Page furniture:** the "Checking your file" page renders a Back link to `GET /projects/{id}/upload-post-intervention-file`.
 - **On success:** Redirects to `GET /projects/{id}/post-intervention-habitat-list`
 - **On error:** Redirects to `GET /error-file` (structured errors) or `GET /projects/{id}/upload-post-intervention-file` (format / timeout flash errors)
 
