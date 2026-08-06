@@ -199,10 +199,10 @@ test.describe('Feature — role enforcement', () => {
 
 `skipInE2e(profile)` returns `true` only in e2e mode for a non-completer profile. Unauthenticated describes (no `storageState`) must **not** receive `test.skip`.
 
-**Expected skipped counts differ by mode — this is by design.** A clean run skips far more tests on CDP (e2e) than locally. Snapshot at 2026-08-06 (365 tests collected):
+**Expected skipped counts differ by mode — this is by design.** A clean run skips far more tests on CDP (e2e) than locally. Snapshot at 2026-08-06 (369 tests collected):
 
-- **local / github (stub): 17 skipped** — every one is an unconditional placeholder for a scenario that is not yet built or not reachable from a browser (`test.skip('…', …)` / `test.skip(true, …)`), each carrying its unblock steps in a comment. Currently: 3 authentication placeholders (failed OIDC callback, session-expired redirect, interactive sign-out), the `Show map` button, the GIS trees layer, the server-side backend-error (≥ 400) path, 4 BMD-405 single-error dropout variants with no fixture (sliver-alone, IGGI-outside, tree-outside, redline-too-large), and 7 upload placeholders shared across both upload flows (CDP Uploader rejection ×2, 120s timeout ×2, overlap without both feature refs, truncated "… and N more" sample, irreplaceable habitat).
-- **e2e (CDP): 65 skipped** — those same 17 placeholders **plus 48 tests that cannot run against the real service**:
+- **local / github (stub): 18 skipped** — every one is an unconditional placeholder for a scenario that is not yet built or not reachable from a browser (`test.skip('…', …)` / `test.skip(true, …)`), each carrying its unblock steps in a comment. Currently: 3 authentication placeholders (failed OIDC callback, session-expired redirect, interactive sign-out), the `Show map` button, the GIS trees layer, the server-side backend-error (≥ 400) path, 5 BMD-405 single-error dropout variants with no fixture (sliver-geometry-alone, parcel-too-small-alone, IGGI-outside, tree-outside, redline-too-large), and 7 upload placeholders shared across both upload flows (CDP Uploader rejection ×2, 120s timeout ×2, overlap without both feature refs, truncated "… and N more" sample, irreplaceable habitat).
+- **e2e (CDP): 66 skipped** — those same 18 placeholders **plus 48 tests that cannot run against the real service**:
   - **24** — habitat-detail tests whose real CDP upload exceeds the frontend's 120s budget under e2e load; covered in github against the stub uploader.
   - **21** — `no-role` / `no-projects` profile tests (role enforcement → `/auth/forbidden`, empty state) that only the stub can mint.
   - **2** — cross-user (IDOR) tests needing a _second_ stub profile.
