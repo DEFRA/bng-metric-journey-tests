@@ -1,6 +1,15 @@
 import { test, expect } from '@fixtures'
-import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
+import {
+  STORAGE_STATE,
+  NO_PROJECTS_STORAGE_STATE,
+  skipInE2e,
+  baseUrl
+} from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
+import { CreateProjectFlow } from '@flows/project-management/create-project.flow.js'
+import { UploadPostInterventionFileFlow } from '@flows/upload-post-intervention/upload-post-intervention-file.flow.js'
+import { ProjectDashboardPage } from '@pages/project-dashboard.page.js'
+import { ErrorFilePage } from '@pages/error-file.page.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const PROJECT_LABEL = 'Upload post-intervention flow test'
@@ -21,8 +30,17 @@ const RLB_MULTIPLE_GEOMETRY_FILE =
   'Post-intervention - multiple geometry columns in RLB layer.gpkg'
 const RLB_WRONG_GEOMETRY_FILE =
   'Post-intervention - wrong geometry in RLB layer.gpkg'
+const ADVANCE_AND_DELAY_FILE =
+  'Post-intervention - advance and delay both set.gpkg'
+const DISTINCTIVENESS_FILE =
+  'Post-intervention - habitat distinctiveness out of scope.gpkg'
 const NATURAL_ENGLAND_MISMATCH_COPY =
   'The layer names and column names do not match what is required by Natural England'
+const ADVANCE_AND_DELAY_COPY =
+  'A habitat has both advance and delayed creation set'
+const METRIC_TOOL_URL =
+  'https://www.gov.uk/government/publications/statutory-biodiversity-metric-tools-and-guides'
+const ERROR_FILE_URL = '/error-file'
 
 // ─── E2E happy path ─────────────────────────────────────────────────────────
 
@@ -164,6 +182,23 @@ function describeFormatError() {
 
 // ─── Structural validation errors ────────────────────────────────────────────
 
+async function uploadToErrorFile(fixtures, fixture) {
+  const {
+    createProjectFlow,
+    projectDashboardPage,
+    uploadPostInterventionFileFlow,
+    page
+  } = fixtures
+  const { id } = await setupProject(
+    createProjectFlow,
+    projectDashboardPage,
+    PROJECT_LABEL
+  )
+  await uploadPostInterventionFileFlow.uploadFile(id, fixture)
+  await page.waitForURL(ERROR_FILE_URL, { timeout: UPLOAD_TIMEOUT })
+  return id
+}
+
 function describeStructuralErrors() {
   test.describe(
     'Upload post-intervention — structural validation errors',
@@ -179,18 +214,15 @@ function describeStructuralErrors() {
         errorFilePage,
         page
       }) => {
-        const { id } = await setupProject(
-          createProjectFlow,
-          projectDashboardPage,
-          PROJECT_LABEL
-        )
-
-        await uploadPostInterventionFileFlow.uploadFile(
-          id,
+        const id = await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadPostInterventionFileFlow,
+            page
+          },
           STRUCTURAL_ERROR_FILE
         )
-
-        await page.waitForURL('/error-file', { timeout: UPLOAD_TIMEOUT })
 
         await expect(errorFilePage.geopackageErrorHeading).toBeVisible()
         await expect(errorFilePage.errorSummary).not.toBeVisible()
@@ -237,6 +269,16 @@ function describeContentValidationErrors() {
       file: RLB_WRONG_GEOMETRY_FILE,
       layout: 'multi',
       expected: 'Zero red line boundaries in GeoPackage (expecting one)'
+    },
+    {
+      // BMD-883: the statutory metric rejects a habitat that sets both advance
+      // and delayed creation. The check reads the Proposed advance/delay
+      // columns, so it applies to a post-intervention file exactly as it does
+      // to a baseline one.
+      name: 'a habitat with both advance and delayed creation set',
+      file: ADVANCE_AND_DELAY_FILE,
+      layout: 'single',
+      expected: ADVANCE_AND_DELAY_COPY
     }
   ]
 
@@ -252,14 +294,15 @@ function describeContentValidationErrors() {
           errorFilePage,
           page
         }) => {
-          const { id } = await setupProject(
-            createProjectFlow,
-            projectDashboardPage,
-            PROJECT_LABEL
+          const id = await uploadToErrorFile(
+            {
+              createProjectFlow,
+              projectDashboardPage,
+              uploadPostInterventionFileFlow,
+              page
+            },
+            file
           )
-
-          await uploadPostInterventionFileFlow.uploadFile(id, file)
-          await page.waitForURL('/error-file', { timeout: UPLOAD_TIMEOUT })
 
           if (layout === 'single') {
             await expect(errorFilePage.geopackageErrorHeading).toBeVisible()
@@ -277,6 +320,172 @@ function describeContentValidationErrors() {
           await expect(page.getByText(expected).first()).toBeVisible()
         })
       }
+    }
+  )
+}
+
+// ─── High distinctiveness validation error ───────────────────────────────────
+
+function describeDistinctivenessError() {
+  test.describe(
+    'Upload post-intervention — high distinctiveness habitat',
+    { tag: '@regression' },
+    () => {
+      // The distinctiveness scope gate reads the *Proposed* habitat columns for
+      // a post-intervention file (checkHabitatDistinctiveness is passed the
+      // postIntervention variant) — wire it to the Baseline columns by mistake
+      // and every baseline test still passes, so this needs its own coverage.
+      // The fixture is built by test/example-files/fixture-mutations.py:
+      // one parcel's proposed pair is retargeted at "Grassland - Lowland
+      // meadows" (V.High), leaving exactly one visible error.
+      test('uploading a file whose proposed habitat is High/Very High distinctiveness shows the distinctiveness single-error page', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadPostInterventionFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadPostInterventionFileFlow,
+            page
+          },
+          DISTINCTIVENESS_FILE
+        )
+
+        // BMD-405 AC6a: exactly one HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE error
+        // renders the distinctiveness variant with a metric-tool link.
+        await expect(errorFilePage.distinctivenessHeading).toBeVisible()
+        await expect(errorFilePage.errorSummary).not.toBeVisible()
+        await expect(errorFilePage.metricToolLink).toHaveAttribute(
+          'href',
+          METRIC_TOOL_URL
+        )
+        // BMD-405 AC6b: the statutory metric link opens in a new window
+        await expect(errorFilePage.metricToolLink).toHaveAttribute(
+          'target',
+          '_blank'
+        )
+        // QA fix (frontend PR#175): the single-error layout no longer shows
+        // the "Upload a different file" button or "Back to project" link.
+        await expect(errorFilePage.uploadDifferentFileLink).not.toBeVisible()
+        await expect(errorFilePage.backToProjectLink).not.toBeVisible()
+      })
+    }
+  )
+}
+
+// ─── Cross-user access ───────────────────────────────────────────────────────
+
+// The GET on the upload form does not check project ownership — it renders for
+// any authenticated completer, because the projectId is only a path segment
+// used to build the upload session. Ownership is enforced at validation time:
+// the backend scopes the project to the caller's org context, so the save can't
+// find it and the frontend surfaces the misleading catch-all error. Verified
+// directly against the running stack (not inferred) before writing these
+// assertions.
+function describeCrossUserAccess() {
+  test.describe(
+    'Upload post-intervention — cross-user access',
+    { tag: '@regression' },
+    () => {
+      test.skip(
+        skipInE2e(NO_PROJECTS_STORAGE_STATE),
+        'Requires a second stub-auth profile — not available in e2e mode'
+      )
+
+      test('uploading a valid file against another user’s project id reaches the misleading catch-all error page, and nothing is persisted', async ({
+        browser
+      }) => {
+        const ownerContext = await browser.newContext({
+          storageState: STORAGE_STATE,
+          baseURL: baseUrl
+        })
+        const ownerPage = await ownerContext.newPage()
+        const { id: ownerProjectId } = await setupProject(
+          new CreateProjectFlow(ownerPage),
+          new ProjectDashboardPage(ownerPage),
+          PROJECT_LABEL
+        )
+        await ownerContext.close()
+
+        const otherContext = await browser.newContext({
+          storageState: NO_PROJECTS_STORAGE_STATE,
+          baseURL: baseUrl
+        })
+        try {
+          const otherPage = await otherContext.newPage()
+          const otherErrorFilePage = new ErrorFilePage(otherPage)
+
+          const getResponse = await otherPage.goto(
+            `/projects/${ownerProjectId}/upload-post-intervention-file`
+          )
+          // The GET step doesn't block on ownership — it renders the form
+          // regardless (see comment above), so this is 200 not 404/403.
+          expect(getResponse.status()).toBe(200)
+
+          await new UploadPostInterventionFileFlow(otherPage).uploadFile(
+            ownerProjectId,
+            COMPLETE_FILE
+          )
+          await otherPage.waitForURL(ERROR_FILE_URL, {
+            timeout: UPLOAD_TIMEOUT
+          })
+
+          await expect(otherErrorFilePage.geopackageErrorHeading).toBeVisible()
+          await expect(
+            otherPage.getByText(NATURAL_ENGLAND_MISMATCH_COPY)
+          ).toBeVisible()
+        } finally {
+          await otherContext.close()
+        }
+      })
+    }
+  )
+}
+
+// ─── Uploader-level rejection (reachability unconfirmed) ─────────────────────
+
+function describeUploaderRejection() {
+  test.describe(
+    'Upload post-intervention — CDP Uploader rejection',
+    { tag: '@regression' },
+    () => {
+      // The upload-received controller has a distinct `rejected` branch (clears
+      // the session keys, stores an empty postInterventionValidationErrors
+      // array, redirects to /error-file with the generic "We couldn't accept
+      // your file" message) for files the CDP Uploader itself rejects — a
+      // different code path from a `ready` status followed by our backend's own
+      // GPKG/content validation. No fixture or technique in this repo currently
+      // drives that branch (not a virus-scan test file, not an oversized file);
+      // the client-side JS also blocks a non-.gpkg submit. To enable:
+      //   1. confirm what makes the CDP Uploader return `rejected` (virus scan?
+      //      MIME/size limit at the uploader layer specifically) and whether
+      //      it's reproducible against the local/github stub
+      //   2. add the fixture/technique and remove this test.skip
+      test.skip('a file rejected by the CDP Uploader shows the generic error-file message', async () => {})
+    }
+  )
+}
+
+// ─── Upload timeout (impractical without a fast-forward hook) ────────────────
+
+function describeUploadTimeout() {
+  test.describe(
+    'Upload post-intervention — upload check timeout',
+    { tag: '@regression' },
+    () => {
+      // Elapsed > MAX_WAIT_SECONDS (120s, hardcoded in
+      // habitat-upload-received-controller.js) clears the session, sets the
+      // "The file check timed out. Please try again." flash on
+      // postInterventionUploadError, and redirects to the upload form. A real
+      // 2-minute wait isn't viable in this suite. To enable:
+      //   1. make MAX_WAIT_SECONDS env-overridable in the frontend (test-only)
+      //   2. drive a `pending` status for longer than the shortened window and
+      //      assert the flash + redirect, then remove this test.skip
+      test.skip('an upload stuck pending for over 120s shows the timeout flash on the upload form', async () => {})
     }
   )
 }
@@ -299,5 +508,9 @@ test.describe(
     describeFormatError()
     describeStructuralErrors()
     describeContentValidationErrors()
+    describeDistinctivenessError()
+    describeCrossUserAccess()
+    describeUploaderRejection()
+    describeUploadTimeout()
   }
 )
