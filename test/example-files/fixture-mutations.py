@@ -106,6 +106,83 @@ def build_lost_tree_fixture():
         con.close()
 
 
+def build_created_area_fixture():
+    """`created area habitat.gpkg`: copy of complete, H2-7 -> genuinely Created.
+
+    No shipped fixture — here or in the harness — has an area habitat whose
+    GPKG "Retention Category" is literally "Created": every post-intervention
+    file carries only Retained / Enhanced / Lost, and the backend *maps* a Lost
+    area to Created at import. A Lost-sourced Created habitat still carries its
+    baseline attributes, so it cannot exercise BMD-736's precondition
+    ("Intervention type for the habitat is Created") faithfully. The harness's
+    real-world bng-500 pairs do have genuine Created parcels but none of them
+    clears the Beta validator (out-of-scope High distinctiveness, and their
+    post-intervention habitat polygons do not tile the redline boundary).
+
+    So H2-7 is recut here to match what a real created parcel looks like:
+    Retention Category "Created" with every Baseline* attribute cleared, its
+    proposed side (Lakes / Ponds (non-priority habitat), Good, Medium) left
+    intact so units still calculate. Geometry is untouched, so the file still
+    satisfies the area-sum-equals-redline rule.
+
+    Used by the BMD-736 AC validation evidence spec.
+    """
+    src = EX / "Post-intervention - complete.gpkg"
+    dst = EX / "Post-intervention - created area habitat.gpkg"
+    shutil.copyfile(src, dst)
+    con = sqlite3.connect(dst)
+    try:
+        update_attr(
+            con, "Habitats",
+            '"Retention Category"=?, '
+            '"Baseline Broad Habitat Type"=NULL, '
+            '"Baseline Habitat Type"=NULL, '
+            '"Baseline Condition"=NULL, '
+            '"Baseline Distinctiveness"=NULL, '
+            '"Baseline Strategic Significance"=NULL '
+            'WHERE "Parcel Ref"=?',
+            ("Created", "H2-7"),
+        )
+        con.commit()
+        _report(con, "created area habitat", [("Habitats", "Parcel Ref")])
+    finally:
+        con.close()
+
+
+def build_watercourse_wc3_baseline_fixture():
+    """`Baseline - watercourse ref WC3.gpkg`: river ref WC1 -> WC3.
+
+    The post-intervention "watercourses mixed retention" fixture's only Created
+    watercourse is WC3, but the shipped baseline watercourse file carries the
+    ref WC1 — so a Created watercourse never has a ref-matching baseline
+    feature and the "View baseline details" link is hidden for the wrong
+    reason. Re-reffing the single baseline river to WC3 gives the Created
+    watercourse a genuine baseline counterpart, which is what makes it possible
+    to tell whether the Created watercourse page suppresses that link (as the
+    Created hedgerow page does) or still resolves it by ref.
+
+    Only the ref string changes — geometry, type, condition and encroachments
+    are untouched, so the file still passes baseline validation.
+
+    Used by the BMD-739 AC validation evidence spec.
+    """
+    src = EX / "Baseline - complete with watercourse refs.gpkg"
+    dst = EX / "Baseline - watercourse ref WC3.gpkg"
+    shutil.copyfile(src, dst)
+    con = sqlite3.connect(dst)
+    try:
+        update_attr(
+            con, "Rivers",
+            '"Parcel Ref"=? WHERE "Parcel Ref"=?',
+            ("WC3", "WC1"),
+        )
+        con.commit()
+        rows = con.execute('SELECT "Parcel Ref" FROM "Rivers"').fetchall()
+        print(f"\nwatercourse ref WC3 baseline:\n  Rivers: {rows}")
+    finally:
+        con.close()
+
+
 def _report(con, label, layers):
     print(f"\n{label}:")
     for table, ref in layers:
@@ -118,4 +195,6 @@ def _report(con, label, layers):
 if __name__ == "__main__":
     recut_mixed_fixture()
     build_lost_tree_fixture()
+    build_created_area_fixture()
+    build_watercourse_wc3_baseline_fixture()
     print("\nDone.")
