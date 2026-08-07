@@ -36,7 +36,12 @@ test.describe(
             projectDashboardPage,
             PROJECT_LABEL
           )
-          await uploadPostInterventionFilePage.open(id)
+          const response = await uploadPostInterventionFilePage.open(id)
+
+          // The form's action is a short-lived CDP Uploader URL minted per
+          // render, so the response must never be cached — a served-from-cache
+          // form would post to a dead upload session.
+          expect(response.headers()['cache-control']).toContain('no-store')
 
           await expect(uploadPostInterventionFilePage.heading).toBeVisible()
           await expect(page.getByText(name)).toBeVisible()

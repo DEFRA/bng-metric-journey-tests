@@ -25,6 +25,25 @@ const NATURAL_ENGLAND_MISMATCH_COPY =
 
 // ─── E2E happy path ─────────────────────────────────────────────────────────
 
+async function uploadToHabitatList(fixtures, fixture) {
+  const {
+    createProjectFlow,
+    projectDashboardPage,
+    uploadBaselineFileFlow,
+    page
+  } = fixtures
+  const { id } = await setupProject(
+    createProjectFlow,
+    projectDashboardPage,
+    PROJECT_LABEL
+  )
+  await uploadBaselineFileFlow.uploadFile(id, fixture)
+  await page.waitForURL(new RegExp(`/projects/${id}/baseline-habitat-list`), {
+    timeout: UPLOAD_TIMEOUT
+  })
+  return id
+}
+
 function describeHappyPath() {
   test.describe(
     'Upload baseline — happy path',
@@ -38,19 +57,14 @@ function describeHappyPath() {
         projectTaskListPage,
         page
       }) => {
-        const { id } = await setupProject(
-          createProjectFlow,
-          projectDashboardPage,
-          PROJECT_LABEL
-        )
-
-        await uploadBaselineFileFlow.uploadFile(id, COMPLETE_BASELINE_FILE)
-
-        await page.waitForURL(
-          new RegExp(`/projects/${id}/baseline-habitat-list`),
+        const id = await uploadToHabitatList(
           {
-            timeout: UPLOAD_TIMEOUT
-          }
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            page
+          },
+          COMPLETE_BASELINE_FILE
         )
 
         await expect(habitatListPage.heading).toBeVisible()
@@ -269,6 +283,134 @@ function describeStructuralErrors() {
         await expect(errorFilePage.backToProjectLink).toHaveAttribute(
           'href',
           `/add-project-details/${id}`
+        )
+      })
+    }
+  )
+}
+
+// ─── Sliver and area checks (BMD-882) ────────────────────────────────────────
+
+// BMD-882 removed the derived SLIVERS_INSIDE_REDLINE check — tiny gaps inside
+// the boundary that no parcel covers. These two tests assert the change from
+// both sides: a gap below the AREA_SUM_MISMATCH tolerance is now accepted, and
+// a gap above it is still rejected, so nothing slipped through the removal.
+function describeSubToleranceGapAccepted() {
+  test.describe(
+    'Upload baseline — sub-tolerance gap between parcels',
+    { tag: '@regression' },
+    () => {
+      test('a 0.32 m² gap inside the redline is accepted and reaches the habitat list', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        habitatListPage,
+        projectTaskListPage,
+        page
+      }) => {
+        const id = await uploadToHabitatList(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            page
+          },
+          'Baseline - tiny gap between parcels.gpkg'
+        )
+
+        await expect(habitatListPage.heading).toBeVisible()
+        await expect(habitatListPage.summaryTable).toBeVisible()
+
+        // The upload was persisted, not merely rendered: the task list counts
+        // Project Name + On-site baseline as Completed.
+        await projectTaskListPage.open(id)
+        await expect(projectTaskListPage.taskStatus('Completed')).toHaveCount(2)
+      })
+    }
+  )
+}
+
+function describeOversizeGapStillRejected() {
+  test.describe(
+    'Upload baseline — gap too large to be a sliver',
+    { tag: '@regression' },
+    () => {
+      // The counterpart to the test above, and the reason BMD-882 could delete
+      // the derived check: parcels that genuinely fail to tile the redline are
+      // caught by AREA_SUM_MISMATCH, which was left unchanged. Uses the harness
+      // fixture built for this rule (parcels do not tile the RLB) rather than
+      // the mutated "only area sum mismatch" file, so the gap itself is what
+      // trips the check.
+      test('parcels that do not tile the redline are rejected by the area-sum comparison', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            page
+          },
+          'Baseline - area sum mismatch.gpkg'
+        )
+
+        await expect(
+          page.getByText(/does not equal redline boundary area/).first()
+        ).toBeVisible()
+        // AREA_SUM_MISMATCH has no finalised copy yet (BMD-592), so a lone
+        // occurrence renders the placeholder variant.
+        await expect(errorFilePage.placeholderHeading).toBeVisible()
+      })
+    }
+  )
+}
+
+// ─── AREA_PARCELS_TOO_SMALL (BMD-882) ────────────────────────────────────────
+
+function describeParcelTooSmall() {
+  test.describe(
+    'Upload baseline — parcel below the minimum area',
+    { tag: '@regression' },
+    () => {
+      // The replacement for the removed derived-sliver check: a parcel supplied
+      // in the file whose own footprint is under 1 m². The fixture leaves the
+      // shortfall uncompensated, so AREA_SUM_MISMATCH co-fires and the grouped
+      // multi-error layout renders — see the skipped single-error placeholder
+      // in SINGLE_ERROR_PENDING_FIXTURE_CASES for the other layout.
+      test('a parcel under 1 square metre is rejected, naming the parcel and its area', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        const id = await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            page
+          },
+          'Baseline - parcel too small.gpkg'
+        )
+
+        await expect(errorFilePage.errorSummary).toBeVisible()
+        await expect(errorFilePage.errorSummary).toContainText(
+          'One or more area habitat parcels are smaller than 1 square metre'
+        )
+        // The block lists the offending parcel with its measured area so the
+        // user can find the polygon to redraw.
+        await expect(
+          page.getByText(/Feature Ref \w+ — ~0\.\d+ sq m/)
+        ).toBeVisible()
+        await expect(errorFilePage.baselineRejectedHeading).toBeVisible()
+        await expect(errorFilePage.uploadDifferentFileLink).toHaveAttribute(
+          'href',
+          `/projects/${id}/upload-baseline-file`
         )
       })
     }
@@ -731,27 +873,38 @@ const SINGLE_ERROR_CASES = [
 // side errors. Needs a valid 5-layer base fixture first.
 const SINGLE_ERROR_PENDING_FIXTURE_CASES = [
   {
-    // Unreachable since backend BMD-882 (#185) deleted the derived
-    // "slivers inside the redline" check: `Baseline - only sliver.gpkg`'s sole
-    // defect was an internal gap, so the file is now *accepted* and the upload
-    // lands on the habitat list instead of /error-file.
-    //
-    // The copy this asserts is still live frontend code —
     // single-error-copy.js maps SLIVERS_OUTSIDE_REDLINE to the "thin strip of
-    // land" wording — but nothing can reach it alone: the only fixture that
-    // fires SLIVERS_OUTSIDE_REDLINE is `Baseline - only parcel outside
-    // redline.gpkg`, where the frontend suppresses the sliver in favour of the
-    // co-firing AREA_PARCELS_OUTSIDE_REDLINE.
+    // land" wording and that code is live, but nothing can reach it alone: the
+    // only fixture that fires SLIVERS_OUTSIDE_REDLINE is `Baseline - only
+    // parcel outside redline.gpkg`, where the frontend suppresses the sliver in
+    // favour of the co-firing AREA_PARCELS_OUTSIDE_REDLINE.
     //
-    // To unblock: add a fixture whose parcels overhang the redline *without*
-    // tripping AREA_PARCELS_OUTSIDE_REDLINE, then move this back into
-    // SINGLE_ERROR_CASES. (The separate BMD-882 replacement check,
-    // AREA_PARCELS_TOO_SMALL — "This parcel is smaller than 1 square metre" —
-    // has no coverage at all and needs a sub-1 m² parcel fixture.)
-    title: 'sliver parcel alone shows the "parcel is a sliver" page',
-    fixture: 'Baseline - only sliver.gpkg',
+    // The fixture named below does not exist yet. To enable:
+    //   1. generate a fixture whose parcels overhang the redline *without*
+    //      tripping the per-parcel AREA_PARCELS_OUTSIDE_REDLINE check (the
+    //      overhang must come from the dissolved union, not from one parcel)
+    //   2. save it to test/example-files/ and move this into SINGLE_ERROR_CASES
+    title: 'sliver geometry alone shows the "parcel is a sliver" page',
+    fixture: 'Baseline - only parcel overhang.gpkg',
     heading: GEOPACKAGE_ERROR_H1,
     body: 'This parcel is a sliver (a thin strip of land). Draw the parcel again and'
+  },
+  {
+    // BMD-882's replacement check. The multi-error path IS covered — see
+    // describeParcelTooSmall() — but the personalised single-error copy is not:
+    // `Baseline - parcel too small.gpkg` leaves the missing area uncompensated,
+    // so AREA_SUM_MISMATCH co-fires and the grouped layout renders instead.
+    //
+    // The fixture named below does not exist yet. To enable:
+    //   1. generate a variant where the sub-1 m² parcel's shortfall is absorbed
+    //      by the neighbouring parcels, so the areas still tile the redline to
+    //      within the 0.5 m² AREA_SUM_MISMATCH tolerance
+    //   2. save it to test/example-files/ and move this into SINGLE_ERROR_CASES
+    title:
+      'parcel below the minimum area alone shows the personalised "parcel contains an error" page',
+    fixture: 'Baseline - only parcel too small.gpkg',
+    heading: /This parcel .+ contains an error/,
+    body: 'This parcel is smaller than 1 square metre. Draw the parcel again and'
   },
   {
     title: 'IGGI outside the redline alone shows the placeholder page',
@@ -986,6 +1139,9 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
   describeCrossUserAccess()
   describeFormatError()
   describeStructuralErrors()
+  describeSubToleranceGapAccepted()
+  describeOversizeGapStillRejected()
+  describeParcelTooSmall()
   describeSuppression()
   describeDistinctivenessError()
   describeFieldValidation()

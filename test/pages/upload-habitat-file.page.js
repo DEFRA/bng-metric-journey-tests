@@ -33,6 +33,6 @@ export class UploadHabitatFilePage extends BasePage {
   }
 
   async open(id) {
-    await super.open(`/projects/${id}/${this.uploadRoute}`)
+    return super.open(`/projects/${id}/${this.uploadRoute}`)
   }
 }

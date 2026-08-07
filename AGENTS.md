@@ -199,12 +199,25 @@ test.describe('Feature — role enforcement', () => {
 
 `skipInE2e(profile)` returns `true` only in e2e mode for a non-completer profile. Unauthenticated describes (no `storageState`) must **not** receive `test.skip`.
 
-**Expected skipped counts differ by mode — this is by design.** A clean run skips more tests on CDP (e2e) than locally:
+**Expected skipped counts differ by mode — this is by design.** A clean run skips far more tests on CDP (e2e) than locally. Snapshot at 2026-08-06 (369 tests collected):
 
-- **local / github (stub): ~7 skipped** — unconditional placeholders for features not yet built or not mockable at the browser layer (`test.skip('…', …)` / `test.skip(true, …)`): the `Show map` button, the `Continue` task-list navigation, the area/watercourse totals rows + km-suffix formatting, the unregistered `Project Details` route, and the server-side backend-error (≥ 400) path.
-- **e2e (CDP): ~17 skipped** — those same ~7 placeholders **plus the ~10 `no-role` (role-enforcement → `/auth/forbidden`) and `no-projects` (empty-state) tests.** The stub mints those profiles so they run locally/github, but the single real Defra ID account can't reproduce a no-role user or a guaranteed-empty account, so `skipInE2e()` skips them on CDP.
+- **local / github (stub): 18 skipped** — every one is an unconditional placeholder for a scenario that is not yet built or not reachable from a browser (`test.skip('…', …)` / `test.skip(true, …)`), each carrying its unblock steps in a comment. Currently: 3 authentication placeholders (failed OIDC callback, session-expired redirect, interactive sign-out), the `Show map` button, the GIS trees layer, the server-side backend-error (≥ 400) path, 5 BMD-405 single-error dropout variants with no fixture (sliver-geometry-alone, parcel-too-small-alone, IGGI-outside, tree-outside, redline-too-large), and 7 upload placeholders shared across both upload flows (CDP Uploader rejection ×2, 120s timeout ×2, overlap without both feature refs, truncated "… and N more" sample, irreplaceable habitat).
+- **e2e (CDP): 66 skipped** — those same 18 placeholders **plus 48 tests that cannot run against the real service**:
+  - **24** — habitat-detail tests whose real CDP upload exceeds the frontend's 120s budget under e2e load; covered in github against the stub uploader.
+  - **21** — `no-role` / `no-projects` profile tests (role enforcement → `/auth/forbidden`, empty state) that only the stub can mint.
+  - **2** — cross-user (IDOR) tests needing a _second_ stub profile.
+  - **1** — org-reselection, which depends on stub-controlled token claims.
 
-So the extra CDP skips are exactly the role-enforcement + empty-state describes. (Counts are indicative — they shift as placeholders are implemented or tests are added.)
+So the extra CDP skips are the stub-only profiles **plus** the upload-heavy detail specs — not just role enforcement and empty state.
+
+Counts shift as placeholders are implemented or tests are added. To re-derive them rather than guess, list the collected tests and count the `skip` annotations per mode:
+
+```sh
+RUN_MODE=github npx playwright test --list --reporter=json   # then count annotations[].type === 'skip'
+RUN_MODE=e2e    npx playwright test --list  --reporter=json
+```
+
+`--list` never launches a browser or connects to CDP, so both are safe to run locally. `test/utils/check-happy-path-tags.js` reads the same JSON and is the working example of parsing it.
 
 ---
 

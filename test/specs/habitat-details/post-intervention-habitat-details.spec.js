@@ -76,6 +76,10 @@ const ENHANCED_HEDGEROW_REF = 'HR2'
 const ENHANCED_UPLIFT_HEDGEROW_REF = 'HG018'
 const ENHANCED_UPLIFT_HEDGEROW_TIME = 'Poor to Moderate - 20 years'
 const CREATED_HEDGEROW_REF = 'HR3'
+// HR3 is created to Moderate condition over 5 years, so unlike the Enhanced
+// HR2 (Good→Good) its time-to-target section resolves — enough to pin the
+// dynamic condition-transition text on the Created hedgerow page.
+const CREATED_HEDGEROW_TIME = 'Moderate to Moderate - 5 years'
 const ENHANCED_WATERCOURSE_REF = 'WC2'
 const CREATED_WATERCOURSE_REF = 'WC3'
 // The same fixture pair carries the only Enhanced watercourse that can reach
@@ -83,6 +87,7 @@ const CREATED_WATERCOURSE_REF = 'WC3'
 // R007 improves Fairly Poor → Fairly Good over 4 years.
 const ENHANCED_UPLIFT_WATERCOURSE_REF = 'R007'
 const ENHANCED_UPLIFT_WATERCOURSE_TIME = 'Fairly Poor to Fairly Good - 4 years'
+const STALE_TIME_TO_TARGET_TEXT = 'Baseline condition to target condition'
 // Created/Enhanced pages put the unit on the value (formatLengthDisplay), so
 // the length reads "0.1774495km" under a bare "Length" label — the retained
 // watercourse page does the opposite (bare value, "Size (kilometres)" label).
@@ -266,6 +271,12 @@ function getHedgerowsProject(browser) {
         ),
         enhancedHedgerowUnits: await rowUnitsText(
           listPage.hedgerowRowByRef(ENHANCED_HEDGEROW_REF)
+        ),
+        // HR3 — Created hedgerow (BMD-737). Only its habitat-list Units cell
+        // is harvested: its tests arrive by clicking the Ref link (the AC's
+        // own entry path), so they need no featureId.
+        createdHedgerowUnits: await rowUnitsText(
+          listPage.hedgerowRowByRef(CREATED_HEDGEROW_REF)
         )
       }
     }
@@ -736,7 +747,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           ).toHaveText('Poor to Good - 10 years')
           await expect(
             postInterventionHabitatDetailsPage.standardTimeToTargetValue
-          ).not.toContainText('Baseline condition to target condition')
+          ).not.toContainText(STALE_TIME_TO_TARGET_TEXT)
           // "Habitat units delivered" matches the Units cell of the same
           // parcel's habitat-list row.
           await expect(
@@ -1151,7 +1162,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         ).toHaveText(ENHANCED_UPLIFT_HEDGEROW_TIME)
         await expect(
           postInterventionHabitatDetailsPage.standardTimeToTargetValue
-        ).not.toContainText('Baseline condition to target condition')
+        ).not.toContainText(STALE_TIME_TO_TARGET_TEXT)
         // "Habitat units delivered" matches the Units cell of the same
         // hedgerow's habitat-list row.
         await expect(
@@ -1215,7 +1226,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     )
   })
 
-  // ─── Created hedgerows (frontend PR#186) ────────────────────────────────────
+  // ─── Created hedgerows (BMD-737, frontend PR#186) ───────────────────────────
   // A Created hedgerow shares the Enhanced hedgerow's two-section template
   // (pi-hedgerow-details-enhanced.njk) but is built by its own view model,
   // which forces baselineFeatureId to null so the "View baseline details" link
@@ -1247,11 +1258,58 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           ref: CREATED_HEDGEROW_REF,
           intervention: 'Created'
         })
+        // Page chrome (BMD-737 AC1): the back link and the project-name
+        // caption sit outside the two sections, so assertTwoSectionLayout does
+        // not reach them.
+        await expect(detailsPage.backLink).toBeVisible()
+        await expect(detailsPage.caption).toHaveText(shared.name)
         // Hedgerows label the size row "Length" (unit on the value) and have
-        // no broad-habitat dimension.
+        // no broad-habitat dimension. AC1 asks for the length "expressed in
+        // km", so assert the km-suffixed value too — the label alone would
+        // survive a regression that rendered hectares against it.
         await expect(detailsPage.enhancedLengthKey).toBeVisible()
+        await expect(detailsPage.stackedSizeValue).toHaveText(LENGTH_KM_PATTERN)
         await expect(detailsPage.broadHabitatKey).toBeHidden()
         await expect(detailsPage.habitatTypeSelect).toBeHidden()
+
+        // AC1 asks for labels *and* values. assertTwoSectionLayout pins the six
+        // time-to-target labels; the standard time-to-target value proves
+        // section 2 resolves its data and pins the dynamic condition transition
+        // frontend PR#193 introduced ("<baseline condition> to <target
+        // condition> - N years") against the static wording it replaced.
+        await expect(detailsPage.standardTimeToTargetValue).toHaveText(
+          CREATED_HEDGEROW_TIME
+        )
+        await expect(detailsPage.standardTimeToTargetValue).not.toContainText(
+          STALE_TIME_TO_TARGET_TEXT
+        )
+        // "Habitat units delivered" matches the Units cell of the same
+        // hedgerow's habitat-list row.
+        await expect(detailsPage.habitatUnitsValue).toHaveText(
+          shared.createdHedgerowUnits
+        )
+      })
+
+      // BMD-737 AC2. The back link is shared with the Enhanced hedgerow page
+      // (one template), but the Created page is built by its own view model,
+      // so the anchor it passes through is asserted from this page too.
+      test('back link from a Created hedgerow returns to the habitat list Hedgerows tab', async ({
+        browser,
+        postInterventionHabitatListPage,
+        postInterventionHabitatDetailsPage,
+        page
+      }) => {
+        const shared = await getHedgerowsProject(browser)
+        // AC2's GIVEN is AC1, so arrive the way the user does rather than
+        // deep-linking: click HR3's Ref link on the Hedgerows tab.
+        await postInterventionHabitatListPage.openHedgerowDetails(
+          shared.id,
+          CREATED_HEDGEROW_REF
+        )
+        await postInterventionHabitatDetailsPage.backLink.click()
+
+        await expect(page).toHaveURL(listAnchorPattern(shared.id, 'hedgerows'))
+        await postInterventionHabitatListPage.assertTabPreselected('hedgerows')
       })
     }
   )
@@ -1463,7 +1521,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           ENHANCED_UPLIFT_WATERCOURSE_TIME
         )
         await expect(detailsPage.standardTimeToTargetValue).not.toContainText(
-          'Baseline condition to target condition'
+          STALE_TIME_TO_TARGET_TEXT
         )
         // "Habitat units delivered" matches the Units cell of the same
         // watercourse's habitat-list row.

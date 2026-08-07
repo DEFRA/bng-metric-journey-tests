@@ -79,8 +79,9 @@ its own flow doc.
      resolved per error code (`error-file/single-error-copy.js`, copy verbatim from the BMD-405
      ACs). Three variants:
      - `standard` — H1 (personalised with the offending feature ref(s) for
-       `AREA_PARCELS_INVALID_GEOMETRY`, `PARCEL_OVERLAPS`, `AREA_PARCELS_OUTSIDE_REDLINE`,
-       `HEDGEROWS_OUTSIDE_REDLINE`, `WATERCOURSES_OUTSIDE_REDLINE`; otherwise
+       `AREA_PARCELS_INVALID_GEOMETRY`, `PARCEL_OVERLAPS`, `AREA_PARCELS_TOO_SMALL`,
+       `AREA_PARCELS_OUTSIDE_REDLINE`, `HEDGEROWS_OUTSIDE_REDLINE`,
+       `WATERCOURSES_OUTSIDE_REDLINE`; otherwise
        "Your Geopackage (.gpkg) file contains an error") plus an instruction sentence ending in
        an inline "upload a new file" link back to the upload form. When projectId is unknown the
        link is dropped and the sentence is closed with a full stop.
@@ -104,7 +105,8 @@ its own flow doc.
   2. **Multiple errors:** GOV.UK error summary plus error blocks grouped by error code; each block
      renders a heading, an optional note (e.g. allowed distinctiveness bands, display-mapped
      "V.High" → "Very high"), and a bulleted list of offending features with an "… and N more"
-     tail when the backend truncated the sample. Suppression rule: when
+     tail when the backend truncated the sample. `AREA_PARCELS_TOO_SMALL` lists each offending
+     parcel with its measured area (e.g. "Feature Ref H002 — ~0.81 sq m"). Suppression rule: when
      `AREA_PARCELS_OUTSIDE_REDLINE` is present, `SLIVERS_OUTSIDE_REDLINE` errors are hidden.
   3. **Empty array (e.g. rejected upload):** generic "We couldn't accept your file" message.
      All layouts offer "Upload a different file" (back to the upload form) and "Back to project"
@@ -117,6 +119,30 @@ its own flow doc.
     and the single-error inline upload link is trimmed to a plain sentence
 - **On success:** Renders the error dropout page
 - **On error:** N/A
+
+---
+
+### Sliver and area checks — what BMD-882 changed `[IMPLEMENTED]`
+
+Backend BMD-882 (PR#185, frontend PR#190) removed one of three related rules. The
+distinction matters when choosing a fixture, because two of them fire on the same
+geometry from opposite directions:
+
+| Rule                      | Status                   | What it means                                                                                                                             |
+| ------------------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `SLIVERS_INSIDE_REDLINE`  | **removed** (BMD-882)    | Was a _derived_ check: tiny gaps inside the boundary no parcel covered, flagged at `0 < area < 1 m²`. Redundant — see `AREA_SUM_MISMATCH` |
+| `SLIVERS_OUTSIDE_REDLINE` | kept, unchanged          | Scraps of parcel geometry poking **outside** the boundary, `> 0.5 m²`. Reported by WKT location, not by parcel                            |
+| `AREA_SUM_MISMATCH`       | kept, unchanged          | `abs(sum(parcel areas) − redline area) > 0.5 m²`. This is what now catches unmapped regions, so removing the derived check loses nothing  |
+| `AREA_PARCELS_TOO_SMALL`  | kept (the real "sliver") | A parcel **supplied in the file** whose own footprint is `< 1 m²`. Area only — shape is not measured, so a long thin parcel passes        |
+
+Two consequences for tests:
+
+- **A gap below the 0.5 m² tolerance is now accepted.** `Baseline - tiny gap between
+parcels.gpkg` (0.32 m² unsnapped gap) uploads successfully and reaches the habitat
+  list. Under the removed rule it was rejected.
+- **`AREA_PARCELS_TOO_SMALL` cannot currently reach the single-error layout.** The only
+  fixture, `Baseline - parcel too small.gpkg`, leaves the shortfall uncompensated, so
+  `AREA_SUM_MISMATCH` co-fires and the grouped multi-error layout renders instead.
 
 ---
 
