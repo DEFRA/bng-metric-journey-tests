@@ -106,6 +106,41 @@ def build_lost_tree_fixture():
         con.close()
 
 
+def build_distinctiveness_fixture():
+    """`habitat distinctiveness out of scope.gpkg`: copy of complete, H1 -> V.High.
+
+    The distinctiveness check keys on "<Broad Habitat Type> - <Habitat Type>" and
+    reads the *Proposed* columns for a post-intervention file, so H1's proposed
+    pair is retargeted at "Grassland - Lowland meadows" (V.High in the engine's
+    DISTINCTIVENESS_CATEGORIES). Every other parcel keeps the source fixture's
+    placeholder type strings, which resolve to no band at all — so the file trips
+    exactly one visible error and renders the BMD-405 single-error page.
+
+    Used by upload-post-intervention.spec.js (distinctiveness rejection).
+    """
+    src = EX / "Post-intervention - complete.gpkg"
+    dst = EX / "Post-intervention - habitat distinctiveness out of scope.gpkg"
+    shutil.copyfile(src, dst)
+    con = sqlite3.connect(dst)
+    try:
+        update_attr(
+            con, "Habitats",
+            '"Proposed Broad Habitat Type"=?, "Proposed Habitat Type"=? '
+            'WHERE "Parcel Ref"=?',
+            ("Grassland", "Lowland meadows", "H1"),
+        )
+        con.commit()
+        print("\nhabitat distinctiveness out of scope:")
+        for row in con.execute(
+            'SELECT "Parcel Ref", "Proposed Broad Habitat Type", '
+            '"Proposed Habitat Type" FROM "Habitats" WHERE "Parcel Ref"=?',
+            ("H1",),
+        ):
+            print(f"  Habitats: {row}")
+    finally:
+        con.close()
+
+
 def build_created_area_fixture():
     """`created area habitat.gpkg`: copy of complete, H2-7 -> genuinely Created.
 
@@ -195,6 +230,7 @@ def _report(con, label, layers):
 if __name__ == "__main__":
     recut_mixed_fixture()
     build_lost_tree_fixture()
+    build_distinctiveness_fixture()
     build_created_area_fixture()
     build_watercourse_wc3_baseline_fixture()
     print("\nDone.")
