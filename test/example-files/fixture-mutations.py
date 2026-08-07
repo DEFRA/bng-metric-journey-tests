@@ -184,6 +184,40 @@ def build_created_area_fixture():
         con.close()
 
 
+def build_watercourse_wc3_baseline_fixture():
+    """`Baseline - watercourse ref WC3.gpkg`: river ref WC1 -> WC3.
+
+    The post-intervention "watercourses mixed retention" fixture's only Created
+    watercourse is WC3, but the shipped baseline watercourse file carries the
+    ref WC1 — so a Created watercourse never has a ref-matching baseline
+    feature and the "View baseline details" link is hidden for the wrong
+    reason. Re-reffing the single baseline river to WC3 gives the Created
+    watercourse a genuine baseline counterpart, which is what makes it possible
+    to tell whether the Created watercourse page suppresses that link (as the
+    Created hedgerow page does) or still resolves it by ref.
+
+    Only the ref string changes — geometry, type, condition and encroachments
+    are untouched, so the file still passes baseline validation.
+
+    Used by the BMD-739 AC validation evidence spec.
+    """
+    src = EX / "Baseline - complete with watercourse refs.gpkg"
+    dst = EX / "Baseline - watercourse ref WC3.gpkg"
+    shutil.copyfile(src, dst)
+    con = sqlite3.connect(dst)
+    try:
+        update_attr(
+            con, "Rivers",
+            '"Parcel Ref"=? WHERE "Parcel Ref"=?',
+            ("WC3", "WC1"),
+        )
+        con.commit()
+        rows = con.execute('SELECT "Parcel Ref" FROM "Rivers"').fetchall()
+        print(f"\nwatercourse ref WC3 baseline:\n  Rivers: {rows}")
+    finally:
+        con.close()
+
+
 def _report(con, label, layers):
     print(f"\n{label}:")
     for table, ref in layers:
@@ -198,4 +232,5 @@ if __name__ == "__main__":
     build_lost_tree_fixture()
     build_distinctiveness_fixture()
     build_created_area_fixture()
+    build_watercourse_wc3_baseline_fixture()
     print("\nDone.")

@@ -76,10 +76,12 @@ const ENHANCED_HEDGEROW_REF = 'HR2'
 const ENHANCED_UPLIFT_HEDGEROW_REF = 'HG018'
 const ENHANCED_UPLIFT_HEDGEROW_TIME = 'Poor to Moderate - 20 years'
 const CREATED_HEDGEROW_REF = 'HR3'
-// HR3 is created to Moderate condition over 5 years, so unlike the Enhanced
-// HR2 (Good→Good) its time-to-target section resolves — enough to pin the
-// dynamic condition-transition text on the Created hedgerow page.
-const CREATED_HEDGEROW_TIME = 'Moderate to Moderate - 5 years'
+// HR3 and WC3 are both created to Moderate condition over 5 years, so unlike
+// their Enhanced siblings (HR2 Good→Good, WC2 Moderate→Moderate, neither of
+// which resolves a time-to-target) their sections populate — enough to pin the
+// dynamic condition-transition text on the Created hedgerow and watercourse
+// pages alike.
+const CREATED_MODERATE_TIME = 'Moderate to Moderate - 5 years'
 const ENHANCED_WATERCOURSE_REF = 'WC2'
 const CREATED_WATERCOURSE_REF = 'WC3'
 // The same fixture pair carries the only Enhanced watercourse that can reach
@@ -346,6 +348,12 @@ function getWatercoursesProject(browser) {
         ),
         retainedWatercourseUnits: await rowUnitsText(
           listPage.watercourseRowByRef(RETAINED_WATERCOURSE_REF)
+        ),
+        // WC3 — Created watercourse (BMD-739). Only its habitat-list Units
+        // cell is harvested: its tests arrive by clicking the Ref link (the
+        // AC's own entry path), so they need no featureId.
+        createdWatercourseUnits: await rowUnitsText(
+          listPage.watercourseRowByRef(CREATED_WATERCOURSE_REF)
         )
       }
     }
@@ -1278,7 +1286,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         // frontend PR#193 introduced ("<baseline condition> to <target
         // condition> - N years") against the static wording it replaced.
         await expect(detailsPage.standardTimeToTargetValue).toHaveText(
-          CREATED_HEDGEROW_TIME
+          CREATED_MODERATE_TIME
         )
         await expect(detailsPage.standardTimeToTargetValue).not.toContainText(
           STALE_TIME_TO_TARGET_TEXT
@@ -1635,7 +1643,13 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await expect(detailsPage.caption).toHaveText(shared.name)
           // Watercourse specifics: the size row is "Length" (unit on the
           // value), plus the two encroachment rows the hedgerow page lacks.
+          // BMD-735/739 AC1 ask for the length "expressed in km", so assert
+          // the km-suffixed value too — the label alone would survive a
+          // regression that rendered hectares against it.
           await expect(detailsPage.enhancedLengthKey).toBeVisible()
+          await expect(detailsPage.stackedSizeValue).toHaveText(
+            LENGTH_KM_PATTERN
+          )
           await expect(detailsPage.watercourseEncroachmentKey).toBeVisible()
           await expect(detailsPage.riparianEncroachmentKey).toBeVisible()
           await expect(detailsPage.broadHabitatKey).toBeHidden()
@@ -1643,6 +1657,70 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await expect(detailsPage.riparianEncroachmentSelect).toBeHidden()
         })
       }
+
+      // BMD-739 AC1 asks for labels *and* values. The loop above pins the
+      // labels for both refs; the section-2 values can only be asserted on the
+      // Created WC3, since the Enhanced WC2 is Moderate→Moderate and renders a
+      // blank time-to-target (the Enhanced watercourse's values are covered on
+      // R007 in the BMD-735 describe above).
+      test('a Created watercourse shows its section-2 values and units delivered', async ({
+        browser,
+        postInterventionHabitatListPage,
+        postInterventionHabitatDetailsPage
+      }) => {
+        const shared = await getWatercoursesProject(browser)
+        await postInterventionHabitatListPage.openWatercourseDetails(
+          shared.id,
+          CREATED_WATERCOURSE_REF
+        )
+
+        const detailsPage = postInterventionHabitatDetailsPage
+        // The standard time-to-target value proves section 2 resolves its data
+        // *and* pins the dynamic condition transition frontend PR#193
+        // introduced ("<baseline condition> to <target condition> - N years")
+        // against the static wording it replaced.
+        await expect(detailsPage.standardTimeToTargetValue).toHaveText(
+          CREATED_MODERATE_TIME
+        )
+        await expect(detailsPage.standardTimeToTargetValue).not.toContainText(
+          STALE_TIME_TO_TARGET_TEXT
+        )
+        // "Habitat units delivered" renders to 2 decimal places and matches
+        // the Units cell of the same watercourse's habitat-list row.
+        await expect(detailsPage.habitatUnitsValue).toHaveText(
+          UNITS_TWO_DP_PATTERN
+        )
+        await expect(detailsPage.habitatUnitsValue).toHaveText(
+          shared.createdWatercourseUnits
+        )
+      })
+
+      // BMD-739 AC2. The back link is shared with the Enhanced watercourse
+      // page, but the Created page is a distinct template built by its own
+      // view model, so the anchor it passes through is asserted from this page
+      // too.
+      test('back link from a Created watercourse returns to the habitat list Watercourses tab', async ({
+        browser,
+        postInterventionHabitatListPage,
+        postInterventionHabitatDetailsPage,
+        page
+      }) => {
+        const shared = await getWatercoursesProject(browser)
+        // AC2's GIVEN is AC1, so arrive the way the user does rather than
+        // deep-linking: click WC3's Ref link on the Watercourses tab.
+        await postInterventionHabitatListPage.openWatercourseDetails(
+          shared.id,
+          CREATED_WATERCOURSE_REF
+        )
+        await postInterventionHabitatDetailsPage.backLink.click()
+
+        await expect(page).toHaveURL(
+          listAnchorPattern(shared.id, 'watercourses')
+        )
+        await postInterventionHabitatListPage.assertTabPreselected(
+          'watercourses'
+        )
+      })
     }
   )
 
