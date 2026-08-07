@@ -141,6 +141,49 @@ def build_distinctiveness_fixture():
         con.close()
 
 
+def build_created_area_fixture():
+    """`created area habitat.gpkg`: copy of complete, H2-7 -> genuinely Created.
+
+    No shipped fixture — here or in the harness — has an area habitat whose
+    GPKG "Retention Category" is literally "Created": every post-intervention
+    file carries only Retained / Enhanced / Lost, and the backend *maps* a Lost
+    area to Created at import. A Lost-sourced Created habitat still carries its
+    baseline attributes, so it cannot exercise BMD-736's precondition
+    ("Intervention type for the habitat is Created") faithfully. The harness's
+    real-world bng-500 pairs do have genuine Created parcels but none of them
+    clears the Beta validator (out-of-scope High distinctiveness, and their
+    post-intervention habitat polygons do not tile the redline boundary).
+
+    So H2-7 is recut here to match what a real created parcel looks like:
+    Retention Category "Created" with every Baseline* attribute cleared, its
+    proposed side (Lakes / Ponds (non-priority habitat), Good, Medium) left
+    intact so units still calculate. Geometry is untouched, so the file still
+    satisfies the area-sum-equals-redline rule.
+
+    Used by the BMD-736 AC validation evidence spec.
+    """
+    src = EX / "Post-intervention - complete.gpkg"
+    dst = EX / "Post-intervention - created area habitat.gpkg"
+    shutil.copyfile(src, dst)
+    con = sqlite3.connect(dst)
+    try:
+        update_attr(
+            con, "Habitats",
+            '"Retention Category"=?, '
+            '"Baseline Broad Habitat Type"=NULL, '
+            '"Baseline Habitat Type"=NULL, '
+            '"Baseline Condition"=NULL, '
+            '"Baseline Distinctiveness"=NULL, '
+            '"Baseline Strategic Significance"=NULL '
+            'WHERE "Parcel Ref"=?',
+            ("Created", "H2-7"),
+        )
+        con.commit()
+        _report(con, "created area habitat", [("Habitats", "Parcel Ref")])
+    finally:
+        con.close()
+
+
 def _report(con, label, layers):
     print(f"\n{label}:")
     for table, ref in layers:
@@ -154,4 +197,5 @@ if __name__ == "__main__":
     recut_mixed_fixture()
     build_lost_tree_fixture()
     build_distinctiveness_fixture()
+    build_created_area_fixture()
     print("\nDone.")
