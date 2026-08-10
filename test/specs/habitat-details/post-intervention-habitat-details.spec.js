@@ -123,6 +123,25 @@ function detailsUrl({ projectId, featureId } = {}) {
   return `/post-intervention-habitat-details?${params.toString()}`
 }
 
+// The BMD-878 Back link builds its query as featureId then projectId — the
+// opposite order to detailsUrl() above.
+async function expectBackLinkReturnsToPiDetails(
+  page,
+  baselineHabitatDetailsPage,
+  { projectId, featureId, ref }
+) {
+  const expectedHref = `/post-intervention-habitat-details?featureId=${featureId}&projectId=${projectId}`
+  await expect(baselineHabitatDetailsPage.backLink).toHaveAttribute(
+    'href',
+    expectedHref
+  )
+  await baselineHabitatDetailsPage.backLink.click()
+  await expect(page).toHaveURL(new URL(expectedHref, baseUrl).toString())
+  await expect(
+    page.getByRole('heading', { name: ref, exact: true })
+  ).toBeVisible()
+}
+
 function listAnchorPattern(projectId, anchor) {
   return new RegExp(
     `/projects/${projectId}/post-intervention-habitat-list#${anchor}`
@@ -624,9 +643,18 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       )
 
       test(
-        '"View baseline details" links to the ref-matched baseline feature',
-        { tag: '@regression' },
-        async ({ browser, postInterventionHabitatDetailsPage, page }) => {
+        '"View baseline details" links to the ref-matched baseline feature, whose Back link returns here',
+        // @happy-path: a CDP-runnable functional journey (click through to the
+        // baseline page, click Back, land where you started). The Enhanced
+        // variant below is the same journey via a different template, so per
+        // the one-representative rule only this one carries the tag.
+        { tag: ['@regression', '@happy-path'] },
+        async ({
+          browser,
+          postInterventionHabitatDetailsPage,
+          baselineHabitatDetailsPage,
+          page
+        }) => {
           const shared = await getCompleteProject(browser)
           await postInterventionHabitatDetailsPage.open(
             shared.id,
@@ -659,6 +687,20 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           expect(baselineFeatureId).not.toBe(shared.retainedWithBaseline)
           await expect(postInterventionHabitatDetailsPage.heading).toHaveText(
             'Habitat H1'
+          )
+
+          // BMD-878 AC1 (Retained). Reaching the baseline page by *clicking*
+          // sends a Referer, which is the only thing the back-link target is
+          // derived from — a page.goto() here would silently exercise the
+          // baseline-list fallback instead and prove nothing.
+          await expectBackLinkReturnsToPiDetails(
+            page,
+            baselineHabitatDetailsPage,
+            {
+              projectId: shared.id,
+              featureId: shared.retainedWithBaseline,
+              ref: 'H1'
+            }
           )
         }
       )
@@ -765,9 +807,14 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       )
 
       test(
-        '"View baseline details" links to the ref-matched baseline feature',
+        '"View baseline details" links to the ref-matched baseline feature, whose Back link returns here',
         { tag: '@regression' },
-        async ({ browser, postInterventionHabitatDetailsPage, page }) => {
+        async ({
+          browser,
+          postInterventionHabitatDetailsPage,
+          baselineHabitatDetailsPage,
+          page
+        }) => {
           const shared = await getCompleteProject(browser)
           await postInterventionHabitatDetailsPage.open(
             shared.id,
@@ -793,6 +840,19 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           expect(baselineFeatureId).not.toBe(shared.enhancedWithBaseline)
           await expect(postInterventionHabitatDetailsPage.heading).toHaveText(
             'Habitat H3'
+          )
+
+          // BMD-878 AC1 (Enhanced) — the AC's GIVEN admits a retained *or*
+          // enhanced habitat, and the two arrive at the baseline page from
+          // different post-intervention templates, so both are covered.
+          await expectBackLinkReturnsToPiDetails(
+            page,
+            baselineHabitatDetailsPage,
+            {
+              projectId: shared.id,
+              featureId: shared.enhancedWithBaseline,
+              ref: 'H3'
+            }
           )
         }
       )
