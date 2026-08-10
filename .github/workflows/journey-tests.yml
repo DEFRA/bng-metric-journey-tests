@@ -87,8 +87,17 @@ jobs:
     env:
       BROWSER: ${{ inputs.browser || 'chromium' }}
     steps:
+      # Pinned explicitly so this workflow can be called from another repo.
+      # A bare checkout resolves to github.repository, which in a cross-repo
+      # workflow_call is the *calling* service repo, not the test suite.
+      # Called from within this repo, github.ref is still the PR's own ref
+      # (refs/pull/N/merge, or the queue ref on merge_group), so journey-tests
+      # PRs keep testing their own changes rather than main.
       - name: Check out journey-tests
         uses: actions/checkout@v7.0.1
+        with:
+          repository: DEFRA/bng-metric-journey-tests
+          ref: ${{ github.repository == 'DEFRA/bng-metric-journey-tests' && github.ref || 'main' }}
 
       - name: Check out bng-metric-frontend
         uses: actions/checkout@v7.0.1
