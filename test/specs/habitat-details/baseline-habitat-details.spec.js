@@ -903,11 +903,12 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       let areaRef
       let areaSize
 
-      test('AC1 — page pathname is /baseline-habitat-details after click-through', async ({
+      test('AC1 — page pathname is /baseline-habitat-details after click-through, and Back returns to the list', async ({
         createProjectFlow,
         projectDashboardPage,
         uploadBaselineFileFlow,
         habitatListPage,
+        baselineHabitatDetailsPage,
         page
       }) => {
         const shared = await getSharedBaseline({
@@ -929,6 +930,23 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           .getByRole('link', { name: areaRef, exact: true })
           .click()
         await expect(page).toHaveURL(/\/baseline-habitat-details/)
+
+        // BMD-878 AC2, arrived-from-the-list route. The referrer here is the
+        // baseline habitat list: same-host, but not a post-intervention page,
+        // so the Back link still falls back to the list. This is a different
+        // branch from the no-referrer case the AC14 tests cover — a referrer
+        // that parses and then fails the path/projectId checks, rather than a
+        // missing one that throws. The hedgerow and watercourse click-throughs
+        // below share this back-link logic, so one feature type covers it.
+        await expect(baselineHabitatDetailsPage.backLink).toHaveAttribute(
+          'href',
+          new RegExp(`^/projects/${projectId}/baseline-habitat-list`)
+        )
+        await baselineHabitatDetailsPage.backLink.click()
+        await expect(page).toHaveURL(
+          new RegExp(`/projects/${projectId}/baseline-habitat-list`)
+        )
+        await expect(habitatListPage.areaHabitatsTable).toBeVisible()
       })
 
       test('AC2 — header shows Back link, project caption, "Habitat {ref}" heading, "Baseline Details"', async ({
@@ -1112,6 +1130,11 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(baselineHabitatDetailsPage.habitatUnitsKey).toBeVisible()
       })
 
+      // BMD-878 AC2, bookmark route: open() deep-links via page.goto(), which
+      // sends no Referer, so the Back link falls back to the habitat list.
+      // Do not "improve" this to click through from a post-intervention
+      // habitat details page — that sends a Referer and the link would
+      // correctly point back there instead, which is AC1, not this test.
       test('AC14 — Back link returns to the habitat list Areas tab', async ({
         baselineHabitatDetailsPage,
         habitatListPage,
@@ -1604,6 +1627,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(baselineHabitatDetailsPage.habitatUnitsKey).toBeVisible()
       })
 
+      // BMD-878 AC2, bookmark route — see the Areas-tab AC14 test for why this
+      // must keep reaching the page via open()/page.goto() (no Referer).
       test('AC14 — Back link returns to the habitat list Hedgerows tab', async ({
         baselineHabitatDetailsPage,
         habitatListPage,
@@ -2206,6 +2231,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(baselineHabitatDetailsPage.cancelLink).toBeVisible()
       })
 
+      // BMD-878 AC2, bookmark route — see the Areas-tab AC14 test for why this
+      // must keep reaching the page via open()/page.goto() (no Referer).
       test('AC14 — Back link returns to the habitat list Watercourses tab', async ({
         baselineHabitatDetailsPage,
         habitatListPage,
