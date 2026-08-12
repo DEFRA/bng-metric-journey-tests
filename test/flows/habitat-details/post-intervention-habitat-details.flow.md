@@ -174,10 +174,20 @@ Every GET step below shares this contract, so it is stated once rather than repe
     target condition, Standard difficulty, Advance or delay?, Final time to target
     condition, Applied difficulty multiplier.
   - Then the bordered **"Habitat units delivered"** row.
-  - **Standard time to target condition** renders the condition _transition_:
-    `"<baseline condition> to <proposed condition> - N years"` (frontend PR#193), with any
-    `"N. "` prefix stripped from both conditions; it renders **empty** if the baseline
-    condition, the target condition or the year count is missing.
+  - **Standard time to target condition** (`formatStandardTimeToTarget`,
+    `post-intervention-habitat-details/view-only-shared.js`) renders the condition
+    _transition_ `"<baseline condition> to <proposed condition> - N years"` (frontend
+    PR#193), with any `"N. "` prefix stripped from both conditions. **Frontend PR#211
+    (2026-08-12) changed the missing-baseline case:** when the baseline condition is absent
+    or empty the row now renders the target alone — `"<proposed condition> - N years"` — in
+    place of the previous empty string. It renders **empty** only when the **target
+    condition** or the **year count** is missing.
+
+    This matters most on the Created pages (Steps 4, 7, 8): a created feature has no
+    baseline counterpart, so `feature.baseline.condition` is typically absent and this row
+    is exactly the short form. A test asserting an empty cell for a Created feature with a
+    target condition and year count is now wrong.
+
   - **Target condition and Condition render the identical string** — both are
     `withMultiplier(stripConditionPrefix(proposed.condition), proposed.conditionScore)`.
   - Every value on this page reads from `proposed`.

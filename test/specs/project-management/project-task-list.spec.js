@@ -52,13 +52,17 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           TASK_PROJECT_DETAILS,
           /\/project-details\//
         )
+        // BMD-850: while an upload is absent, both habitat rows point at the
+        // shared file-type selection page — the same href for either row. The
+        // radio chosen there is what routes the user to the baseline or
+        // post-intervention upload form.
         await projectTaskListPage.assertTaskLink(
           TASK_BASELINE_HABITATS,
-          /\/projects\/.*\/upload-baseline-file/
+          new RegExp(`/projects/${id}/upload-file$`)
         )
         await projectTaskListPage.assertTaskLink(
           TASK_POST_INTERVENTION,
-          /\/projects\/.*\/upload-post-intervention-file/
+          new RegExp(`/projects/${id}/upload-file$`)
         )
         // Fresh project: Project Name is Completed; Project Details, On-site
         // baseline and On-site post intervention are all Not yet started.
@@ -120,7 +124,15 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expect(page.getByText(name)).toBeVisible()
       })
 
-      test('clicking "On-site baseline habitats" task item navigates to the baseline upload page', async ({
+      // BMD-850 put a file-type selection page in front of both upload
+      // journeys, so neither row lands on a type-specific upload form any more —
+      // both open "What would you like to upload?". These two tests still earn
+      // their place by pinning each row's wiring independently (a row losing its
+      // href is the regression they catch). Driving on through the radio
+      // selection to the right upload form belongs to the selection page's own
+      // spec, which does not exist yet — see
+      // test/flows/upload-file/choose-upload-type.flow.md.
+      test('clicking "On-site baseline habitats" task item navigates to the upload type selection page', async ({
         createProjectFlow,
         projectDashboardPage,
         projectTaskListPage,
@@ -133,10 +145,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await projectTaskListPage.open(id)
         await projectTaskListPage.taskItem(TASK_BASELINE_HABITATS).click()
 
-        await expect(page).toHaveURL(/\/upload-baseline-file/)
+        await expect(page).toHaveURL(new RegExp(`/projects/${id}/upload-file$`))
       })
 
-      test('clicking "On-site post intervention habitats" task item navigates to the post-intervention upload page', async ({
+      test('clicking "On-site post intervention habitats" task item navigates to the upload type selection page', async ({
         createProjectFlow,
         projectDashboardPage,
         projectTaskListPage,
@@ -149,7 +161,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await projectTaskListPage.open(id)
         await projectTaskListPage.taskItem(TASK_POST_INTERVENTION).click()
 
-        await expect(page).toHaveURL(/\/upload-post-intervention-file/)
+        await expect(page).toHaveURL(new RegExp(`/projects/${id}/upload-file$`))
       })
     }
   )

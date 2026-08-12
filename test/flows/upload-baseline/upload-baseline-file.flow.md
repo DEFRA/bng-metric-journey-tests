@@ -11,18 +11,33 @@ The baseline and post-intervention upload journeys now share parameterised contr
 templates (keyed by `HABITAT_UPLOAD_TYPES`); the post-intervention variant is documented in
 its own flow doc.
 
+## Entry point
+
+**BMD-850 (frontend PR#207) put a file-type selection page in front of this flow.** The
+project task list's "On-site baseline habitats" row (while `project.baseline` is absent) and
+the baseline habitat list's "Upload a different file" button both now link to
+`GET /projects/{id}/upload-file` — **not** straight to the upload form. The user picks
+"Baseline Biodiversity Net Gain GeoPackage (.gpkg) file" there and is redirected into Step 1
+below with a `returnUrl` query param. See
+[`test/flows/upload-file/choose-upload-type.flow.md`](../upload-file/choose-upload-type.flow.md).
+
+The upload form remains directly reachable by URL, so Step 1 is still testable on its own —
+but a test that navigates the **UI** now passes through the selection page first.
+
 ## Steps
 
 ### Step 1 — View file upload form `[IMPLEMENTED]`
 
-- **Route:** `GET /projects/{id}/upload-baseline-file`
+- **Route:** `GET /projects/{id}/upload-baseline-file?returnUrl={returnUrl}` (`returnUrl` optional)
 - **Template:** `src/server/habitat-upload-file/habitat-upload-file.njk` (shared; controller is `createUploadFileController(HABITAT_UPLOAD_TYPES.baseline)`)
 - **Auth required:** Yes (session + approved BNG Completer role — Defra ID enrolment status 3, scoped to `currentRelationshipId` when present)
 - **Backend endpoints:**
   - `GET /projects/{id}` — fetches project name for the caption
   - `POST /upload/initiate` — creates a CDP upload session; returns `uploadId` and `uploadUrl`
-- **Description:** Renders a GOV.UK file-upload form whose `action` points directly to the CDP Uploader URL (not the app). The handler reads and immediately clears any `uploadError` flash from the session (set by previous failed/timed-out attempts) and stores the new `uploadId` in the session as `pendingUploadId`. The response sets `Cache-Control: no-store` to ensure the short-lived upload URL is always fresh. Back link and Cancel link both navigate to `/add-project-details/{projectId}`. The controller delegates to the shared upload-file factory; upload metadata sent to the CDP Uploader includes `uploadType: 'baseline'`, and backend calls forward the user's Defra ID bearer via `backendRequest` (BMD-511).
+- **Description:** Renders a GOV.UK file-upload form whose `action` points directly to the CDP Uploader URL (not the app). The handler reads and immediately clears any `uploadError` flash from the session (set by previous failed/timed-out attempts) and stores the new `uploadId` in the session as `pendingUploadId`. The response sets `Cache-Control: no-store` to ensure the short-lived upload URL is always fresh. **Back link and Cancel link both navigate to the file-type selection page** — `uploadFileHref(projectId, safeUploadReturnUrl(request.query.returnUrl, projectId))`, i.e. `/projects/{projectId}/upload-file?returnUrl=<safe>` (BMD-850, frontend PR#207). They pointed at `/add-project-details/{projectId}` before that change; that path is now only what the sanitised `returnUrl` **defaults** to when none is supplied. The controller delegates to the shared upload-file factory; upload metadata sent to the CDP Uploader includes `uploadType: 'baseline'`, and backend calls forward the user's Defra ID bearer via `backendRequest` (BMD-511).
 - **Validation:** None (display-only). If `uploadUrl` is absent the template renders a fallback message ("Unable to start file upload") instead of the form.
+- **Route parameters:** `{id}` is **not** validated (no Joi `params` schema on this route). A non-UUID id does not 400 — `GET /projects/{id}` fails, the caption falls back to "Project", and the form still renders. The same applies to `upload-received`. (Contrast `/projects/{id}/upload-file`, which **does** require a uuidv4.)
+- **Query parameters:** `returnUrl` is read from `request.query` but is **not** Joi-validated; it is sanitised by `safeUploadReturnUrl` (must start with a single `/`, no `\`), falling back to `/add-project-details/{projectId}`.
 - **On success:** Renders the file-upload form
 - **On error:** Renders the form with the session flash error message in a GOV.UK error summary (then cleared)
 
@@ -119,6 +134,32 @@ its own flow doc.
     and the single-error inline upload link is trimmed to a plain sentence
 - **On success:** Renders the error dropout page
 - **On error:** N/A
+
+---
+
+### Replacing a baseline discards post-intervention data — BMD-850 `[IMPLEMENTED]`
+
+Backend BMD-850 (PR#219) changed `setProjectBaseline`
+(`bng-metric-backend/src/db/persist-project.js`) to write the new baseline **and delete the
+`postIntervention` key** in a single JSONB update (`${withBaseline} - 'postIntervention'`),
+alongside the geometry cleanup in the same upload transaction. Previously the stored
+post-intervention document was re-enriched against the new baseline
+(`re-enrich-stored-post-intervention.js`, now deleted).
+
+So a **second successful baseline upload wipes any post-intervention data already imported**
+for that project. Visible effects:
+
+- Task list "On-site post intervention habitats" reverts from "Completed" to "Not yet
+  started", and its link flips back to `/projects/{id}/upload-file`.
+- `/projects/{id}/post-intervention-habitat-list` renders with empty tabs and no summary
+  figures.
+- The post-intervention selection on `/projects/{id}/upload-file` becomes available again
+  (its baseline precondition is satisfied by the new baseline).
+
+This is what the selection page's "Uploading a file will overwrite any previous files you
+have uploaded." line warns about. A test that uploads a baseline into a project that already
+has post-intervention data must expect the post-intervention side to be **gone**, not
+recalculated.
 
 ---
 

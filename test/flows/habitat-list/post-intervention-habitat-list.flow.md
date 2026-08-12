@@ -109,8 +109,14 @@ Column-level behaviour common to all three tabs:
 #### Actions
 
 - A **"Continue"** button navigating to `/add-project-details/{id}`.
-- An **"Upload a different file"** secondary button navigating to
-  `/projects/{id}/upload-post-intervention-file`.
+- An **"Upload a different file"** secondary button navigating to the file-type selection
+  page — `/projects/{id}/upload-file?returnUrl=%2Fprojects%2F{id}%2Fpost-intervention-habitat-list`
+  (BMD-850, frontend PR#207; built by
+  `uploadFileHref(id, '/projects/{id}/' + uploadType.listRoute)`). It pointed straight at
+  `/projects/{id}/upload-post-intervention-file` before that change, so the user now picks
+  the file type first, and Back/Cancel on the upload form return **here** rather than to the
+  task list. Because the task-list row shows "Completed" (linking to this page) once
+  post-intervention data exists, this button is the **only** UI route back to a re-upload.
 - Back link navigates to `/add-project-details/{id}` (same target as Continue).
 
 - **Validation:**

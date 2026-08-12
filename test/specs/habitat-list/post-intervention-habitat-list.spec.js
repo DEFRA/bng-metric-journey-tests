@@ -7,6 +7,7 @@ import {
   baseUrl
 } from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
+import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import { createProjectCache } from '@utils/shared-project.js'
 import { ProjectDashboardPage } from '@pages/project-dashboard.page.js'
 import { CreateProjectFlow } from '@flows/project-management/create-project.flow.js'
@@ -328,7 +329,9 @@ test.describe(
             postInterventionHabitatListPage.continueButton
           ).toHaveAttribute('href', `/add-project-details/${id}`)
 
-          // AC5: secondary upload button
+          // AC5: secondary upload button. BMD-850: it now goes to the shared
+          // file-type selection page carrying this list as the returnUrl, not
+          // straight to the post-intervention upload form.
           await expect(
             postInterventionHabitatListPage.uploadDifferentFileButton
           ).toBeVisible()
@@ -336,7 +339,7 @@ test.describe(
             postInterventionHabitatListPage.uploadDifferentFileButton
           ).toHaveAttribute(
             'href',
-            `/projects/${id}/upload-post-intervention-file`
+            uploadFileHref(id, `/projects/${id}/post-intervention-habitat-list`)
           )
         })
       }
