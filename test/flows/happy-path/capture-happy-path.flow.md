@@ -15,6 +15,7 @@ This is not a regression test. It runs only via `playwright.screenshots.config.j
 | 02  | `02-project-name.png`                   | Define project name, filled in (`/project-name`)                                                | [IMPLEMENTED]                                                                               |
 | 03  | `03-manage-projects.png`                | Project dashboard listing the new project (`/manage-projects`)                                  | [IMPLEMENTED]                                                                               |
 | 04  | `04-add-project-details.png`            | Project task list, initial statuses (`/add-project-details/{id}`)                               | [IMPLEMENTED]                                                                               |
+| —   | _not captured_                          | **Choose upload type — "What would you like to upload?" (`/projects/{id}/upload-file`)**        | **[PLANNED] — new screen (BMD-850, frontend PR#207); not yet in the capture spec**          |
 | 05  | `05-upload-baseline-file.png`           | Upload baseline form with file chosen (`/projects/{id}/upload-baseline-file`)                   | [IMPLEMENTED]                                                                               |
 | 06  | `06-checking-your-file.png`             | Upload processing page (`/projects/{id}/upload-received`)                                       | [IMPLEMENTED] — transient meta-refresh page; capture is best-effort                         |
 | 07  | `07-baseline-habitat-list.png`          | On-site baseline habitats (`/projects/{id}/baseline-habitat-list`)                              | [IMPLEMENTED]                                                                               |
@@ -22,7 +23,7 @@ This is not a regression test. It runs only via `playwright.screenshots.config.j
 | 09  | `09-upload-post-intervention-file.png`  | Upload post-intervention form with file chosen (`/projects/{id}/upload-post-intervention-file`) | [IMPLEMENTED]                                                                               |
 | 10  | `10-post-intervention-habitat-list.png` | On-site post intervention habitats (`/projects/{id}/post-intervention-habitat-list`)            | [IMPLEMENTED]                                                                               |
 | 11  | `11-add-project-details-complete.png`   | Project task list with Completed statuses (`/add-project-details/{id}`)                         | [IMPLEMENTED]                                                                               |
-| —   | _not captured_                          | Project Details task                                                                            | [PLANNED] — route not yet implemented in frontend                                           |
+| —   | _not captured_                          | Project Details form (`/project-details/{projectId}`)                                           | [PLANNED] — route **is** implemented; the capture spec does not visit it yet                |
 
 ## Fixtures
 
@@ -39,4 +40,11 @@ Or invoke the `/capture-happy-path` slash command, which wraps these steps and f
 
 ## Maintenance
 
-When the happy path gains a screen (e.g. the Project Details task ships), add the step to `test/screenshots/happy-path.screenshots.spec.js` in journey order and update the table above before touching the spec.
+When the happy path gains a screen, add the step to `test/screenshots/happy-path.screenshots.spec.js` in journey order and update the table above before touching the spec.
+
+**Two screens are currently outstanding** (both marked `[PLANNED]` above — the routes exist, the capture does not visit them):
+
+1. **Choose upload type** (`/projects/{id}/upload-file`) — BMD-850 inserted this between the task list (04) and both upload forms. The spec still reaches `/projects/{id}/upload-baseline-file` and `/projects/{id}/upload-post-intervention-file` directly, which is why the capture still succeeds; navigating the UI now passes through the selection page. It belongs **twice** in journey order — once before 05 and once before 09 — since the user picks a type each time. See [`../upload-file/choose-upload-type.flow.md`](../upload-file/choose-upload-type.flow.md).
+2. **Project Details** (`/project-details/{projectId}`) — implemented and documented in [`../project-management/project-details.flow.md`](../project-management/project-details.flow.md). The earlier "route not yet implemented" note in this table was stale.
+
+Note the `/capture-happy-path` drift pre-flight compares this table against `router.js`, so it will keep flagging both until the spec covers them or they are removed from the table.

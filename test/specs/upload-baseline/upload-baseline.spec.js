@@ -12,6 +12,7 @@ import { ProjectDashboardPage } from '@pages/project-dashboard.page.js'
 import { ErrorFilePage } from '@pages/error-file.page.js'
 
 const TASK_BASELINE_HABITATS = 'On-site baseline habitats'
+const TASK_POST_INTERVENTION = 'On-site post intervention habitats'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const PROJECT_LABEL = 'Upload baseline flow test'
@@ -20,6 +21,7 @@ const PROJECT_LABEL = 'Upload baseline flow test'
 // worst case (esp. the real uploader in e2e), so allow the full window.
 const UPLOAD_TIMEOUT = 120_000
 const COMPLETE_BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
+const COMPLETE_POST_INTERVENTION_FILE = 'Post-intervention - complete.gpkg'
 const NATURAL_ENGLAND_MISMATCH_COPY =
   'The layer names and column names do not match what is required by Natural England'
 
@@ -82,6 +84,82 @@ function describeHappyPath() {
         await expect(
           projectTaskListPage.taskStatus('Not yet started')
         ).toHaveCount(2)
+      })
+    }
+  )
+}
+
+// ─── Baseline replacement discards post-intervention data ────────────────────
+
+// Backend BMD-850 (PR#219) made setProjectBaseline delete the postIntervention
+// key in the same JSONB update that writes the new baseline, replacing the old
+// re-enrichment behaviour. That is silent data loss from the user's point of
+// view, and the task list is where it surfaces — so it is worth pinning.
+function describeBaselineReplacement() {
+  test.describe(
+    'Upload baseline — replacing an existing baseline',
+    { tag: '@regression' },
+    () => {
+      test('re-uploading a baseline discards the post-intervention data and resets its task list row', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        uploadPostInterventionFileFlow,
+        projectTaskListPage,
+        page
+      }) => {
+        // Three real uploads back this test.
+        test.setTimeout(UPLOAD_TIMEOUT * 3)
+
+        const id = await uploadToHabitatList(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            page
+          },
+          COMPLETE_BASELINE_FILE
+        )
+
+        await uploadPostInterventionFileFlow.uploadFile(
+          id,
+          COMPLETE_POST_INTERVENTION_FILE
+        )
+        await page.waitForURL(
+          new RegExp(`/projects/${id}/post-intervention-habitat-list`),
+          { timeout: UPLOAD_TIMEOUT }
+        )
+
+        // Both habitat tasks are Completed before the replacement.
+        await projectTaskListPage.open(id)
+        await expect(projectTaskListPage.taskStatus('Completed')).toHaveCount(3)
+        await projectTaskListPage.assertTaskStatus(
+          TASK_POST_INTERVENTION,
+          'Completed'
+        )
+
+        await uploadBaselineFileFlow.uploadFile(id, COMPLETE_BASELINE_FILE)
+        await page.waitForURL(
+          new RegExp(`/projects/${id}/baseline-habitat-list`),
+          { timeout: UPLOAD_TIMEOUT }
+        )
+
+        // The replacement dropped the post-intervention document: its row is
+        // back to Not yet started and points at the file-type selection page,
+        // while the baseline itself stays Completed.
+        await projectTaskListPage.open(id)
+        await projectTaskListPage.assertTaskStatus(
+          TASK_POST_INTERVENTION,
+          'Not yet started'
+        )
+        await expect(
+          projectTaskListPage.taskItem(TASK_POST_INTERVENTION)
+        ).toHaveAttribute('href', `/projects/${id}/upload-file`)
+        await projectTaskListPage.assertTaskStatus(
+          TASK_BASELINE_HABITATS,
+          'Completed'
+        )
+        await expect(projectTaskListPage.taskStatus('Completed')).toHaveCount(2)
       })
     }
   )
@@ -1135,6 +1213,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
   test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
   describeHappyPath()
+  describeBaselineReplacement()
   describeNoPendingUpload()
   describeCrossUserAccess()
   describeFormatError()

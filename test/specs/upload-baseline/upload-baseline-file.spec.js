@@ -1,6 +1,7 @@
 import { test, expect } from '@fixtures'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
+import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
   describeRoleEnforcement,
   describeUnauthenticatedAccess
@@ -55,7 +56,11 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      test('Back link returns to the project task list', async ({
+      // BMD-850: Back and Cancel now return to the file-type selection page,
+      // not the task list. Opening the form with no returnUrl makes the
+      // selection page's own Back/Cancel default to the task list, so the
+      // journey out is one step longer than it was.
+      test('Back link returns to the upload type selection page', async ({
         createProjectFlow,
         projectDashboardPage,
         uploadBaselineFilePage,
@@ -69,10 +74,12 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
         await uploadBaselineFilePage.open(id)
         await uploadBaselineFilePage.backLink.click()
 
-        await expect(page).toHaveURL(new RegExp(`/add-project-details/${id}`))
+        await expect(page).toHaveURL(
+          uploadFileHref(id, `/add-project-details/${id}`)
+        )
       })
 
-      test('Cancel link returns to the project task list', async ({
+      test('Cancel link returns to the upload type selection page', async ({
         createProjectFlow,
         projectDashboardPage,
         uploadBaselineFilePage,
@@ -86,7 +93,9 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
         await uploadBaselineFilePage.open(id)
         await uploadBaselineFilePage.cancelLink.click()
 
-        await expect(page).toHaveURL(new RegExp(`/add-project-details/${id}`))
+        await expect(page).toHaveURL(
+          uploadFileHref(id, `/add-project-details/${id}`)
+        )
       })
     }
   )

@@ -118,6 +118,7 @@ export class CreateProjectFlow {
 | authentication / sign-out                                | `authentication/sign-out.flow.md`                                | —                                                                | `[IMPLEMENTED]`  |
 | authentication / access-denied                           | `authentication/access-denied.flow.md`                           | —                                                                | `[IMPLEMENTED]`  |
 | authentication / session-expired                         | `authentication/session-expired.flow.md`                         | —                                                                | `[IMPLEMENTED]`* |
+| upload-file / choose-upload-type                         | `upload-file/choose-upload-type.flow.md`                         | —                                                                | `[IMPLEMENTED]`‡ |
 | upload-baseline / upload-baseline-file                   | `upload-baseline/upload-baseline-file.flow.md`                   | `upload-baseline/upload-baseline-file.flow.js`                   | `[IMPLEMENTED]`  |
 | upload-post-intervention / upload-post-intervention-file | `upload-post-intervention/upload-post-intervention-file.flow.md` | `upload-post-intervention/upload-post-intervention-file.flow.js` | `[IMPLEMENTED]`  |
 | habitat-list / habitat-list                              | `habitat-list/habitat-list.flow.md`                              | —                                                                | `[IMPLEMENTED]`  |
@@ -129,3 +130,4 @@ export class CreateProjectFlow {
 
 \* Session-expired's interactive redirect trigger is `[BLOCKED: shared server-side session]`; coverage is via the sign-out link `href` and the rendered signed-out page.
 † Not a regression journey — a local-only UCD screenshot export run via `npm run screenshots` (`playwright.screenshots.config.js`), excluded from `test:local`/`test:github`/`test:e2e`.
+‡ Added by BMD-850 (frontend PR#207, 2026-08-11). The `GET`/`POST /projects/{id}/upload-file` selection page is the shared entry point to **both** upload journeys — the task list and both habitat lists link here rather than to a type-specific upload form. Covered by `test/specs/upload-file/upload-file.spec.js` (domain tag `@upload-file`); the backend-failure 502 path is an unconditional skip placeholder pending a fault-injection hook.

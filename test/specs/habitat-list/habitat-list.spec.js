@@ -1,6 +1,7 @@
 import { test, expect } from '@fixtures'
 import { STORAGE_STATE, NO_ROLE_STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
+import { uploadFileHref } from '@utils/upload-file-navigation.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const HTTP_BAD_REQUEST = 400
@@ -103,10 +104,12 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
       // AC12: continue button
       await expect(habitatListPage.continueButton).toBeVisible()
 
+      // BMD-850: the link now goes to the shared file-type selection page,
+      // carrying this list as the returnUrl, not straight to the upload form.
       await expect(habitatListPage.uploadDifferentFileLink).toBeVisible()
       await expect(habitatListPage.uploadDifferentFileLink).toHaveAttribute(
         'href',
-        `/projects/${id}/upload-baseline-file`
+        uploadFileHref(id, `/projects/${id}/baseline-habitat-list`)
       )
     })
   })

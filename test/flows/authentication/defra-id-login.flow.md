@@ -54,6 +54,38 @@ github runs continue to use the stub.
   the per-route role gate (`requireBngCompleterRole`) redirects them to
   `/auth/forbidden` on that first protected request (see `access-denied.flow.md`).
 
+### Step 5 — Clear journey state on an organisation switch `[BLOCKED: requires a second Defra ID organisation]`
+
+- **Route:** part of `GET /auth/callback` (no separate route)
+- **Backend endpoint:** None — this is frontend session housekeeping
+- **Description:** BMD-890 (frontend PR#204). Before the session is replaced, the
+  callback captures the old `auth.user.currentRelationshipId`; after the token
+  exchange it calls `clearStateOnOrganisationSwitch`
+  (`common/helpers/auth/organisation-switch.js`). When the previous relationship
+  id exists **and differs** from the new token's `currentRelationshipId`, every
+  key in `ORG_SCOPED_SESSION_KEYS` (`common/helpers/session-keys.js`) is cleared.
+  That is all six per-upload-type `yar` keys for both types, deduped —
+  `pendingUploadId`, `uploadStartedAt`, `uploadError`, `baselineValidationErrors`,
+  `baselineValidationErrorsProjectId`, their `postIntervention*` counterparts, and
+  the shared `validationUploadType`.
+- **Why:** projects are scoped to the signed-in org (backend
+  `project-visibility.js`, BMD-890 PR#207), so journey state naming the previous
+  org's project would resurface as an upload-error banner or a validation-error
+  list for a project the user can no longer open.
+- **Deliberately not cleared:** `auth` (the switch replaces it), `oidc` (the
+  callback clears its own PKCE state), `sessionEnded` (cleared by
+  `clearSessionEnded`), `slidAt` (about the session, not a project).
+- **On success:** Journey state dropped; user lands on `/manage-projects` showing
+  the **new** org's projects
+- **No-op cases:** a first sign-in (no previous relationship id), and re-signing in
+  as the **same** org — e.g. after a mid-upload session expiry, where the in-flight
+  journey is deliberately preserved
+- **Blocked reason:** exercising the switch needs one account holding approved
+  `bng completer` roles in **two** organisations. The single e2e Defra ID account
+  has one, and the stub cannot mint a second relationship for an existing profile.
+  Covered by frontend unit tests (`organisation-switch.test.js`,
+  `session-keys.test.js`).
+
 ## Notes
 
 - The identity provider is **Azure AD B2C** (`*.b2clogin.com`), which federates to
