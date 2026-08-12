@@ -16,7 +16,10 @@ RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2
 WORKDIR /app
 
 COPY . .
-RUN npm install
+# --ignore-scripts blocks preinstall/install/postinstall/prepare for this package and
+# every dependency (belt-and-braces with .npmrc's ignore-scripts=true) — the mechanism
+# behind npm supply-chain worms (e.g. Shai-Hulud) that execute code at install time.
+RUN npm install --ignore-scripts
 # Install Playwright's bundled Chromium and its OS dependencies
 RUN npx playwright install --with-deps chromium
 
