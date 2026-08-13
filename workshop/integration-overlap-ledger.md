@@ -543,7 +543,54 @@ so there was little to gain there regardless.
 
 ---
 
-## Workshop summary (chunks 1–4)
+## Chunk 5 — `habitat-list` remainder (34 collected tests, 2 files)
+
+### Outcome: 34 → 33, one merge
+
+`habitat-list.spec.js` (8) and `post-intervention-habitat-list.spec.js` (26).
+
+### Finding — the PI habitat list is thinly unit-covered
+
+`post-intervention-habitat-list/controller.test.js` has **8** tests, plus 13 in the
+shared `habitat-list-controller.test.js` — against 74 for the baseline list. Its journey
+tests carry computed behaviour nothing else witnesses: tree size bands and units, Lost
+tree exclusion, the tree-inclusive Areas total vs tree-excluding Site size, per-layer
+unit calculations and footer totals, BMD-722 summary population, BMD-845 retention
+categories, BMD-531 status. All floor-protected.
+
+### The intervention-type trio — shared rendering, per-layer data
+
+The three BMD-845 tests (area / hedgerow / watercourse) look like enumerated variants:
+`interventionDisplay` is imported once in `habitat-list-controller.js:10` and applied in
+one row-builder at line 81, so all three render through identical code.
+
+Kept anyway. The `retentionCategory` value they render is produced by **three separate
+per-layer enrichment modules** in the backend (`enrich-post-intervention-area-habitat.js`,
+`-hedgerow.js`, `-watercourse.js`), none of them covered by integration tests. Shared
+rendering, per-layer data production — the same shape as chunk 3's PI variant
+propagation, so a witness per layer is meaningful. BMD-534 also makes retention
+categories a live area.
+
+### The PI pairs were left unmerged
+
+About nine tests pair up on a shared fixture and could be merged. They were not, because
+`post-intervention-habitat-list.spec.js` already memoises its uploads per describe
+(`createProjectCache` + `beforeAll`), so merging would save page loads only — and each
+test maps to a distinct named AC (AC1, AC3, AC5, AC6, AC7) on its own fixture. Unlike
+chunk 4's single-label tests, these are different computations, so merging would trade
+AC-level pinpointing for about ten seconds. Bad trade.
+
+### The one merge
+
+`habitat-list.spec.js` had two tab-interaction tests, each running a full `setupProject`
+to assert the same GOV.UK tabs component for a different tab. Merged into one test that
+clicks each tab in turn and asserts all three `aria-selected` states each time, with
+labelled assertions so a failure still names the clicked tab. Saves a project creation
+and a page load.
+
+---
+
+## Workshop summary (chunks 1–5)
 
 | Chunk | Domain                   |  Before |   After | Nature                         |
 | ----- | ------------------------ | ------: | ------: | ------------------------------ |
@@ -551,11 +598,27 @@ so there was little to gain there regardless.
 | 2     | habitat-list-upload      |      46 |      22 | deletion                       |
 | 3     | upload-post-intervention |      21 |      21 | analysed; nothing removable    |
 | 4     | habitat-details          |     135 |      90 | consolidation                  |
-| —     | **Total**                | **255** | **165** |                                |
+| 5     | habitat-list remainder   |      34 |      33 | analysed; one merge            |
+| —     | **Total**                | **289** | **198** |                                |
 
 Also removed: **14 `.gpkg` fixtures** (~7.8 MB net of the restored one).
 
-All four domains verified green after their changes.
+All five domains verified green after their changes.
+
+**Not examined**, by decision at the end of chunk 5: `project-management` (66 tests) and
+`authentication` + `upload-file` (34). Project-management has the strongest backend
+overlap of any domain — `projects.test.js`, `project-details.test.js` and `users.test.js`
+cover the same CRUD, sort, 404/400 and cross-user paths — but its journey tests are
+sub-second with no uploads, so the runtime payoff is near zero. `upload-file` is the
+file-type selection page and has no backend route at all.
+
+### Where the yield actually came from
+
+Chunks 1, 2 and 4 (all upload-gated) account for essentially the whole reduction.
+Chunks 3 and 5 produced one merge between them — both are domains whose journey tests
+turned out to be the only coverage their behaviour has anywhere. That pattern is the
+workshop's main result: **the tests that look most redundant are often the least
+covered**, because a page nobody unit-tested is also a page nobody wrote unit tests for.
 
 ### Backend coverage gaps found (for the service team — not actioned here)
 
