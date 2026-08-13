@@ -19,9 +19,11 @@ Built with [Playwright Test](https://playwright.dev). Runs on DEFRA's CDP Portal
 ## Quick start
 
 ```sh
-npm install
+npm install && npm run postinstall
 npx playwright install --with-deps chromium   # one-time browser install
 ```
+
+`.npmrc` sets `ignore-scripts=true`, so npm no longer auto-runs preinstall/install/postinstall/prepare scripts for this package or any dependency — the mechanism behind npm supply-chain worms (e.g. Shai-Hulud) that execute code at install time. `postinstall` (husky + gitleaks setup) has to be run explicitly, as above. If a dependency genuinely needs its own install script, run it for just that package with `npm rebuild <package>`, or override for a single command with `npm install --ignore-scripts=false`.
 
 ---
 
