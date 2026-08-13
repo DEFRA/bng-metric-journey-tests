@@ -37,6 +37,15 @@ recompute units from the engine's encroachment multipliers (BMD-597).
   - If the referrer is **same-host**, has pathname **`/post-intervention-habitat-details`**, carries the **same `projectId`**, and a **valid UUID `featureId`** — the Back link points at `/post-intervention-habitat-details?featureId={refererFeatureId}&projectId={projectId}`, returning the user to the post-intervention habitat details page they clicked "View baseline details" on.
   - Otherwise (no referrer, malformed referrer, cross-host, a different path such as the baseline habitat list, or a mismatched `projectId`) it falls back to `/projects/{projectId}/baseline-habitat-list` with the same tab anchor as Cancel.
   - **Testing note:** because the target is derived from `Referer`, a test that reaches this page with `page.goto()` sends no referrer and will always exercise the fallback. Exercising the post-intervention branch requires a real **click** on the "View baseline details" link from `/post-intervention-habitat-details`.
+- **Where each strategy is tested `[IMPORTANT]`:** the frontend controller unit tests
+  (`../bng-metric-frontend/src/server/baseline-habitat-details/controller.test.js`) have a
+  `GET` describe for **area** and a `GET (hedgerow strategy)` describe — but **none for
+  watercourse**; every watercourse reference in that file is POST/redirect/encroachment
+  forwarding. The journey suite's consolidated `AC2–AC13` watercourse panel test is
+  therefore the **only** coverage of the watercourse page render anywhere, and it is
+  deliberately exhaustive. Keep it that way, and prefer adding assertions to it over
+  splitting it back into per-field tests. See `workshop/integration-overlap-ledger.md`
+  (chunk 4) for the audit.
 - **Client-side dropdown behaviour (area habitats; display-only, no DB writes until Save — `src/client/javascripts/baseline-habitat-details.js`):**
   - **Change condition** — no handler; the new value is simply the visible selection. Distinctiveness, trading rules and the Units row are untouched.
   - **Select a valid habitat type** — `#distinctivenessDisplay` and `#tradingRuleDisplay` update for the new type; the Condition select resets to "Choose condition" and is repopulated for the new type via the conditions proxy (Step 3). Units row is untouched.

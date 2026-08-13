@@ -123,7 +123,10 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      test('clicking Hedgerows tab selects it and deselects the other two tabs', async ({
+      // Both tabs exercise the same GOV.UK tabs component, so they shared one
+      // project setup rather than creating a project each. Selecting a tab must
+      // deselect both others, which is asserted for each tab in turn.
+      test('clicking a tab selects it and deselects the other two', async ({
         createProjectFlow,
         projectDashboardPage,
         habitatListPage
@@ -133,50 +136,24 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
           projectDashboardPage,
           PROJECT_LABEL
         )
-
         await habitatListPage.open(id)
-        await habitatListPage.hedgerowsTab.click()
 
-        await expect(habitatListPage.hedgerowsTab).toHaveAttribute(
-          'aria-selected',
-          'true'
-        )
-        await expect(habitatListPage.areasTab).toHaveAttribute(
-          'aria-selected',
-          'false'
-        )
-        await expect(habitatListPage.watercoursesTab).toHaveAttribute(
-          'aria-selected',
-          'false'
-        )
-      })
+        const tabs = {
+          areas: habitatListPage.areasTab,
+          hedgerows: habitatListPage.hedgerowsTab,
+          watercourses: habitatListPage.watercoursesTab
+        }
 
-      test('clicking Watercourses tab selects it and deselects the other two tabs', async ({
-        createProjectFlow,
-        projectDashboardPage,
-        habitatListPage
-      }) => {
-        const { id } = await setupProject(
-          createProjectFlow,
-          projectDashboardPage,
-          PROJECT_LABEL
-        )
+        for (const selected of ['hedgerows', 'watercourses']) {
+          await tabs[selected].click()
 
-        await habitatListPage.open(id)
-        await habitatListPage.watercoursesTab.click()
-
-        await expect(habitatListPage.watercoursesTab).toHaveAttribute(
-          'aria-selected',
-          'true'
-        )
-        await expect(habitatListPage.areasTab).toHaveAttribute(
-          'aria-selected',
-          'false'
-        )
-        await expect(habitatListPage.hedgerowsTab).toHaveAttribute(
-          'aria-selected',
-          'false'
-        )
+          for (const [name, tab] of Object.entries(tabs)) {
+            await expect(tab, `${selected} clicked → ${name}`).toHaveAttribute(
+              'aria-selected',
+              name === selected ? 'true' : 'false'
+            )
+          }
+        }
       })
     }
   )

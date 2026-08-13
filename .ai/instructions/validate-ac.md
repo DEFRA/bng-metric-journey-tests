@@ -74,25 +74,59 @@ Choose the file that matches the scenario (happy path, specific validation error
 
 ### Coverage table format
 
-| AC  | AC description | Covered in journey tests? | File(s) if yes           | Recommendation          |
-| --- | -------------- | ------------------------- | ------------------------ | ----------------------- |
-| AC1 | ...            | Yes / Partial / No        | `test/specs/foo.spec.js` | — / Enhance / Write E2E |
+| AC  | AC description | Covered in journey tests? | File(s) if yes           | Covered elsewhere?                   | Recommendation                                    |
+| --- | -------------- | ------------------------- | ------------------------ | ------------------------------------ | ------------------------------------------------- |
+| AC1 | ...            | Yes / Partial / No        | `test/specs/foo.spec.js` | file:line + `(rule only)`/`(mocked)` | — / Enhance / Write E2E / Skip / Backend proposal |
 
 **Recommendation values:**
 
-- **Write E2E** — no existing test covers this AC; a new test case is needed
+- **Write E2E** — a new test case is needed. Use this both when nothing covers the AC and
+  when a sibling suite covers the _rule_ but no journey test witnesses this rendering shape
+  with real data.
 - **Enhance** — a related test exists but does not fully assert this AC; describe specifically what is missing (e.g. "add assertion for error message when field is empty" or "extend `test/specs/foo.spec.js` to also verify the success banner text")
+- **Skip** — a sibling suite covers the rule **and** an existing journey test already
+  witnesses this rendering shape with real data. Name that sibling test; without one, this
+  value is not available.
+- **Backend proposal** — the AC's outcome is not browser-observable, so no journey test can
+  assert it. List it under "Backend coverage proposals" (below) instead.
 - **—** (dash) — fully covered, no action needed
 
 For every **Enhance** recommendation, include a one-line description of exactly what to add or change in the existing test alongside the file reference. This description becomes the implementation instruction after approval.
+
+### Backend coverage proposals
+
+After the table, add a short list of any AC that a journey test cannot cover, or that only
+a journey test will cover once written: _AC / Behaviour / Where it should be covered /
+What stands in for it today_.
+
+This is a hand-off for the service team, not work this repo performs. `/verify-integration-coverage`
+is **dormant** and must not be recommended. When a new journey test is written as the sole
+witness for a behaviour, it must carry a comment saying so — see "Annotations" in
+`.ai/instructions/coverage-boundaries.md`.
 
 ### What to read
 
 - `feature-input.md` — ACs and journey field
 - `test/flows/<journey>.flow.md` — to understand which steps the ACs relate to and what validation/success/error behaviour is expected
 - `test/specs/` — all existing specs; read the relevant spec files in full to determine whether and how each AC is already asserted
+- `.ai/instructions/coverage-boundaries.md` — **read this before recommending any new
+  test**, then apply it to every AC not already covered here
 
-Do **not** read integration tests — that is the responsibility of `/verify-integration-coverage`.
+### Check the sibling suites first
+
+For every AC marked **No** or **Partial** against this repo, check whether it is already
+covered outside it before proposing a journey test. Follow `coverage-boundaries.md`,
+Steps A–C. Look in:
+
+- `../bng-metric-backend/integration-tests/` — `route-manifest.json` indexes the endpoints
+- `../bng-metric-backend/src/**/*.test.js` — rules and error codes
+- `../bng-metric-frontend/src/server/<dir>/controller.test.js` and `src/server/common/helpers/` — rendered markup against mocked backend data
+
+Record **file:line** for each counterpart; a matching test title is not evidence. Apply the
+two traps from the boundaries file — _mapping is not detection_, and _a shared module is
+not shared coverage when parameterised per flow_ — before concluding an AC is covered.
+
+You may **read** the sibling suites but must not **write** to them.
 
 ### Approval gate
 

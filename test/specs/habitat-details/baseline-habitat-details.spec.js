@@ -148,6 +148,14 @@ function conditionScores(texts) {
     .map((m) => Number(m[1]))
 }
 
+async function expectConditionOptionsOrderedByScore(conditionSelect) {
+  const texts = await optionTexts(conditionSelect)
+  expect(texts[0]).toBe('Choose condition')
+  const scores = conditionScores(texts.slice(1))
+  expect(scores.length).toBeGreaterThan(0)
+  expect(scores).toEqual([...scores].sort((a, b) => b - a))
+}
+
 async function expectDerivedValuesHidden(detailsPage) {
   await expect(detailsPage.distinctivenessDisplay).toHaveText('')
   await expect(detailsPage.tradingRuleDisplay).toHaveText('')
@@ -313,32 +321,26 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      test('missing featureId query param returns 400', async ({ page }) => {
-        const response = await page.goto(
-          `/baseline-habitat-details?projectId=${STUB_UUID}`
-        )
-        expect(response.status()).toBe(HTTP_BAD_REQUEST)
-      })
-
-      test('missing projectId query param returns 400', async ({ page }) => {
-        const response = await page.goto(
-          `/baseline-habitat-details?featureId=${STUB_UUID}`
-        )
-        expect(response.status()).toBe(HTTP_BAD_REQUEST)
-      })
-
-      test('non-UUID featureId query param returns 400', async ({ page }) => {
-        const response = await page.goto(
-          `/baseline-habitat-details?projectId=${STUB_UUID}&featureId=not-a-uuid`
-        )
-        expect(response.status()).toBe(HTTP_BAD_REQUEST)
-      })
-
-      test('non-UUID projectId query param returns 400', async ({ page }) => {
-        const response = await page.goto(
+      // Four route-level Joi rejections, merged into one test — each is a bare
+      // goto + status check with no shared setup, so running them separately
+      // bought nothing. The featureId cases are also unit-tested
+      // (../bng-metric-frontend/src/server/baseline-habitat-details/controller.test.js,
+      // "#baselineHabitatDetails - validation"); the projectId cases are not,
+      // so all four are asserted here.
+      test('missing or non-UUID projectId/featureId query params return 400', async ({
+        page
+      }) => {
+        const badUrls = [
+          `/baseline-habitat-details?projectId=${STUB_UUID}`,
+          `/baseline-habitat-details?featureId=${STUB_UUID}`,
+          `/baseline-habitat-details?projectId=${STUB_UUID}&featureId=not-a-uuid`,
           `/baseline-habitat-details?projectId=not-a-uuid&featureId=${STUB_UUID}`
-        )
-        expect(response.status()).toBe(HTTP_BAD_REQUEST)
+        ]
+
+        for (const url of badUrls) {
+          const response = await page.goto(url)
+          expect(response.status(), url).toBe(HTTP_BAD_REQUEST)
+        }
       })
     }
   )
@@ -949,140 +951,106 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(habitatListPage.areaHabitatsTable).toBeVisible()
       })
 
-      test('AC2 — header shows Back link, project caption, "Habitat {ref}" heading, "Baseline Details"', async ({
+      // AC2–AC11, consolidated. These were nine separate page loads asserting one
+      // label or value each; merged into one panel assertion so the rendered page
+      // is described in one place. No assertion was dropped in the merge. The
+      // frontend controller unit tests cover the same rows against mocked backend
+      // data (../bng-metric-frontend/src/server/baseline-habitat-details/controller.test.js,
+      // "#baselineHabitatDetails - GET"); this test's distinct job is to prove the
+      // rows render from a *real* uploaded GeoPackage.
+      test('AC2–AC11 — renders every summary row and saved value', async ({
         baselineHabitatDetailsPage,
         page
       }) => {
         await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
 
-        await expect(baselineHabitatDetailsPage.backLink).toBeVisible()
-        await expect(page.getByText(projectName)).toBeVisible()
-        await expect(baselineHabitatDetailsPage.heading).toHaveText(
-          `Habitat ${areaRef}`
-        )
-        await expect(
-          baselineHabitatDetailsPage.baselineDetailsHeading
-        ).toBeVisible()
+        // AC2 — header
+        await expect.soft(baselineHabitatDetailsPage.backLink).toBeVisible()
+        await expect.soft(page.getByText(projectName)).toBeVisible()
+        await expect
+          .soft(baselineHabitatDetailsPage.heading)
+          .toHaveText(`Habitat ${areaRef}`)
+        await expect
+          .soft(baselineHabitatDetailsPage.baselineDetailsHeading)
+          .toBeVisible()
+
+        // AC3 — reference label + saved value. Exact match scopes this to the
+        // Reference row value, not the "Habitat {ref}" page heading.
+        await expect.soft(baselineHabitatDetailsPage.referenceKey).toBeVisible()
+        await expect
+          .soft(page.getByText(areaRef, { exact: true }))
+          .toBeVisible()
+
+        // AC4 — area label + value carried from the list
+        await expect
+          .soft(page.getByText('Area (hectares)', { exact: true }))
+          .toBeVisible()
+        await expect
+          .soft(page.getByText(areaSize, { exact: true }))
+          .toBeVisible()
+
+        // AC5a / AC6a / AC8a — dropdowns show the saved values
+        await expect
+          .soft(baselineHabitatDetailsPage.broadHabitatSelect)
+          .toBeVisible()
+        expect
+          .soft(
+            await baselineHabitatDetailsPage.broadHabitatSelect.inputValue()
+          )
+          .not.toBe('')
+        await expect
+          .soft(baselineHabitatDetailsPage.habitatTypeSelect)
+          .toBeVisible()
+        expect
+          .soft(await baselineHabitatDetailsPage.habitatTypeSelect.inputValue())
+          .not.toBe('')
+        await expect
+          .soft(baselineHabitatDetailsPage.conditionSelect)
+          .toBeVisible()
+        expect
+          .soft(await baselineHabitatDetailsPage.conditionSelect.inputValue())
+          .not.toBe('')
+
+        // AC7 — distinctiveness band and score
+        await expect
+          .soft(baselineHabitatDetailsPage.distinctivenessKey)
+          .toBeVisible()
+        await expect
+          .soft(page.getByText(DISTINCTIVENESS_PATTERN).first())
+          .toBeVisible()
+
+        // AC10 / AC11 — trading rules and units labels
+        await expect
+          .soft(baselineHabitatDetailsPage.tradingRulesKey)
+          .toBeVisible()
+        await expect
+          .soft(baselineHabitatDetailsPage.habitatUnitsKey)
+          .toBeVisible()
       })
 
-      test('AC3 — Reference label and the saved reference value are displayed', async ({
-        baselineHabitatDetailsPage,
-        page
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
-
-        await expect(baselineHabitatDetailsPage.referenceKey).toBeVisible()
-        // Exact match scopes this to the Reference row value, not the
-        // "Habitat {ref}" page heading.
-        await expect(page.getByText(areaRef, { exact: true })).toBeVisible()
-      })
-
-      test('AC4 — Area (hectares) label and the value carried from the list are displayed', async ({
-        baselineHabitatDetailsPage,
-        page
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
-
-        await expect(
-          page.getByText('Area (hectares)', { exact: true })
-        ).toBeVisible()
-        await expect(page.getByText(areaSize, { exact: true })).toBeVisible()
-      })
-
-      test('AC5a — Broad habitat dropdown shows the saved value as selected', async ({
+      // AC5b, AC6b and AC8b consolidated: every dropdown's option list on one
+      // page load.
+      test('AC5b/AC6b/AC8b — dropdowns offer correctly ordered options', async ({
         baselineHabitatDetailsPage
       }) => {
         await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
 
-        await expect(
+        const broadTexts = await optionTexts(
           baselineHabitatDetailsPage.broadHabitatSelect
-        ).toBeVisible()
-        expect(
-          await baselineHabitatDetailsPage.broadHabitatSelect.inputValue()
-        ).not.toBe('')
-      })
-
-      test('AC5b — Broad habitat options start with the default and are sorted ascending', async ({
-        baselineHabitatDetailsPage
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
-        const texts = await optionTexts(
-          baselineHabitatDetailsPage.broadHabitatSelect
         )
+        expect(broadTexts[0]).toBe('Choose broad habitat')
+        expect(isSortedAscending(broadTexts.slice(1))).toBe(true)
 
-        expect(texts[0]).toBe('Choose broad habitat')
-        expect(isSortedAscending(texts.slice(1))).toBe(true)
-      })
-
-      test('AC6a — Habitat type dropdown shows the saved value as selected', async ({
-        baselineHabitatDetailsPage
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
-
-        await expect(baselineHabitatDetailsPage.habitatTypeSelect).toBeVisible()
-        expect(
-          await baselineHabitatDetailsPage.habitatTypeSelect.inputValue()
-        ).not.toBe('')
-      })
-
-      test('AC6b — Habitat type options start with the default and are sorted ascending', async ({
-        baselineHabitatDetailsPage
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
-        const texts = await optionTexts(
+        const typeTexts = await optionTexts(
           baselineHabitatDetailsPage.habitatTypeSelect
         )
+        expect(typeTexts[0]).toBe('Choose habitat type')
+        expect(typeTexts.length).toBeGreaterThan(1)
+        expect(isSortedAscending(typeTexts.slice(1))).toBe(true)
 
-        expect(texts[0]).toBe('Choose habitat type')
-        expect(texts.length).toBeGreaterThan(1)
-        expect(isSortedAscending(texts.slice(1))).toBe(true)
-      })
-
-      test('AC7 — Distinctiveness shows the band and score', async ({
-        baselineHabitatDetailsPage,
-        page
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
-
-        await expect(
-          baselineHabitatDetailsPage.distinctivenessKey
-        ).toBeVisible()
-        await expect(
-          page.getByText(DISTINCTIVENESS_PATTERN).first()
-        ).toBeVisible()
-      })
-
-      test('AC8a — Condition dropdown shows the saved condition as selected', async ({
-        baselineHabitatDetailsPage
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
-
-        await expect(baselineHabitatDetailsPage.conditionSelect).toBeVisible()
-        expect(
-          await baselineHabitatDetailsPage.conditionSelect.inputValue()
-        ).not.toBe('')
-      })
-
-      test('AC8b — Condition options start with the default and are ordered by score descending', async ({
-        baselineHabitatDetailsPage
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
-        const texts = await optionTexts(
+        await expectConditionOptionsOrderedByScore(
           baselineHabitatDetailsPage.conditionSelect
         )
-
-        expect(texts[0]).toBe('Choose condition')
-        const scores = conditionScores(texts.slice(1))
-        expect(scores.length).toBeGreaterThan(0)
-        expect(scores).toEqual([...scores].sort((a, b) => b - a))
-      })
-
-      test('AC10 — "Required action to meet trading rules" label is displayed', async ({
-        baselineHabitatDetailsPage
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
-
-        await expect(baselineHabitatDetailsPage.tradingRulesKey).toBeVisible()
       })
 
       test('AC10 — trading-rule guidance value is shown and tracks the distinctiveness band', async ({
@@ -1122,41 +1090,26 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         }
       })
 
-      test('AC11 — "Units in this habitat" label is displayed', async ({
-        baselineHabitatDetailsPage
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
-
-        await expect(baselineHabitatDetailsPage.habitatUnitsKey).toBeVisible()
-      })
-
       // BMD-878 AC2, bookmark route: open() deep-links via page.goto(), which
       // sends no Referer, so the Back link falls back to the habitat list.
       // Do not "improve" this to click through from a post-intervention
       // habitat details page — that sends a Referer and the link would
       // correctly point back there instead, which is AC1, not this test.
-      test('AC14 — Back link returns to the habitat list Areas tab', async ({
+      test('AC14/AC15 — Back and Cancel return to the habitat list Areas tab', async ({
         baselineHabitatDetailsPage,
         habitatListPage,
         page
       }) => {
         await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
         await baselineHabitatDetailsPage.backLink.click()
-
         await expect(page).toHaveURL(
           new RegExp(`/projects/${projectId}/baseline-habitat-list`)
         )
         await expect(habitatListPage.areaHabitatsTable).toBeVisible()
-      })
 
-      test('AC15 — Cancel link returns to the habitat list Areas tab anchored to the habitat', async ({
-        baselineHabitatDetailsPage,
-        habitatListPage,
-        page
-      }) => {
+        // Cancel anchors to the specific habitat row; Back does not.
         await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
         await baselineHabitatDetailsPage.cancelLink.click()
-
         await expect(page).toHaveURL(
           new RegExp(
             `/projects/${projectId}/baseline-habitat-list#habitat-${areaFeatureId}`
@@ -1493,167 +1446,120 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(page).toHaveURL(/\/baseline-habitat-details/)
       })
 
-      test('AC2 — header shows Back link, project caption, "Hedgerow {ref}" heading, "Baseline Details"', async ({
+      // AC2–AC11, consolidated. These were nine separate page loads asserting one
+      // label or value each; merged into one panel assertion so the rendered page
+      // is described in one place. No assertion was dropped in the merge. The
+      // hedgerow strategy has partial unit coverage
+      // (../bng-metric-frontend/src/server/baseline-habitat-details/controller.test.js,
+      // "#baselineHabitatDetails - GET (hedgerow strategy)" — heading, Length row,
+      // omitted Broad row, conditions source, back/cancel), all against mocked
+      // backend data; this test proves the rows render from a real GeoPackage.
+      test('AC2–AC11 — renders every summary row and saved value', async ({
         baselineHabitatDetailsPage,
         page
       }) => {
         await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
 
-        await expect(baselineHabitatDetailsPage.backLink).toBeVisible()
-        await expect(page.getByText(projectName)).toBeVisible()
-        await expect(baselineHabitatDetailsPage.heading).toHaveText(
-          `Hedgerow ${hedgerowRef}`
-        )
-        await expect(
-          baselineHabitatDetailsPage.baselineDetailsHeading
-        ).toBeVisible()
+        // AC2 — header
+        await expect.soft(baselineHabitatDetailsPage.backLink).toBeVisible()
+        await expect.soft(page.getByText(projectName)).toBeVisible()
+        await expect
+          .soft(baselineHabitatDetailsPage.heading)
+          .toHaveText(`Hedgerow ${hedgerowRef}`)
+        await expect
+          .soft(baselineHabitatDetailsPage.baselineDetailsHeading)
+          .toBeVisible()
+
+        // AC3 — reference label + saved value
+        await expect.soft(baselineHabitatDetailsPage.referenceKey).toBeVisible()
+        await expect
+          .soft(page.getByText(hedgerowRef, { exact: true }))
+          .toBeVisible()
+
+        // AC4 — length label + value carried from the list
+        await expect
+          .soft(page.getByText('Length (km)', { exact: true }))
+          .toBeVisible()
+        await expect
+          .soft(page.getByText(hedgerowLength, { exact: true }))
+          .toBeVisible()
+
+        // AC6a / AC8a — dropdowns show the saved values
+        await expect
+          .soft(baselineHabitatDetailsPage.habitatTypeSelect)
+          .toBeVisible()
+        expect
+          .soft(await baselineHabitatDetailsPage.habitatTypeSelect.inputValue())
+          .not.toBe('')
+        await expect
+          .soft(baselineHabitatDetailsPage.conditionSelect)
+          .toBeVisible()
+        expect
+          .soft(await baselineHabitatDetailsPage.conditionSelect.inputValue())
+          .not.toBe('')
+
+        // AC7 — distinctiveness band and score
+        await expect
+          .soft(baselineHabitatDetailsPage.distinctivenessKey)
+          .toBeVisible()
+        await expect
+          .soft(page.getByText(DISTINCTIVENESS_PATTERN).first())
+          .toBeVisible()
+
+        // AC9 — fixed strategic significance
+        await expect
+          .soft(baselineHabitatDetailsPage.strategicSignificanceKey)
+          .toBeVisible()
+        await expect
+          .soft(baselineHabitatDetailsPage.strategicSignificanceValue)
+          .toBeVisible()
+
+        // AC10 / AC11 — trading rules and units labels
+        await expect
+          .soft(baselineHabitatDetailsPage.tradingRulesKey)
+          .toBeVisible()
+        await expect
+          .soft(baselineHabitatDetailsPage.habitatUnitsKey)
+          .toBeVisible()
       })
 
-      test('AC3 — Reference label and the saved reference value are displayed', async ({
-        baselineHabitatDetailsPage,
-        page
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
-
-        await expect(baselineHabitatDetailsPage.referenceKey).toBeVisible()
-        // Exact match scopes this to the Reference row value, not the
-        // "Hedgerow {ref}" page heading.
-        await expect(page.getByText(hedgerowRef, { exact: true })).toBeVisible()
-      })
-
-      test('AC4 — Length (km) label and the value carried from the list are displayed', async ({
-        baselineHabitatDetailsPage,
-        page
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
-
-        await expect(
-          page.getByText('Length (km)', { exact: true })
-        ).toBeVisible()
-        await expect(
-          page.getByText(hedgerowLength, { exact: true })
-        ).toBeVisible()
-      })
-
-      test('AC6a — Habitat type dropdown shows the saved value as selected', async ({
+      // AC6b and AC8b consolidated: both dropdowns' option lists on one page load.
+      test('AC6b/AC8b — dropdowns offer correctly ordered options', async ({
         baselineHabitatDetailsPage
       }) => {
         await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
 
-        await expect(baselineHabitatDetailsPage.habitatTypeSelect).toBeVisible()
-        expect(
-          await baselineHabitatDetailsPage.habitatTypeSelect.inputValue()
-        ).not.toBe('')
-      })
-
-      test('AC6b — Habitat type options start with the default and are sorted ascending', async ({
-        baselineHabitatDetailsPage
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
-        const texts = await optionTexts(
+        const typeTexts = await optionTexts(
           baselineHabitatDetailsPage.habitatTypeSelect
         )
+        expect(typeTexts[0]).toBe('Choose habitat type')
+        expect(typeTexts.length).toBeGreaterThan(1)
+        expect(isSortedAscending(typeTexts.slice(1))).toBe(true)
 
-        expect(texts[0]).toBe('Choose habitat type')
-        expect(texts.length).toBeGreaterThan(1)
-        expect(isSortedAscending(texts.slice(1))).toBe(true)
-      })
-
-      test('AC7 — Distinctiveness shows the band and score', async ({
-        baselineHabitatDetailsPage,
-        page
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
-
-        await expect(
-          baselineHabitatDetailsPage.distinctivenessKey
-        ).toBeVisible()
-        await expect(
-          page.getByText(DISTINCTIVENESS_PATTERN).first()
-        ).toBeVisible()
-      })
-
-      test('AC8a — Condition dropdown shows the saved condition as selected', async ({
-        baselineHabitatDetailsPage
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
-
-        await expect(baselineHabitatDetailsPage.conditionSelect).toBeVisible()
-        expect(
-          await baselineHabitatDetailsPage.conditionSelect.inputValue()
-        ).not.toBe('')
-      })
-
-      test('AC8b — Condition options start with the default and are ordered by score descending', async ({
-        baselineHabitatDetailsPage
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
-        const texts = await optionTexts(
+        await expectConditionOptionsOrderedByScore(
           baselineHabitatDetailsPage.conditionSelect
         )
-
-        expect(texts[0]).toBe('Choose condition')
-        const scores = conditionScores(texts.slice(1))
-        expect(scores.length).toBeGreaterThan(0)
-        expect(scores).toEqual([...scores].sort((a, b) => b - a))
       })
 
-      test('AC9 — Strategic Significance shows the fixed "Low (1)" value', async ({
-        baselineHabitatDetailsPage
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
-
-        await expect(
-          baselineHabitatDetailsPage.strategicSignificanceKey
-        ).toBeVisible()
-        await expect(
-          baselineHabitatDetailsPage.strategicSignificanceValue
-        ).toBeVisible()
-      })
-
-      test('AC10 — "Required action to meet trading rules" label is displayed', async ({
-        baselineHabitatDetailsPage
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
-
-        await expect(baselineHabitatDetailsPage.tradingRulesKey).toBeVisible()
-      })
-
-      test('AC11 — "Units in this habitat" label is displayed', async ({
-        baselineHabitatDetailsPage
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
-
-        await expect(baselineHabitatDetailsPage.habitatUnitsKey).toBeVisible()
-      })
-
-      // BMD-878 AC2, bookmark route — see the Areas-tab AC14 test for why this
+      // BMD-878 AC2, bookmark route — see the Areas-tab AC14 test for why these
       // must keep reaching the page via open()/page.goto() (no Referer).
-      test('AC14 — Back link returns to the habitat list Hedgerows tab', async ({
+      test('AC14/AC15 — Back and Cancel return to the habitat list Hedgerows tab', async ({
         baselineHabitatDetailsPage,
         habitatListPage,
         page
       }) => {
+        const hedgerowsAnchor = new RegExp(
+          `/projects/${projectId}/baseline-habitat-list#hedgerows`
+        )
+
         await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
         await baselineHabitatDetailsPage.backLink.click()
-
-        await expect(page).toHaveURL(
-          new RegExp(`/projects/${projectId}/baseline-habitat-list#hedgerows`)
-        )
+        await expect(page).toHaveURL(hedgerowsAnchor)
         await expect(habitatListPage.hedgerowsTable).toBeVisible()
-      })
 
-      test('AC15 — Cancel link returns to the habitat list Hedgerows tab', async ({
-        baselineHabitatDetailsPage,
-        habitatListPage,
-        page
-      }) => {
         await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
         await baselineHabitatDetailsPage.cancelLink.click()
-
-        await expect(page).toHaveURL(
-          new RegExp(`/projects/${projectId}/baseline-habitat-list#hedgerows`)
-        )
+        await expect(page).toHaveURL(hedgerowsAnchor)
         await expect(habitatListPage.hedgerowsTable).toBeVisible()
       })
     }
@@ -1966,218 +1872,172 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(page).toHaveURL(/\/baseline-habitat-details/)
       })
 
-      test('AC2 — header shows Back link, project caption, "Watercourse {ref}" heading, "Baseline Details"', async ({
+      // AC2–AC13 + encroachment row order, consolidated. These were 13 separate
+      // uploads-shared page loads asserting one label or value each; merged into
+      // one panel assertion so the whole rendered page is described in one place.
+      // No assertion was dropped in the merge. NOTE: the baseline *watercourse*
+      // detail page has no frontend unit coverage at all
+      // (../bng-metric-frontend/src/server/baseline-habitat-details/controller.test.js
+      // has GET describes for area and hedgerow only), so this test is the sole
+      // witness for the whole page — keep it exhaustive.
+      test('AC2–AC13 — renders every summary row, saved value and control', async ({
         baselineHabitatDetailsPage,
         page
       }) => {
         await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
 
-        await expect(baselineHabitatDetailsPage.backLink).toBeVisible()
-        await expect(page.getByText(projectName)).toBeVisible()
-        await expect(baselineHabitatDetailsPage.heading).toHaveText(
-          `Watercourse ${watercourseRef}`
+        // AC2 — header
+        await expect.soft(baselineHabitatDetailsPage.backLink).toBeVisible()
+        await expect.soft(page.getByText(projectName)).toBeVisible()
+        await expect
+          .soft(baselineHabitatDetailsPage.heading)
+          .toHaveText(`Watercourse ${watercourseRef}`)
+        await expect
+          .soft(baselineHabitatDetailsPage.baselineDetailsHeading)
+          .toBeVisible()
+
+        // AC3 — reference label + saved value
+        await expect.soft(baselineHabitatDetailsPage.referenceKey).toBeVisible()
+        await expect
+          .soft(page.getByText(watercourseRef, { exact: true }))
+          .toBeVisible()
+
+        // AC4 — length label + value carried from the list
+        await expect
+          .soft(page.getByText('Length (km)', { exact: true }))
+          .toBeVisible()
+        await expect
+          .soft(page.getByText(watercourseLength, { exact: true }))
+          .toBeVisible()
+
+        // AC5 — no Broad habitat dropdown for watercourses
+        await expect
+          .soft(baselineHabitatDetailsPage.broadHabitatSelect)
+          .toHaveCount(0)
+
+        // AC6a / AC8a — habitat type and condition show the saved values
+        await expect
+          .soft(baselineHabitatDetailsPage.habitatTypeSelect)
+          .toBeVisible()
+        expect
+          .soft(await baselineHabitatDetailsPage.habitatTypeSelect.inputValue())
+          .not.toBe('')
+        await expect
+          .soft(baselineHabitatDetailsPage.conditionSelect)
+          .toBeVisible()
+        expect
+          .soft(await baselineHabitatDetailsPage.conditionSelect.inputValue())
+          .not.toBe('')
+
+        // AC7 — distinctiveness band and score
+        await expect
+          .soft(baselineHabitatDetailsPage.distinctivenessKey)
+          .toBeVisible()
+        await expect
+          .soft(page.getByText(DISTINCTIVENESS_PATTERN).first())
+          .toBeVisible()
+
+        // AC9 — fixed strategic significance
+        await expect
+          .soft(baselineHabitatDetailsPage.strategicSignificanceKey)
+          .toBeVisible()
+        await expect
+          .soft(baselineHabitatDetailsPage.strategicSignificanceValue)
+          .toBeVisible()
+
+        // AC10 / AC11 — trading rules and units labels
+        await expect
+          .soft(baselineHabitatDetailsPage.tradingRulesKey)
+          .toBeVisible()
+        await expect
+          .soft(baselineHabitatDetailsPage.habitatUnitsKey)
+          .toBeVisible()
+
+        // Encroachment rows appear, watercourse before riparian
+        const rowKeys = (await page.getByRole('term').allTextContents()).map(
+          (t) => t.trim()
         )
-        await expect(
-          baselineHabitatDetailsPage.baselineDetailsHeading
-        ).toBeVisible()
+        const watercourseIdx = rowKeys.indexOf('Watercourse encroachment')
+        const riparianIdx = rowKeys.indexOf('Riparian encroachment')
+        expect.soft(watercourseIdx).toBeGreaterThan(-1)
+        expect.soft(riparianIdx).toBeGreaterThan(-1)
+        expect.soft(watercourseIdx).toBeLessThan(riparianIdx)
+
+        // AC12 / AC13 — form controls
+        await expect.soft(baselineHabitatDetailsPage.saveButton).toBeVisible()
+        await expect.soft(baselineHabitatDetailsPage.cancelLink).toBeVisible()
       })
 
-      test('AC3 — Reference label and the saved reference value are displayed', async ({
-        baselineHabitatDetailsPage,
-        page
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
-
-        await expect(baselineHabitatDetailsPage.referenceKey).toBeVisible()
-        await expect(
-          page.getByText(watercourseRef, { exact: true })
-        ).toBeVisible()
-      })
-
-      test('AC4 — Length (km) label and the value carried from the list are displayed', async ({
-        baselineHabitatDetailsPage,
-        page
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
-
-        await expect(
-          page.getByText('Length (km)', { exact: true })
-        ).toBeVisible()
-        await expect(
-          page.getByText(watercourseLength, { exact: true })
-        ).toBeVisible()
-      })
-
-      test('AC5 — Broad habitat dropdown is not rendered for watercourses', async ({
+      // AC6b, AC8b, ACW, ACR and the BMD-597 distinctiveness-scope filter,
+      // consolidated: every dropdown's option list on one page load.
+      test('AC6b/AC8b/ACW/ACR — dropdowns offer correctly filtered and ordered options', async ({
         baselineHabitatDetailsPage
       }) => {
         await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
 
-        await expect(baselineHabitatDetailsPage.broadHabitatSelect).toHaveCount(
-          0
-        )
-      })
-
-      test('AC6a — Habitat type dropdown shows the saved value as selected', async ({
-        baselineHabitatDetailsPage
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
-
-        await expect(baselineHabitatDetailsPage.habitatTypeSelect).toBeVisible()
-        expect(
-          await baselineHabitatDetailsPage.habitatTypeSelect.inputValue()
-        ).not.toBe('')
-      })
-
-      test('AC6b — Habitat type options start with the default and are sorted ascending', async ({
-        baselineHabitatDetailsPage
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
-        const texts = await optionTexts(
+        // AC6b — habitat type: default first, rest sorted ascending
+        const typeTexts = await optionTexts(
           baselineHabitatDetailsPage.habitatTypeSelect
         )
+        expect(typeTexts[0]).toBe('Choose habitat type')
+        expect(typeTexts.length).toBeGreaterThan(1)
+        expect(isSortedAscending(typeTexts.slice(1))).toBe(true)
 
-        expect(texts[0]).toBe('Choose habitat type')
-        expect(texts.length).toBeGreaterThan(1)
-        expect(isSortedAscending(texts.slice(1))).toBe(true)
-      })
-
-      // BMD-597 retest fix (PR #146): the watercourse Habitat type dropdown is
-      // filtered to the in-scope V.Low/Low/Medium distinctiveness bands, so
-      // High ("Other rivers and streams") and V.High ("Priority habitat")
-      // engine types must never appear as options.
-      test('Distinctiveness scope — Habitat type dropdown excludes out-of-scope (High / V.High) watercourse types', async ({
-        baselineHabitatDetailsPage
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
-        const texts = await optionTexts(
-          baselineHabitatDetailsPage.habitatTypeSelect
-        )
-
+        // BMD-597 retest fix (PR #146): the type list is filtered to the in-scope
+        // V.Low/Low/Medium bands, so High ("Other rivers and streams") and V.High
+        // ("Priority habitat") engine types must never appear.
         for (const outOfScopeType of OUT_OF_SCOPE_WATERCOURSE_TYPES) {
-          expect(texts).not.toContain(outOfScopeType)
+          expect(typeTexts).not.toContain(outOfScopeType)
         }
         for (const inScopeType of IN_SCOPE_WATERCOURSE_TYPES) {
-          expect(texts).toContain(inScopeType)
+          expect(typeTexts).toContain(inScopeType)
         }
-      })
 
-      test('AC7 — Distinctiveness shows the band and score', async ({
-        baselineHabitatDetailsPage,
-        page
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
-
-        await expect(
-          baselineHabitatDetailsPage.distinctivenessKey
-        ).toBeVisible()
-        await expect(
-          page.getByText(DISTINCTIVENESS_PATTERN).first()
-        ).toBeVisible()
-      })
-
-      test('AC8a — Condition dropdown shows the saved condition as selected', async ({
-        baselineHabitatDetailsPage
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
-
-        await expect(baselineHabitatDetailsPage.conditionSelect).toBeVisible()
-        expect(
-          await baselineHabitatDetailsPage.conditionSelect.inputValue()
-        ).not.toBe('')
-      })
-
-      test('AC8b — Condition options start with the default and are ordered by score descending', async ({
-        baselineHabitatDetailsPage
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
-        const texts = await optionTexts(
+        // AC8b — condition: default first, rest ordered by score descending
+        await expectConditionOptionsOrderedByScore(
           baselineHabitatDetailsPage.conditionSelect
         )
 
-        expect(texts[0]).toBe('Choose condition')
-        const scores = conditionScores(texts.slice(1))
-        expect(scores.length).toBeGreaterThan(0)
-        expect(scores).toEqual([...scores].sort((a, b) => b - a))
-      })
-
-      test('AC9 — Strategic Significance shows the fixed "Low (1)" value', async ({
-        baselineHabitatDetailsPage
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
-
-        await expect(
-          baselineHabitatDetailsPage.strategicSignificanceKey
-        ).toBeVisible()
-        await expect(
-          baselineHabitatDetailsPage.strategicSignificanceValue
-        ).toBeVisible()
-      })
-
-      test('AC10 — "Required action to meet trading rules" label is displayed', async ({
-        baselineHabitatDetailsPage
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
-
-        await expect(baselineHabitatDetailsPage.tradingRulesKey).toBeVisible()
-      })
-
-      test('AC11 — "Units in this habitat" label is displayed', async ({
-        baselineHabitatDetailsPage
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
-
-        await expect(baselineHabitatDetailsPage.habitatUnitsKey).toBeVisible()
-      })
-
-      // BMD-597 AC set 1: a non-culvert type gets the graded encroachment
-      // options without "N/A - Culvert" (the shared watercourse's saved type
-      // is never Culvert, so the server-side filter takes this branch).
-      test('ACW — Watercourse encroachment dropdown shows the default and the non-culvert options', async ({
-        baselineHabitatDetailsPage
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
+        // BMD-597 AC set 1: a non-culvert type gets the graded encroachment
+        // options without "N/A - Culvert" (the shared watercourse's saved type is
+        // never Culvert, so the server-side filter takes this branch).
         await expect(
           baselineHabitatDetailsPage.watercourseEncroachmentSelect
         ).toBeVisible()
-        const texts = await optionTexts(
+        const watercourseTexts = await optionTexts(
           baselineHabitatDetailsPage.watercourseEncroachmentSelect
         )
-
-        expect(texts).toEqual([
+        expect(watercourseTexts).toEqual([
           WATERCOURSE_ENCROACHMENT_PLACEHOLDER,
           ...NON_CULVERT_WATERCOURSE_ENCROACHMENTS
         ])
-        expect(texts).not.toContain(CULVERT_ENCROACHMENT)
-      })
+        expect(watercourseTexts).not.toContain(CULVERT_ENCROACHMENT)
 
-      test('ACR — Riparian encroachment dropdown shows the default and the non-culvert options', async ({
-        baselineHabitatDetailsPage
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
         await expect(
           baselineHabitatDetailsPage.riparianEncroachmentSelect
         ).toBeVisible()
-        const texts = await optionTexts(
+        const riparianTexts = await optionTexts(
           baselineHabitatDetailsPage.riparianEncroachmentSelect
         )
-
-        expect(texts).toEqual([
+        expect(riparianTexts).toEqual([
           RIPARIAN_ENCROACHMENT_PLACEHOLDER,
           ...NON_CULVERT_RIPARIAN_ENCROACHMENTS
         ])
-        expect(texts).not.toContain(CULVERT_ENCROACHMENT)
+        expect(riparianTexts).not.toContain(CULVERT_ENCROACHMENT)
       })
 
-      // BMD-597 AC set 1 (culverts): selecting the Culvert type repopulates
-      // both encroachment dropdowns client-side with the single culvert value.
-      test('ACW-culvert — selecting the Culvert type narrows Watercourse encroachment to N/A - Culvert', async ({
+      // BMD-597 AC set 1 (culverts): selecting the Culvert type repopulates both
+      // encroachment dropdowns client-side with the single culvert value. Kept as
+      // its own test — this is client-side JS behaviour, not page render, and it
+      // mutates the form so it cannot share a page load with the assertions above.
+      test('ACW/ACR-culvert — selecting the Culvert type narrows both encroachments to N/A - Culvert', async ({
         baselineHabitatDetailsPage
       }) => {
         await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
         await baselineHabitatDetailsPage.habitatTypeSelect.selectOption(
           CULVERT_TYPE
         )
+
         await expect
           .poll(() =>
             optionTexts(
@@ -2185,15 +2045,6 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             )
           )
           .toEqual([WATERCOURSE_ENCROACHMENT_PLACEHOLDER, CULVERT_ENCROACHMENT])
-      })
-
-      test('ACR-culvert — selecting the Culvert type narrows Riparian encroachment to N/A - Culvert', async ({
-        baselineHabitatDetailsPage
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
-        await baselineHabitatDetailsPage.habitatTypeSelect.selectOption(
-          CULVERT_TYPE
-        )
         await expect
           .poll(() =>
             optionTexts(baselineHabitatDetailsPage.riparianEncroachmentSelect)
@@ -2201,67 +2052,27 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           .toEqual([RIPARIAN_ENCROACHMENT_PLACEHOLDER, CULVERT_ENCROACHMENT])
       })
 
-      test('Encroachment order — Watercourse encroachment is shown before Riparian encroachment', async ({
-        baselineHabitatDetailsPage,
-        page
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
-        const rowKeys = (await page.getByRole('term').allTextContents()).map(
-          (t) => t.trim()
-        )
-        const watercourseIdx = rowKeys.indexOf('Watercourse encroachment')
-        const riparianIdx = rowKeys.indexOf('Riparian encroachment')
-
-        expect(watercourseIdx).toBeGreaterThan(-1)
-        expect(riparianIdx).toBeGreaterThan(-1)
-        expect(watercourseIdx).toBeLessThan(riparianIdx)
-      })
-
-      test('AC12 — Save button is displayed', async ({
-        baselineHabitatDetailsPage
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
-        await expect(baselineHabitatDetailsPage.saveButton).toBeVisible()
-      })
-
-      test('AC13 — Cancel link is displayed', async ({
-        baselineHabitatDetailsPage
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
-        await expect(baselineHabitatDetailsPage.cancelLink).toBeVisible()
-      })
-
-      // BMD-878 AC2, bookmark route — see the Areas-tab AC14 test for why this
-      // must keep reaching the page via open()/page.goto() (no Referer).
-      test('AC14 — Back link returns to the habitat list Watercourses tab', async ({
+      // BMD-878 AC2, bookmark route — see the Areas-tab AC14 test for why these
+      // must keep reaching the page via open()/page.goto() (no Referer). Each link
+      // is clicked from its own page load, so they stay in one test only because
+      // the second re-opens the page.
+      test('AC14/AC15 — Back and Cancel return to the habitat list Watercourses tab', async ({
         baselineHabitatDetailsPage,
         habitatListPage,
         page
       }) => {
+        const watercoursesAnchor = new RegExp(
+          `/projects/${projectId}/baseline-habitat-list#watercourses`
+        )
+
         await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
         await baselineHabitatDetailsPage.backLink.click()
-
-        await expect(page).toHaveURL(
-          new RegExp(
-            `/projects/${projectId}/baseline-habitat-list#watercourses`
-          )
-        )
+        await expect(page).toHaveURL(watercoursesAnchor)
         await expect(habitatListPage.watercoursesTable).toBeVisible()
-      })
 
-      test('AC15 — Cancel link returns to the habitat list Watercourses tab', async ({
-        baselineHabitatDetailsPage,
-        habitatListPage,
-        page
-      }) => {
         await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
         await baselineHabitatDetailsPage.cancelLink.click()
-
-        await expect(page).toHaveURL(
-          new RegExp(
-            `/projects/${projectId}/baseline-habitat-list#watercourses`
-          )
-        )
+        await expect(page).toHaveURL(watercoursesAnchor)
         await expect(habitatListPage.watercoursesTable).toBeVisible()
       })
 

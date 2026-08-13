@@ -251,20 +251,34 @@ function describeContentValidationErrors() {
   // surface exactly one backend error render the BMD-405 single-error layout
   // (`layout: 'single'` — no error summary); fixtures with several errors
   // keep the grouped multi-error layout (`layout: 'multi'`).
+  //
+  // DO NOT DELETE any of these as "covered by the backend". Checked in full
+  // during the integration-overlap workshop (workshop/integration-overlap-ledger.md,
+  // chunk 3): every one is the *only* test in any suite — journey, frontend
+  // unit, backend unit, backend integration — that proves its error code is
+  // ever emitted for a real GeoPackage. Per-case notes below.
   const cases = [
     {
+      // Sole witness for GPKG_RLB_NO_GEOMETRY_COLUMN. Raised in the parse layer
+      // (backend src/validation/geopackage/geopackage-internals-validate-features.js).
+      // No backend unit test and no integration fixture reference the code; the
+      // PostGIS suite works on synthetic geometry and never reads a .gpkg.
       name: 'a Red Line Boundary layer with no geometry column',
       file: RLB_NO_GEOMETRY_FILE,
       layout: 'single',
       expected: NATURAL_ENGLAND_MISMATCH_COPY
     },
     {
+      // Sole witness for the multiple-geometry-column branch of the same parse
+      // layer check — same coverage position as above.
       name: 'a Red Line Boundary layer with multiple geometry columns',
       file: RLB_MULTIPLE_GEOMETRY_FILE,
       layout: 'single',
       expected: NATURAL_ENGLAND_MISMATCH_COPY
     },
     {
+      // Sole witness for the wrong-geometry-type branch, and the only test that
+      // pins its multi-error rendering ("Zero red line boundaries in GeoPackage").
       name: 'a Red Line Boundary layer with the wrong geometry type',
       file: RLB_WRONG_GEOMETRY_FILE,
       layout: 'multi',
@@ -275,6 +289,11 @@ function describeContentValidationErrors() {
       // and delayed creation. The check reads the Proposed advance/delay
       // columns, so it applies to a post-intervention file exactly as it does
       // to a baseline one.
+      //
+      // Sole real-GeoPackage witness for ADVANCE_AND_DELAY_BOTH_SET. The rule
+      // itself is well covered in backend advance-delay-check.test.js, but only
+      // against hand-built layer objects — nothing else proves a real .gpkg's
+      // parsed columns reach the check.
       name: 'a habitat with both advance and delayed creation set',
       file: ADVANCE_AND_DELAY_FILE,
       layout: 'single',
@@ -338,6 +357,15 @@ function describeDistinctivenessError() {
       // The fixture is built by test/example-files/fixture-mutations.py:
       // one parcel's proposed pair is retargeted at "Grassland - Lowland
       // meadows" (V.High), leaving exactly one visible error.
+      //
+      // DO NOT DELETE as "the baseline test already covers distinctiveness".
+      // That was proposed during the integration-overlap workshop and withdrawn
+      // once the chain was traced (see workshop/integration-overlap-ledger.md,
+      // chunk 3) — checkHabitatDistinctiveness is shared but *parameterised*,
+      // and the backend has no test at all that the post-intervention route
+      // passes variant: 'postIntervention'. Set that call site to 'baseline'
+      // and every backend and frontend test still passes; only this upload
+      // fails. A shared module is not shared coverage.
       test('uploading a file whose proposed habitat is High/Very High distinctiveness shows the distinctiveness single-error page', async ({
         createProjectFlow,
         projectDashboardPage,
