@@ -22,6 +22,15 @@ const PROJECT_LABEL = 'Upload baseline flow test'
 const UPLOAD_TIMEOUT = 120_000
 const COMPLETE_BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
 const COMPLETE_POST_INTERVENTION_FILE = 'Post-intervention - complete.gpkg'
+// A second valid baseline whose hedgerow refs differ from COMPLETE_BASELINE_FILE
+// (HR1/HR2 vs H1/H2). Uploading one over the other is what makes a replacement
+// distinguishable from a no-op — re-uploading the same fixture is not.
+const ALTERNATE_BASELINE_FILE = 'Baseline - complete with hedgerow refs.gpkg'
+const ALTERNATE_HEDGEROW_REFS = ['HR1', 'HR2']
+const COMPLETE_BASELINE_HEDGEROW_REF = 'H1'
+// Trips PARCEL_OVERLAPS alongside side errors from the shared base data, so it
+// lands on the multi-error dropout layout.
+const INVALID_BASELINE_FILE = 'Baseline - overlapping parcels.gpkg'
 const NATURAL_ENGLAND_MISMATCH_COPY =
   'The layer names and column names do not match what is required by Natural England'
 
@@ -95,16 +104,24 @@ function describeHappyPath() {
 // key in the same JSONB update that writes the new baseline, replacing the old
 // re-enrichment behaviour. That is silent data loss from the user's point of
 // view, and the task list is where it surfaces — so it is worth pinning.
+//
+// The replacement uses a *different* baseline fixture on purpose. The backend
+// counterpart (../bng-metric-backend/integration-tests/baseline-persistence.test.js,
+// "AC4 replaces baseline and removes all existing PI document and geometry
+// data") uploads the same file twice, so it can only assert the uploadId
+// changed and the row counts match — nothing anywhere proved the *new file's*
+// habitats are what end up on the page. The hedgerow refs below are that proof.
 function describeBaselineReplacement() {
   test.describe(
     'Upload baseline — replacing an existing baseline',
     { tag: '@regression' },
     () => {
-      test('re-uploading a baseline discards the post-intervention data and resets its task list row', async ({
+      test('re-uploading a baseline replaces its habitats, discards the post-intervention data and resets its task list row', async ({
         createProjectFlow,
         projectDashboardPage,
         uploadBaselineFileFlow,
         uploadPostInterventionFileFlow,
+        habitatListPage,
         projectTaskListPage,
         page
       }) => {
@@ -138,11 +155,27 @@ function describeBaselineReplacement() {
           'Completed'
         )
 
-        await uploadBaselineFileFlow.uploadFile(id, COMPLETE_BASELINE_FILE)
+        // The first file's hedgerows are what is stored right now.
+        await habitatListPage.openTab(id, 'hedgerows')
+        await expect(
+          habitatListPage.hedgerowRowByRef(COMPLETE_BASELINE_HEDGEROW_REF)
+        ).toBeVisible()
+
+        await uploadBaselineFileFlow.uploadFile(id, ALTERNATE_BASELINE_FILE)
         await page.waitForURL(
           new RegExp(`/projects/${id}/baseline-habitat-list`),
           { timeout: UPLOAD_TIMEOUT }
         )
+
+        // The stored baseline is the new file, not a merge of the two: the
+        // replacement's refs are present and the original's are gone.
+        await habitatListPage.openTab(id, 'hedgerows')
+        for (const ref of ALTERNATE_HEDGEROW_REFS) {
+          await expect(habitatListPage.hedgerowRowByRef(ref)).toBeVisible()
+        }
+        await expect(
+          habitatListPage.hedgerowRowByRef(COMPLETE_BASELINE_HEDGEROW_REF)
+        ).toBeHidden()
 
         // The replacement dropped the post-intervention document: its row is
         // back to Not yet started and points at the file-type selection page,
@@ -160,6 +193,72 @@ function describeBaselineReplacement() {
           'Completed'
         )
         await expect(projectTaskListPage.taskStatus('Completed')).toHaveCount(2)
+      })
+    }
+  )
+}
+
+// ─── Failed replacement preserves the stored baseline ────────────────────────
+
+// BMD-850 AC10, second clause: "the project data is not updated (the data
+// remains as it was before the failed upload)". Every other dropout test in
+// this file starts from a project with no baseline, so none of them can show
+// that an *existing* baseline survives a rejected re-upload — they would pass
+// just as happily if a failed validation wiped the project first.
+//
+// Sole witness for that. The backend runs validation before setProjectBaseline
+// (which deletes the postIntervention key in the same transaction), so a
+// re-ordering there is silent, user-visible data loss on a bad file; no backend
+// test asserts the non-write, and no frontend unit test can see it. Do not
+// delete without an integration test that re-uploads an invalid GeoPackage into
+// a populated project and asserts the stored document is untouched.
+function describeFailedReplacement() {
+  test.describe(
+    'Upload baseline — failed replacement',
+    { tag: '@regression' },
+    () => {
+      test('a rejected re-upload leaves the existing baseline and its task list status intact', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        habitatListPage,
+        projectTaskListPage,
+        errorFilePage,
+        page
+      }) => {
+        // Two real uploads back this test.
+        test.setTimeout(UPLOAD_TIMEOUT * 2)
+
+        const id = await uploadToHabitatList(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            page
+          },
+          ALTERNATE_BASELINE_FILE
+        )
+
+        // Attempt to replace it with a file that fails backend validation.
+        await uploadBaselineFileFlow.uploadFile(id, INVALID_BASELINE_FILE)
+        await page.waitForURL('/error-file', { timeout: UPLOAD_TIMEOUT })
+        await expect(errorFilePage.errorSummary).toBeVisible()
+        await expect(errorFilePage.baselineRejectedHeading).toBeVisible()
+
+        // The original upload is still the stored baseline, unchanged.
+        await habitatListPage.openTab(id, 'hedgerows')
+        for (const ref of ALTERNATE_HEDGEROW_REFS) {
+          await expect(habitatListPage.hedgerowRowByRef(ref)).toBeVisible()
+        }
+
+        await projectTaskListPage.open(id)
+        await projectTaskListPage.assertTaskStatus(
+          TASK_BASELINE_HABITATS,
+          'Completed'
+        )
+        await expect(
+          projectTaskListPage.taskItem(TASK_BASELINE_HABITATS)
+        ).toHaveAttribute('href', `/projects/${id}/baseline-habitat-list`)
       })
     }
   )
@@ -331,10 +430,7 @@ function describeStructuralErrors() {
           PROJECT_LABEL
         )
 
-        await uploadBaselineFileFlow.uploadFile(
-          id,
-          'Baseline - overlapping parcels.gpkg'
-        )
+        await uploadBaselineFileFlow.uploadFile(id, INVALID_BASELINE_FILE)
 
         await page.waitForURL('/error-file', { timeout: UPLOAD_TIMEOUT })
 
@@ -948,6 +1044,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
 
   describeHappyPath()
   describeBaselineReplacement()
+  describeFailedReplacement()
   describeNoPendingUpload()
   describeCrossUserAccess()
   describeFormatError()

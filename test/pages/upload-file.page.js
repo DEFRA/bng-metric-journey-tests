@@ -26,6 +26,13 @@ export class UploadFilePage extends BasePage {
     this.cancelLink = page.getByRole('link', { name: 'Cancel' })
     this.backLink = page.getByRole('link', { name: 'Back' })
     this.errorSummary = page.getByRole('alert')
+    // The radios' fieldset, named by its visually-hidden legend. GOV.UK nests
+    // the inline error message inside it, immediately above the radios, so
+    // asserting on this locator is what distinguishes the repeated inline
+    // error from the error-summary entry at the top of the page.
+    this.uploadTypeGroup = page.getByRole('group', {
+      name: 'What would you like to upload?'
+    })
   }
 
   // Returns the navigation response so a spec can assert the 400 / 404 status
