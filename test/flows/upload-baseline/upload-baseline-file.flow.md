@@ -117,12 +117,31 @@ but a test that navigates the **UI** now passes through the selection page first
        **after** the sliver-suppression rule below, since `AREA_PARCELS_OUTSIDE_REDLINE`
        always co-fires with a correlated `SLIVERS_OUTSIDE_REDLINE` for the same escaping
        geometry, and checking the raw array left AC10's personalised copy unreachable.
+     - **Where this is tested.** `resolveSingleErrorCopy` is a pure function, unit-tested
+       exhaustively over all 20 error codes in
+       `../bng-metric-frontend/src/server/error-file/single-error-copy.test.js` — including
+       codes no GeoPackage fixture can reach alone (`SLIVERS_OUTSIDE_REDLINE`,
+       `IGGIS_OUTSIDE_REDLINE`, `TREES_OUTSIDE_REDLINE`, `REDLINE_AREA_TOO_LARGE`,
+       `AREA_PARCELS_TOO_SMALL`) and the `PARCEL_OVERLAPS` missing-ref fallback above.
+       The journey suite therefore carries **one upload per rendered variant**
+       (standard, catch-all, personalised, placeholder) to prove the resolver is wired
+       into the page, not one per code. Do not add a fixture-backed journey test for a
+       code purely to assert its copy — extend the unit test instead.
   2. **Multiple errors:** GOV.UK error summary plus error blocks grouped by error code; each block
      renders a heading, an optional note (e.g. allowed distinctiveness bands, display-mapped
      "V.High" → "Very high"), and a bulleted list of offending features with an "… and N more"
      tail when the backend truncated the sample. `AREA_PARCELS_TOO_SMALL` lists each offending
      parcel with its measured area (e.g. "Feature Ref H002 — ~0.81 sq m"). Suppression rule: when
      `AREA_PARCELS_OUTSIDE_REDLINE` is present, `SLIVERS_OUTSIDE_REDLINE` errors are hidden.
+     **Where this is tested.** The block headings are the backend's own `error.message`, split
+     on `': '` and rendered verbatim — they are built and unit-tested in
+     `../bng-metric-backend/src/validation/geopackage/postgis/error-builders.js` /
+     `error-builders.test.js`, and each underlying rule is detected against a real PostGIS in
+     `../bng-metric-backend/integration-tests/postgis-validate-baseline-layers.test.js`. The
+     "… and N more" truncation is unit-tested in
+     `../bng-metric-frontend/src/server/error-file/controller.test.js`. The journey suite carries
+     a parcel-level and a redline-level upload for this layout, plus the `AREA_PARCELS_TOO_SMALL`
+     per-parcel detail rendering and the sliver-suppression rule — not one upload per gate.
   3. **Empty array (e.g. rejected upload):** generic "We couldn't accept your file" message.
      All layouts offer "Upload a different file" (back to the upload form) and "Back to project"
      links when `projectId` is known, or "Back to start" otherwise.
@@ -178,12 +197,18 @@ geometry from opposite directions:
 
 Two consequences for tests:
 
-- **A gap below the 0.5 m² tolerance is now accepted.** `Baseline - tiny gap between
-parcels.gpkg` (0.32 m² unsnapped gap) uploads successfully and reaches the habitat
-  list. Under the removed rule it was rejected.
+- **A gap below the 0.5 m² tolerance is now accepted.** Both sides of this change are
+  pinned in the backend rather than the browser — see _"accepts a small gap left between
+  the parcels and the redline"_ and _"detects area sum mismatch"_ in
+  `../bng-metric-backend/integration-tests/postgis-validate-baseline-layers.test.js`.
+  The journey-level pair (fixtures `Baseline - tiny gap between parcels.gpkg` and
+  `Baseline - area sum mismatch.gpkg`) was retired in the integration-overlap workshop;
+  both fixtures were removed with it.
 - **`AREA_PARCELS_TOO_SMALL` cannot currently reach the single-error layout.** The only
   fixture, `Baseline - parcel too small.gpkg`, leaves the shortfall uncompensated, so
-  `AREA_SUM_MISMATCH` co-fires and the grouped multi-error layout renders instead.
+  `AREA_SUM_MISMATCH` co-fires and the grouped multi-error layout renders instead. That
+  grouped rendering — including the per-parcel `Feature Ref X — ~0.7 sq m` detail list —
+  is covered at journey level; the rule itself is covered in the backend.
 
 ---
 

@@ -367,87 +367,16 @@ function describeStructuralErrors() {
   )
 }
 
-// ─── Sliver and area checks (BMD-882) ────────────────────────────────────────
-
-// BMD-882 removed the derived SLIVERS_INSIDE_REDLINE check — tiny gaps inside
-// the boundary that no parcel covers. These two tests assert the change from
-// both sides: a gap below the AREA_SUM_MISMATCH tolerance is now accepted, and
-// a gap above it is still rejected, so nothing slipped through the removal.
-function describeSubToleranceGapAccepted() {
-  test.describe(
-    'Upload baseline — sub-tolerance gap between parcels',
-    { tag: '@regression' },
-    () => {
-      test('a 0.32 m² gap inside the redline is accepted and reaches the habitat list', async ({
-        createProjectFlow,
-        projectDashboardPage,
-        uploadBaselineFileFlow,
-        habitatListPage,
-        projectTaskListPage,
-        page
-      }) => {
-        const id = await uploadToHabitatList(
-          {
-            createProjectFlow,
-            projectDashboardPage,
-            uploadBaselineFileFlow,
-            page
-          },
-          'Baseline - tiny gap between parcels.gpkg'
-        )
-
-        await expect(habitatListPage.heading).toBeVisible()
-        await expect(habitatListPage.summaryTable).toBeVisible()
-
-        // The upload was persisted, not merely rendered: the task list counts
-        // Project Name + On-site baseline as Completed.
-        await projectTaskListPage.open(id)
-        await expect(projectTaskListPage.taskStatus('Completed')).toHaveCount(2)
-      })
-    }
-  )
-}
-
-function describeOversizeGapStillRejected() {
-  test.describe(
-    'Upload baseline — gap too large to be a sliver',
-    { tag: '@regression' },
-    () => {
-      // The counterpart to the test above, and the reason BMD-882 could delete
-      // the derived check: parcels that genuinely fail to tile the redline are
-      // caught by AREA_SUM_MISMATCH, which was left unchanged. Uses the harness
-      // fixture built for this rule (parcels do not tile the RLB) rather than
-      // the mutated "only area sum mismatch" file, so the gap itself is what
-      // trips the check.
-      test('parcels that do not tile the redline are rejected by the area-sum comparison', async ({
-        createProjectFlow,
-        projectDashboardPage,
-        uploadBaselineFileFlow,
-        errorFilePage,
-        page
-      }) => {
-        await uploadToErrorFile(
-          {
-            createProjectFlow,
-            projectDashboardPage,
-            uploadBaselineFileFlow,
-            page
-          },
-          'Baseline - area sum mismatch.gpkg'
-        )
-
-        await expect(
-          page.getByText(/does not equal redline boundary area/).first()
-        ).toBeVisible()
-        // AREA_SUM_MISMATCH has no finalised copy yet (BMD-592), so a lone
-        // occurrence renders the placeholder variant.
-        await expect(errorFilePage.placeholderHeading).toBeVisible()
-      })
-    }
-  )
-}
-
 // ─── AREA_PARCELS_TOO_SMALL (BMD-882) ────────────────────────────────────────
+
+// BMD-882 removed the derived SLIVERS_INSIDE_REDLINE check. Both sides of that
+// change are pinned in the backend against a real PostGIS — a sub-tolerance gap
+// is accepted ("accepts a small gap left between the parcels and the redline")
+// and an oversize one is still caught ("detects area sum mismatch"), both in
+// ../bng-metric-backend/integration-tests/postgis-validate-baseline-layers.test.js.
+// The browser-level pair that used to sit here added only a second assertion of
+// the same two rules, so it was retired; the rendering of the replacement check
+// is still covered by describeParcelTooSmall() below.
 
 function describeParcelTooSmall() {
   test.describe(
@@ -718,84 +647,26 @@ function describeFieldValidation() {
   )
 }
 
-// ─── Redline outside England ──────────────────────────────────────────────────
-
-function describeOutsideEngland() {
-  test.describe(
-    'Upload baseline — redline outside England',
-    { tag: '@regression' },
-    () => {
-      // The fixture trips REDLINE_OUTSIDE_ENGLAND alongside distinctiveness
-      // and area-sum-mismatch errors, so the multi-error layout renders (the
-      // BMD-405 placeholder variant needs exactly one error).
-      test('uploading a file whose redline is outside England is rejected on the error-file page', async ({
-        createProjectFlow,
-        projectDashboardPage,
-        uploadBaselineFileFlow,
-        errorFilePage,
-        page
-      }) => {
-        const { id } = await setupProject(
-          createProjectFlow,
-          projectDashboardPage,
-          PROJECT_LABEL
-        )
-
-        await uploadBaselineFileFlow.uploadFile(
-          id,
-          'Baseline - redline not in england.gpkg'
-        )
-
-        await page.waitForURL('/error-file', { timeout: UPLOAD_TIMEOUT })
-
-        await expect(errorFilePage.errorSummary).toBeVisible()
-        await expect(errorFilePage.errorSummary).toContainText(
-          'Redline boundary is outside England'
-        )
-        await expect(errorFilePage.uploadDifferentFileLink).toBeVisible()
-        await expect(errorFilePage.uploadDifferentFileLink).toHaveAttribute(
-          'href',
-          `/projects/${id}/upload-baseline-file`
-        )
-      })
-    }
-  )
-}
-
 // ─── Geometric validation gates (multi-error layout) ──────────────────────────
 
-// Each fixture trips its named geometric gate, but every one also carries
-// side errors from the shared base data (out-of-scope distinctiveness,
-// area-sum-mismatch), so the grouped multi-error layout renders. The tests
-// assert the gate's block heading inside the GOV.UK error summary.
+// The gate fixture trips its named geometric check, but also carries side
+// errors from the shared base data (out-of-scope distinctiveness,
+// area-sum-mismatch), so the grouped multi-error layout renders. The test
+// asserts the gate's block heading inside the GOV.UK error summary.
+//
+// Only the redline-level gate is exercised here. The per-rule detection for
+// the parcel, hedgerow, watercourse, tree and outside-England gates lives in
+// ../bng-metric-backend/integration-tests/postgis-validate-baseline-layers.test.js,
+// and the summary strings themselves are built by the backend
+// (src/validation/geopackage/postgis/error-builders.js, unit-tested in
+// error-builders.test.js) and rendered verbatim by the frontend — so a browser
+// test per gate re-asserted the same two things. describeStructuralErrors()
+// above covers the parcel-level side of the same layout.
 const GEOMETRIC_GATE_CASES = [
   {
     title: 'rejects a self-intersecting redline boundary',
     fixture: 'Baseline - self intersecting redline.gpkg',
     summaryText: 'Redline boundary geometry is invalid'
-  },
-  {
-    title: 'rejects a self-intersecting (bowtie) parcel',
-    fixture: 'Baseline - bowtie parcel.gpkg',
-    summaryText: 'One or more area habitat polygons have invalid geometry'
-  },
-  {
-    title: 'rejects a hedgerow outside the redline boundary',
-    fixture: 'Baseline - hedgerow outside.gpkg',
-    summaryText:
-      'One or more hedgerow habitats are not entirely within the redline boundary'
-  },
-  {
-    title: 'rejects a watercourse outside the redline boundary',
-    fixture: 'Baseline - watercourse outside.gpkg',
-    summaryText:
-      'One or more watercourse habitats are not entirely within the redline boundary'
-  },
-  {
-    title: 'rejects a tree outside the redline boundary',
-    fixture: 'Baseline - tree outside.gpkg',
-    summaryText:
-      'One or more trees are not entirely within the redline boundary'
   }
 ]
 
@@ -848,11 +719,18 @@ const GEOPACKAGE_ERROR_H1 = 'Your Geopackage (.gpkg) file contains an error'
 // substring match, regex for ref-personalised headings); `body` is the copy
 // asserted in the paragraph. `placeholder: true` marks AC14 codes whose
 // finalised copy is pending BMD-592.
+//
+// One case per rendered variant, not one per error code. The code → copy map
+// itself is a pure function, unit-tested exhaustively over all 20 codes in
+// ../bng-metric-frontend/src/server/error-file/single-error-copy.test.js;
+// these uploads exist to prove that resolver is wired into the page and that a
+// real GeoPackage reaches it. Adding a fixture per code re-ran the upload to
+// re-assert a string the unit test already owns.
 const SINGLE_ERROR_CASES = [
   {
-    // BMD-405 AC13: this case also asserts the inline "upload a new file" link
-    // navigates (not just carries the href), folding what was a dedicated nav
-    // test into this upload rather than running its own.
+    // Standard variant. BMD-405 AC13: this case also asserts the inline
+    // "upload a new file" link navigates (not just carries the href), folding
+    // what was a dedicated nav test into this upload rather than running its own.
     title:
       'missing redline boundary shows the "redline boundary is missing" page',
     fixture: 'Baseline - no rlb polygons.gpkg',
@@ -861,6 +739,25 @@ const SINGLE_ERROR_CASES = [
     assertNavigation: true
   },
   {
+    // Catch-all variant, and one of two single-error fixtures whose defect is
+    // structural rather than topological — it exercises the GeoPackage parse
+    // path, which the backend's synthetic-geometry PostGIS tests never touch.
+    title: 'wrong column names shows the Natural England catch-all page',
+    fixture: 'Baseline - wrong column names in Habitats.gpkg',
+    heading: GEOPACKAGE_ERROR_H1,
+    body: `${NATURAL_ENGLAND_MISMATCH_COPY}. Rename the layers and columns and`
+  },
+  {
+    // KEEP — this is the ONLY test anywhere that proves the backend rejects a
+    // GeoPackage carrying more than one red line boundary polygon.
+    // GPKG_RLB_TOO_MANY_POLYGONS is raised in the parse layer
+    // (src/validation/geopackage/geopackage-internals-validate-features.js) and
+    // has no backend unit test, no integration fixture, and no PostGIS test —
+    // the integration suite only ships baseline-no-rlb.gpkg for the *missing*
+    // case. The frontend unit test covers the copy for this code but is handed a
+    // hand-written error object, so it cannot prove the code is ever emitted.
+    // Do not delete without adding a >1-polygon RLB fixture to
+    // ../bng-metric-backend/integration-tests/fixtures/ first.
     title:
       'multiple redline boundaries shows the "multiple red line boundaries" page',
     fixture: 'Baseline - three rlb polygons.gpkg',
@@ -868,29 +765,9 @@ const SINGLE_ERROR_CASES = [
     body: 'This file contains multiple red line boundaries. Draw the red line boundary again and'
   },
   {
-    title:
-      'file without habitat parcels shows the "doesn\'t contain any parcels" page',
-    fixture: 'Baseline - no habitats.gpkg',
-    heading: GEOPACKAGE_ERROR_H1,
-    body: "The file doesn't contain any parcels. Draw parcels within your red line boundary and"
-  },
-  {
-    title: 'wrong column names shows the Natural England catch-all page',
-    fixture: 'Baseline - wrong column names in Habitats.gpkg',
-    heading: GEOPACKAGE_ERROR_H1,
-    body: `${NATURAL_ENGLAND_MISMATCH_COPY}. Rename the layers and columns and`
-  },
-  // The "only …" fixtures below were generated by mutating the known-valid
-  // "Baseline - complete with area refs.gpkg" so each trips exactly one
-  // backend error (verified by uploading and inspecting the rendered page).
-  {
-    title:
-      'self-intersecting redline alone shows the "boundary is overlapping itself" page',
-    fixture: 'Baseline - only self intersecting redline.gpkg',
-    heading: GEOPACKAGE_ERROR_H1,
-    body: 'The redline boundary is overlapping itself. Draw the boundary again and'
-  },
-  {
+    // Personalised variant — the H1 interpolates the offending feature ref.
+    // Generated by mutating the known-valid "Baseline - complete with area
+    // refs.gpkg" so it trips exactly one backend error.
     title:
       'self-intersecting parcel alone shows the personalised "parcel contains an error" page',
     fixture: 'Baseline - only bowtie parcel.gpkg',
@@ -898,121 +775,23 @@ const SINGLE_ERROR_CASES = [
     body: 'This parcel is overlapping itself. Draw the parcel again and'
   },
   {
-    title:
-      'overlapping parcels alone show the personalised "parcels contain an error" page',
-    fixture: 'Baseline - only overlapping parcels.gpkg',
-    heading: /These parcels .+ contain an error/,
-    body: 'These parcels are overlapping. Draw the parcels again and'
-  },
-  {
-    title:
-      'hedgerow outside the redline alone shows the personalised hedgerow page',
-    fixture: 'Baseline - only hedgerow outside.gpkg',
-    heading: /This hedgerow .+ contains an error/,
-    body: 'This hedgerow is outside the red line boundary. Draw the hedgerow again and'
-  },
-  {
-    title:
-      'watercourse outside the redline alone shows the personalised watercourse page',
-    fixture: 'Baseline - only watercourse outside.gpkg',
-    heading: /This watercourse .+ contains an error/,
-    body: 'This watercourse is outside the red line boundary. Draw the watercourse again and'
-  },
-  {
+    // Placeholder variant — AC14 codes with no finalised copy (BMD-592).
     title: 'redline outside England alone shows the placeholder page',
     fixture: 'Baseline - only redline not in england.gpkg',
     placeholder: true,
     body: 'Redline boundary is outside England'
-  },
-  {
-    title: 'area sum mismatch alone shows the placeholder page',
-    fixture: 'Baseline - only area sum mismatch.gpkg',
-    placeholder: true,
-    body: 'does not equal redline boundary area'
-  },
-  {
-    // AREA_PARCELS_OUTSIDE_REDLINE always co-fires with its correlated
-    // SLIVERS_OUTSIDE_REDLINE (same escaping geometry, reported from the
-    // per-parcel and union-of-parcels angle). Frontend PR#160 fixed the
-    // single-error check to compare against the de-duplicated visibleErrors
-    // list instead of the raw error array, so this now renders the
-    // personalised page (previously blocked — see git history for the
-    // original SINGLE_ERROR_PENDING_FIXTURE_CASES entry and rationale).
-    title:
-      'parcel outside the redline alone shows the personalised parcel page',
-    fixture: 'Baseline - only parcel outside redline.gpkg',
-    heading: /This parcel .+ contains an error/,
-    body: 'This parcel is outside the red line boundary. Draw the parcel again and'
   }
 ]
 
-// BMD-405 copy that cannot be reached today: the valid base fixture has no
-// IGGI or Urban Trees layers to mutate, and every generator fixture trips
-// side errors. Needs a valid 5-layer base fixture first.
-const SINGLE_ERROR_PENDING_FIXTURE_CASES = [
-  {
-    // single-error-copy.js maps SLIVERS_OUTSIDE_REDLINE to the "thin strip of
-    // land" wording and that code is live, but nothing can reach it alone: the
-    // only fixture that fires SLIVERS_OUTSIDE_REDLINE is `Baseline - only
-    // parcel outside redline.gpkg`, where the frontend suppresses the sliver in
-    // favour of the co-firing AREA_PARCELS_OUTSIDE_REDLINE.
-    //
-    // The fixture named below does not exist yet. To enable:
-    //   1. generate a fixture whose parcels overhang the redline *without*
-    //      tripping the per-parcel AREA_PARCELS_OUTSIDE_REDLINE check (the
-    //      overhang must come from the dissolved union, not from one parcel)
-    //   2. save it to test/example-files/ and move this into SINGLE_ERROR_CASES
-    title: 'sliver geometry alone shows the "parcel is a sliver" page',
-    fixture: 'Baseline - only parcel overhang.gpkg',
-    heading: GEOPACKAGE_ERROR_H1,
-    body: 'This parcel is a sliver (a thin strip of land). Draw the parcel again and'
-  },
-  {
-    // BMD-882's replacement check. The multi-error path IS covered — see
-    // describeParcelTooSmall() — but the personalised single-error copy is not:
-    // `Baseline - parcel too small.gpkg` leaves the missing area uncompensated,
-    // so AREA_SUM_MISMATCH co-fires and the grouped layout renders instead.
-    //
-    // The fixture named below does not exist yet. To enable:
-    //   1. generate a variant where the sub-1 m² parcel's shortfall is absorbed
-    //      by the neighbouring parcels, so the areas still tile the redline to
-    //      within the 0.5 m² AREA_SUM_MISMATCH tolerance
-    //   2. save it to test/example-files/ and move this into SINGLE_ERROR_CASES
-    title:
-      'parcel below the minimum area alone shows the personalised "parcel contains an error" page',
-    fixture: 'Baseline - only parcel too small.gpkg',
-    heading: /This parcel .+ contains an error/,
-    body: 'This parcel is smaller than 1 square metre. Draw the parcel again and'
-  },
-  {
-    title: 'IGGI outside the redline alone shows the placeholder page',
-    fixture: 'Baseline - only iggi outside.gpkg',
-    placeholder: true,
-    body: 'One or more IGGIs are not entirely within the redline boundary'
-  },
-  {
-    title: 'tree outside the redline alone shows the placeholder page',
-    fixture: 'Baseline - only tree outside.gpkg',
-    placeholder: true,
-    body: 'One or more trees are not entirely within the redline boundary'
-  },
-  {
-    // The REDLINE_AREA_TOO_LARGE gate is built (backend error-builders.js
-    // emits "...exceeds the 100 sq km limit") but the harness has no >100 sq
-    // km fixture yet.
-    title: 'redline area too large alone shows the placeholder page',
-    fixture: 'Baseline - redline area too large.gpkg',
-    placeholder: true,
-    body: 'exceeds the 100 sq km limit'
-  }
-]
-
-function singleErrorTest(
-  { title, fixture, heading, body, placeholder, assertNavigation },
-  opts
-) {
-  const testFn = opts?.skip ? test.skip : test
-  testFn(
+function singleErrorTest({
+  title,
+  fixture,
+  heading,
+  body,
+  placeholder,
+  assertNavigation
+}) {
+  test(
     title,
     async ({
       createProjectFlow,
@@ -1067,9 +846,6 @@ function describeSingleErrorDropout() {
       for (const singleErrorCase of SINGLE_ERROR_CASES) {
         singleErrorTest(singleErrorCase)
       }
-      for (const pendingCase of SINGLE_ERROR_PENDING_FIXTURE_CASES) {
-        singleErrorTest(pendingCase, { skip: true })
-      }
     }
   )
 }
@@ -1113,48 +889,6 @@ function describeUploadTimeout() {
       //   2. drive a `pending` status for longer than the shortened window and
       //      assert the flash + redirect, then remove this test.skip
       test.skip('an upload stuck pending for over 120s shows the timeout flash on the upload form', async () => {})
-    }
-  )
-}
-
-// ─── PARCEL_OVERLAPS without both feature refs (reachability unconfirmed) ─────
-
-function describePartialOverlapRefs() {
-  test.describe(
-    'Upload baseline — overlap without both feature refs',
-    { tag: '@regression' },
-    () => {
-      // single-error-copy.js's PARCEL_OVERLAPS handler falls back to "Some
-      // parcels in this file are overlapping…" (generic H1, different body
-      // copy from the two-ref case) when the backend sample doesn't carry both
-      // feature_ref_a/feature_ref_b (or _a/_b fid). All current overlap
-      // fixtures produce refs on both sides, so this branch is unreached. To
-      // enable:
-      //   1. confirm whether real GeoPackage data can produce an overlap
-      //      sample missing a ref (e.g. an unref'd parcel) — may not be
-      //      naturally reachable
-      //   2. add the fixture and remove this test.skip
-      test.skip('overlapping parcels with a missing feature ref show the generic fallback copy', async () => {})
-    }
-  )
-}
-
-// ─── Truncated error sample ("… and N more") ───────────────────────────────────
-
-function describeTruncatedSample() {
-  test.describe(
-    'Upload baseline — truncated error sample',
-    { tag: '@regression' },
-    () => {
-      // The multi-error layout appends "… and N more" when the backend's
-      // details.count exceeds details.sample.length (backend SAMPLE_CAP = 50,
-      // e.g. distinctiveness-check.js). No current fixture has 51+ offending
-      // features of one type. To enable:
-      //   1. generate a fixture with 51+ offenders of a single error type
-      //      (e.g. via the mutate-and-verify technique used for the BMD-405
-      //      single-defect fixtures)
-      //   2. add it to test/example-files/ and remove this test.skip
-      test.skip('a fixture with more than 50 offending features shows the "and N more" tail', async () => {})
     }
   )
 }
@@ -1218,18 +952,13 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
   describeCrossUserAccess()
   describeFormatError()
   describeStructuralErrors()
-  describeSubToleranceGapAccepted()
-  describeOversizeGapStillRejected()
   describeParcelTooSmall()
   describeSuppression()
   describeDistinctivenessError()
   describeFieldValidation()
-  describeOutsideEngland()
   describeGeometricGateErrors()
   describeSingleErrorDropout()
   describeUploaderRejection()
   describeUploadTimeout()
-  describePartialOverlapRefs()
-  describeTruncatedSample()
   describeIrreplaceableHabitat()
 })
