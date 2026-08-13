@@ -415,28 +415,23 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      test('missing featureId query param returns 400', async ({ page }) => {
-        const response = await page.goto(detailsUrl({ projectId: STUB_UUID }))
-        expect(response.status()).toBe(HTTP_BAD_REQUEST)
-      })
-
-      test('missing projectId query param returns 400', async ({ page }) => {
-        const response = await page.goto(detailsUrl({ featureId: STUB_UUID }))
-        expect(response.status()).toBe(HTTP_BAD_REQUEST)
-      })
-
-      test('non-UUID featureId query param returns 400', async ({ page }) => {
-        const response = await page.goto(
-          detailsUrl({ projectId: STUB_UUID, featureId: 'not-a-uuid' })
-        )
-        expect(response.status()).toBe(HTTP_BAD_REQUEST)
-      })
-
-      test('non-UUID projectId query param returns 400', async ({ page }) => {
-        const response = await page.goto(
+      // Four route-level Joi rejections, merged into one test — each is a bare
+      // goto + status check with no shared setup, so running them separately
+      // bought nothing.
+      test('missing or non-UUID projectId/featureId query params return 400', async ({
+        page
+      }) => {
+        const badUrls = [
+          detailsUrl({ projectId: STUB_UUID }),
+          detailsUrl({ featureId: STUB_UUID }),
+          detailsUrl({ projectId: STUB_UUID, featureId: 'not-a-uuid' }),
           detailsUrl({ projectId: 'not-a-uuid', featureId: STUB_UUID })
-        )
-        expect(response.status()).toBe(HTTP_BAD_REQUEST)
+        ]
+
+        for (const url of badUrls) {
+          const response = await page.goto(url)
+          expect(response.status(), url).toBe(HTTP_BAD_REQUEST)
+        }
       })
     }
   )
