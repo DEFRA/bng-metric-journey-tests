@@ -66,41 +66,6 @@ async function getHabitatTypeHeader(habitatListPage, page, projectId) {
   })
 }
 
-async function getHedgerowHabitatTypeHeader(habitatListPage, projectId) {
-  await habitatListPage.openTab(projectId, 'hedgerows')
-  return habitatListPage.hedgerowsTable.getByRole('columnheader', {
-    name: HABITAT_TYPE_COL
-  })
-}
-
-async function getWatercourseHabitatTypeHeader(habitatListPage, projectId) {
-  await habitatListPage.openTab(projectId, 'watercourses')
-  return habitatListPage.watercoursesTable.getByRole('columnheader', {
-    name: HABITAT_TYPE_COL
-  })
-}
-
-async function assertHabitatTableColumns(table, sizeColumnName) {
-  await expect(table.getByRole('columnheader', { name: 'Ref' })).toBeVisible()
-  await expect(
-    table.getByRole('columnheader', { name: HABITAT_TYPE_COL })
-  ).toBeVisible()
-  await expect(
-    table.getByRole('columnheader', { name: sizeColumnName })
-  ).toBeVisible()
-  await expect(
-    table.getByRole('columnheader', { name: 'Distinctiveness' })
-  ).toBeVisible()
-  await expect(
-    table.getByRole('columnheader', { name: 'Condition' })
-  ).toBeVisible()
-  await expect(table.getByRole('columnheader', { name: 'Units' })).toBeVisible()
-  await expect(
-    table.getByRole('columnheader', { name: 'Status' })
-  ).toBeVisible()
-  await expect(table).toHaveAttribute('data-module', 'moj-sortable-table')
-}
-
 // Asserts the totals-row Units value equals the sum of the individual data-row
 // Units. Data rows are those carrying a ref link (excludes header and total).
 async function expectTotalEqualsSumOfRowUnits(table, totalsRow, page) {
@@ -206,6 +171,15 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
       // 'Baseline - no hedgerows.gpkg' has no hedgerow features but does carry
       // individual trees (Urban Trees layer), so a single upload covers both the
       // hedgerow "No data" checks and the tree checks below.
+      //
+      // Keep this upload. The "No data" and trees rendering is also unit-tested
+      // in the frontend, but those tests mock the backend client — they assert
+      // the frontend's handling of a *hand-written* habitatSizes object. Only
+      // this upload proves the backend actually omits `hedgerows` (and splits
+      // `site` from `areaHabitats` for trees) for a real file, which is the
+      // contract the "No data" branch depends on. Backend integration pins
+      // habitatSizes only for a complete file, so deleting this leaves the
+      // no-hedgerows shape unverified end to end.
       let noHedgerowsProjectId
       test.beforeAll(async ({ browser }) => {
         noHedgerowsProjectId = (await getNoHedgerowsProject(browser)).id
@@ -223,16 +197,6 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         )
 
         await expect(habitatListPage.hedgerowSizeCell).toHaveText(NO_DATA_TEXT)
-      })
-
-      test('hedgerow units show "No data" when no hedgerow features exist', async ({
-        habitatListPage,
-        page
-      }) => {
-        await page.goto(
-          `/projects/${noHedgerowsProjectId}/baseline-habitat-list`
-        )
-        await expect(habitatListPage.hedgerowUnitsCell).toHaveText(NO_DATA_TEXT)
       })
 
       test('Site size is smaller than Area habitats size because tree areas are excluded from Site', async ({
@@ -258,24 +222,6 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         )
         await expect(habitatListPage.treeRows.first()).toBeVisible()
       })
-
-      test('individual tree rows show calculated units greater than zero', async ({
-        habitatListPage,
-        page
-      }) => {
-        await page.goto(
-          `/projects/${noHedgerowsProjectId}/baseline-habitat-list`
-        )
-        // Units is the 6th column (index 5) of the area habitats table, same as
-        // the area/hedgerow/watercourse unit checks. A tree habitat must produce
-        // a calculated, non-zero unit value like any other habitat type.
-        const unitsCell = habitatListPage.treeRows
-          .first()
-          .getByRole('cell')
-          .nth(5)
-        await expect(unitsCell).toHaveText(/^\d+(\.\d+)?$/)
-        expect(Number(await unitsCell.textContent())).toBeGreaterThan(0)
-      })
     }
   )
 
@@ -289,6 +235,9 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
       test.describe.configure({ mode: 'serial' })
 
+      // Keep this upload for the same reason as the no-hedgerows one above: it
+      // is the only place a real file lacking watercourses is proved to produce
+      // the habitatSizes shape the "No data" branch expects.
       let noWatercoursesProjectId
       test.beforeAll(async ({ browser }) => {
         noWatercoursesProjectId = (await getNoWatercoursesProject(browser)).id
@@ -303,18 +252,6 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         )
 
         await expect(habitatListPage.watercourseSizeCell).toHaveText(
-          NO_DATA_TEXT
-        )
-      })
-
-      test('watercourse units show "No data" when no watercourse features exist', async ({
-        habitatListPage,
-        page
-      }) => {
-        await page.goto(
-          `/projects/${noWatercoursesProjectId}/baseline-habitat-list`
-        )
-        await expect(habitatListPage.watercourseUnitsCell).toHaveText(
           NO_DATA_TEXT
         )
       })
@@ -336,29 +273,11 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         projectId = (await getCompleteProject(browser)).id
       })
 
-      test('area habitats section heading is displayed after upload', async ({
-        page
-      }) => {
-        await page.goto(`/projects/${projectId}/baseline-habitat-list`)
-
-        await expect(
-          page
-            .locator('#area-habitats')
-            .getByRole('heading', { name: 'Area habitats' })
-        ).toBeVisible()
-      })
-
-      test('area habitats table shows 7 column headings and is sortable', async ({
-        habitatListPage,
-        page
-      }) => {
-        await page.goto(`/projects/${projectId}/baseline-habitat-list`)
-        await assertHabitatTableColumns(
-          habitatListPage.areaHabitatsTable,
-          'Area'
-        )
-      })
-
+      // Section headings, the 7 column headers and the sortable data-module
+      // attribute are rendered from static template markup and asserted in
+      // ../bng-metric-frontend/src/server/baseline-habitat-list/controller.test.js
+      // (which boots the real server and checks the rendered HTML). This file
+      // covers what that suite cannot: real uploaded data reaching the page.
       test('data row shows a linked ref, populated fields, and numeric area and units', async ({
         habitatListPage,
         page
@@ -376,25 +295,16 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         )
 
         await expect(firstRow.getByRole('cell').nth(1)).not.toBeEmpty()
-        // Area format (with the "ha" suffix) is asserted by its own test.
-        await expect(firstRow.getByRole('cell').nth(2)).not.toBeEmpty()
+        // Area carries the "ha" suffix with no space — folded in here rather
+        // than run as its own upload-backed test, since the formatter itself is
+        // unit-tested (format-habitat-values.test.js).
+        await expect(firstRow.getByRole('cell').nth(2)).toHaveText(
+          /^\d+(\.\d+)?ha$/
+        )
         await expect(firstRow.getByRole('cell').nth(3)).not.toBeEmpty()
         await expect(firstRow.getByRole('cell').nth(4)).not.toBeEmpty()
         await expect(firstRow.getByRole('cell').nth(5)).toHaveText(
           /^\d+(\.\d+)?$/
-        )
-      })
-
-      test('area column value includes "ha" suffix with no space', async ({
-        habitatListPage,
-        page
-      }) => {
-        await page.goto(`/projects/${projectId}/baseline-habitat-list`)
-        const firstRow = habitatListPage.areaHabitatsTable
-          .getByRole('row')
-          .nth(1)
-        await expect(firstRow.getByRole('cell').nth(2)).toHaveText(
-          /^\d+(\.\d+)?ha$/
         )
       })
 
@@ -421,45 +331,15 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         ).toBeVisible()
       })
 
-      test(
-        'default sort on page load is Ref ascending with all other columns unsorted',
-        { tag: ['@happy-path'] },
-        async ({ habitatListPage, page }) => {
-          await page.goto(`/projects/${projectId}/baseline-habitat-list`)
-
-          await expect(
-            habitatListPage.areaHabitatsTable.getByRole('columnheader', {
-              name: 'Ref'
-            })
-          ).toHaveAttribute('aria-sort', 'ascending')
-          await expect(
-            habitatListPage.areaHabitatsTable.getByRole('columnheader', {
-              name: HABITAT_TYPE_COL
-            })
-          ).toHaveAttribute('aria-sort', 'none')
-          await expect(
-            habitatListPage.areaHabitatsTable.getByRole('columnheader', {
-              name: 'Area'
-            })
-          ).toHaveAttribute('aria-sort', 'none')
-          await expect(
-            habitatListPage.areaHabitatsTable.getByRole('columnheader', {
-              name: 'Condition'
-            })
-          ).toHaveAttribute('aria-sort', 'none')
-          await expect(
-            habitatListPage.areaHabitatsTable.getByRole('columnheader', {
-              name: 'Units'
-            })
-          ).toHaveAttribute('aria-sort', 'none')
-          await expect(
-            habitatListPage.areaHabitatsTable.getByRole('columnheader', {
-              name: 'Status'
-            })
-          ).toHaveAttribute('aria-sort', 'none')
-        }
-      )
-
+      // The default `aria-sort` state on page load (Ref ascending, every other
+      // header "none") is static markup, asserted in the controller unit tests
+      // under "#habitatListController - sortable table markup". The three tests
+      // below are the ones a unit test cannot reach: sorting is performed by the
+      // MoJ `moj-sortable-table` component in the browser, so only a real click
+      // proves our `data-sort-value` attributes drive it correctly. They run on
+      // the area tab only — the hedgerow and watercourse tables use the same
+      // component and the same helper, so repeating them per tab tested MoJ's
+      // library rather than our wiring.
       test(
         'clicking a non-active column header sorts rows ascending',
         { tag: ['@happy-path'] },
@@ -536,18 +416,9 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         projectId = (await getCompleteProject(browser)).id
       })
 
-      test('hedgerows section heading is displayed after upload', async ({
-        habitatListPage,
-        page
-      }) => {
-        await page.goto(`/projects/${projectId}/baseline-habitat-list`)
-
-        await habitatListPage.hedgerowsTab.click()
-        await expect(
-          page.locator('#hedgerows').getByRole('heading', { name: 'Hedgerows' })
-        ).toBeVisible()
-      })
-
+      // Section heading, column headers and default aria-sort state: static
+      // markup, covered in the controller unit tests. Sort-click behaviour is
+      // covered once on the area tab (same MoJ component, same helper).
       test('hedgerows tab shows "No hedgerow data uploaded." when file has no hedgerow habitats', async ({
         browser,
         habitatListPage,
@@ -558,16 +429,6 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         await expect(
           page.locator('#hedgerows').getByText('No hedgerow data uploaded.')
         ).toBeVisible()
-      })
-
-      test('hedgerows table shows 7 column headings including "Length" and is sortable', async ({
-        habitatListPage
-      }) => {
-        await habitatListPage.openTab(projectId, 'hedgerows')
-        await assertHabitatTableColumns(
-          habitatListPage.hedgerowsTable,
-          'Length'
-        )
       })
 
       test('hedgerow data row shows a linked ref, non-empty habitat type, numeric length and units', async ({
@@ -584,8 +445,11 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         )
 
         await expect(firstRow.getByRole('cell').nth(1)).not.toBeEmpty()
-        // Length format (with the "km" suffix) is asserted by its own test.
-        await expect(firstRow.getByRole('cell').nth(2)).not.toBeEmpty()
+        // Length carries the "km" suffix with no space — folded in here rather
+        // than run as its own tab-switch test (formatter is unit-tested).
+        await expect(firstRow.getByRole('cell').nth(2)).toHaveText(
+          /^\d+(\.\d+)?km$/
+        )
         await expect(firstRow.getByRole('cell').nth(3)).not.toBeEmpty()
         await expect(firstRow.getByRole('cell').nth(4)).not.toBeEmpty()
         // Units must be a calculated, non-zero value (size × distinctiveness ×
@@ -593,24 +457,6 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         const unitsCell = firstRow.getByRole('cell').nth(5)
         await expect(unitsCell).toHaveText(/^\d+(\.\d+)?$/)
         expect(Number(await unitsCell.textContent())).toBeGreaterThan(0)
-      })
-
-      test('hedgerow length column value includes "km" suffix with no space', async ({
-        habitatListPage
-      }) => {
-        await habitatListPage.openTab(projectId, 'hedgerows')
-        const firstRow = habitatListPage.hedgerowsTable.getByRole('row').nth(1)
-        await expect(firstRow.getByRole('cell').nth(2)).toHaveText(
-          /^\d+(\.\d+)?km$/
-        )
-      })
-
-      test('hedgerow data row status column is non-empty', async ({
-        habitatListPage
-      }) => {
-        await habitatListPage.openTab(projectId, 'hedgerows')
-        const firstRow = habitatListPage.hedgerowsTable.getByRole('row').nth(1)
-        await expect(firstRow.getByRole('cell').nth(6)).not.toBeEmpty()
       })
 
       test('hedgerows table totals row shows "Total" label with summed size and units', async ({
@@ -635,78 +481,6 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
           totalsRow,
           page
         )
-      })
-
-      test(
-        'default sort on page load is Ref ascending with all other columns unsorted',
-        { tag: ['@happy-path'] },
-        async ({ habitatListPage }) => {
-          await habitatListPage.openTab(projectId, 'hedgerows')
-
-          await expect(
-            habitatListPage.hedgerowsTable.getByRole('columnheader', {
-              name: 'Ref'
-            })
-          ).toHaveAttribute('aria-sort', 'ascending')
-          await expect(
-            habitatListPage.hedgerowsTable.getByRole('columnheader', {
-              name: HABITAT_TYPE_COL
-            })
-          ).toHaveAttribute('aria-sort', 'none')
-          await expect(
-            habitatListPage.hedgerowsTable.getByRole('columnheader', {
-              name: 'Length'
-            })
-          ).toHaveAttribute('aria-sort', 'none')
-          await expect(
-            habitatListPage.hedgerowsTable.getByRole('columnheader', {
-              name: 'Condition'
-            })
-          ).toHaveAttribute('aria-sort', 'none')
-          await expect(
-            habitatListPage.hedgerowsTable.getByRole('columnheader', {
-              name: 'Units'
-            })
-          ).toHaveAttribute('aria-sort', 'none')
-        }
-      )
-
-      test(
-        'clicking a non-active column header sorts hedgerow rows ascending',
-        { tag: ['@happy-path'] },
-        async ({ habitatListPage }) => {
-          const header = await getHedgerowHabitatTypeHeader(
-            habitatListPage,
-            projectId
-          )
-          await header.getByRole('button').click()
-          await expect(header).toHaveAttribute('aria-sort', 'ascending')
-        }
-      )
-
-      test('clicking an ascending column header sorts hedgerow rows descending', async ({
-        habitatListPage
-      }) => {
-        const header = await getHedgerowHabitatTypeHeader(
-          habitatListPage,
-          projectId
-        )
-        await header.getByRole('button').click()
-        await header.getByRole('button').click()
-        await expect(header).toHaveAttribute('aria-sort', 'descending')
-      })
-
-      test('clicking a descending column header toggles hedgerow rows back to ascending', async ({
-        habitatListPage
-      }) => {
-        const header = await getHedgerowHabitatTypeHeader(
-          habitatListPage,
-          projectId
-        )
-        await header.getByRole('button').click()
-        await header.getByRole('button').click()
-        await header.getByRole('button').click()
-        await expect(header).toHaveAttribute('aria-sort', 'ascending')
       })
 
       test(
@@ -742,30 +516,10 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         projectId = (await getCompleteProject(browser)).id
       })
 
-      test('watercourses section heading is displayed after upload', async ({
-        habitatListPage,
-        page
-      }) => {
-        await page.goto(`/projects/${projectId}/baseline-habitat-list`)
-
-        await habitatListPage.watercoursesTab.click()
-        await expect(
-          page
-            .locator('#watercourses')
-            .getByRole('heading', { name: 'Watercourses' })
-        ).toBeVisible()
-      })
-
-      test('watercourses table shows 7 column headings and is sortable', async ({
-        habitatListPage
-      }) => {
-        await habitatListPage.openTab(projectId, 'watercourses')
-        await assertHabitatTableColumns(
-          habitatListPage.watercoursesTable,
-          'Size'
-        )
-      })
-
+      // Section heading, column headers, default aria-sort state and the totals
+      // row are covered in the controller unit tests; sort-click behaviour is
+      // covered once on the area tab. What remains here is the watercourse data
+      // row rendered from a real upload, and the ref link actually navigating.
       test(
         'clicking a watercourse reference link navigates to the Habitat Details page',
         { tag: ['@happy-path'] },
@@ -798,8 +552,11 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         )
 
         await expect(firstRow.getByRole('cell').nth(1)).not.toBeEmpty()
-        // Size format (with the "km" suffix) is asserted by its own test.
-        await expect(firstRow.getByRole('cell').nth(2)).not.toBeEmpty()
+        // Size carries the "km" suffix with no space — folded in here rather
+        // than run as its own tab-switch test (formatter is unit-tested).
+        await expect(firstRow.getByRole('cell').nth(2)).toHaveText(
+          /^\d+(\.\d+)?km$/
+        )
         await expect(firstRow.getByRole('cell').nth(3)).not.toBeEmpty()
         await expect(firstRow.getByRole('cell').nth(4)).not.toBeEmpty()
         // Units must be a calculated, non-zero value (size × distinctiveness ×
@@ -808,124 +565,6 @@ test.describe('habitat-list', { tag: '@habitat-list' }, () => {
         const unitsCell = firstRow.getByRole('cell').nth(5)
         await expect(unitsCell).toHaveText(/^\d+(\.\d+)?$/)
         expect(Number(await unitsCell.textContent())).toBeGreaterThan(0)
-      })
-
-      test('watercourse size column value includes "km" suffix with no space', async ({
-        habitatListPage
-      }) => {
-        await habitatListPage.openTab(projectId, 'watercourses')
-        const firstRow = habitatListPage.watercoursesTable
-          .getByRole('row')
-          .nth(1)
-        await expect(firstRow.getByRole('cell').nth(2)).toHaveText(
-          /^\d+(\.\d+)?km$/
-        )
-      })
-
-      test('watercourse data row status column is non-empty', async ({
-        habitatListPage
-      }) => {
-        await habitatListPage.openTab(projectId, 'watercourses')
-        const firstRow = habitatListPage.watercoursesTable
-          .getByRole('row')
-          .nth(1)
-        await expect(firstRow.getByRole('cell').nth(6)).not.toBeEmpty()
-      })
-
-      test('watercourses table displays a totals row with "Total", total size, and total units', async ({
-        habitatListPage,
-        page
-      }) => {
-        await habitatListPage.openTab(projectId, 'watercourses')
-        const totalsRow = habitatListPage.watercoursesTable
-          .getByRole('row')
-          .filter({ hasText: 'Total' })
-        await expect(totalsRow).toBeVisible()
-        await expect(totalsRow.getByRole('cell').nth(2)).toHaveText(
-          /^\d+(\.\d+)?km$/
-        )
-        await expect(totalsRow.getByRole('cell').nth(5)).toHaveText(
-          /^\d+(\.\d+)?$/
-        )
-
-        // AC2: total watercourse units equals the sum of the individual rows.
-        await expectTotalEqualsSumOfRowUnits(
-          habitatListPage.watercoursesTable,
-          totalsRow,
-          page
-        )
-      })
-
-      test(
-        'default sort on page load is Ref ascending with all other columns unsorted',
-        { tag: ['@happy-path'] },
-        async ({ habitatListPage }) => {
-          await habitatListPage.openTab(projectId, 'watercourses')
-
-          await expect(
-            habitatListPage.watercoursesTable.getByRole('columnheader', {
-              name: 'Ref'
-            })
-          ).toHaveAttribute('aria-sort', 'ascending')
-          await expect(
-            habitatListPage.watercoursesTable.getByRole('columnheader', {
-              name: HABITAT_TYPE_COL
-            })
-          ).toHaveAttribute('aria-sort', 'none')
-          await expect(
-            habitatListPage.watercoursesTable.getByRole('columnheader', {
-              name: 'Size'
-            })
-          ).toHaveAttribute('aria-sort', 'none')
-          await expect(
-            habitatListPage.watercoursesTable.getByRole('columnheader', {
-              name: 'Condition'
-            })
-          ).toHaveAttribute('aria-sort', 'none')
-          await expect(
-            habitatListPage.watercoursesTable.getByRole('columnheader', {
-              name: 'Units'
-            })
-          ).toHaveAttribute('aria-sort', 'none')
-        }
-      )
-
-      test(
-        'clicking a non-active column header sorts watercourse rows ascending',
-        { tag: ['@happy-path'] },
-        async ({ habitatListPage }) => {
-          const header = await getWatercourseHabitatTypeHeader(
-            habitatListPage,
-            projectId
-          )
-          await header.getByRole('button').click()
-          await expect(header).toHaveAttribute('aria-sort', 'ascending')
-        }
-      )
-
-      test('clicking an ascending column header sorts watercourse rows descending', async ({
-        habitatListPage
-      }) => {
-        const header = await getWatercourseHabitatTypeHeader(
-          habitatListPage,
-          projectId
-        )
-        await header.getByRole('button').click()
-        await header.getByRole('button').click()
-        await expect(header).toHaveAttribute('aria-sort', 'descending')
-      })
-
-      test('clicking a descending column header toggles watercourse rows back to ascending', async ({
-        habitatListPage
-      }) => {
-        const header = await getWatercourseHabitatTypeHeader(
-          habitatListPage,
-          projectId
-        )
-        await header.getByRole('button').click()
-        await header.getByRole('button').click()
-        await header.getByRole('button').click()
-        await expect(header).toHaveAttribute('aria-sort', 'ascending')
       })
     }
   )

@@ -29,21 +29,23 @@ The suite runs on DEFRA's CDP Portal. Tests are packaged in a Docker image and r
 
 ## Slash Commands
 
-| Command                                    | What it does                                                                                                                         |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `/analyse-user-flow <flow-name>`           | Reads frontend and backend source for the named flow; creates or updates `test/flows/<flow-name>.flow.md`                            |
-| `/discover-journey-tests <flow-name>`      | Analyses journey test coverage for the named flow; recommends new tests or enhancements including edge cases                         |
-| `/validate-ac-automated`                   | Checks whether ACs in `feature-input.md` are covered by existing journey tests; recommends gaps to close                             |
-| `/validate-ac-manual`                      | Runs ACs from `feature-input.md` in a headless browser; captures screenshot evidence and produces a pass/fail report                 |
-| `/verify-integration-coverage <flow-name>` | Analyses backend integration test coverage for the named flow; recommends enhancements in `../bng-metric-backend/integration-tests/` |
-| `/triage-failure <failure-log>`            | Investigates a failing journey test — checks the related flow doc for drift before diagnosing and proposing a fix                    |
+| Command                                    | What it does                                                                                                                    |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| `/analyse-user-flow <flow-name>`           | Reads frontend and backend source for the named flow; creates or updates `test/flows/<flow-name>.flow.md`                       |
+| `/discover-journey-tests <flow-name>`      | Analyses journey test coverage for the named flow; checks the sibling suites first, then recommends new tests or enhancements   |
+| `/validate-ac-automated`                   | Checks whether ACs in `feature-input.md` are covered here or in a sibling suite; recommends gaps to close                       |
+| `/validate-ac-manual`                      | Runs ACs from `feature-input.md` in a headless browser; captures screenshot evidence and produces a pass/fail report            |
+| `/verify-integration-coverage <flow-name>` | **DORMANT — do not recommend or route work to it.** Retained for possible reactivation; runs only if invoked explicitly by name |
+| `/triage-failure <failure-log>`            | Investigates a failing journey test — checks the related flow doc for drift before diagnosing and proposing a fix               |
 
 **Ownership boundaries:**
 
 - `/analyse-user-flow` writes to `test/flows/` only — no test code.
-- `/discover-journey-tests`, `/validate-ac-automated` write to `test/` only, after approval.
+- `/discover-journey-tests`, `/validate-ac-automated` write to `test/` only, after approval. They **read** the sibling repos to check existing coverage, and never write to them.
 - `/validate-ac-manual` writes to `test/evidence/` only (temp spec + screenshots).
-- `/verify-integration-coverage` is the **only** command that may write to sibling repos (`../bng-metric-backend/integration-tests/`). It must not touch `../bng-metric-frontend/`.
+- `/verify-integration-coverage` is dormant. While dormant, **nothing writes to the sibling repos** — backend coverage gaps are recorded as proposals in the analysis output and as comments on the journey tests that stand in for them.
+
+**Before recommending any new journey test**, read [`.ai/instructions/coverage-boundaries.md`](.ai/instructions/coverage-boundaries.md). It is the rule for deciding whether a test belongs in this suite: what the backend integration and frontend unit suites can and cannot see, when "covered elsewhere" does and does not justify skipping, and the coverage floor that stops the last real-data witness for a behaviour being removed.
 
 ---
 
@@ -441,4 +443,6 @@ PROFILE=@project-management npm run test:github
 - No multi-page workflows in Page Objects — that belongs in Flows.
 - Do not import from `@playwright/test` directly in specs — always use `@fixtures`.
 - Do not write test code before coverage-gap analysis is approved.
-- Do not read or modify `../bng-metric-backend/` or `../bng-metric-frontend/` except via `/verify-integration-coverage` (backend integration tests only).
+- Do not **modify** anything in `../bng-metric-backend/` or `../bng-metric-frontend/`. Reading them is expected — for source drift, and to check whether a proposed test is already covered by a sibling suite (see [`.ai/instructions/coverage-boundaries.md`](.ai/instructions/coverage-boundaries.md)).
+- Do not recommend, defer to, or route work into `/verify-integration-coverage` — it is dormant. Record backend gaps as proposals in the analysis output and as comments on the journey tests standing in for them.
+- Do not conclude a behaviour is covered elsewhere from a test **name**. Open the test: a unit test handed a fabricated object proves the mapping, not that the code path runs, and a shared module is not shared coverage when it is parameterised per flow.
