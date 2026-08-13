@@ -1,6 +1,14 @@
 ---
-description: Analyse backend integration test coverage for a named user flow and recommend enhancements. The only command that may modify sibling service repositories.
+description: DORMANT — not in use. Analyse backend integration test coverage for a named user flow and recommend enhancements. The only command that may modify sibling service repositories.
 ---
+
+> **This command is dormant.** It is retained for possible future reactivation and still
+> works if invoked directly, but it is **out of the current workflow**: no other command,
+> instruction file, or analysis may recommend, defer to, or route work into it. Backend
+> coverage gaps are recorded as proposals and in-test annotations instead — see
+> `.ai/instructions/coverage-boundaries.md`.
+>
+> Run it only if the user explicitly asks for it by name.
 
 An integration coverage analysis has been requested. Read `.ai/instructions/verify-integration-coverage.md` and follow all steps exactly.
 

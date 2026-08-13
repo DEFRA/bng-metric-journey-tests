@@ -4,7 +4,17 @@
 
 Identify gaps in E2E test coverage for a named user flow and recommend new tests or enhancements to existing ones. Edge cases are inferred automatically from source validation logic.
 
-The flow file is the contract. Do **not** read integration tests — that is the responsibility of `/verify-integration-coverage`.
+The flow file is the contract.
+
+**Read the sibling suites before recommending anything.** A proposed journey test that
+the backend integration suite (or a frontend unit test) already covers is not a gap, and
+a journey test is the most expensive test we own. `.ai/instructions/coverage-boundaries.md`
+is the rule for that decision — read it before Step 2b and apply it there. Note in
+particular that "covered elsewhere" rarely means "skip": integration tests never render,
+so they substitute for a rule assertion but never for the wiring.
+
+`/verify-integration-coverage` is **dormant**. Never recommend deferring or routing work
+to it; gaps in backend coverage are recorded as annotations and proposals instead.
 
 **File upload tests:** When recommending tests that involve file uploads (e.g. steps whose route is `/upload-baseline-file` or any step that requires a `.gpkg` file), source fixtures from `../bng-metric-harness/example-files/`. The file must be copied into `test/example-files/` in this repo before the test is written — this ensures it is available for repeated local and CI runs. Use the file that matches the scenario (happy path, specific validation error, invalid format). If the right file is ambiguous, ask the user before finalising the recommendation.
 
@@ -53,6 +63,30 @@ Mark a step **Partial** when the happy path exists but a sub-assertion is missin
 
 ---
 
+## Step 2b — Check the sibling suites
+
+For every step or scenario that Step 2 marked **No** or **Partial** — i.e. every candidate
+recommendation — check whether it is already covered outside this repo before proposing a
+journey test. Follow `.ai/instructions/coverage-boundaries.md`, Steps A–C.
+
+Where to look:
+
+- `../bng-metric-backend/integration-tests/` — `route-manifest.json` is the index of which
+  endpoints exist; the test files are named by behaviour.
+- `../bng-metric-backend/src/**/*.test.js` — backend unit tests, for rules and error codes.
+- `../bng-metric-frontend/src/server/<dir>/controller.test.js` and shared helpers under
+  `src/server/common/helpers/` — these boot the real server with `wreck` mocked, so they
+  cover rendered markup against fabricated backend data.
+
+Record **file:line** for every counterpart you find; a matching test title is not evidence.
+Apply the two traps from the boundaries file — _mapping is not detection_, and _a shared
+module is not shared coverage when parameterised per flow_ — before concluding anything is
+covered.
+
+Carry the result into the Step 4 table as the **Covered elsewhere?** column.
+
+---
+
 ## Step 3 — Infer edge cases from the flow doc
 
 For each `[IMPLEMENTED]` step, read the **Validation**, **On success**, and **On error** fields from the flow doc. These are the primary source for edge case inference — do not re-read source files unless a field is marked `Unknown`.
@@ -88,9 +122,9 @@ The flow doc is not a complete index of validation rules — a thinly-documented
 
 For each step/gap, decide whether its success/error outcome is observable in the browser.
 
-If the outcome is **not** browser-observable — a DB trigger, an audit/log row, an async backend side-effect with no UI surface — it is **out of scope for a journey test**. Do not recommend **Write E2E** and do not mark it an uncovered journey gap (that is a false positive). Instead flag it in the gap table as **Defer → `/verify-integration-coverage`**, naming the backend behaviour to check.
+If the outcome is **not** browser-observable — a DB trigger, an audit/log row, an async backend side-effect with no UI surface — it is **out of scope for a journey test**. Do not recommend **Write E2E** and do not mark it an uncovered journey gap (that is a false positive). Flag it in the gap table as **Backend proposal**, naming the behaviour and where it should be covered.
 
-This does not change the ownership boundary: still do **not** read or write integration tests — you are only _naming_ the boundary so a backend-only outcome is routed to the right command rather than misreported as a journey gap.
+You may **read** the sibling suites (Step 2b) but must not **write** to them. `/verify-integration-coverage` is dormant, so a backend gap is not routed anywhere — it is recorded in the "Backend coverage proposals" section of the output (Step 4c) and, where a journey test currently stands in for it, as a comment on that test.
 
 ---
 
@@ -98,13 +132,18 @@ This does not change the ownership boundary: still do **not** read or write inte
 
 Output a table with one row per flow step (happy path) and one row per inferred edge case. For any **Enhance** row, include a one-line description of exactly what to add or change in the identified spec file — this becomes the implementation instruction after approval.
 
-| Step                            | Scenario                            | Currently covered?   | File if covered   | Run mode   | Recommendation                                             |
-| ------------------------------- | ----------------------------------- | -------------------- | ----------------- | ---------- | ---------------------------------------------------------- |
-| Step 1 — View project name form | Happy path — form renders           | Yes (`home.spec.js`) | —                 | e2e + stub | —                                                          |
-| Step 2 — Submit project name    | Happy path — redirects to dashboard | No                   | —                 | e2e + stub | Write E2E                                                  |
-| Step 2 — Submit project name    | Empty name → error summary shown    | No                   | —                 | e2e + stub | Write E2E                                                  |
-| Step 2 — Submit project name    | Name > 1,000 chars → error message  | Partial              | `project.spec.js` | e2e + stub | Enhance: add assertion for the specific error message text |
-| Step 2 — Submit project name    | Unauthenticated → redirect to login | No                   | —                 | e2e + stub | Write E2E                                                  |
+| Step                            | Scenario                            | Covered here?        | Covered elsewhere?                | Run mode   | Recommendation                                             |
+| ------------------------------- | ----------------------------------- | -------------------- | --------------------------------- | ---------- | ---------------------------------------------------------- |
+| Step 1 — View project name form | Happy path — form renders           | Yes (`home.spec.js`) | —                                 | e2e + stub | —                                                          |
+| Step 2 — Submit project name    | Happy path — redirects to dashboard | No                   | No                                | e2e + stub | Write E2E                                                  |
+| Step 2 — Submit project name    | Empty name → error summary shown    | No                   | `projects.test.js:88` (rule only) | e2e + stub | Write E2E — integration never renders the error summary    |
+| Step 2 — Submit project name    | Name > 1,000 chars → error message  | Partial              | `controller.test.js:41` (mocked)  | e2e + stub | Enhance: add assertion for the specific error message text |
+| Step 2 — Submit project name    | `audit_log` row written on create   | No                   | `audit-log.test.js:12`            | —          | Backend proposal — not browser-observable                  |
+
+The **Covered elsewhere?** column carries the file:line found in Step 2b, plus a
+parenthetical saying what kind of coverage it is — `(rule only)` for an integration test,
+`(mocked)` for a frontend unit test handed fabricated backend data. That parenthetical is
+what stops "covered elsewhere" being read as "skip".
 
 **Run mode** — the e2e coverage ceiling for the recommended test:
 
@@ -115,10 +154,29 @@ Determine it from the profile/technique the test requires, not the route. After 
 
 **Recommendation values:**
 
-- **Write E2E** — not covered at all; a new test case is needed (in a new or existing spec)
+- **Write E2E** — a new test case is needed (in a new or existing spec). Use this both when
+  nothing covers the scenario and when a sibling suite covers the _rule_ but no journey test
+  witnesses this rendering shape with real data.
 - **Enhance** — a related test exists but does not fully assert this scenario; the Recommendation column must state exactly what to add or change
-- **Defer → `/verify-integration-coverage`** — outcome is not browser-observable (Step 3c); route to the backend integration command
+- **Skip** — a sibling suite covers the rule **and** an existing journey test already
+  witnesses this rendering shape with real data. Name that sibling test; without one, this
+  value is not available (see the coverage floor in `.ai/instructions/coverage-boundaries.md`).
+- **Backend proposal** — outcome is not browser-observable (Step 3c). Not a journey gap;
+  goes in the Step 4c list.
 - **—** (dash) — fully covered, no action needed
+
+---
+
+## Step 4c — Backend coverage proposals
+
+Any behaviour that a journey test cannot cover, or that only a journey test currently
+covers, goes in a short second list: _Behaviour / Where it should be covered / What stands
+in for it today_.
+
+This is a hand-off for the service team, not work this repo performs — `/verify-integration-coverage`
+is dormant and must not be recommended. When a journey test is the sole witness for a
+behaviour, the test itself must also carry a comment saying so; see "Annotations" in
+`.ai/instructions/coverage-boundaries.md` for the required form.
 
 ---
 

@@ -1,5 +1,12 @@
 # Verify Integration Coverage — Reference
 
+> **Status: DORMANT.** Retained for possible future reactivation. It is out of the current
+> workflow — `/discover-journey-tests` and `/validate-ac-automated` must not defer or route
+> work to it, and no analysis should recommend it. Backend coverage gaps are recorded as
+> proposals and in-test annotations instead; see `.ai/instructions/coverage-boundaries.md`.
+>
+> Follow the steps below only when the user explicitly invokes the command by name.
+
 ## Purpose
 
 Identify gaps in backend integration test coverage for a named user flow and recommend enhancements. This is the **only** command that may write to sibling service repositories.

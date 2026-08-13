@@ -139,4 +139,14 @@ Before writing E2E tests, run `/discover-journey-tests <flow>` or `/validate-ac-
 
 Only `Write E2E` and `Enhance` items need test code.
 
-To check backend integration test coverage separately, use `/verify-integration-coverage <flow-name>`. Integration tests live in `../bng-metric-backend/integration-tests/`.
+Before marking anything `Write E2E`, check whether a sibling suite already covers it —
+backend integration tests in `../bng-metric-backend/integration-tests/`, backend unit tests
+in `../bng-metric-backend/src/`, and frontend controller tests in
+`../bng-metric-frontend/src/server/`. Read them; do not write to them.
+`.ai/instructions/coverage-boundaries.md` is the rule for what counts as covered — in
+short, integration tests never render and frontend unit tests mock the backend, so
+"covered elsewhere" rarely means "skip".
+
+`/verify-integration-coverage` is **dormant**: do not recommend it or route work to it.
+Backend gaps are recorded as proposals in the analysis output and as comments on the
+journey tests that stand in for them.
