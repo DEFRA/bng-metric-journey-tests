@@ -130,7 +130,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // their place by pinning each row's wiring independently (a row losing its
       // href is the regression they catch). Driving on through the radio
       // selection to the right upload form belongs to the selection page's own
-      // spec, which does not exist yet — see
+      // spec, test/specs/upload-file/upload-file.spec.js — see
       // test/flows/upload-file/choose-upload-type.flow.md.
       test('clicking "On-site baseline habitats" task item navigates to the upload type selection page', async ({
         createProjectFlow,

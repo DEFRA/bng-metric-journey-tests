@@ -180,6 +180,27 @@ have uploaded." line warns about. A test that uploads a baseline into a project 
 has post-intervention data must expect the post-intervention side to be **gone**, not
 recalculated.
 
+The replacement is wholesale on the baseline side too: the stored document is overwritten by
+the new file's habitats (featureIds are carried forward by `ref`, but the habitat set itself
+comes from the new upload). Re-uploading the _same_ fixture therefore proves nothing about
+which file won — a replacement test must upload a **different** valid file and assert the new
+file's data renders.
+
+---
+
+### A failed re-upload leaves the stored baseline intact — BMD-850 AC10 `[IMPLEMENTED]`
+
+Validation runs **before** any write: `POST /baseline/validate/{uploadId}` only reaches
+`setProjectBaseline` once the GeoPackage passes, so a file that drops out to `/error-file`
+never touches the project. For a project that already holds a baseline this means the
+previous data survives the failed attempt untouched — same habitats, same units, task list
+still "Completed" — and the post-intervention document (if any) survives with it, because the
+`- 'postIntervention'` deletion is part of the same skipped write.
+
+Worth pinning in a browser test rather than trusting by inspection: the destructive write and
+the validation gate live in the same transaction, so a re-ordering there would silently wipe
+a user's data on a bad upload.
+
 ---
 
 ### Sliver and area checks — what BMD-882 changed `[IMPLEMENTED]`
