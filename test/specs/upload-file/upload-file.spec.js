@@ -30,6 +30,7 @@ const NON_UUID_ID = 'not-a-uuid'
 const SELECT_TYPE_ERROR = 'Select the type of file you want to upload'
 const BASELINE_REQUIRED_ERROR =
   'Upload a baseline file before uploading a post intervention file'
+const PROBLEM_SUMMARY_TITLE = 'There is a problem'
 
 test.describe('upload-file', { tag: '@upload-file' }, () => {
   // ─── Page display ─────────────────────────────────────────────────────────────
@@ -80,19 +81,35 @@ test.describe('upload-file', { tag: '@upload-file' }, () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      test('Back and Cancel default to the project task list when no returnUrl is supplied', async ({
+      // BMD-850 AC11/AC12: both links must return the user to the page that
+      // triggered the journey. The href is only half of that — this clicks each
+      // one and asserts the task list actually renders, so a link that points
+      // correctly but is intercepted (or a task list that 404s) still fails.
+      test('Back and Cancel navigate to the project task list when no returnUrl is supplied', async ({
         createProjectFlow,
         projectDashboardPage,
-        uploadFilePage
+        projectTaskListPage,
+        uploadFilePage,
+        page
       }) => {
         const { id } = await setupProject(
           createProjectFlow,
           projectDashboardPage,
           PROJECT_LABEL
         )
+        const taskList = `/add-project-details/${id}`
         await uploadFilePage.open(id)
 
-        await uploadFilePage.assertReturnLinks(`/add-project-details/${id}`)
+        await uploadFilePage.assertReturnLinks(taskList)
+
+        await uploadFilePage.backLink.click()
+        await expect(page).toHaveURL(taskList)
+        await expect(projectTaskListPage.heading).toBeVisible()
+
+        await uploadFilePage.open(id)
+        await uploadFilePage.cancelLink.click()
+        await expect(page).toHaveURL(taskList)
+        await expect(projectTaskListPage.heading).toBeVisible()
       })
 
       test('Back and Cancel return to the habitat list the user arrived from', async ({
@@ -272,9 +289,17 @@ test.describe('upload-file', { tag: '@upload-file' }, () => {
 
         await expect(page).toHaveTitle(/Error: What would you like to upload\?/)
         await expect(uploadFilePage.errorSummary).toBeVisible()
+        await expect(uploadFilePage.errorSummary).toContainText(
+          PROBLEM_SUMMARY_TITLE
+        )
         await expect(
           uploadFilePage.errorLink(SELECT_TYPE_ERROR)
         ).toHaveAttribute('href', '#uploadType')
+        // BMD-850 AC8: the message is repeated inline above the radios, not
+        // only listed in the summary.
+        await expect(uploadFilePage.uploadTypeGroup).toContainText(
+          SELECT_TYPE_ERROR
+        )
       }
     )
 
@@ -299,9 +324,17 @@ test.describe('upload-file', { tag: '@upload-file' }, () => {
         // Stays on the selection page rather than reaching the upload form.
         await expect(page).toHaveURL(new RegExp(`/projects/${id}/upload-file$`))
         await expect(uploadFilePage.errorSummary).toBeVisible()
+        await expect(uploadFilePage.errorSummary).toContainText(
+          PROBLEM_SUMMARY_TITLE
+        )
         await expect(
           uploadFilePage.errorLink(BASELINE_REQUIRED_ERROR)
         ).toHaveAttribute('href', '#uploadType')
+        // BMD-850 AC7: repeated inline above the radios as well as in the
+        // summary.
+        await expect(uploadFilePage.uploadTypeGroup).toContainText(
+          BASELINE_REQUIRED_ERROR
+        )
         await expect(uploadFilePage.postInterventionRadio).toBeChecked()
       }
     )

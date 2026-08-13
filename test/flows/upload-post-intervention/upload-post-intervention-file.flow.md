@@ -155,6 +155,27 @@ Two behaviours worth testing explicitly:
 
 ---
 
+### Re-uploading replaces the stored post-intervention data — BMD-850 AC6 `[IMPLEMENTED]`
+
+A second post-intervention upload into the same project **replaces** the stored document
+rather than merging into it: `setProjectPostIntervention` writes the new `postIntervention`
+key wholesale and the upload transaction clears the previous `post_intervention_*` geometry
+rows, so features present in the old file and absent from the new one disappear entirely —
+along with their units, net-change figures and any trading-rule warnings derived from them.
+The stored `baseline` is untouched by this path.
+
+Visible effects: the post-intervention habitat list renders only the new file's rows, and a
+tab whose features the new file omits falls back to its empty state (e.g. "No hedgerow data
+uploaded.", rendered from the shared `habitat-list/habitat-list.njk`). Because both uploads
+land on the same page, a replacement test needs **two files that differ in a visible way** —
+re-uploading the same fixture cannot distinguish a replace from a no-op.
+
+Backend counterpart: `../bng-metric-backend/integration-tests/post-intervention-persistence.test.js`
+("AC6 replaces PI while leaving baseline unchanged") pins the document and row-count side at
+the service level; it never renders, so the tab-level consequence needs a journey witness.
+
+---
+
 ### A later baseline upload destroys this data — BMD-850 `[IMPLEMENTED]`
 
 Backend BMD-850 (PR#219) made `setProjectBaseline` delete the `postIntervention` key in the

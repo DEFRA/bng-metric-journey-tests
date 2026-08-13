@@ -18,6 +18,15 @@ const PROJECT_LABEL = 'Upload post-intervention flow test'
 // worst case (esp. the real uploader in e2e), so allow the full window.
 const UPLOAD_TIMEOUT = 120_000
 const COMPLETE_FILE = 'Post-intervention - complete.gpkg'
+// BMD-850 AC6 replacement pair: HEDGEROWS_FILE adds a Hedgerows layer
+// (HR1-HR3) that COMPLETE_FILE does not have, and HEDGEROW_BASELINE_FILE is the
+// baseline carrying the matching refs (the same trio
+// test/specs/habitat-list/post-intervention-habitat-list.spec.js pairs).
+const HEDGEROWS_FILE = 'Post-intervention - complete with hedgerows.gpkg'
+const HEDGEROW_BASELINE_FILE = 'Baseline - complete with hedgerow refs.gpkg'
+const REPLACED_HEDGEROW_REF = 'HR3'
+const BASELINE_HEDGEROW_REF = 'HR1'
+const NO_HEDGEROW_DATA_COPY = 'No hedgerow data uploaded.'
 const TASK_POST_INTERVENTION = 'On-site post intervention habitats'
 const STRUCTURAL_ERROR_FILE =
   'Post-intervention (missing data) - fails validation.gpkg'
@@ -94,6 +103,98 @@ function describeHappyPath() {
         await expect(
           projectTaskListPage.taskStatus('Not yet started')
         ).toHaveCount(2)
+      })
+    }
+  )
+}
+
+// ─── Replacing an existing post-intervention upload ──────────────────────────
+
+// BMD-850 AC6: a second post-intervention upload replaces the stored document
+// wholesale — features in the old file and absent from the new one disappear,
+// along with their units — while the baseline is left alone.
+//
+// Sole browser witness for that. The backend counterpart
+// (../bng-metric-backend/integration-tests/post-intervention-persistence.test.js,
+// "AC6 replaces PI while leaving baseline unchanged") uploads the same fixture
+// twice, so it can only assert the uploadId changed and the row counts match;
+// it can neither show which file's features ended up stored nor that the list
+// re-renders from them. The two fixtures below differ by a whole layer, which
+// is what makes a replace distinguishable from a merge or a no-op.
+function describePostInterventionReplacement() {
+  test.describe(
+    'Upload post-intervention — replacing an existing upload',
+    { tag: '@regression' },
+    () => {
+      test('re-uploading replaces the post-intervention habitats and leaves the baseline unchanged', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        uploadPostInterventionFileFlow,
+        habitatListPage,
+        postInterventionHabitatListPage,
+        page
+      }) => {
+        // Three real uploads back this test.
+        test.setTimeout(UPLOAD_TIMEOUT * 3)
+
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
+        )
+
+        // A baseline sharing the hedgerow refs, so the first file's hedgerows
+        // calculate against it rather than landing Incomplete.
+        await uploadBaselineFileFlow.uploadFile(id, HEDGEROW_BASELINE_FILE)
+        await page.waitForURL(
+          new RegExp(`/projects/${id}/baseline-habitat-list`),
+          { timeout: UPLOAD_TIMEOUT }
+        )
+        const baselineSiteSize = await habitatListPage.siteSizeCell.innerText()
+
+        await uploadPostInterventionFileFlow.uploadFile(id, HEDGEROWS_FILE)
+        await page.waitForURL(
+          new RegExp(`/projects/${id}/post-intervention-habitat-list`),
+          { timeout: UPLOAD_TIMEOUT }
+        )
+        await postInterventionHabitatListPage.hedgerowsTab.click()
+        await expect(
+          postInterventionHabitatListPage.hedgerowRowByRef(
+            REPLACED_HEDGEROW_REF
+          )
+        ).toBeVisible()
+
+        // COMPLETE_FILE carries no Hedgerows layer at all.
+        await uploadPostInterventionFileFlow.uploadFile(id, COMPLETE_FILE)
+        await page.waitForURL(
+          new RegExp(`/projects/${id}/post-intervention-habitat-list`),
+          { timeout: UPLOAD_TIMEOUT }
+        )
+
+        // The new file's area habitats render...
+        await expect(
+          postInterventionHabitatListPage.areaHabitatsTable
+            .getByRole('row')
+            .nth(1)
+        ).toBeVisible()
+        // ...and the previous file's hedgerows are gone rather than merged in,
+        // leaving the tab on its empty state.
+        await postInterventionHabitatListPage.hedgerowsTab.click()
+        await expect(
+          postInterventionHabitatListPage.hedgerowRowByRef(
+            REPLACED_HEDGEROW_REF
+          )
+        ).toBeHidden()
+        await expect(page.getByText(NO_HEDGEROW_DATA_COPY)).toBeVisible()
+
+        // The baseline was not touched by either post-intervention upload.
+        await habitatListPage.open(id)
+        await expect(habitatListPage.siteSizeCell).toHaveText(baselineSiteSize)
+        await habitatListPage.openTab(id, 'hedgerows')
+        await expect(
+          habitatListPage.hedgerowRowByRef(BASELINE_HEDGEROW_REF)
+        ).toBeVisible()
       })
     }
   )
@@ -532,6 +633,7 @@ test.describe(
     test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
     describeHappyPath()
+    describePostInterventionReplacement()
     describeNoPendingUpload()
     describeFormatError()
     describeStructuralErrors()

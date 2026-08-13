@@ -73,6 +73,10 @@ export class HabitatListPage extends BasePage {
     this.watercoursesTable = page.locator('#watercourses').getByRole('table')
   }
 
+  hedgerowRowByRef(ref) {
+    return this.hedgerowsTable.getByRole('row').filter({ hasText: ref })
+  }
+
   async open(id) {
     await super.open(`/projects/${id}/baseline-habitat-list`)
   }
