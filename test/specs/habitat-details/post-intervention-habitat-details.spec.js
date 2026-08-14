@@ -99,6 +99,24 @@ const CREATED_MODERATE_TIME = 'Moderate to Moderate - 5 years'
 const CREATED_AREA_PI_FILE = 'Post-intervention - created area habitat.gpkg'
 const CREATED_AREA_REF = 'H2-7'
 const CREATED_AREA_TIME_TO_TARGET = 'Good - 5 years'
+// The hedgerow equivalent, and the *other* flavour of absent baseline. H2-7
+// above has its Baseline* columns cleared; these hedgerows carry the GeoPackage
+// sentinel "N/A" instead, which frontend PR#206 (BMD-706) made count as absent
+// too. Natural England files populate created features that way rather than
+// leaving the column blank, so this is the branch real uploads hit — and it had
+// no journey coverage before BMD-737's re-validation.
+//
+// HR3 in HEDGEROWS_FILE cannot stand in: it is Created *with* a real baseline
+// condition, so it takes the transition branch and never reaches this code.
+//
+// The baseline half carries HG001-HG018, so HG013 has a ref-matching baseline
+// hedgerow. That is what makes "no View baseline details link" worth asserting
+// here — the link is suppressed by the view model, not merely unresolvable.
+const CREATED_HEDGEROW_PI_FILE =
+  'Post-intervention - created linear features.gpkg'
+const CREATED_HEDGEROW_BASELINE_FILE = 'Baseline - created linear features.gpkg'
+const CREATED_LINEAR_HEDGEROW_REF = 'HG013'
+const CREATED_LINEAR_HEDGEROW_TIME_TO_TARGET = 'Good - 20 years'
 const ENHANCED_WATERCOURSE_REF = 'WC2'
 const CREATED_WATERCOURSE_REF = 'WC3'
 // The same fixture pair carries the only Enhanced watercourse that can reach
@@ -268,6 +286,32 @@ function getCreatedAreaProject(browser) {
         new PostInterventionHabitatListPage(page).areaRowByRef(CREATED_AREA_REF)
       )
     })
+  )
+}
+
+// Baseline + PI "created linear features" uploads in one project: the hedgerow
+// counterpart of getCreatedAreaProject. HG013 is Created with an "N/A" baseline
+// condition (the short-form time-to-target branch) *and* has a ref-matching
+// baseline hedgerow (so the suppressed baseline link is worth asserting).
+function getCreatedHedgerowProject(browser) {
+  return getSharedProject(
+    browser,
+    'created-hedgerow',
+    {
+      baselineFile: CREATED_HEDGEROW_BASELINE_FILE,
+      piFile: CREATED_HEDGEROW_PI_FILE
+    },
+    async (page) => {
+      const listPage = new PostInterventionHabitatListPage(page)
+      // Hedgerow rows live in a tab panel GOV.UK Tabs keeps hidden — and so
+      // role-less — until its tab is selected.
+      await listPage.hedgerowsTab.click()
+      return {
+        createdLinearHedgerowUnits: await rowUnitsText(
+          listPage.hedgerowRowByRef(CREATED_LINEAR_HEDGEROW_REF)
+        )
+      }
+    }
   )
 }
 
@@ -1455,9 +1499,15 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
         // AC1 asks for labels *and* values. assertTwoSectionLayout pins the six
         // time-to-target labels; the standard time-to-target value proves
-        // section 2 resolves its data and pins the dynamic condition transition
-        // frontend PR#193 introduced ("<baseline condition> to <target
-        // condition> - N years") against the static wording it replaced.
+        // section 2 resolves its data.
+        //
+        // HR3 is the *transition* branch, not the created one: it is Created in
+        // the fixture but still carries a real Baseline Condition ("Moderate"),
+        // so formatStandardTimeToTarget names both conditions. A genuinely
+        // created hedgerow has no prior condition and takes the short form
+        // instead — covered separately below on HG013, which is what BMD-737's
+        // re-work actually changed. Keep both: this pins the transition wording
+        // frontend PR#193 introduced against the static text it replaced.
         await expect(detailsPage.standardTimeToTargetValue).toHaveText(
           CREATED_MODERATE_TIME
         )
@@ -1469,6 +1519,60 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(detailsPage.habitatUnitsValue).toHaveText(
           shared.createdHedgerowUnits
         )
+      })
+
+      // BMD-737 AC1, on a hedgerow that is created in the sense the ticket's
+      // preconditions mean it: Retention Category "Created" with no usable
+      // baseline condition. The HR3 test above pins the labels and the
+      // transition branch, but cannot pin the values that depend on there being
+      // no baseline side — which is precisely what the re-work changed.
+      test('a Created hedgerow with no baseline condition shows its section-2 values and units delivered', async ({
+        browser,
+        postInterventionHabitatListPage,
+        postInterventionHabitatDetailsPage,
+        page
+      }) => {
+        const shared = await getCreatedHedgerowProject(browser)
+        await postInterventionHabitatListPage.openHedgerowDetails(
+          shared.id,
+          CREATED_LINEAR_HEDGEROW_REF
+        )
+        await expect(page).toHaveURL(DETAILS_URL_PATTERN)
+
+        const detailsPage = postInterventionHabitatDetailsPage
+        await detailsPage.assertTwoSectionLayout({
+          ref: CREATED_LINEAR_HEDGEROW_REF,
+          intervention: 'Created'
+        })
+        await expect(detailsPage.backLink).toBeVisible()
+        await expect(detailsPage.caption).toHaveText(shared.name)
+        await expect(detailsPage.enhancedLengthKey).toBeVisible()
+        await expect(detailsPage.stackedSizeValue).toHaveText(LENGTH_KM_PATTERN)
+        await expect(detailsPage.broadHabitatKey).toBeHidden()
+
+        // HG013's baseline condition is the GeoPackage sentinel "N/A", which
+        // PR#206 made count as absent — so the row drops the transition and
+        // shows the target alone (PR#211). createdTimeToTargetValue cannot
+        // match a value carrying " to ", so this catches both halves of the
+        // regression BMD-737 was re-worked for: a blank row leaves the locator
+        // unresolved, and so does a reappearing transition prefix. It also
+        // proves the sentinel itself never reaches the page.
+        await expect(detailsPage.createdTimeToTargetValue).toHaveText(
+          CREATED_LINEAR_HEDGEROW_TIME_TO_TARGET
+        )
+        // "Habitat units delivered" renders to 2 decimal places and matches the
+        // Units cell of the same hedgerow's habitat-list row.
+        await expect(detailsPage.habitatUnitsValue).toHaveText(
+          UNITS_TWO_DP_PATTERN
+        )
+        await expect(detailsPage.habitatUnitsValue).toHaveText(
+          shared.createdLinearHedgerowUnits
+        )
+        // Step 7's one behavioural difference from the Enhanced hedgerow page.
+        // The baseline upload carries HG013 too, so a ref match exists and the
+        // link would resolve — it is hidden because the Created view model
+        // forces baselineFeatureId to null, not because nothing matched.
+        await expect(detailsPage.viewBaselineLink).toBeHidden()
       })
 
       // BMD-737 AC2. The back link is shared with the Enhanced hedgerow page
