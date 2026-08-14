@@ -205,8 +205,9 @@ Every GET step below shares this contract, so it is stated once rather than repe
       Created **area** page (Step 4).
     - **`N/A` sentinels** — `Post-intervention - created linear features.gpkg` (HG005,
       HG010, HG013, HG018, all `Baseline Condition = "N/A"`) covers the Created
-      **hedgerow** page (Step 7) via HG013, `Good - 20 years` (BMD-737). This is the branch
-      real Natural England uploads hit.
+      **hedgerow** page (Step 7) via HG013, `Good - 20 years` (BMD-737). The same file's
+      **R003** covers the Created **watercourse** page (Step 8), `Fairly Poor - 2 years`
+      (BMD-739). This is the branch real Natural England uploads hit.
 
   - **Target condition and Condition render the identical string** — both are
     `withMultiplier(stripConditionPrefix(proposed.condition), proposed.conditionScore)`.
@@ -297,6 +298,14 @@ Every GET step below shares this contract, so it is stated once rather than repe
     enhanced watercourse the engine takes its encroachment inputs from the proposed side.
     This is the opposite of the retained watercourse page (Step 3).
   - Back link anchors to `#watercourses`.
+
+  Fixture note: the `created linear features` pair supplies the `N/A`-sentinel
+  time-to-target case for watercourses (see Step 4's coverage note) through **R003** —
+  Created, `Baseline Condition = "N/A"`, target `Fairly Poor`, so the row reads the short
+  form `Fairly Poor - 2 years` (BMD-739 re-work). WC3 in `watercourses mixed retention`
+  cannot stand in: it is Created _with_ a real baseline condition (`Moderate`), so it takes
+  the transition branch and never reaches that code.
+
 - **Validation:** shared GET contract
 - **On success:** Renders the Created two-section read-only watercourse details page
 - **On error:** shared GET contract

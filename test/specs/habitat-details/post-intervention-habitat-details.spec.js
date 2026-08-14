@@ -13,6 +13,7 @@ import { UploadBaselineFileFlow } from '@flows/upload-baseline/upload-baseline-f
 import { UploadPostInterventionFileFlow } from '@flows/upload-post-intervention/upload-post-intervention-file.flow.js'
 import { ProjectDashboardPage } from '@pages/project-dashboard.page.js'
 import { PostInterventionHabitatListPage } from '@pages/post-intervention-habitat-list.page.js'
+import { UNITS_TWO_DP_PATTERN } from '@pages/post-intervention-habitat-details.page.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const HTTP_BAD_REQUEST = 400
@@ -112,11 +113,18 @@ const CREATED_AREA_TIME_TO_TARGET = 'Good - 5 years'
 // The baseline half carries HG001-HG018, so HG013 has a ref-matching baseline
 // hedgerow. That is what makes "no View baseline details link" worth asserting
 // here — the link is suppressed by the view model, not merely unresolvable.
-const CREATED_HEDGEROW_PI_FILE =
+// The same pair carries R003 — a Created *watercourse* with the same "N/A"
+// baseline condition — so one upload covers the short-form branch on the
+// Created hedgerow (Step 7) and Created watercourse (Step 8) pages alike. WC3
+// in WATERCOURSES_FILE cannot stand in for it, for the same reason HR3 cannot
+// stand in for HG013.
+const CREATED_LINEAR_PI_FILE =
   'Post-intervention - created linear features.gpkg'
-const CREATED_HEDGEROW_BASELINE_FILE = 'Baseline - created linear features.gpkg'
+const CREATED_LINEAR_BASELINE_FILE = 'Baseline - created linear features.gpkg'
 const CREATED_LINEAR_HEDGEROW_REF = 'HG013'
 const CREATED_LINEAR_HEDGEROW_TIME_TO_TARGET = 'Good - 20 years'
+const CREATED_LINEAR_WATERCOURSE_REF = 'R003'
+const CREATED_LINEAR_WATERCOURSE_TIME_TO_TARGET = 'Fairly Poor - 2 years'
 const ENHANCED_WATERCOURSE_REF = 'WC2'
 const CREATED_WATERCOURSE_REF = 'WC3'
 // The same fixture pair carries the only Enhanced watercourse that can reach
@@ -135,12 +143,11 @@ const LENGTH_KM_PATTERN = /^\s*[\d.]+km\s*$/
 // pins BMD-608 AC1's precision rule — a bare-number pattern would pass at any
 // precision.
 const RETAINED_NO_BASELINE_SIZE_HECTARES = '0.1619213922'
-// Habitat units render to 2 decimal places (BMD-608 AC1). Asserted separately
-// from the habitat-list cell comparison, which shares formatHabitatUnits and
-// so cannot catch a change to the formatter itself. toHaveText normalises
-// whitespace only for string matching, not regex, so the surrounding template
-// whitespace has to be matched explicitly.
-const UNITS_TWO_DP_PATTERN = /^\s*\d+\.\d{2}\s*$/
+// UNITS_TWO_DP_PATTERN (imported above) pins BMD-608 AC1's 2-decimal-place
+// rule. It is asserted separately from the habitat-list cell comparison, which
+// shares formatHabitatUnits and so cannot catch a change to the formatter
+// itself. toHaveText normalises whitespace only for string matching, not
+// regex, so the surrounding template whitespace is matched explicitly.
 
 // Post-intervention habitat-list table column order (BMD-845 added the
 // "Intervention type" column at index 1): ref, intervention type, type, size,
@@ -289,26 +296,32 @@ function getCreatedAreaProject(browser) {
   )
 }
 
-// Baseline + PI "created linear features" uploads in one project: the hedgerow
-// counterpart of getCreatedAreaProject. HG013 is Created with an "N/A" baseline
-// condition (the short-form time-to-target branch) *and* has a ref-matching
-// baseline hedgerow (so the suppressed baseline link is worth asserting).
-function getCreatedHedgerowProject(browser) {
+// Baseline + PI "created linear features" uploads in one project: the linear
+// counterpart of getCreatedAreaProject. HG013 and R003 are both Created with an
+// "N/A" baseline condition (the short-form time-to-target branch), and both
+// have a ref-matching baseline feature — which is what makes the hedgerow's
+// suppressed baseline link worth asserting.
+function getCreatedLinearProject(browser) {
   return getSharedProject(
     browser,
-    'created-hedgerow',
+    'created-linear',
     {
-      baselineFile: CREATED_HEDGEROW_BASELINE_FILE,
-      piFile: CREATED_HEDGEROW_PI_FILE
+      baselineFile: CREATED_LINEAR_BASELINE_FILE,
+      piFile: CREATED_LINEAR_PI_FILE
     },
     async (page) => {
       const listPage = new PostInterventionHabitatListPage(page)
-      // Hedgerow rows live in a tab panel GOV.UK Tabs keeps hidden — and so
-      // role-less — until its tab is selected.
+      // Hedgerow and watercourse rows live in tab panels GOV.UK Tabs keeps
+      // hidden — and so role-less — until each tab is selected.
       await listPage.hedgerowsTab.click()
+      const createdLinearHedgerowUnits = await rowUnitsText(
+        listPage.hedgerowRowByRef(CREATED_LINEAR_HEDGEROW_REF)
+      )
+      await listPage.watercoursesTab.click()
       return {
-        createdLinearHedgerowUnits: await rowUnitsText(
-          listPage.hedgerowRowByRef(CREATED_LINEAR_HEDGEROW_REF)
+        createdLinearHedgerowUnits,
+        createdLinearWatercourseUnits: await rowUnitsText(
+          listPage.watercourseRowByRef(CREATED_LINEAR_WATERCOURSE_REF)
         )
       }
     }
@@ -1043,36 +1056,21 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
           const detailsPage = postInterventionHabitatDetailsPage
-          await detailsPage.assertTwoSectionLayout({
-            ref: CREATED_AREA_REF,
-            intervention: 'Created'
-          })
-          // Page chrome (AC1's Navigation + Headings): the back link and the
-          // project-name caption sit outside the two sections, so
-          // assertTwoSectionLayout does not reach them.
-          await expect(detailsPage.backLink).toBeVisible()
-          await expect(detailsPage.caption).toHaveText(shared.name)
-
-          // With no baseline condition to name, the row drops the transition
-          // and shows the target alone (PR#211). The exact string covers both
-          // halves of the regression this ticket went through: a blank row
-          // fails it, and so does a reappearing "X to Y" prefix, since
-          // createdTimeToTargetValue cannot match a transition at all and so
-          // would not resolve. The sibling tests pair this with a
+          // With no baseline condition to name, the time-to-target row drops
+          // the transition and shows the target alone (PR#211). The exact
+          // string covers both halves of the regression this ticket went
+          // through: a blank row fails it, and so does a reappearing "X to Y"
+          // prefix, since createdTimeToTargetValue cannot match a transition at
+          // all and so would not resolve. The sibling tests pair this with a
           // not.toContainText(STALE_TIME_TO_TARGET_TEXT) guard; that would be
           // vacuous here, because the stale wording itself contains " to " and
           // is therefore already outside this locator's reach.
-          await expect(detailsPage.createdTimeToTargetValue).toHaveText(
-            CREATED_AREA_TIME_TO_TARGET
-          )
-          // "Habitat units delivered" renders to 2 decimal places and matches
-          // the Units cell of the same parcel's habitat-list row.
-          await expect(detailsPage.habitatUnitsValue).toHaveText(
-            UNITS_TWO_DP_PATTERN
-          )
-          await expect(detailsPage.habitatUnitsValue).toHaveText(
-            shared.createdAreaUnits
-          )
+          await detailsPage.assertCreatedAbsentBaselinePage({
+            ref: CREATED_AREA_REF,
+            projectName: shared.name,
+            timeToTarget: CREATED_AREA_TIME_TO_TARGET,
+            units: shared.createdAreaUnits
+          })
           // A created habitat has no baseline counterpart, and H2-7 shares its
           // ref with none of the baseline parcels (H1/H2/H3).
           await expect(detailsPage.viewBaselineLink).toBeHidden()
@@ -1532,7 +1530,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         postInterventionHabitatDetailsPage,
         page
       }) => {
-        const shared = await getCreatedHedgerowProject(browser)
+        const shared = await getCreatedLinearProject(browser)
         await postInterventionHabitatListPage.openHedgerowDetails(
           shared.id,
           CREATED_LINEAR_HEDGEROW_REF
@@ -1540,16 +1538,6 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
         const detailsPage = postInterventionHabitatDetailsPage
-        await detailsPage.assertTwoSectionLayout({
-          ref: CREATED_LINEAR_HEDGEROW_REF,
-          intervention: 'Created'
-        })
-        await expect(detailsPage.backLink).toBeVisible()
-        await expect(detailsPage.caption).toHaveText(shared.name)
-        await expect(detailsPage.enhancedLengthKey).toBeVisible()
-        await expect(detailsPage.stackedSizeValue).toHaveText(LENGTH_KM_PATTERN)
-        await expect(detailsPage.broadHabitatKey).toBeHidden()
-
         // HG013's baseline condition is the GeoPackage sentinel "N/A", which
         // PR#206 made count as absent — so the row drops the transition and
         // shows the target alone (PR#211). createdTimeToTargetValue cannot
@@ -1557,17 +1545,17 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         // regression BMD-737 was re-worked for: a blank row leaves the locator
         // unresolved, and so does a reappearing transition prefix. It also
         // proves the sentinel itself never reaches the page.
-        await expect(detailsPage.createdTimeToTargetValue).toHaveText(
-          CREATED_LINEAR_HEDGEROW_TIME_TO_TARGET
-        )
-        // "Habitat units delivered" renders to 2 decimal places and matches the
-        // Units cell of the same hedgerow's habitat-list row.
-        await expect(detailsPage.habitatUnitsValue).toHaveText(
-          UNITS_TWO_DP_PATTERN
-        )
-        await expect(detailsPage.habitatUnitsValue).toHaveText(
-          shared.createdLinearHedgerowUnits
-        )
+        await detailsPage.assertCreatedAbsentBaselinePage({
+          ref: CREATED_LINEAR_HEDGEROW_REF,
+          projectName: shared.name,
+          timeToTarget: CREATED_LINEAR_HEDGEROW_TIME_TO_TARGET,
+          units: shared.createdLinearHedgerowUnits
+        })
+        // Hedgerows label the size row "Length" (unit on the value) and have no
+        // broad-habitat dimension.
+        await expect(detailsPage.enhancedLengthKey).toBeVisible()
+        await expect(detailsPage.stackedSizeValue).toHaveText(LENGTH_KM_PATTERN)
+        await expect(detailsPage.broadHabitatKey).toBeHidden()
         // Step 7's one behavioural difference from the Enhanced hedgerow page.
         // The baseline upload carries HG013 too, so a ref match exists and the
         // link would resolve — it is hidden because the Created view model
@@ -1940,6 +1928,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       // Created WC3, since the Enhanced WC2 is Moderate→Moderate and renders a
       // blank time-to-target (the Enhanced watercourse's values are covered on
       // R007 in the BMD-735 describe above).
+      //
+      // WC3 is Created *with* a real baseline condition, so this test covers the
+      // transition branch only. The absent-baseline branch the BMD-739 re-work
+      // changed is covered on R003 in the test below.
       test('a Created watercourse shows its section-2 values and units delivered', async ({
         browser,
         postInterventionHabitatListPage,
@@ -1970,6 +1962,53 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(detailsPage.habitatUnitsValue).toHaveText(
           shared.createdWatercourseUnits
         )
+      })
+
+      // BMD-739 AC1, on a watercourse that is created in the sense the ticket's
+      // preconditions mean it: Retention Category "Created" with no usable
+      // baseline condition. The WC3 test above pins the labels and the
+      // transition branch, but cannot pin the values that depend on there being
+      // no baseline side — which is precisely what the re-work changed.
+      test('a Created watercourse with no baseline condition shows its section-2 values and units delivered', async ({
+        browser,
+        postInterventionHabitatListPage,
+        postInterventionHabitatDetailsPage,
+        page
+      }) => {
+        const shared = await getCreatedLinearProject(browser)
+        await postInterventionHabitatListPage.openWatercourseDetails(
+          shared.id,
+          CREATED_LINEAR_WATERCOURSE_REF
+        )
+        await expect(page).toHaveURL(DETAILS_URL_PATTERN)
+
+        const detailsPage = postInterventionHabitatDetailsPage
+        // R003's baseline condition is the GeoPackage sentinel "N/A", which
+        // PR#206 made count as absent — so the row drops the transition and
+        // shows the target alone (PR#211). createdTimeToTargetValue cannot
+        // match a value carrying " to ", so this catches both halves of the
+        // regression BMD-739 was re-worked for: a blank row leaves the locator
+        // unresolved, and so does a reappearing transition prefix. It also
+        // proves the sentinel itself never reaches the page.
+        await detailsPage.assertCreatedAbsentBaselinePage({
+          ref: CREATED_LINEAR_WATERCOURSE_REF,
+          projectName: shared.name,
+          timeToTarget: CREATED_LINEAR_WATERCOURSE_TIME_TO_TARGET,
+          units: shared.createdLinearWatercourseUnits
+        })
+        // Watercourse specifics: the size row is "Length" (unit on the value),
+        // plus the two encroachment rows, and no broad-habitat dimension.
+        await expect(detailsPage.enhancedLengthKey).toBeVisible()
+        await expect(detailsPage.stackedSizeValue).toHaveText(LENGTH_KM_PATTERN)
+        await expect(detailsPage.watercourseEncroachmentKey).toBeVisible()
+        await expect(detailsPage.riparianEncroachmentKey).toBeVisible()
+        await expect(detailsPage.broadHabitatKey).toBeHidden()
+        // No "View baseline details" assertion here, unlike the Created area
+        // and hedgerow tests. The baseline half of this pair carries R003, so a
+        // ref match exists and the link *does* render — Created watercourses do
+        // not suppress it the way Created hedgerows do (flow doc Step 8). The
+        // product decision on whether that is correct is still open, so
+        // asserting either way would cement it.
       })
 
       // BMD-739 AC2. The back link is shared with the Enhanced watercourse
