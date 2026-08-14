@@ -143,6 +143,16 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     this.standardTimeToTargetValue = page.getByText(
       / to .+ - \d+(\.\d+)? years/
     )
+    // A *created* feature has no prior condition to name, so frontend PR#211
+    // (and PR#206 for the "N/A" GeoPackage sentinels) drops the transition and
+    // renders the target condition alone: "<target condition> - N years". The
+    // negative lookahead makes this the short-form locator — a value carrying a
+    // " to " transition cannot match it, so it catches both halves of the
+    // BMD-736 regression: a blank row leaves it unresolved, and a reappearing
+    // transition prefix does too.
+    this.createdTimeToTargetValue = page.getByText(
+      /^(?!.* to ).+ - \d+(\.\d+)? years$/
+    )
     // The enhanced page's units row is labelled "Habitat units delivered"
     // (distinct from the single-list "Units in this habitat"). It is the only
     // summary-list on the page, so its value is the sole <dd> and
