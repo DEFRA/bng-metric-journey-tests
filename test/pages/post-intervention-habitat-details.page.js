@@ -2,6 +2,9 @@ import { expect } from '@playwright/test'
 
 import { BaselineHabitatDetailsPage } from './baseline-habitat-details.page.js'
 
+// Habitat units render to 2 decimal places (BMD-608 AC1).
+export const UNITS_TWO_DP_PATTERN = /^\s*\d+\.\d{2}\s*$/
+
 // The /post-intervention-habitat-details route renders a read-only page for
 // every feature, picked by feature type *and* retention category, plus an
 // unsupported-feature placeholder for individual trees. POST to this route
@@ -150,8 +153,14 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     // " to " transition cannot match it, so it catches both halves of the
     // BMD-736 regression: a blank row leaves it unresolved, and a reappearing
     // transition prefix does too.
+    //
+    // The "Advance or delay?" row shares the "<text> - N years" shape
+    // (`resolveAdvanceOrDelay` renders "Advance - 3 years" / "Delay - 3 years"
+    // / "Neither"), so it is excluded explicitly — otherwise this resolves to
+    // two elements on any created feature with an advance or delay. HG013 hid
+    // that: its advance and delay are both 0, so its row reads "Neither".
     this.createdTimeToTargetValue = page.getByText(
-      /^(?!.* to ).+ - \d+(\.\d+)? years$/
+      /^(?!.* to )(?!Advance - )(?!Delay - ).+ - \d+(\.\d+)? years$/
     )
     // The enhanced page's units row is labelled "Habitat units delivered"
     // (distinct from the single-list "Units in this habitat"). It is the only
@@ -202,5 +211,29 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
 
     await expect(this.saveButton).toBeHidden()
     await expect(this.cancelLink).toBeHidden()
+  }
+
+  /**
+   * Assert the shape a Created feature with no usable baseline condition
+   * shares across the area, hedgerow and watercourse pages: the two-section
+   * layout, the page chrome that sits outside it, the short-form
+   * time-to-target row, and the units row. Feature-specific rows (size label,
+   * broad habitat, encroachments) and the "View baseline details" expectation
+   * differ per page, so they stay with the caller.
+   *
+   * @param {{ ref: string, projectName: string, timeToTarget: string, units: string }} expected
+   */
+  async assertCreatedAbsentBaselinePage({
+    ref,
+    projectName,
+    timeToTarget,
+    units
+  }) {
+    await this.assertTwoSectionLayout({ ref, intervention: 'Created' })
+    await expect(this.backLink).toBeVisible()
+    await expect(this.caption).toHaveText(projectName)
+    await expect(this.createdTimeToTargetValue).toHaveText(timeToTarget)
+    await expect(this.habitatUnitsValue).toHaveText(UNITS_TWO_DP_PATTERN)
+    await expect(this.habitatUnitsValue).toHaveText(units)
   }
 }
