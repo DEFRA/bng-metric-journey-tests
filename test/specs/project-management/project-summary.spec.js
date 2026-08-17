@@ -41,12 +41,26 @@ const TILE_BASELINE = 'On-site baseline'
 const TILE_POST_INTERVENTION = 'On-site post intervention'
 const TILE_NET_UNIT_CHANGE = 'Total on-site net unit change'
 const TILE_NET_PERCENTAGE = 'Total on-site net percentage change'
+const TILE_TRADING_RULES = 'Trading Rules'
+
+const VIEW_TRADING_RULES = 'View trading rules'
+const VIEW_ON_SITE_BASELINE = 'View on-site baseline'
+const NET_PERCENTAGE_NOT_MET = '-100.00%'
+// The ticket specifies the "Not met" status as having a red background; the
+// GOV.UK red tag modifier is what paints it.
+const RED_TAG_CLASS = /govuk-tag--red/
 
 // 'Baseline - no hedgerows.gpkg' carries area habitats (including individual
 // trees, which is what makes the treesTotal assertion below possible) and
 // watercourses, but no hedgerow features. One upload therefore covers both the
 // populated-section and the zero-unit-section rendering.
 const NO_HEDGEROWS_FILE = 'Baseline - no hedgerows.gpkg'
+
+// The counterpart fixture: the only shipped baseline that populates all three
+// unit types at once (120 Habitats, 60 Urban Trees, 40 Hedgerows, 8 Rivers).
+// It is what gives the *populated* Hedgerows section a real-data witness, which
+// NO_HEDGEROWS_FILE by definition cannot.
+const ALL_UNIT_TYPES_FILE = 'Baseline - all unit and intervention types.gpkg'
 
 // One real upload backs every read-only describe in this file. Uploading is the
 // slowest and flakiest step we have, and concurrent uploads clobber the single
@@ -79,6 +93,25 @@ function getBaselineOnlyProject(browser) {
   )
 }
 
+function getAllUnitTypesProject(browser) {
+  return getOrBuildProject(ALL_UNIT_TYPES_FILE, () =>
+    buildBaselineOnlyProject(browser, ALL_UNIT_TYPES_FILE)
+  )
+}
+
+async function expectPopulatedUnitType(projectSummaryPage, label) {
+  const tag = projectSummaryPage.statusTag(label)
+
+  expect(
+    await projectSummaryPage.tileUnits(label, TILE_BASELINE)
+  ).toBeGreaterThan(0)
+  expect(await projectSummaryPage.tileValue(label, TILE_NET_PERCENTAGE)).toBe(
+    NET_PERCENTAGE_NOT_MET
+  )
+  await expect(tag).toBeVisible()
+  await expect(tag).toHaveClass(RED_TAG_CLASS)
+}
+
 test.describe('project-management', { tag: '@project-management' }, () => {
   // Serial mode keeps the shared upload above from racing the other uploads in
   // this file's worker.
@@ -105,6 +138,12 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expect(projectSummaryPage.caption(project.name)).toBeVisible()
         await expect(projectSummaryPage.uploadFileButton).toBeVisible()
         await expect(projectSummaryPage.navigation).toBeVisible()
+        // "Summary" is the current page: rendered bold, as a <strong> carrying
+        // aria-current, rather than as one of the (still inert) siblings.
+        await expect(projectSummaryPage.currentNavItem).toHaveAttribute(
+          'aria-current',
+          'page'
+        )
 
         for (const label of UNIT_TYPES) {
           await expect(projectSummaryPage.sectionHeading(label)).toBeVisible()
@@ -184,14 +223,11 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await projectSummaryPage.open(project.id)
 
         // Area habitats and watercourses both carry features in this fixture.
+        // The red modifier is the "red background colour" the ticket asks for.
+        // The component test proves the macro honours a `classes` value it is
+        // handed; only this asserts the controller supplies the red one.
         for (const label of [AREA_HABITATS, WATERCOURSES]) {
-          expect(
-            await projectSummaryPage.tileUnits(label, TILE_BASELINE)
-          ).toBeGreaterThan(0)
-          expect(
-            await projectSummaryPage.tileValue(label, TILE_NET_PERCENTAGE)
-          ).toBe('-100.00%')
-          await expect(projectSummaryPage.statusTag(label)).toBeVisible()
+          await expectPopulatedUnitType(projectSummaryPage, label)
         }
       })
 
@@ -250,6 +286,51 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     }
   )
 
+  // ─── Populated hedgerows ─────────────────────────────────────────────────────
+
+  test.describe(
+    'Project summary — populated hedgerows',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      let project
+      test.beforeAll(async ({ browser }) => {
+        project = await getAllUnitTypesProject(browser)
+      })
+
+      // Sole witness that `hedgerowsTotal` reaches the page from a real upload.
+      // Every other test in this file runs on NO_HEDGEROWS_FILE, where the
+      // hedgerow tiles legitimately read 0.00 units — so renaming the field
+      // backend-side would render 0.00 with all of them still green. Backend
+      // integration (baseline-persistence.test.js:82) pins the stored total but
+      // never renders, and the frontend unit suite renders a hand-written
+      // total. Do not delete without moving the assertion onto another test
+      // that uploads a hedgerow-bearing baseline.
+      test('a hedgerow-bearing baseline renders its units, -100.00% and a red "Not met" tag', async ({
+        projectSummaryPage
+      }) => {
+        await projectSummaryPage.open(project.id)
+
+        await expectPopulatedUnitType(projectSummaryPage, HEDGEROWS)
+
+        const baseline = await projectSummaryPage.tileUnits(
+          HEDGEROWS,
+          TILE_BASELINE
+        )
+        // Post-intervention stays zero and the net change negates the baseline,
+        // as it does for the other two unit types.
+        expect(
+          await projectSummaryPage.tileValue(HEDGEROWS, TILE_POST_INTERVENTION)
+        ).toBe(ZERO_UNITS)
+        expect(
+          await projectSummaryPage.tileValue(HEDGEROWS, TILE_NET_UNIT_CHANGE)
+        ).toBe(`-${baseline.toFixed(2)} units`)
+      })
+    }
+  )
+
   // ─── Deferred elements ───────────────────────────────────────────────────────
 
   test.describe(
@@ -275,21 +356,33 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       }) => {
         await projectSummaryPage.open(project.id)
 
-        for (const label of [AREA_HABITATS, HEDGEROWS, WATERCOURSES]) {
+        for (const label of UNIT_TYPES) {
+          // Asserting the copy *is there* as well as unlinked: a bare
+          // `toHaveCount(0)` on the link passes just as happily when the text
+          // has disappeared altogether. Reading it through `tileValue` anchors
+          // it to the "Trading Rules" tile heading, which nothing else asserts.
+          expect(
+            await projectSummaryPage.tileValue(label, TILE_TRADING_RULES)
+          ).toBe(VIEW_TRADING_RULES)
           await expect(
             projectSummaryPage
               .unitSection(label)
-              .getByRole('link', { name: 'View trading rules' })
+              .getByRole('link', { name: VIEW_TRADING_RULES })
           ).toHaveCount(0)
+
+          await expect(
+            projectSummaryPage.viewOnSiteBaselineText(label)
+          ).toBeVisible()
           await expect(
             projectSummaryPage
               .unitSection(label)
-              .getByRole('link', { name: 'View on-site baseline' })
+              .getByRole('link', { name: VIEW_ON_SITE_BASELINE })
           ).toHaveCount(0)
         }
 
         await expect(projectSummaryPage.projectDetailsHeading).toBeVisible()
         await expect(projectSummaryPage.projectDetailsBody).toBeVisible()
+        await expect(projectSummaryPage.projectDetailsLink).toHaveCount(0)
         await expect(
           projectSummaryPage.navigation.getByRole('link')
         ).toHaveCount(0)
@@ -337,19 +430,34 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expect(page).toHaveURL(new RegExp(summaryUrl))
       })
 
-      test('the in-section post-intervention link points at the same selection page', async ({
-        projectSummaryPage
+      test('every in-section post-intervention link points at the same selection page', async ({
+        projectSummaryPage,
+        uploadFilePage,
+        page
       }) => {
         await projectSummaryPage.open(project.id)
-
-        // The link is worded for post-intervention but resolves to the shared
-        // chooser, where the user still has to pick the file type.
-        await expect(
-          projectSummaryPage.uploadPostInterventionLink(AREA_HABITATS)
-        ).toHaveAttribute(
-          'href',
-          uploadFileHref(project.id, `/projects/${project.id}/project-summary`)
+        const expectedHref = uploadFileHref(
+          project.id,
+          `/projects/${project.id}/project-summary`
         )
+
+        // The links are worded for post-intervention but resolve to the shared
+        // chooser, where the user still has to pick the file type. All three
+        // sections carry one, and the ticket treats each as its own entry
+        // point.
+        for (const label of UNIT_TYPES) {
+          await expect(
+            projectSummaryPage.uploadPostInterventionLink(label)
+          ).toHaveAttribute('href', expectedHref)
+        }
+
+        // One click stands for all three — the href is the same value from the
+        // same controller variable, so what is left to prove is that following
+        // one of them really lands on the selection page.
+        await projectSummaryPage.uploadPostInterventionLink(HEDGEROWS).click()
+
+        await expect(page).toHaveURL(new RegExp(expectedHref.split('?')[0]))
+        await expect(uploadFilePage.heading).toBeVisible()
       })
     }
   )

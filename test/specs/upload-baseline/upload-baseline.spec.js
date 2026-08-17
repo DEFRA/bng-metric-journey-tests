@@ -101,6 +101,19 @@ function describeHappyPath() {
           'href',
           `/projects/${id}/project-summary`
         )
+
+        // ...and following it lands on the summary. Asserted here rather than
+        // in project-summary.spec.js, whose tests reach the page by URL: this
+        // is the only journey that arrives the way the ticket describes, by
+        // selecting a baseline-only project from the dashboard. The dashboard's
+        // own click-through test uses a project with no baseline, so it lands
+        // on the task list instead.
+        await projectDashboardPage.projectLink(name).click()
+
+        await expect(page).toHaveURL(
+          new RegExp(`/projects/${id}/project-summary$`)
+        )
+        await expect(projectSummaryPage.heading).toBeVisible()
       })
     }
   )
