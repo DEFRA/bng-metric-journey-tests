@@ -1,6 +1,7 @@
 import { BasePage } from './base.page.js'
 
 const UPLOAD_POST_INTERVENTION_TEXT = 'Upload on-site post intervention file'
+const VIEW_ON_SITE_BASELINE_TEXT = 'View on-site baseline'
 
 /**
  * The project summary (`/projects/{id}/project-summary`, BMD-870) — the landing
@@ -26,6 +27,9 @@ export class ProjectSummaryPage extends BasePage {
     this.projectDetailsBody = page.getByText(
       'View and amend your project details, including project name and target percentage'
     )
+    this.projectDetailsLink = page.getByRole('link', {
+      name: 'View project details'
+    })
   }
 
   async open(id) {
@@ -52,6 +56,17 @@ export class ProjectSummaryPage extends BasePage {
   uploadPostInterventionLink(label) {
     return this.unitSection(label).getByRole('link', {
       name: UPLOAD_POST_INTERVENTION_TEXT
+    })
+  }
+
+  /**
+   * The inert "View on-site baseline" text in a section's baseline tile. It
+   * sits *below* the units value, so `tileValue` (which reads the line directly
+   * under a tile heading) cannot reach it.
+   */
+  viewOnSiteBaselineText(label) {
+    return this.unitSection(label).getByText(VIEW_ON_SITE_BASELINE_TEXT, {
+      exact: true
     })
   }
 
