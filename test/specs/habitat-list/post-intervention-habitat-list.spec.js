@@ -142,10 +142,11 @@ async function buildProject(browser, { baselineFile, piFile }, harvest) {
       PROJECT_LABEL
     )
     if (baselineFile) {
-      await new UploadBaselineFileFlow(page).uploadFile(id, baselineFile)
-      await page.waitForURL(
-        new RegExp(`/projects/${id}/baseline-habitat-list`),
-        { timeout: UPLOAD_TIMEOUT }
+      // The project is baseline-only at this point, so the upload lands on the
+      // project summary; the PI upload below is what changes that.
+      await new UploadBaselineFileFlow(page).uploadFileAndWaitForSummary(
+        id,
+        baselineFile
       )
     }
     await new UploadPostInterventionFileFlow(page).uploadFile(id, piFile)

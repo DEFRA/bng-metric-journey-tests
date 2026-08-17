@@ -7,7 +7,6 @@ import { CreateProjectFlow } from '@flows/project-management/create-project.flow
 import { UploadBaselineFileFlow } from '@flows/upload-baseline/upload-baseline-file.flow.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
-const UPLOAD_TIMEOUT = 120_000
 const COMPLETE_BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
 const NO_HEDGEROWS_FILE = 'Baseline - no hedgerows.gpkg'
 const NO_WATERCOURSES_FILE = 'Baseline - no watercourses.gpkg'
@@ -28,10 +27,9 @@ async function buildBaselineProject(browser, file) {
       new ProjectDashboardPage(page),
       PROJECT_LABEL
     )
-    await new UploadBaselineFileFlow(page).uploadFile(id, file)
-    await page.waitForURL(new RegExp(`/projects/${id}/baseline-habitat-list`), {
-      timeout: UPLOAD_TIMEOUT
-    })
+    // Every test below navigates to the habitat list itself, so landing on the
+    // project summary is enough to know the upload finished and persisted.
+    await new UploadBaselineFileFlow(page).uploadFileAndWaitForSummary(id, file)
     return { id, name }
   } finally {
     await context.close()
