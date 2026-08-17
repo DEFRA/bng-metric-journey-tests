@@ -133,6 +133,7 @@ function describePostInterventionReplacement() {
         uploadPostInterventionFileFlow,
         habitatListPage,
         postInterventionHabitatListPage,
+        projectSummaryPage,
         page
       }) => {
         // Three real uploads back this test.
@@ -146,11 +147,11 @@ function describePostInterventionReplacement() {
 
         // A baseline sharing the hedgerow refs, so the first file's hedgerows
         // calculate against it rather than landing Incomplete.
-        await uploadBaselineFileFlow.uploadFile(id, HEDGEROW_BASELINE_FILE)
-        await page.waitForURL(
-          new RegExp(`/projects/${id}/baseline-habitat-list`),
-          { timeout: UPLOAD_TIMEOUT }
+        await uploadBaselineFileFlow.uploadFileAndWaitForSummary(
+          id,
+          HEDGEROW_BASELINE_FILE
         )
+        await habitatListPage.open(id)
         const baselineSiteSize = await habitatListPage.siteSizeCell.innerText()
 
         await uploadPostInterventionFileFlow.uploadFile(id, HEDGEROWS_FILE)
@@ -195,6 +196,16 @@ function describePostInterventionReplacement() {
         await expect(
           habitatListPage.hedgerowRowByRef(BASELINE_HEDGEROW_REF)
         ).toBeVisible()
+
+        // BMD-870: the project summary is the baseline-only page, so a project
+        // carrying both documents is redirected off it to the task list. This
+        // is asserted here rather than in project-summary.spec.js because it
+        // needs a real baseline *and* a real post-intervention upload, which
+        // this test already paid for. The frontend unit test covers the same
+        // branch (project-summary/controller.test.js) but against a fabricated
+        // project payload — nothing else drives it from real uploads.
+        await projectSummaryPage.open(id)
+        await expect(page).toHaveURL(new RegExp(`/add-project-details/${id}`))
       })
     }
   )

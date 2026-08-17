@@ -36,23 +36,19 @@ const NATURAL_ENGLAND_MISMATCH_COPY =
 
 // ─── E2E happy path ─────────────────────────────────────────────────────────
 
-async function uploadToHabitatList(fixtures, fixture) {
-  const {
-    createProjectFlow,
-    projectDashboardPage,
-    uploadBaselineFileFlow,
-    page
-  } = fixtures
-  const { id } = await setupProject(
+// BMD-870 re-pointed the baseline upload's success redirect from the habitat
+// list to the project summary (`successRoute` on HABITAT_UPLOAD_TYPES.baseline).
+// A caller that wants the habitat list now has to navigate on from there.
+async function uploadToProjectSummary(fixtures, fixture) {
+  const { createProjectFlow, projectDashboardPage, uploadBaselineFileFlow } =
+    fixtures
+  const { id, name } = await setupProject(
     createProjectFlow,
     projectDashboardPage,
     PROJECT_LABEL
   )
-  await uploadBaselineFileFlow.uploadFile(id, fixture)
-  await page.waitForURL(new RegExp(`/projects/${id}/baseline-habitat-list`), {
-    timeout: UPLOAD_TIMEOUT
-  })
-  return id
+  await uploadBaselineFileFlow.uploadFileAndWaitForSummary(id, fixture)
+  return { id, name }
 }
 
 function describeHappyPath() {
@@ -60,24 +56,25 @@ function describeHappyPath() {
     'Upload baseline — happy path',
     { tag: ['@smoke', '@happy-path'] },
     () => {
-      test('uploading a valid .gpkg file reaches the habitat list and marks task list item as Completed', async ({
+      test('uploading a valid .gpkg file reaches the project summary and marks task list item as Completed', async ({
         createProjectFlow,
         projectDashboardPage,
         uploadBaselineFileFlow,
+        projectSummaryPage,
         habitatListPage,
         projectTaskListPage,
         page
       }) => {
-        const id = await uploadToHabitatList(
-          {
-            createProjectFlow,
-            projectDashboardPage,
-            uploadBaselineFileFlow,
-            page
-          },
+        const { id, name } = await uploadToProjectSummary(
+          { createProjectFlow, projectDashboardPage, uploadBaselineFileFlow },
           COMPLETE_BASELINE_FILE
         )
 
+        // BMD-870: a successful baseline upload now lands on the project
+        // summary, not the habitat list.
+        await expect(projectSummaryPage.heading).toBeVisible()
+
+        await habitatListPage.open(id)
         await expect(habitatListPage.heading).toBeVisible()
         await expect(habitatListPage.firstAreaHabitatLink).toBeVisible()
         await expect(habitatListPage.firstCompleteStatus).toBeVisible()
@@ -93,6 +90,17 @@ function describeHappyPath() {
         await expect(
           projectTaskListPage.taskStatus('Not yet started')
         ).toHaveCount(2)
+
+        // BMD-870: the dashboard row link is conditional on project state. This
+        // project is now baseline-only, so its row points at the summary rather
+        // than the task list. The frontend unit tests cover both branches, but
+        // against a fabricated project payload — this is the only place the
+        // branch is driven by a real uploaded baseline.
+        await projectDashboardPage.open()
+        await expect(projectDashboardPage.projectLink(name)).toHaveAttribute(
+          'href',
+          `/projects/${id}/project-summary`
+        )
       })
     }
   )
@@ -128,13 +136,8 @@ function describeBaselineReplacement() {
         // Three real uploads back this test.
         test.setTimeout(UPLOAD_TIMEOUT * 3)
 
-        const id = await uploadToHabitatList(
-          {
-            createProjectFlow,
-            projectDashboardPage,
-            uploadBaselineFileFlow,
-            page
-          },
+        const { id } = await uploadToProjectSummary(
+          { createProjectFlow, projectDashboardPage, uploadBaselineFileFlow },
           COMPLETE_BASELINE_FILE
         )
 
@@ -161,10 +164,12 @@ function describeBaselineReplacement() {
           habitatListPage.hedgerowRowByRef(COMPLETE_BASELINE_HEDGEROW_REF)
         ).toBeVisible()
 
-        await uploadBaselineFileFlow.uploadFile(id, ALTERNATE_BASELINE_FILE)
-        await page.waitForURL(
-          new RegExp(`/projects/${id}/baseline-habitat-list`),
-          { timeout: UPLOAD_TIMEOUT }
+        // The replacement drops the post-intervention data, so the project is
+        // baseline-only again and the upload lands on the summary rather than
+        // being bounced on to the task list by its guard.
+        await uploadBaselineFileFlow.uploadFileAndWaitForSummary(
+          id,
+          ALTERNATE_BASELINE_FILE
         )
 
         // The stored baseline is the new file, not a merge of the two: the
@@ -229,13 +234,8 @@ function describeFailedReplacement() {
         // Two real uploads back this test.
         test.setTimeout(UPLOAD_TIMEOUT * 2)
 
-        const id = await uploadToHabitatList(
-          {
-            createProjectFlow,
-            projectDashboardPage,
-            uploadBaselineFileFlow,
-            page
-          },
+        const { id } = await uploadToProjectSummary(
+          { createProjectFlow, projectDashboardPage, uploadBaselineFileFlow },
           ALTERNATE_BASELINE_FILE
         )
 

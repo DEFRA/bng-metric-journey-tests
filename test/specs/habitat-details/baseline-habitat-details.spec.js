@@ -54,7 +54,6 @@ const OUT_OF_SCOPE_WATERCOURSE_TYPES = [
   'Other rivers and streams'
 ]
 const IN_SCOPE_WATERCOURSE_TYPES = ['Canals', 'Culvert', 'Ditches']
-const UPLOAD_TIMEOUT = 120_000
 const COMPLETE_BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
 const PROJECT_LABEL = 'Habitat details test'
 
@@ -87,11 +86,15 @@ async function uploadAndGetProject(
     projectDashboardPage,
     PROJECT_LABEL
   )
-  await uploadBaselineFileFlow.uploadFile(project.id, COMPLETE_BASELINE_FILE)
-  await page.waitForURL(
-    new RegExp(`/projects/${project.id}/baseline-habitat-list`),
-    { timeout: UPLOAD_TIMEOUT }
+  await uploadBaselineFileFlow.uploadFileAndWaitForSummary(
+    project.id,
+    COMPLETE_BASELINE_FILE
   )
+  // BMD-870 re-pointed the upload's success redirect to the project summary.
+  // Callers of this helper expect to be left on the habitat list — that is
+  // where they click through to a detail page — so navigate on rather than
+  // making every caller do it.
+  await page.goto(`/projects/${project.id}/baseline-habitat-list`)
   return project
 }
 

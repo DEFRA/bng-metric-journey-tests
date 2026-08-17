@@ -247,10 +247,10 @@ test.describe('upload-file', { tag: '@upload-file' }, () => {
           projectDashboardPage,
           PROJECT_LABEL
         )
-        await uploadBaselineFileFlow.uploadFile(id, COMPLETE_BASELINE_FILE)
-        await page.waitForURL(`/projects/${id}/baseline-habitat-list`, {
-          timeout: UPLOAD_TIMEOUT
-        })
+        await uploadBaselineFileFlow.uploadFileAndWaitForSummary(
+          id,
+          COMPLETE_BASELINE_FILE
+        )
 
         await uploadFilePage.open(id)
         await uploadFilePage.selectPostIntervention()

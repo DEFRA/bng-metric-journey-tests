@@ -5,7 +5,8 @@
 A BNG Completer uploads a GeoPackage (.gpkg) file containing the on-site baseline habitat
 data for a project. The file is submitted directly to the CDP Uploader service; the app
 then polls for upload status, validates the file via the backend, and routes the user
-to the baseline habitat list on success, or a structured error dropout page on failure.
+to the project summary on success (BMD-870 — it was the baseline habitat list before),
+or a structured error dropout page on failure.
 
 The baseline and post-intervention upload journeys now share parameterised controllers and
 templates (keyed by `HABITAT_UPLOAD_TYPES`); the post-intervention variant is documented in
@@ -70,10 +71,15 @@ but a test that navigates the **UI** now passes through the selection page first
   - Status `rejected` → clear session keys, set empty `baselineValidationErrors` and `baselineValidationErrorsProjectId` in session, redirect to `GET /error-file`
   - Status `ready` + validation invalid + error code is `GPKG_INVALID_FILE` or `GPKG_NOT_A_GEOPACKAGE` → set `uploadError` flash "The selected file must be a GeoPackage (.gpkg)" → redirect to upload form
   - Status `ready` + validation invalid + other error codes (e.g. `HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE`, `PARCEL_OVERLAPS`, `AREA_PARCELS_OUTSIDE_REDLINE`) → store structured `baselineValidationErrors` and `baselineValidationErrorsProjectId` in session → redirect to `GET /error-file`
-  - Status `ready` + validation passes → redirect to `GET /projects/{id}/baseline-habitat-list`
+  - Status `ready` + validation passes → redirect to `GET /projects/{id}/project-summary` (**changed by BMD-870** — see below)
   - Elapsed > 120 seconds → clear session keys, set `uploadError` flash "The file check timed out. Please try again." → redirect to upload form
   - Any other status (e.g. `pending`, `unknown`, `error`) → re-render the polling page
-- **On success:** Redirects to `GET /projects/{id}/baseline-habitat-list`
+- **On success:** Redirects to `GET /projects/{id}/project-summary`
+
+  **BMD-870 (frontend PR#219, 2026-08-14).** This was `GET /projects/{id}/baseline-habitat-list` until BMD-870. `HABITAT_UPLOAD_TYPES.baseline` gained `successRoute: 'project-summary'`, and the shared received-controller now redirects to `` `/projects/${projectId}/${uploadType.successRoute ?? uploadType.listRoute}` ``. The post-intervention upload type has **no** `successRoute`, so it is unaffected and still lands on its habitat list.
+
+  Because backend BMD-850 (`a2f2985`) deletes `postIntervention` from the project JSONB on baseline replacement, the project is always baseline-only at this point and the summary page renders rather than bouncing to the task list. See [`../project-management/project-summary.flow.md`](../project-management/project-summary.flow.md).
+
 - **On error:** Redirects to `GET /error-file` (structured errors) or `GET /projects/{id}/upload-baseline-file` (format / timeout flash errors)
 
 ---
@@ -233,9 +239,10 @@ Two consequences for tests:
 
 ---
 
-### Landing — baseline habitat list (separate flow)
+### Landing — project summary (separate flow)
 
-On a successful upload the user lands on `GET /projects/{id}/baseline-habitat-list`. That page and the habitat-detail edit journey are documented in their own flow docs and are **out of scope** for this flow:
+On a successful upload the user lands on `GET /projects/{id}/project-summary` (BMD-870; it was `GET /projects/{id}/baseline-habitat-list` before). That page, the habitat list and the habitat-detail edit journey are documented in their own flow docs and are **out of scope** for this flow:
 
-- `test/flows/habitat-list/habitat-list.flow.md` — baseline habitat list page
+- `test/flows/project-management/project-summary.flow.md` — the landing page for a baseline-only project
+- `test/flows/habitat-list/habitat-list.flow.md` — baseline habitat list page, now reached from the task list rather than straight off an upload
 - `test/flows/habitat-details/habitat-details.flow.md` — edit a baseline habitat detail
