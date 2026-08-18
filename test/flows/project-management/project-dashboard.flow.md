@@ -2,7 +2,7 @@
 
 ## Overview
 
-The authenticated user navigates to the manage projects page to view all their projects, then optionally clicks through to a specific project. Since BMD-870 the row link is conditional: a baseline-only project opens its [project summary](project-summary.flow.md), anything else opens the task list.
+The authenticated user navigates to the manage projects page to view all their projects, then optionally clicks through to a specific project. Since BMD-870 the row link is conditional: a project with a baseline opens its [project summary](project-summary.flow.md), one without opens the task list.
 
 ## Steps
 
@@ -14,14 +14,14 @@ The authenticated user navigates to the manage projects page to view all their p
 - **Backend endpoint:** `GET /users/{userId}/projects` (userId from session credentials). The backend does not trust the path segment — it uses the verified token `sub` — and returns only projects visible to the user (owned projects whose latest role for the project's relationship is approved, plus legacy projects with no relationship). The frontend sends no query params, so the backend's default ordering applies — `sort=updated_at`, `order=desc`. The backend also accepts optional `sort` (`created_at`/`updated_at`/`name`) and `order` (`asc`/`desc`) params, but the frontend does not forward them.
 - **Organisation scoping (BMD-890, backend PR#207) `[IMPLEMENTED]`:** project visibility is scoped to the **organisation the user is currently signed in as**. `src/db/project-visibility.js` matches a project's `relationship_id` against the token's `currentRelationshipId`, so a user linked to several orgs sees a **different project list per org** — switching organisation changes what this page returns, and a project created under one org is not visible (404 on its task list) under another. See the callback-side state clearing in [`../authentication/defra-id-login.flow.md`](../authentication/defra-id-login.flow.md).
 - **Description:** Renders a table of all projects belonging to the authenticated user. Each row shows project name (linked per the row-link rule below), last modified date, and date created (each shows `—` when null). A "Create project" button links to `/project-name`. If the user has no projects, redirects to `/project-name` instead of rendering the table.
-- **Row link target (BMD-870, frontend PR#219) `[IMPLEMENTED]`:** the project name link is **conditional**, no longer always the task list. `projectsListController` maps each row to an `href` and `projects/index.njk` renders `{{ item.href }}`:
+- **Row link target (BMD-870 PR#219, widened by BMD-852 PR#227) `[IMPLEMENTED]`:** the project name link is **conditional**, no longer always the task list. `projectsListController` maps each row to an `href` and `projects/index.njk` renders `{{ item.href }}`:
 
-  | Project state                                       | `href`                           |
-  | --------------------------------------------------- | -------------------------------- |
-  | Baseline uploaded, no post-intervention             | `/projects/{id}/project-summary` |
-  | Anything else (no baseline, or baseline **and** PI) | `/add-project-details/{id}`      |
+  | Project state                          | `href`                           |
+  | -------------------------------------- | -------------------------------- |
+  | Baseline uploaded (with or without PI) | `/projects/{id}/project-summary` |
+  | No baseline yet                        | `/add-project-details/{id}`      |
 
-  The test is `isBaselineOnlyProject(item.project)` — `Boolean(project?.baseline) && !project?.postIntervention` (`src/server/common/helpers/project-state.js`). `GET /users/{userId}/projects` returns whole project rows, so the JSONB the test needs is on the list response. A newly created project has no baseline, so it still links to the task list. See [`project-summary.flow.md`](project-summary.flow.md).
+  The test is `hasBaselineData(item.project)` — `Boolean(project?.baseline)` (`src/server/common/helpers/project-state.js`). **BMD-852 widened this**: it was `isBaselineOnlyProject` (`Boolean(baseline) && !postIntervention`), so a project with post-intervention data used to fall through to the task list. `GET /users/{userId}/projects` returns whole project rows, so the JSONB the test needs is on the list response. A newly created project has no baseline, so it still links to the task list. See [`project-summary.flow.md`](project-summary.flow.md).
 
 - **Validation:** None (display-only)
 - **On success:** Renders the dashboard (`projects/index`) with the `projects` array, each entry carrying the `href` resolved above
@@ -31,7 +31,7 @@ The authenticated user navigates to the manage projects page to view all their p
 
 ### Step 2 — View project task list `[IMPLEMENTED]`
 
-> **Slated for deprecation.** BMD-870 states the project summary "replaces" the task list, which is "to be deprecated in due course". The route is unchanged and fully live — but it is no longer the only landing page for a project, and a baseline-only project reaches it only via a direct URL or the `project-summary` guard redirect. See [`project-summary.flow.md`](project-summary.flow.md).
+> **Slated for deprecation.** BMD-870 states the project summary "replaces" the task list, which is "to be deprecated in due course". The route is unchanged and fully live — but it is no longer the only landing page for a project, and any project with a baseline reaches it only via a direct URL (since BMD-852 the summary no longer redirects here for a project that has both documents). See [`project-summary.flow.md`](project-summary.flow.md).
 
 - **Route:** `GET /add-project-details/{id}`
 - **Template:** `src/server/projects/task-list.njk`
