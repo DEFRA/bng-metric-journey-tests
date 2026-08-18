@@ -14,6 +14,7 @@ import { createProjectCache } from '@utils/shared-project.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import { CreateProjectFlow } from '@flows/project-management/create-project.flow.js'
 import { UploadBaselineFileFlow } from '@flows/upload-baseline/upload-baseline-file.flow.js'
+import { UploadPostInterventionFileFlow } from '@flows/upload-post-intervention/upload-post-intervention-file.flow.js'
 import { ProjectDashboardPage } from '@pages/project-dashboard.page.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
@@ -36,15 +37,23 @@ const UNIT_TYPES = [AREA_HABITATS, HEDGEROWS, WATERCOURSES]
 const NAV_ITEMS = ['Area Habitats', HEDGEROWS, WATERCOURSES]
 
 const ZERO_UNITS = '0.00 units'
+const UNITS_2DP = /^\d+\.\d{2} units$/
 
 const TILE_BASELINE = 'On-site baseline'
 const TILE_POST_INTERVENTION = 'On-site post intervention'
+// BMD-852: the same tile is headed differently once post-intervention data
+// exists — "post-intervention" gains a hyphen. Tiles are looked up by their
+// visible heading, so using the wrong one fails as a missing element rather
+// than a wrong value. See "Known deviations" in the flow doc.
+const TILE_POST_INTERVENTION_WITH_PI = 'On-site post-intervention'
 const TILE_NET_UNIT_CHANGE = 'Total on-site net unit change'
 const TILE_NET_PERCENTAGE = 'Total on-site net percentage change'
 const TILE_TRADING_RULES = 'Trading Rules'
 
 const VIEW_TRADING_RULES = 'View trading rules'
 const VIEW_ON_SITE_BASELINE = 'View on-site baseline'
+const VIEW_ON_SITE_POST_INTERVENTION = 'View on-site post intervention'
+const NOT_APPLICABLE = 'N/A'
 const NET_PERCENTAGE_NOT_MET = '-100.00%'
 // The ticket specifies the "Not met" status as having a red background; the
 // GOV.UK red tag modifier is what paints it.
@@ -61,6 +70,18 @@ const NO_HEDGEROWS_FILE = 'Baseline - no hedgerows.gpkg'
 // It is what gives the *populated* Hedgerows section a real-data witness, which
 // NO_HEDGEROWS_FILE by definition cannot.
 const ALL_UNIT_TYPES_FILE = 'Baseline - all unit and intervention types.gpkg'
+
+// BMD-852 post-intervention pairs. The all-types pair is the ticket's stated
+// scenario — baseline *and* post-intervention data for every habitat type — and
+// each of its six tiles carries a distinct non-round value, so a renamed or
+// mixed-up backend field cannot pass unnoticed.
+const ALL_UNIT_TYPES_PI_FILE =
+  'Post-intervention - all unit and intervention types.gpkg'
+// The only shipped pair that yields a real net *gain*: the baseline has no
+// hedgerows at all, the post-intervention file does. Because the baseline is
+// zero the backend's percentage is non-finite, which is what drives the "N/A"
+// branch — see the zero-baseline describe below.
+const HEDGEROWS_PI_FILE = 'Post-intervention - complete with hedgerows.gpkg'
 
 // One real upload backs every read-only describe in this file. Uploading is the
 // slowest and flakiest step we have, and concurrent uploads clobber the single
@@ -97,6 +118,79 @@ function getAllUnitTypesProject(browser) {
   return getOrBuildProject(ALL_UNIT_TYPES_FILE, () =>
     buildBaselineOnlyProject(browser, ALL_UNIT_TYPES_FILE)
   )
+}
+
+// BMD-852. Two uploads rather than one, so these are shared even harder than
+// the baseline-only projects: one build per fixture pair, per worker.
+async function buildPostInterventionProject(browser, baselineFile, piFile) {
+  const context = await browser.newContext({
+    storageState: STORAGE_STATE,
+    baseURL: baseUrl
+  })
+  const page = await context.newPage()
+  try {
+    const { id, name } = await setupProject(
+      new CreateProjectFlow(page),
+      new ProjectDashboardPage(page),
+      PROJECT_LABEL
+    )
+    await new UploadBaselineFileFlow(page).uploadFileAndWaitForSummary(
+      id,
+      baselineFile
+    )
+    await new UploadPostInterventionFileFlow(page).uploadFile(id, piFile)
+    await page.waitForURL(
+      new RegExp(`/projects/${id}/post-intervention-habitat-list`),
+      { timeout: UPLOAD_TIMEOUT }
+    )
+    return { id, name }
+  } finally {
+    await context.close()
+  }
+}
+
+function getPostInterventionProject(browser) {
+  return getOrBuildProject(ALL_UNIT_TYPES_PI_FILE, () =>
+    buildPostInterventionProject(
+      browser,
+      ALL_UNIT_TYPES_FILE,
+      ALL_UNIT_TYPES_PI_FILE
+    )
+  )
+}
+
+function getGainProject(browser) {
+  return getOrBuildProject(HEDGEROWS_PI_FILE, () =>
+    buildPostInterventionProject(browser, NO_HEDGEROWS_FILE, HEDGEROWS_PI_FILE)
+  )
+}
+
+// Post-intervention sections source every figure from the backend. Asserting
+// the three together is what makes a renamed or mixed-up field detectable: the
+// net unit change has to equal post-intervention minus baseline for the *same*
+// habitat type, which no single-field assertion can catch.
+async function expectCoherentPostInterventionUnits(projectSummaryPage, label) {
+  const baseline = await projectSummaryPage.tileUnits(label, TILE_BASELINE)
+  const postIntervention = await projectSummaryPage.tileUnits(
+    label,
+    TILE_POST_INTERVENTION_WITH_PI
+  )
+  const netUnitChange = await projectSummaryPage.tileUnits(
+    label,
+    TILE_NET_UNIT_CHANGE
+  )
+
+  // BMD-852 AC1-3 specify the post-intervention total "to 15 significant
+  // figures, 2 decimal places, rounded". Asserted on the rendered string —
+  // the numeric checks below would pass just as happily on "161.264 units".
+  expect(
+    await projectSummaryPage.tileValue(label, TILE_POST_INTERVENTION_WITH_PI)
+  ).toMatch(UNITS_2DP)
+
+  expect(baseline).toBeGreaterThan(0)
+  expect(postIntervention).toBeGreaterThan(0)
+  // Both sides are rendered to 2dp, so the difference can be off by up to 0.01.
+  expect(netUnitChange).toBeCloseTo(postIntervention - baseline, 1)
 }
 
 async function expectPopulatedUnitType(projectSummaryPage, label) {
@@ -201,7 +295,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
           expect(
             await projectSummaryPage.tileValue(label, TILE_BASELINE)
-          ).toMatch(/^\d+\.\d{2} units$/)
+          ).toMatch(UNITS_2DP)
           // Baseline-only project: post-intervention is hardcoded to zero.
           expect(
             await projectSummaryPage.tileValue(label, TILE_POST_INTERVENTION)
@@ -240,7 +334,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         // the backend payload and normaliseUnits floors it to 0.
         expect(
           await projectSummaryPage.tileValue(HEDGEROWS, TILE_NET_PERCENTAGE)
-        ).toBe('N/A')
+        ).toBe(NOT_APPLICABLE)
         expect(
           await projectSummaryPage.tileValue(HEDGEROWS, TILE_BASELINE)
         ).toBe(ZERO_UNITS)
@@ -328,6 +422,184 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           await projectSummaryPage.tileValue(HEDGEROWS, TILE_NET_UNIT_CHANGE)
         ).toBe(`-${baseline.toFixed(2)} units`)
       })
+    }
+  )
+
+  // ─── Post-intervention variant (BMD-852) ─────────────────────────────────────
+  //
+  // BMD-852 widened the guard so a project carrying both documents renders here
+  // instead of redirecting to the task list, and switched every figure in these
+  // sections over to backend-supplied values: `habitatsNetUnitChange`,
+  // `habitatsNetUnitChangePercentage` and their hedgerow / watercourse
+  // counterparts (backend src/validation/project-shared-schemas.js:102-121).
+  //
+  // The frontend computes none of them, and `formatOptionalUnits` renders any
+  // non-finite value as "N/A", so a renamed field would blank the page rather
+  // than fail loudly. The frontend unit tests cover every branch here but mock
+  // the backend client; the backend integration test asserts the stored values
+  // against the same engine call that produced them
+  // (post-intervention-persistence.test.js:179). Neither witnesses the wiring.
+
+  test.describe(
+    'Project summary — post-intervention variant',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      let project
+      test.beforeAll(async ({ browser }) => {
+        project = await getPostInterventionProject(browser)
+      })
+
+      test(
+        'a project with both documents renders the summary rather than redirecting',
+        { tag: ['@smoke', '@happy-path'] },
+        async ({ projectSummaryPage, page }) => {
+          await projectSummaryPage.open(project.id)
+
+          // Before BMD-852 this project was bounced to the task list.
+          await expect(page).toHaveURL(
+            new RegExp(`/projects/${project.id}/project-summary`)
+          )
+          await expect(projectSummaryPage.heading).toBeVisible()
+          // The header upload button stays available even once both files exist.
+          await expect(projectSummaryPage.uploadFileButton).toBeVisible()
+          for (const label of UNIT_TYPES) {
+            await expect(projectSummaryPage.sectionHeading(label)).toBeVisible()
+          }
+        }
+      )
+
+      test('every unit type shows backend baseline, post-intervention and net unit values that agree', async ({
+        projectSummaryPage
+      }) => {
+        await projectSummaryPage.open(project.id)
+
+        for (const label of UNIT_TYPES) {
+          await expectCoherentPostInterventionUnits(projectSummaryPage, label)
+        }
+      })
+
+      test('a net loss shows the backend percentage and a red "Not met" tag', async ({
+        projectSummaryPage
+      }) => {
+        await projectSummaryPage.open(project.id)
+
+        for (const label of UNIT_TYPES) {
+          const percentage = await projectSummaryPage.tileValue(
+            label,
+            TILE_NET_PERCENTAGE
+          )
+          // Every habitat type in this fixture pair loses units, so each shows a
+          // negative percentage well below the 10% target.
+          expect(percentage).toMatch(/^-\d+\.\d{2}%$/)
+          expect(Number.parseFloat(percentage)).toBeLessThan(0)
+
+          const tag = projectSummaryPage.statusTag(label)
+          await expect(tag).toBeVisible()
+          await expect(tag).toHaveClass(RED_TAG_CLASS)
+        }
+      })
+
+      test('the post-intervention tile is re-headed and its upload link becomes inert text', async ({
+        projectSummaryPage
+      }) => {
+        await projectSummaryPage.open(project.id)
+
+        for (const label of UNIT_TYPES) {
+          const section = projectSummaryPage.unitSection(label)
+          // The heading gains a hyphen once post-intervention data exists.
+          await expect(
+            section.getByRole('heading', {
+              name: TILE_POST_INTERVENTION_WITH_PI,
+              exact: true
+            })
+          ).toBeVisible()
+          await expect(
+            section.getByRole('heading', {
+              name: TILE_POST_INTERVENTION,
+              exact: true
+            })
+          ).toHaveCount(0)
+
+          // The upload link is replaced by inert text — there is nothing left to
+          // upload for this habitat type.
+          await expect(
+            section.getByText(VIEW_ON_SITE_POST_INTERVENTION, { exact: true })
+          ).toBeVisible()
+          await expect(
+            projectSummaryPage.uploadPostInterventionLink(label)
+          ).toHaveCount(0)
+        }
+      })
+    }
+  )
+
+  // ─── Post-intervention against a zero-unit baseline (BMD-852) ────────────────
+
+  test.describe(
+    'Project summary — post-intervention with no baseline units',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      let project
+      test.beforeAll(async ({ browser }) => {
+        project = await getGainProject(browser)
+      })
+
+      // The baseline has no hedgerows and the post-intervention file does, so
+      // the hedgerow percentage is computed against zero and comes back
+      // non-finite. This is the only route to the "N/A" branch that a real
+      // upload can take — the frontend unit test reaches it with a fabricated
+      // payload (controller.test.js), nothing else renders it.
+      test('a habitat type gained from a zero baseline shows N/A and no status tag', async ({
+        projectSummaryPage
+      }) => {
+        await projectSummaryPage.open(project.id)
+
+        expect(
+          await projectSummaryPage.tileValue(HEDGEROWS, TILE_BASELINE)
+        ).toBe(ZERO_UNITS)
+        expect(
+          await projectSummaryPage.tileValue(HEDGEROWS, TILE_NET_PERCENTAGE)
+        ).toBe(NOT_APPLICABLE)
+        await expect(projectSummaryPage.statusTag(HEDGEROWS)).toHaveCount(0)
+      })
+
+      // Documents a real oddity rather than an intended design: the units did
+      // go up, and the page says so in the net-unit-change tile, but the
+      // percentage tile reads "N/A" and no "Met" tag appears. See "Known
+      // deviations" in test/flows/project-management/project-summary.flow.md.
+      test('the gain is still reported in the net unit change tile', async ({
+        projectSummaryPage
+      }) => {
+        await projectSummaryPage.open(project.id)
+
+        expect(
+          await projectSummaryPage.tileUnits(
+            HEDGEROWS,
+            TILE_POST_INTERVENTION_WITH_PI
+          )
+        ).toBeGreaterThan(0)
+        expect(
+          await projectSummaryPage.tileUnits(HEDGEROWS, TILE_NET_UNIT_CHANGE)
+        ).toBeGreaterThan(0)
+      })
+
+      // Unblock: needs a fixture pair whose post-intervention units exceed the
+      // baseline by more than the 10% net-gain target
+      // (NET_GAIN_TARGET_PERCENTAGE in the frontend's project-summary
+      // controller), for a habitat type whose baseline is greater than zero —
+      // a zero baseline yields "N/A", as the test above shows. No shipped
+      // fixture pair does this: every combination tried is a net loss, and the
+      // only gain available is from a zero baseline. Once such a fixture
+      // exists, assert a green `govuk-tag--green` "Met" tag and a positive
+      // percentage. Until then the green branch is covered only by the
+      // frontend's `percentageSummary` unit test, which is a pure function.
+      test.skip('a net gain above the 10% target shows a green "Met" tag', async () => {})
     }
   )
 

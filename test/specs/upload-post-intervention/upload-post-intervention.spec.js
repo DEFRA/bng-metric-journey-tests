@@ -133,13 +133,12 @@ function describePostInterventionReplacement() {
         uploadPostInterventionFileFlow,
         habitatListPage,
         postInterventionHabitatListPage,
-        projectSummaryPage,
         page
       }) => {
         // Three real uploads back this test.
         test.setTimeout(UPLOAD_TIMEOUT * 3)
 
-        const { id } = await setupProject(
+        const { id, name } = await setupProject(
           createProjectFlow,
           projectDashboardPage,
           PROJECT_LABEL
@@ -197,15 +196,24 @@ function describePostInterventionReplacement() {
           habitatListPage.hedgerowRowByRef(BASELINE_HEDGEROW_REF)
         ).toBeVisible()
 
-        // BMD-870: the project summary is the baseline-only page, so a project
-        // carrying both documents is redirected off it to the task list. This
-        // is asserted here rather than in project-summary.spec.js because it
-        // needs a real baseline *and* a real post-intervention upload, which
-        // this test already paid for. The frontend unit test covers the same
-        // branch (project-summary/controller.test.js) but against a fabricated
-        // project payload — nothing else drives it from real uploads.
-        await projectSummaryPage.open(id)
-        await expect(page).toHaveURL(new RegExp(`/add-project-details/${id}`))
+        // BMD-852 widened the dashboard row link from "baseline only" to "has a
+        // baseline", so a project carrying both documents now links to its
+        // summary rather than the task list. Asserted here rather than in
+        // project-summary.spec.js because it needs a real baseline *and* a real
+        // post-intervention upload, which this test already paid for. The
+        // frontend unit test covers the same branch
+        // (projects/controller.test.js) but against a fabricated project
+        // payload — nothing else drives it from real uploads.
+        //
+        // This replaces a BMD-870 assertion that the same project was
+        // *redirected off* the summary to the task list; BMD-852 deleted that
+        // redirect. The summary's own rendering for a both-documents project is
+        // covered in test/specs/project-management/project-summary.spec.js.
+        await projectDashboardPage.open()
+        await expect(projectDashboardPage.projectLink(name)).toHaveAttribute(
+          'href',
+          `/projects/${id}/project-summary`
+        )
       })
     }
   )
