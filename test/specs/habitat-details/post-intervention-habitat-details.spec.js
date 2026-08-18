@@ -28,6 +28,7 @@ const UPLOAD_TIMEOUT = 120_000
 const SHARED_BUILD_TEST_TIMEOUT = 180_000
 const PROJECT_LABEL = 'PI habitat details test'
 const DETAILS_URL_PATTERN = /\/post-intervention-habitat-details/
+const BASELINE_DETAILS_URL_PATTERN = /\/baseline-habitat-details/
 
 // Fixture reachability (Retention Category per feature, read from the .gpkg):
 // - COMPLETE_PI_FILE areas: H1 + H2-2 Retained, H2-3 + H3 Enhanced, H2-1…
@@ -165,23 +166,57 @@ function detailsUrl({ projectId, featureId } = {}) {
   return `/post-intervention-habitat-details?${params.toString()}`
 }
 
-// The BMD-878 Back link builds its query as featureId then projectId — the
-// opposite order to detailsUrl() above.
-async function expectBackLinkReturnsToPiDetails(
+// The BMD-878 Back link and the BMD-935 Cancel link build their query as
+// featureId then projectId — the opposite order to detailsUrl() above.
+//
+// Both links are the *same* computed value (`piBackHref` in the frontend's
+// common/helpers/habitat-details-controller.js), rendered twice on one page. So
+// asserting the href string alone proves nothing about which link carries it:
+// revert either assignment and a check for that string still passes off the
+// surviving link. Each link is therefore clicked here in turn.
+//
+// That is not hypothetical, and it makes this the sole witness for the Cancel
+// half (BMD-935 AC1). The frontend's own test —
+// baseline-habitat-details/controller.test.js, "Renders Cancel link to the
+// referring post-intervention habitat details page" — asserts
+// `result.toContain(<the shared href>)`, which the Back link already satisfies;
+// it cannot fail if `cancelHref` regresses to the baseline-list fallback. Do
+// not drop the Cancel assertions here until that test targets the
+// `<a ...>Cancel</a>` markup specifically.
+async function expectReturnLinksToPiDetails(
   page,
   baselineHabitatDetailsPage,
+  postInterventionHabitatDetailsPage,
   { projectId, featureId, ref }
 ) {
   const expectedHref = `/post-intervention-habitat-details?featureId=${featureId}&projectId=${projectId}`
+  const expectedUrl = new URL(expectedHref, baseUrl).toString()
+  const piHeading = page.getByRole('heading', { name: ref, exact: true })
+
   await expect(baselineHabitatDetailsPage.backLink).toHaveAttribute(
     'href',
     expectedHref
   )
+  await expect(baselineHabitatDetailsPage.cancelLink).toHaveAttribute(
+    'href',
+    expectedHref
+  )
+
+  // BMD-935 AC1 — Cancel.
+  await baselineHabitatDetailsPage.cancelLink.click()
+  await expect(page).toHaveURL(expectedUrl)
+  await expect(piHeading).toBeVisible()
+
+  // Re-enter by clicking "View baseline details" again rather than navigating:
+  // the second visit needs its own Referer for the Back link to resolve the
+  // same way.
+  await postInterventionHabitatDetailsPage.viewBaselineLink.click()
+  await expect(page).toHaveURL(BASELINE_DETAILS_URL_PATTERN)
+
+  // BMD-878 AC1 — Back.
   await baselineHabitatDetailsPage.backLink.click()
-  await expect(page).toHaveURL(new URL(expectedHref, baseUrl).toString())
-  await expect(
-    page.getByRole('heading', { name: ref, exact: true })
-  ).toBeVisible()
+  await expect(page).toHaveURL(expectedUrl)
+  await expect(piHeading).toBeVisible()
 }
 
 function listAnchorPattern(projectId, anchor) {
@@ -732,11 +767,11 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       )
 
       test(
-        '"View baseline details" links to the ref-matched baseline feature, whose Back link returns here',
+        '"View baseline details" links to the ref-matched baseline feature, whose Back and Cancel links return here',
         // @happy-path: a CDP-runnable functional journey (click through to the
-        // baseline page, click Back, land where you started). The Enhanced
-        // variant below is the same journey via a different template, so per
-        // the one-representative rule only this one carries the tag.
+        // baseline page, click Back or Cancel, land where you started). The
+        // Enhanced variant below is the same journey via a different template,
+        // so per the one-representative rule only this one carries the tag.
         { tag: ['@regression', '@happy-path'] },
         async ({
           browser,
@@ -765,7 +800,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             postInterventionHabitatDetailsPage.viewBaselineLink
           ).toBeVisible()
           await postInterventionHabitatDetailsPage.viewBaselineLink.click()
-          await expect(page).toHaveURL(/\/baseline-habitat-details/)
+          await expect(page).toHaveURL(BASELINE_DETAILS_URL_PATTERN)
 
           // The baseline and PI uploads assign independent featureIds, so the
           // link must resolve the baseline feature by parcel ref — a
@@ -778,13 +813,14 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             'Habitat H1'
           )
 
-          // BMD-878 AC1 (Retained). Reaching the baseline page by *clicking*
-          // sends a Referer, which is the only thing the back-link target is
-          // derived from — a page.goto() here would silently exercise the
-          // baseline-list fallback instead and prove nothing.
-          await expectBackLinkReturnsToPiDetails(
+          // BMD-878 AC1 and BMD-935 AC1 (Retained). Reaching the baseline page
+          // by *clicking* sends a Referer, which is the only thing either
+          // link's target is derived from — a page.goto() here would silently
+          // exercise the baseline-list fallback instead and prove nothing.
+          await expectReturnLinksToPiDetails(
             page,
             baselineHabitatDetailsPage,
+            postInterventionHabitatDetailsPage,
             {
               projectId: shared.id,
               featureId: shared.retainedWithBaseline,
@@ -896,7 +932,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       )
 
       test(
-        '"View baseline details" links to the ref-matched baseline feature, whose Back link returns here',
+        '"View baseline details" links to the ref-matched baseline feature, whose Back and Cancel links return here',
         { tag: '@regression' },
         async ({
           browser,
@@ -918,7 +954,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             postInterventionHabitatDetailsPage.viewBaselineLink
           ).toBeVisible()
           await postInterventionHabitatDetailsPage.viewBaselineLink.click()
-          await expect(page).toHaveURL(/\/baseline-habitat-details/)
+          await expect(page).toHaveURL(BASELINE_DETAILS_URL_PATTERN)
 
           // The baseline and PI uploads assign independent featureIds, so the
           // link must resolve the baseline feature by parcel ref — a different
@@ -931,12 +967,14 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             'Habitat H3'
           )
 
-          // BMD-878 AC1 (Enhanced) — the AC's GIVEN admits a retained *or*
-          // enhanced habitat, and the two arrive at the baseline page from
-          // different post-intervention templates, so both are covered.
-          await expectBackLinkReturnsToPiDetails(
+          // BMD-878 AC1 and BMD-935 AC1 (Enhanced) — both stories' GIVEN
+          // admits a retained *or* enhanced habitat, and the two arrive at the
+          // baseline page from different post-intervention templates, so both
+          // are covered.
+          await expectReturnLinksToPiDetails(
             page,
             baselineHabitatDetailsPage,
+            postInterventionHabitatDetailsPage,
             {
               projectId: shared.id,
               featureId: shared.enhancedWithBaseline,
@@ -1297,7 +1335,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           postInterventionHabitatDetailsPage.viewBaselineLink
         ).toBeVisible()
         await postInterventionHabitatDetailsPage.viewBaselineLink.click()
-        await expect(page).toHaveURL(/\/baseline-habitat-details/)
+        await expect(page).toHaveURL(BASELINE_DETAILS_URL_PATTERN)
 
         // The baseline and PI uploads assign independent featureIds, so the
         // link must resolve the baseline feature by parcel ref — a different
@@ -1434,7 +1472,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           postInterventionHabitatDetailsPage.viewBaselineLink
         ).toBeVisible()
         await postInterventionHabitatDetailsPage.viewBaselineLink.click()
-        await expect(page).toHaveURL(/\/baseline-habitat-details/)
+        await expect(page).toHaveURL(BASELINE_DETAILS_URL_PATTERN)
 
         // The baseline and PI uploads assign independent featureIds, so the
         // link must resolve the baseline feature by parcel ref — a different
@@ -1717,7 +1755,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           postInterventionHabitatDetailsPage.viewBaselineLink
         ).toBeVisible()
         await postInterventionHabitatDetailsPage.viewBaselineLink.click()
-        await expect(page).toHaveURL(/\/baseline-habitat-details/)
+        await expect(page).toHaveURL(BASELINE_DETAILS_URL_PATTERN)
 
         // The baseline and PI uploads assign independent featureIds, so the
         // link must resolve the baseline feature by parcel ref — a different
@@ -1848,7 +1886,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           postInterventionHabitatDetailsPage.viewBaselineLink
         ).toBeVisible()
         await postInterventionHabitatDetailsPage.viewBaselineLink.click()
-        await expect(page).toHaveURL(/\/baseline-habitat-details/)
+        await expect(page).toHaveURL(BASELINE_DETAILS_URL_PATTERN)
 
         // The baseline and PI uploads assign independent featureIds, so the
         // link must resolve the baseline feature by parcel ref — a different
