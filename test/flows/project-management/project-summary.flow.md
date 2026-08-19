@@ -40,6 +40,17 @@ Added by **BMD-870** (frontend PR#219, 2026-08-14), which built the baseline-onl
 
   The green `Met` state and the 10% target (`NET_GAIN_TARGET_PERCENTAGE`) are new in BMD-852 — before it, red `Not met` was the only reachable tag.
 
+  **Threshold detail.** The comparison is made against the _rounded_ 2dp string, not the raw value, so a percentage of 9.999 formats to `10.00%` and renders `Met` even though it is below 10 (frontend `percentageSummary`). Worth confirming with the PO: the AC wording says "≥ 10%".
+
+  **Fixtures that reach each state** (in `test/example-files/`, copied from `bng-metric-harness` `example-files/permutations/`; the harness generator prices each pair through the real `bng-metric-engine` and fails if it lands on the wrong side of the target):
+
+  | State                                  | Fixture pair                          | Observed                                           |
+  | -------------------------------------- | ------------------------------------- | -------------------------------------------------- |
+  | Green `Met` — areas                    | `… - net gain met`                    | area habitats ~292%                                |
+  | Green `Met` — hedgerows + watercourses | `… - linear net gain met`             | hedgerows ~64%, watercourses ~21%                  |
+  | Red `Not met` from a **gain**          | `… - watercourse gain below target`   | watercourses ~+3.8% — pins the target at 10, not 0 |
+  | Red `Not met` from a loss              | `… - all unit and intervention types` | all three types negative                           |
+
   **"View project details"** — a closing `<section aria-labelledby="project-details-heading">` with `<h2>View project details</h2>` and the body text "View and amend your project details, including project name and target percentage". No link.
 
   There is **no back link** on this page.

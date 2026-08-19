@@ -58,6 +58,7 @@ const NET_PERCENTAGE_NOT_MET = '-100.00%'
 // The ticket specifies the "Not met" status as having a red background; the
 // GOV.UK red tag modifier is what paints it.
 const RED_TAG_CLASS = /govuk-tag--red/
+const GREEN_TAG_CLASS = /govuk-tag--green/
 
 // 'Baseline - no hedgerows.gpkg' carries area habitats (including individual
 // trees, which is what makes the treesTotal assertion below possible) and
@@ -82,6 +83,28 @@ const ALL_UNIT_TYPES_PI_FILE =
 // zero the backend's percentage is non-finite, which is what drives the "N/A"
 // branch — see the zero-baseline describe below.
 const HEDGEROWS_PI_FILE = 'Post-intervention - complete with hedgerows.gpkg'
+
+// BMD-852 net-gain pairs, copied from bng-metric-harness
+// example-files/permutations/. The harness generator prices each pair through
+// the real bng-metric-engine and fails if it lands on the wrong side of the
+// 10% target, so these labels cannot drift from the arithmetic.
+//
+// harness net-gain/met-* — area habitats gain ~292%.
+const AREA_GAIN_BASELINE_FILE = 'Baseline - net gain met.gpkg'
+const AREA_GAIN_PI_FILE = 'Post-intervention - net gain met.gpkg'
+// harness intervention/watercourse-created-* — hedgerows ~64%, watercourses
+// ~21%. One project covers the Met branch for both linear habitat types.
+const LINEAR_GAIN_BASELINE_FILE = 'Baseline - linear net gain met.gpkg'
+const LINEAR_GAIN_PI_FILE = 'Post-intervention - linear net gain met.gpkg'
+// harness intervention/watercourse-enhanced-* — watercourses gain ~3.8%: a real
+// gain that is still under the target, so the tag must stay red. This is the
+// only fixture that pins the threshold at 10 rather than at 0.
+const BELOW_TARGET_BASELINE_FILE =
+  'Baseline - watercourse gain below target.gpkg'
+const BELOW_TARGET_PI_FILE =
+  'Post-intervention - watercourse gain below target.gpkg'
+
+const NET_GAIN_TARGET_PERCENTAGE = 10
 
 // One real upload backs every read-only describe in this file. Uploading is the
 // slowest and flakiest step we have, and concurrent uploads clobber the single
@@ -163,6 +186,53 @@ function getGainProject(browser) {
   return getOrBuildProject(HEDGEROWS_PI_FILE, () =>
     buildPostInterventionProject(browser, NO_HEDGEROWS_FILE, HEDGEROWS_PI_FILE)
   )
+}
+
+function getAreaGainProject(browser) {
+  return getOrBuildProject(AREA_GAIN_PI_FILE, () =>
+    buildPostInterventionProject(
+      browser,
+      AREA_GAIN_BASELINE_FILE,
+      AREA_GAIN_PI_FILE
+    )
+  )
+}
+
+function getLinearGainProject(browser) {
+  return getOrBuildProject(LINEAR_GAIN_PI_FILE, () =>
+    buildPostInterventionProject(
+      browser,
+      LINEAR_GAIN_BASELINE_FILE,
+      LINEAR_GAIN_PI_FILE
+    )
+  )
+}
+
+function getBelowTargetProject(browser) {
+  return getOrBuildProject(BELOW_TARGET_PI_FILE, () =>
+    buildPostInterventionProject(
+      browser,
+      BELOW_TARGET_BASELINE_FILE,
+      BELOW_TARGET_PI_FILE
+    )
+  )
+}
+
+// Asserts the status tag matches the percentage the page actually rendered, so
+// one helper proves both branches of the BMD-852 threshold rule.
+async function expectStatusMatchesPercentage(projectSummaryPage, label) {
+  const percentage = await projectSummaryPage.tileValue(
+    label,
+    TILE_NET_PERCENTAGE
+  )
+  expect(percentage).toMatch(/^-?\d+\.\d{2}%$/)
+
+  const met = Number.parseFloat(percentage) >= NET_GAIN_TARGET_PERCENTAGE
+  const tag = projectSummaryPage.statusTag(label)
+  await expect(tag).toHaveText(met ? 'Met' : 'Not met')
+  await expect(tag).toHaveClass(met ? GREEN_TAG_CLASS : RED_TAG_CLASS)
+
+  return Number.parseFloat(percentage)
 }
 
 // Post-intervention sections source every figure from the backend. Asserting
@@ -588,18 +658,79 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           await projectSummaryPage.tileUnits(HEDGEROWS, TILE_NET_UNIT_CHANGE)
         ).toBeGreaterThan(0)
       })
+    }
+  )
 
-      // Unblock: needs a fixture pair whose post-intervention units exceed the
-      // baseline by more than the 10% net-gain target
-      // (NET_GAIN_TARGET_PERCENTAGE in the frontend's project-summary
-      // controller), for a habitat type whose baseline is greater than zero —
-      // a zero baseline yields "N/A", as the test above shows. No shipped
-      // fixture pair does this: every combination tried is a net loss, and the
-      // only gain available is from a zero baseline. Once such a fixture
-      // exists, assert a green `govuk-tag--green` "Met" tag and a positive
-      // percentage. Until then the green branch is covered only by the
-      // frontend's `percentageSummary` unit test, which is a pure function.
-      test.skip('a net gain above the 10% target shows a green "Met" tag', async () => {})
+  // ─── Net gain meets the target (BMD-852) ─────────────────────────────────────
+  //
+  // The green "Met" state is the headline of BMD-852's AC1-3 and, until the
+  // harness net-gain fixtures were sourced, had no end-to-end witness at all —
+  // only `percentageSummary` unit tests, which are a pure function, and a
+  // controller test handed a fabricated payload. These render it from real
+  // uploads.
+  //
+  // Two projects cover all three habitat types: the area pair gains on areas
+  // only; the linear pair gains on hedgerows *and* watercourses at once.
+
+  test.describe(
+    'Project summary — net gain meets the target',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      test('area habitats above the target show a green "Met" tag', async ({
+        projectSummaryPage,
+        browser
+      }) => {
+        const project = await getAreaGainProject(browser)
+        await projectSummaryPage.open(project.id)
+
+        const percentage = await expectStatusMatchesPercentage(
+          projectSummaryPage,
+          AREA_HABITATS
+        )
+        expect(percentage).toBeGreaterThanOrEqual(NET_GAIN_TARGET_PERCENTAGE)
+        await expectCoherentPostInterventionUnits(
+          projectSummaryPage,
+          AREA_HABITATS
+        )
+      })
+
+      test('hedgerows and watercourses above the target show a green "Met" tag', async ({
+        projectSummaryPage,
+        browser
+      }) => {
+        const project = await getLinearGainProject(browser)
+        await projectSummaryPage.open(project.id)
+
+        for (const label of [HEDGEROWS, WATERCOURSES]) {
+          const percentage = await expectStatusMatchesPercentage(
+            projectSummaryPage,
+            label
+          )
+          expect(percentage).toBeGreaterThanOrEqual(NET_GAIN_TARGET_PERCENTAGE)
+          await expectCoherentPostInterventionUnits(projectSummaryPage, label)
+        }
+      })
+
+      // The threshold is 10%, not 0. Every other "Not met" case in this file is
+      // a net *loss*, so without this one an implementation that flipped the
+      // tag on any positive change would pass the whole suite.
+      test('a positive gain below the target still shows a red "Not met" tag', async ({
+        projectSummaryPage,
+        browser
+      }) => {
+        const project = await getBelowTargetProject(browser)
+        await projectSummaryPage.open(project.id)
+
+        const percentage = await expectStatusMatchesPercentage(
+          projectSummaryPage,
+          WATERCOURSES
+        )
+        expect(percentage).toBeGreaterThan(0)
+        expect(percentage).toBeLessThan(NET_GAIN_TARGET_PERCENTAGE)
+      })
     }
   )
 

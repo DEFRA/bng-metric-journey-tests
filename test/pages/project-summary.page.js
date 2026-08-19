@@ -49,8 +49,15 @@ export class ProjectSummaryPage extends BasePage {
     return this.page.getByRole('heading', { name: label, level: 2 })
   }
 
+  /**
+   * The status tag in a section's percentage tile — "Met" (green) or "Not met"
+   * (red). Matches either: BMD-870 could only ever render "Not met", so an
+   * earlier version of this locator hardcoded that string and silently failed
+   * to find the "Met" tag BMD-852 introduced. Sections whose percentage is
+   * "N/A" render no tag at all, so `toHaveCount(0)` still reads naturally.
+   */
   statusTag(label) {
-    return this.unitSection(label).getByText('Not met', { exact: true })
+    return this.unitSection(label).getByText(/^(Met|Not met)$/)
   }
 
   uploadPostInterventionLink(label) {
