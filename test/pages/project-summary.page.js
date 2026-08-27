@@ -30,6 +30,28 @@ export class ProjectSummaryPage extends BasePage {
     this.projectDetailsLink = page.getByRole('link', {
       name: 'View project details'
     })
+    this.siteReportHeading = page.getByRole('heading', {
+      name: 'Download site report',
+      level: 2
+    })
+    this.siteReportBody = page.getByText(
+      'A printable summary of your site, with each habitat parcel shown on a map.'
+    )
+    this.siteReportLink = page.getByRole('link', {
+      name: 'Download the site report (PDF)'
+    })
+  }
+
+  /**
+   * Click the report link and return the completed download.
+   *
+   * The listener is registered before the click, because a download can finish
+   * before the promise would otherwise be awaited.
+   */
+  async downloadSiteReport() {
+    const download = this.page.waitForEvent('download')
+    await this.siteReportLink.click()
+    return download
   }
 
   async open(id) {

@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises'
+
 import { test, expect } from '@fixtures'
 import {
   STORAGE_STATE,
@@ -21,6 +23,10 @@ const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const PROJECT_LABEL = 'Project summary test'
 const UPLOAD_TIMEOUT = 120_000
 const HTTP_BAD_REQUEST = 400
+const PDF_MAGIC = '%PDF-'
+// A report carrying real geometry is an order of magnitude larger than the
+// few kilobytes an empty tagged document would be.
+const MIN_REPORT_BYTES = 20_000
 const HTTP_NOT_FOUND = 404
 const VALID_UUID_V4 = 'aaaaaaaa-bbbb-4ccc-bddd-eeeeeeeeeeee'
 const UNKNOWN_UUID_V4 = 'aaaaaaaa-bbbb-4ccc-bddd-ffffffffffff'
@@ -322,6 +328,62 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await projectSummaryPage.open(project.id)
 
         await expect(page).toHaveTitle(/^Summary - /)
+      }
+    )
+  })
+
+  // ─── Site report ────────────────────────────────────────────────────────────
+  //
+  // BMD-984. The frontend unit suite covers the passthrough with a mocked
+  // backend and the backend's own integration test covers the rendering, but
+  // neither downloads anything: only a browser can prove that the response
+  // headers actually make the file save rather than render, and that the bytes
+  // that arrive are a PDF a reader would open.
+
+  test.describe('Project summary — site report', () => {
+    test.use({ storageState: STORAGE_STATE })
+    test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+    let project
+    test.beforeAll(async ({ browser }) => {
+      project = await getBaselineOnlyProject(browser)
+    })
+
+    test(
+      'the summary offers the site report as a download',
+      { tag: '@regression' },
+      async ({ projectSummaryPage }) => {
+        await projectSummaryPage.open(project.id)
+
+        await expect(projectSummaryPage.siteReportHeading).toBeVisible()
+        await expect(projectSummaryPage.siteReportBody).toBeVisible()
+        await expect(projectSummaryPage.siteReportLink).toHaveAttribute(
+          'href',
+          `/projects/${project.id}/report.pdf`
+        )
+      }
+    )
+
+    test(
+      'downloading the report saves a PDF built from the uploaded site',
+      { tag: ['@smoke', '@happy-path'] },
+      async ({ projectSummaryPage }) => {
+        await projectSummaryPage.open(project.id)
+
+        const download = await projectSummaryPage.downloadSiteReport()
+
+        expect(download.suggestedFilename()).toBe(
+          `bng-site-report-${project.id}.pdf`
+        )
+
+        const path = await download.path()
+        const bytes = await readFile(path)
+        // The magic number, and enough of them that the parcels reached the
+        // page rather than an empty document being served.
+        expect(bytes.subarray(0, PDF_MAGIC.length).toString('latin1')).toBe(
+          PDF_MAGIC
+        )
+        expect(bytes.length).toBeGreaterThan(MIN_REPORT_BYTES)
       }
     )
   })

@@ -53,6 +53,8 @@ Added by **BMD-870** (frontend PR#219, 2026-08-14), which built the baseline-onl
 
   **"View project details"** — a closing `<section aria-labelledby="project-details-heading">` with `<h2>View project details</h2>` and the body text "View and amend your project details, including project name and target percentage". No link.
 
+  **"Download site report"** (**BMD-984**) — a `<section aria-labelledby="site-report-heading">` with `<h2>Download site report</h2>`, the body text "A printable summary of your site, with each habitat parcel shown on a map." and a **link** "Download the site report (PDF)" to `/projects/{id}/report.pdf`. A link rather than a button: GOV.UK treats document downloads as links, and it keeps "Upload file" as the page's only primary action. The link text names the format but not the size, which is not known until the report is generated. See [Step 4](#step-4--download-the-site-report-implemented).
+
   There is **no back link** on this page.
 
 - **Unit sourcing and formatting:** baseline figures come from `project.baseline.units` (backend `src/utilities/features/feature-set-units.js`). Area habitats = `habitatsTotal + treesTotal`; hedgerows = `hedgerowsTotal`; watercourses = `watercoursesTotal`. A missing or non-finite value normalises to `0`. Formatting is `Number(value.toPrecision(15)).toFixed(2)` — always two decimal places, with a guard that renders `0.00` rather than `-0.00` (BMD-852 moved that guard to a string comparison, so it now also catches values like `-0.001`).
@@ -99,6 +101,29 @@ Added by **BMD-870** (frontend PR#219, 2026-08-14), which built the baseline-onl
 - **Validation:** See [`../upload-file/choose-upload-type.flow.md`](../upload-file/choose-upload-type.flow.md)
 - **On success:** Selection page behaviour is documented in [`../upload-file/choose-upload-type.flow.md`](../upload-file/choose-upload-type.flow.md)
 - **On error:** As above
+
+---
+
+### Step 4 — Download the site report `[IMPLEMENTED]`
+
+- **Route:** `GET /projects/{id}/report.pdf`
+- **Template:** None — the response is PDF bytes
+- **Auth required:** Yes — as Step 1
+- **Backend endpoint:** `GET /projects/{projectId}/report.pdf` (via `fetchSiteReport` in `src/server/common/services/report.js`)
+- **Description:** Added by **BMD-984**. The frontend renders nothing here: it holds the user's session, the backend holds the geometry, and this route turns one into the other. The session's bearer token goes out with the request, the PDF bytes come back, and the browser is told to save rather than display them (`content-type: application/pdf`, `content-disposition: attachment`).
+
+  The filename the frontend sets is `bng-site-report-{id}.pdf`. The backend names its own copy after the site, but forwarding a `content-disposition` built from a user-supplied project name through a second service is not worth the handling; the project id is inert and the user renames the file anyway.
+
+  **What the PDF contains** (backend `src/services/report/`): the site drawn from its stored PostGIS geometry — the copy the user has since edited, not the uploaded GeoPackage, which can be stale — with the baseline and post-intervention maps side by side, a key-figures table, and one row per habitat parcel carrying a thumbnail, ref, type, condition and size. Sizes and unit totals are the project document's own, so the report and the screen it was generated from cannot disagree. The document is tagged for assistive technology and validates as **PDF/UA-1**.
+
+  **No basemap, for now.** An Ordnance Survey basemap is implemented and switched off (`REPORT_BASEMAP`, default false) pending confirmation from OS that their mapping may be **embedded** in a downloadable PDF — a different question from displaying it in a browser, because a PDF can be forwarded.
+
+- **Validation:** `id` path param must be a valid uuidv4 (Joi); invalid → Hapi 400
+- **On success:** 200 with the PDF bytes
+- **On error:**
+  - Project not visible to the user, or holding no baseline → backend 404 → `Boom.notFound` → the global `error/index` page
+  - Backend unreachable, a non-2xx status, or a 200 carrying no bytes → `Boom.badGateway` ("Failed to generate the site report")
+  - Dead, unrefreshable session → redirect to `/auth/session-expired`
 
 ---
 
