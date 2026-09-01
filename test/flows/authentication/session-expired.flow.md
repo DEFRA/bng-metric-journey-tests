@@ -56,9 +56,25 @@ user who never signed in.
   saved answers are safe, a "Sign in again" button
   (`data-testid="sign-in-again-button"`, href `/auth/login`), and a "Return to
   the home page" link to `/`. The controller passes `navigation: []`, so the
-  service navigation omits the default "Projects" link. The page renders its own
-  header block (GOV.UK header + service navigation) rather than the signed-in
-  header.
+  service navigation omits the default "Projects" link.
+
+  **BMD-893 changed the header markup** (frontend PR#213, 2026-08-21,
+  accessibility work). `session-expired.njk` and `signed-out.njk` **no longer
+  override the `header` block** with their own GOV.UK header + service navigation.
+  `layouts/page.njk` now splits that into two sub-blocks — `govukHeader` and
+  `govukServiceNavigation` — so the parent `govuk/template.njk` still wraps the
+  content in its `<header>` landmark; overriding the outer block had been
+  orphaning it. The rendered header looks the same (the page is unauthenticated,
+  so `navItems` is empty either way), but it now sits **inside the `<header>`
+  landmark** rather than replacing it.
+
+  The same PR wrapped `beforeContent` — the Beta phase banner and any breadcrumbs
+  — in `<div role="region" aria-label="Page information">`, because it renders
+  outside `<main>` and was otherwise orphaned outside every landmark. This affects
+  **every page in the service**, not just this one: an accessibility test counting
+  landmarks, or a locator anchored on the phase banner's position in the tree,
+  sees a different structure than before.
+
 - **Validation:** None (display-only)
 - **On success:** Renders the session-expired page (200)
 - **On error:** N/A

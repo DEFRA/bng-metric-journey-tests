@@ -64,10 +64,30 @@ github runs continue to use the stub.
   (`common/helpers/auth/organisation-switch.js`). When the previous relationship
   id exists **and differs** from the new token's `currentRelationshipId`, every
   key in `ORG_SCOPED_SESSION_KEYS` (`common/helpers/session-keys.js`) is cleared.
+
+  **BMD-936 changed what "differs" means** (frontend PR#221 and #239, 2026-08-19/28).
+  Relationship ids are GUIDs, and GUIDs are case-insensitive (RFC 4122) — **Defra ID
+  emits the same `currentRelationshipId` in a different case on a `refresh_token`
+  grant than on interactive sign-in**, confirmed by the drift classifier in
+  `refresh-session.js` reporting `differs:case-only`. Every comparison of two
+  relationship ids now goes through `canonicalRelationshipId` /
+  `isSameRelationship` (`common/helpers/auth/relationship-id.js`), which trims and
+  lower-cases before comparing. The same helper is mirrored in the backend
+  (`src/services/defra-id/claims.js`) because the frontend forwards the raw token,
+  so both ends must agree on what counts as the same relationship.
+
+  **What this was fixing:** `hasBngCompleterRole` compared verbatim, so a single
+  case flip failed the role check roughly 20 minutes into a session and signed the
+  user out. The same bug class reached the org-switch check here — where a case
+  flip read as a genuine switch and **wiped an in-flight upload journey** — plus
+  the current-relationship resolver behind the organisation shown in the header,
+  and the reselection check. A test that mints a relationship id in one case and
+  asserts a switch on a case variant is now asserting deleted behaviour.
   That is all six per-upload-type `yar` keys for both types, deduped —
   `pendingUploadId`, `uploadStartedAt`, `uploadError`, `baselineValidationErrors`,
   `baselineValidationErrorsProjectId`, their `postIntervention*` counterparts, and
   the shared `validationUploadType`.
+
 - **Why:** projects are scoped to the signed-in org (backend
   `project-visibility.js`, BMD-890 PR#207), so journey state naming the previous
   org's project would resurface as an upload-error banner or a validation-error

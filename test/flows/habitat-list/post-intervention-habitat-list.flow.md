@@ -119,6 +119,17 @@ Column-level behaviour common to all three tabs:
   post-intervention data exists, this button is the **only** UI route back to a re-upload.
 - Back link navigates to `/add-project-details/{id}` (same target as Continue).
 
+- **BMD-898 changed how Ref cells and linear "No data" states are built (frontend PR#233, 2026-08-24).** The rendered page looks much the same; the markup and the empty-state trigger do not.
+
+  | Aspect            | Before                                          | Now                                                                       |
+  | ----------------- | ----------------------------------------------- | ------------------------------------------------------------------------- |
+  | Ref cell          | pre-built `html` string interpolating the `<a>` | `{ text, href }`, with the `habitatTableCell` macro rendering the link    |
+  | Ref value         | `feature.ref` verbatim                          | `feature.ref` trimmed, falling back to **`feature.featureId`** when blank |
+  | Linear "No data"  | `features?.length` on the row array             | `hasHabitatData(habitatsData, type)` on the habitat data itself           |
+  | Empty linear size | rendered a bare `"km"`                          | renders **`''`**                                                          |
+
+  Consequences for tests: an assertion reading a Ref cell's inner HTML now sees a plain `<a>` built by the macro rather than an interpolated string, and `data-sort-value` carries the same fallback value as the visible text. A feature with a blank or whitespace-only `ref` now shows its `featureId` instead of an empty cell. A linear size with no measurement renders empty rather than a unit-only `"km"` — so an assertion that a cell "contains km" passes on real data and fails on missing data, where before it passed on both.
+
 - **Validation:**
   - `id` path param must be a valid UUID v4 → 400 if invalid
   - Approved BNG Completer role required → redirects to `/auth/forbidden` if missing

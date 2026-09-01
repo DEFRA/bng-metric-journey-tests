@@ -21,7 +21,17 @@ The authenticated user navigates to the manage projects page to view all their p
   | Baseline uploaded (with or without PI) | `/projects/{id}/project-summary` |
   | No baseline yet                        | `/add-project-details/{id}`      |
 
-  The test is `hasBaselineData(item.project)` — `Boolean(project?.baseline)` (`src/server/common/helpers/project-state.js`). **BMD-852 widened this**: it was `isBaselineOnlyProject` (`Boolean(baseline) && !postIntervention`), so a project with post-intervention data used to fall through to the task list. `GET /users/{userId}/projects` returns whole project rows, so the JSONB the test needs is on the list response. A newly created project has no baseline, so it still links to the task list. See [`project-summary.flow.md`](project-summary.flow.md).
+  **BMD-933 changed where the answer comes from** (frontend PR#230, backend PR#262 and #286, 2026-08-19/26). The test is now:
+
+  ```js
+  project.has_baseline ?? hasBaselineData(project.project)
+  ```
+
+  `has_baseline` is a **flag computed by the backend and returned on each list row**. The JSONB check `hasBaselineData(project.project)` — `Boolean(project?.baseline)` (`src/server/common/helpers/project-state.js`) — survives only as a fallback covering the window where the frontend deploys ahead of the backend that sets the flag.
+
+  **`GET /users/{userId}/projects` no longer returns whole project rows.** Backend BMD-933 stopped loading the full project document for the list page, so `project.project.baseline` is **not** on the list response any more and the fallback resolves to `false` in practice. A fixture or assertion built on the old shape is testing data the endpoint has stopped sending — the `??` will simply take the flag.
+
+  Earlier history: BMD-852 widened the condition from `isBaselineOnlyProject` (`Boolean(baseline) && !postIntervention`), under which a project with post-intervention data fell through to the task list. A newly created project has no baseline, so it still links to the task list. See [`project-summary.flow.md`](project-summary.flow.md).
 
 - **Validation:** None (display-only)
 - **On success:** Renders the dashboard (`projects/index`) with the `projects` array, each entry carrying the `href` resolved above
