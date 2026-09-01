@@ -64,6 +64,14 @@ but a test that navigates the **UI** now passes through the selection page first
 - **Auth required:** Yes (session + approved BNG Completer role — Defra ID enrolment status 3, scoped to `currentRelationshipId` when present)
 - **Backend endpoints:**
   - `GET /upload/{uploadId}/status` — polls upload status (treats `numberOfRejectedFiles > 0` as `rejected`)
+  - **Filename rule (BMD-958)** — before any content validation, the upload metadata is checked
+    against `habitatDataSchema`. The filename must be **≤ 255 characters** and match
+    `/^[a-z0-9][a-z0-9 ._()-]*\.gpkg$/i`: it has to start alphanumeric, end `.gpkg`, and may
+    otherwise contain only letters, digits, spaces, dots, underscores, hyphens and
+    **brackets**. BMD-958 **added `(` and `)`** to that set — the previous pattern was
+    `/^[a-z0-9][a-z0-9 ._-]*\.gpkg$/i`, so a file such as `site survey (final).gpkg` used to be
+    rejected and is now accepted. A rejection produces `INVALID_FILENAME` (see Step 4), split
+    out by `makeMetadataError` from the `INVALID_FILE_METADATA` it used to share.
   - `POST /baseline/validate/{uploadId}` (body: `{ projectId }`) — triggered once status is `ready`; validates the file contents and persists the baseline; forwards the user's Defra ID bearer via `backendRequest`. Content validation includes a distinctiveness-scope check (BMD-352): any habitat — area habitats, hedgerows, or watercourses — whose distinctiveness is **High** or **Very high** is rejected with error code `HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE` (the error names the offending feature ref; allowed bands are Medium, Low, Very low). This drives the structured-error branch below. Content validation also rejects (BMD-883) any habitat that sets **both** "Habitat created in advance/years" and "Delay in starting habitat creation/years" — error code `ADVANCE_AND_DELAY_BOTH_SET` — naming the offending feature refs; use one or the other, not both.
 - **Description:** Rendered by the shared `createUploadReceivedController(HABITAT_UPLOAD_TYPES.baseline, validateBaseline)` factory. The template renders a "Checking your file" message with a `<meta http-equiv="refresh" content="5">` tag so the browser re-hits the handler every 5 seconds. On each request the handler checks `pendingUploadId` from the session, polls upload status, and tracks elapsed time in `uploadStartedAt`. Once status is `ready` it calls baseline validation and clears both session keys. The rejected and structured-error branches also set `validationUploadType = 'baseline'` in session (consumed by the shared error-file page). Possible outcomes are listed below.
 - **Validation / branching:**
@@ -116,15 +124,23 @@ but a test that navigates the **UI** now passes through the selection page first
      - `placeholder` — `REDLINE_OUTSIDE_ENGLAND`, `REDLINE_AREA_TOO_LARGE`,
        `IGGIS_OUTSIDE_REDLINE`, `TREES_OUTSIDE_REDLINE`, `AREA_SUM_MISMATCH` render
        "PLACEHOLDER (AWAITING UCD)" + the raw backend message, pending BMD-592.
+     - `INVALID_FILENAME` (**BMD-958**, frontend PR#236 / backend PR#280, 2026-08-24) — the
+       uploaded file's _own name_ was rejected. Copy: "The file name contains characters we
+       cannot accept. Rename the file using letters, numbers, spaces, hyphens, underscores or
+       brackets and …". It is the **only** entry that overrides the shared link text, closing
+       with **"upload the renamed file"** rather than "upload a new file" — a test matching the
+       usual link text will not find this one.
      - Any unmapped code falls back to the AC1 catch-all copy ("The layer names and column names
-       do not match what is required by Natural England…").
+       do not match what is required by Natural England…"). Note `INVALID_FILE_METADATA`, the
+       sibling code `INVALID_FILENAME` split off from, still lands here: it now means the
+       document _structure_ is wrong, which the user cannot act on by renaming.
      - The page title is set to the single-error H1. The exactly-one check runs on the
        de-duplicated `visibleErrors` list (fixed in frontend PR#160) — i.e. it is judged
        **after** the sliver-suppression rule below, since `AREA_PARCELS_OUTSIDE_REDLINE`
        always co-fires with a correlated `SLIVERS_OUTSIDE_REDLINE` for the same escaping
        geometry, and checking the raw array left AC10's personalised copy unreachable.
      - **Where this is tested.** `resolveSingleErrorCopy` is a pure function, unit-tested
-       exhaustively over all 20 error codes in
+       exhaustively over all 21 error codes in
        `../bng-metric-frontend/src/server/error-file/single-error-copy.test.js` — including
        codes no GeoPackage fixture can reach alone (`SLIVERS_OUTSIDE_REDLINE`,
        `IGGIS_OUTSIDE_REDLINE`, `TREES_OUTSIDE_REDLINE`, `REDLINE_AREA_TOO_LARGE`,
@@ -159,6 +175,25 @@ but a test that navigates the **UI** now passes through the selection page first
     and the single-error inline upload link is trimmed to a plain sentence
 - **On success:** Renders the error dropout page
 - **On error:** N/A
+
+---
+
+### Schema mismatches short-circuit the feature gates — BMD-910 `[IMPLEMENTED]`
+
+Backend PR#268 (`8f6687f`, 2026-08-20) rewrote the GeoPackage parse layer into a **single-pass reader** (`src/validation/geopackage/read-feature-tables.js`), which reads each layer's geometry types and its decoded geometry together instead of opening the file twice.
+
+A consequence nobody documented: **the feature-count gates only run once the layer opens successfully.** They read `table.geometryTypes`, which the reader produces only after `gpkg_geometry_columns` resolves. So when a layer's registered geometry column is wrong — wrong type, wrong count, missing — the schema mismatch is reported _on its own_, and the derived "zero features found" error that used to accompany it never fires.
+
+Observed changes, both confirmed on 2026-09-01:
+
+| Upload                                                | Before                                                                               | Now                                                                                              |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| Baseline, habitats layer with incorrect geometry      | `Layer "Habitats" baseline mismatch` **+** `Zero area habitat parcels in GeoPackage` | mismatch only                                                                                    |
+| Post-intervention, RLB layer with wrong geometry type | type mismatch **+** `Zero red line boundaries in GeoPackage (expecting one)`         | mismatch only — which drops the page from the **multi-error** layout to the **single-error** one |
+
+**The file is still rejected in both cases.** What disappeared is a consequence of the root cause, not the rejection — arguably an improvement, since the user saw a cascade where there was one fault. Worth confirming with the team that it was intended, because it was never called out in the PR.
+
+**Testing impact.** A rejection test that asserts the _number_ of errors, or the multi-error layout, can flip to the single-error layout without the upload becoming any more valid. Assert the root-cause message rather than a derived one.
 
 ---
 

@@ -2,9 +2,19 @@
 
 ## Overview
 
-After uploading a baseline file — or by clicking the project name on the dashboard — the user lands on the project summary: a single page showing, for each of the three habitat types (area habitats, hedgerows, watercourses), the on-site baseline units, the post-intervention units, the net unit change and the net percentage change against target. It is the landing page for **any project that has a baseline**, with or without post-intervention data.
+After uploading a baseline file — or by clicking the project name on the dashboard — the user lands on the project summary: a single page showing, for each habitat type the project actually has data for (area habitats, hedgerows, watercourses), the on-site baseline units, the post-intervention units, the net unit change and the net percentage change against target. It is the landing page for **any project that has a baseline**, with or without post-intervention data.
 
-Added by **BMD-870** (frontend PR#219, 2026-08-14), which built the baseline-only variant. **BMD-852** (frontend PR#227, 2026-08-18) added the post-intervention variant and widened the guard so a project carrying both documents renders here instead of being redirected to the task list. BMD-870 states the page **replaces the project task list (`/add-project-details/{id}`, to be deprecated in due course) and the summary section of the baseline habitat list**. The area / hedgerow / watercourse drill-down pages, trading rules and the project-details clickthrough remain separate tickets and are `[PLANNED]` here.
+Added by **BMD-870** (frontend PR#219, 2026-08-14), which built the baseline-only variant. **BMD-852** (PR#227, 2026-08-18) added the post-intervention variant and widened the guard so a project carrying both documents renders here instead of being redirected to the task list. BMD-870 states the page **replaces the project task list (`/add-project-details/{id}`, to be deprecated in due course) and the summary section of the baseline habitat list**.
+
+**Three further tickets have since changed this page** — check the [Deferred elements](#deferred-elements) and [Known deviations](#known-deviations-from-the-design) sections before trusting any older assertion about it:
+
+| Ticket      | PR   | Date       | Effect on this page                                                                            |
+| ----------- | ---- | ---------- | ---------------------------------------------------------------------------------------------- |
+| **BMD-854** | #237 | 2026-08-25 | Nav items, section headings and the area baseline tile became links; empty sections now hidden |
+| **BMD-897** | #238 | 2026-08-25 | Post-intervention-only variant — `Not applicable`, no status tag, no baseline action           |
+| **BMD-898** | #233 | 2026-08-24 | Shared `buildUnitSummary` refactor behind the above                                            |
+
+Trading rules and the project-details clickthrough remain separate tickets and are still `[PLANNED]` here.
 
 ## Steps
 
@@ -16,18 +26,34 @@ Added by **BMD-870** (frontend PR#219, 2026-08-14), which built the baseline-onl
 - **Backend endpoint:** `GET /projects/{id}` (via `fetchProject` in `src/server/common/services/projects.js`)
 - **Description:** Renders the summary for a project that has a baseline and no post-intervention data. Layout is a wide container (`app-width-container--wide`) split into a left navigation column and a main column.
 
-  **Left navigation** — `<nav aria-label="Project summary">` with four items: **Summary** (current — rendered as `<strong aria-current="page">`, not a link), **Area Habitats**, **Hedgerows**, **Watercourses**. The latter three carry no `href` and render as plain text — see [Deferred elements](#deferred-elements).
+  **Left navigation** — `<nav aria-label="Project summary">`, built by `buildUnitTypeNavigation` (`src/server/common/helpers/unit-type-navigation.js`). **Changed by BMD-854**: the items are now real links, and the list is **conditional rather than a fixed four**:
+
+  | Item          | When present                                                                     |
+  | ------------- | -------------------------------------------------------------------------------- |
+  | Summary       | always — current here, so rendered `<strong aria-current="page">` with no `href` |
+  | Area habitats | always — links to `/projects/{id}/area-summary`                                  |
+  | Hedgerows     | only when `projectHasHabitatData(project, 'hedgerows')`                          |
+  | Watercourses  | only when `projectHasHabitatData(project, 'watercourses')`                       |
+
+  So the nav carries **two to four items**, not four. On this page every unit type renders collapsed — `buildUnitTypeItem` only attaches the **Baseline** child when the current page is `area-summary` or `area-baseline`.
 
   **Heading** — project name as a `govuk-caption-l`, `<h1>Summary</h1>`, and a GOV.UK **"Upload file"** button aligned to the right.
 
-  **Three unit-type sections**, each an `appUnitTypeSummary` (`src/server/common/components/unit-type-summary/macro.njk`) rendered as `<section aria-labelledby="{id}-heading">` with an `<h2 id="{id}-heading">`. Ids and labels: `area-habitats` / "Area habitats", `hedgerows` / "Hedgerows", `watercourses` / "Watercourses". Each section contains five tiles:
+  **One to three unit-type sections** (see the visibility rule under [Known deviations](#known-deviations-from-the-design)), each an `appUnitTypeSummary` (`src/server/common/components/unit-type-summary/macro.njk`) rendered as `<section aria-labelledby="{id}-heading">` with an `<h2 id="{id}-heading">`. Ids and labels: `area-habitats` / "Area habitats", `hedgerows` / "Hedgerows", `watercourses` / "Watercourses".
+
+  **BMD-854 made the headings links.** Each `<h2>` now contains an `<a class="govuk-link">` to that unit type's drill-down page. The heading is driven by `headingHref`, and **the macro renders no `<h2>` at all when `headingHref` is absent** — falling back to `aria-label="{label}"` on the section instead of `aria-labelledby`. The project summary always supplies one; the drill-down pages never do. A locator that finds a unit-type section by its `<h2>` works here and finds nothing on `area-summary`, `area-baseline` or `hedgerows-summary`.
+
+  Each section contains five tiles:
 
   Three tiles are the same in both variants:
 
-  | Tile             | Value                                                                            |
-  | ---------------- | -------------------------------------------------------------------------------- |
-  | Trading Rules    | text "View trading rules" — no link, see [Deferred elements](#deferred-elements) |
-  | On-site baseline | `{units} units` + text "View on-site baseline" — no link                         |
+  | Tile                                        | Value                                                                                                  |
+  | ------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+  | Trading Rules                               | text "View trading rules" — no link, see [Deferred elements](#deferred-elements)                       |
+  | On-site baseline — **area habitats**        | `{units} units` + **link** "View on-site **area** baseline" → `/projects/{id}/area-baseline` (BMD-857) |
+  | On-site baseline — hedgerows / watercourses | `{units} units` + text "View on-site baseline" — no link                                               |
+
+  The area-habitats tile is the **only** baseline tile in the service that is a link, and the only one whose text says "area". `buildUnitSummary` takes a `baselineAction`; the project summary passes `areaBaselineAction('/projects/{id}/area-baseline')` for area habitats and nothing for the linear types, which fall back to the inert default.
 
   The other three depend on whether `project.postIntervention` exists (**BMD-852**):
 
@@ -50,6 +76,20 @@ Added by **BMD-870** (frontend PR#219, 2026-08-14), which built the baseline-onl
   | Green `Met` — hedgerows + watercourses | `… - linear net gain met`             | hedgerows ~64%, watercourses ~21%                  |
   | Red `Not met` from a **gain**          | `… - watercourse gain below target`   | watercourses ~+3.8% — pins the target at 10, not 0 |
   | Red `Not met` from a loss              | `… - all unit and intervention types` | all three types negative                           |
+
+- **Post-intervention-only habitats (BMD-897, PR#238, 2026-08-25) `[IMPLEMENTED]`:** a unit type can appear in the post-intervention document with nothing in the baseline — a hedgerow created by the intervention, say. `hasPostInterventionOnlyHabitat(project, type)` detects it (empty/absent in `baseline`, non-empty in `postIntervention`), and that section renders a **fourth variant**, distinct from both the baseline-only and the both-documents cases above:
+
+  | Element                   | Standard section                             | Post-intervention-only                           |
+  | ------------------------- | -------------------------------------------- | ------------------------------------------------ |
+  | Net percentage change     | formatted percentage                         | **`Not applicable`** — the literal string        |
+  | Status tag                | green `Met` / red `Not met`                  | **no tag rendered at all**                       |
+  | Baseline tile action      | link or inert text                           | **`null` — the action `<p>` is not rendered**    |
+  | Post-intervention heading | "On-site post-**intervention**" (hyphenated) | "On-site post intervention" (**unhyphenated**)   |
+  | Post-intervention action  | inert "View on-site post intervention"       | **link** "Upload on-site post intervention file" |
+
+  There is no baseline to divide by, so a percentage would be meaningless — hence `Not applicable` rather than `N/A` or `-100.00%`. Both the missing tag and the missing baseline action are absences: assert them with a count or a non-visibility check, not by looking for different text.
+
+  This variant applies to hedgerows and watercourses; area habitats always has a baseline when the page renders at all, since the no-baseline case redirects at Step 2.
 
   **"View project details"** — a closing `<section aria-labelledby="project-details-heading">` with `<h2>View project details</h2>` and the body text "View and amend your project details, including project name and target percentage". No link.
 
@@ -109,7 +149,9 @@ Added by **BMD-870** (frontend PR#219, 2026-08-14), which built the baseline-onl
 | Project dashboard row link | `/projects/{id}/project-summary` | project has a baseline; otherwise the row links to `/add-project-details/{id}` |
 | Successful baseline upload | `/projects/{id}/project-summary` | always — `successRoute` on the baseline upload type                            |
 
-**Dashboard (`GET /manage-projects`).** `projectsListController` maps each row to an `href` via `hasBaselineData(project.project)` (BMD-852; it was `isBaselineOnlyProject` under BMD-870, so a project with post-intervention data used to link to the task list) and the template renders `{{ item.href }}` instead of a hardcoded task-list path. The backend list endpoint returns whole project rows, so the JSONB needed for the test is present on the list response. See [`project-dashboard.flow.md`](project-dashboard.flow.md) Step 1.
+**Dashboard (`GET /manage-projects`).** `projectsListController` maps each row to an `href` and the template renders `{{ item.href }}` instead of a hardcoded task-list path.
+
+**Changed by BMD-933** (frontend PR#230, backend PR#262/#286, 2026-08-19/26). The test is now `project.has_baseline ?? hasBaselineData(project.project)` — a **flag on the list row**, with the old JSONB check kept only as a fallback for the window where the frontend deploys ahead of the backend that sets it. The backend list endpoint **no longer returns the whole project document**; it loads only the fields the list page needs. The earlier claim here — that the JSONB needed for the test is present on the list response — is **no longer true**, and a test or fixture relying on `project.project.baseline` coming back from `GET /users/{userId}/projects` is relying on data the endpoint has stopped sending. See [`project-dashboard.flow.md`](project-dashboard.flow.md) Step 1.
 
 **Baseline upload.** `HABITAT_UPLOAD_TYPES.baseline` gained `successRoute: 'project-summary'`, and `habitat-upload-received-controller.js` redirects to `successRoute ?? listRoute` on a `ready` upload that passes validation. The post-intervention upload type has **no** `successRoute`, so it still falls back to its `listRoute`. See [`../upload-baseline/upload-baseline-file.flow.md`](../upload-baseline/upload-baseline-file.flow.md) Step 5.
 
@@ -117,17 +159,21 @@ Added by **BMD-870** (frontend PR#219, 2026-08-14), which built the baseline-onl
 
 ## Deferred elements
 
-Out of scope for BMD-870 per the ticket, and present in the markup as inert text rather than links. Each becomes a step here when its own ticket lands.
+Out of scope for BMD-870 per the ticket. Four of the seven have since shipped — **BMD-854** (PR#237, 2026-08-25) built the drill-down pages and wired the navigation, **BMD-857** (PR#244) the area baseline page, **BMD-855/919** (PR#249) the hedgerows page. What remains is inert text rather than links.
 
-| Element                                            | Current state                             | Marker      |
-| -------------------------------------------------- | ----------------------------------------- | ----------- |
-| "Area Habitats" / "Hedgerows" / "Watercourses" nav | plain `<li>` text, no `href`              | `[PLANNED]` |
-| "View trading rules"                               | `<span>` inside the Trading Rules tile    | `[PLANNED]` |
-| Trading rules status                               | not rendered                              | `[PLANNED]` |
-| "View on-site baseline"                            | `<span>` inside the On-site baseline tile | `[PLANNED]` |
-| "View on-site post intervention"                   | `<span>` in the PI tile once PI exists    | `[PLANNED]` |
-| "View project details" clickthrough                | heading + body text only, no link         | `[PLANNED]` |
-| Submitting the metric                              | not rendered                              | `[PLANNED]` |
+| Element                                            | Current state                                                                            | Marker          |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------- | --------------- |
+| "Area Habitats" / "Hedgerows" / "Watercourses" nav | **real links** — and conditional; see Step 1                                             | `[IMPLEMENTED]` |
+| Unit-type section headings                         | **real links** to each drill-down page                                                   | `[IMPLEMENTED]` |
+| "View on-site baseline" — **area habitats only**   | **link** to `/projects/{id}/area-baseline`, text changed to "View on-site area baseline" | `[IMPLEMENTED]` |
+| "View on-site baseline" — hedgerows / watercourses | `<span>` inside the On-site baseline tile — no baseline page exists for either type      | `[PLANNED]`     |
+| "View trading rules"                               | `<span>` inside the Trading Rules tile                                                   | `[PLANNED]`     |
+| Trading rules status                               | not rendered                                                                             | `[PLANNED]`     |
+| "View on-site post intervention"                   | `<span>` in the PI tile once PI exists                                                   | `[PLANNED]`     |
+| "View project details" clickthrough                | heading + body text only, no link                                                        | `[PLANNED]`     |
+| Submitting the metric                              | not rendered                                                                             | `[PLANNED]`     |
+
+The drill-down pages are documented in [`area-summary.flow.md`](area-summary.flow.md), [`area-baseline.flow.md`](area-baseline.flow.md), [`hedgerows-summary.flow.md`](hedgerows-summary.flow.md) and [`watercourses-summary.flow.md`](watercourses-summary.flow.md).
 
 The `appProjectNavigation` and `action()` macros both branch on `item.href` / `params.*.href`, so each of these becomes a link the moment its controller supplies an href — no template change needed.
 
@@ -135,7 +181,7 @@ The `appProjectNavigation` and `action()` macros both branch on `item.href` / `p
 
 ## Known deviations from the design
 
-- **Empty sections are not hidden.** BMD-870 notes "designs assume hedgerow and watercourse data is present in baseline and/or post-intervention — these sections are hidden if no data is present in practice." `buildProjectSummary` builds all three `unitSummaries` unconditionally, so a baseline with no hedgerows still renders a full Hedgerows section reading `N/A` / `0.00 units` / no status tag. Treat a test asserting three sections as documenting current behaviour, not confirming the design.
-- **The three section headings are styled as links but are not links.** `.app-unit-type-summary__heading` (`src/client/stylesheets/components/_unit-type-summary.scss`) sets `color: $govuk-link-colour` and an underline, so "Area habitats" / "Hedgerows" / "Watercourses" render blue and underlined while carrying no `href` — presumably anticipating the drill-down tickets. The ticket's "text only for this first implementation (not a link)" is met in markup; only the styling deviates. Raised from the BMD-870 manual AC validation (2026-08-17).
+- ~~**Empty sections are not hidden.**~~ **Resolved by BMD-854 (PR#237, 2026-08-25.)** `buildProjectSummary` now filters `unitTypes` on a `visible` flag before rendering: area habitats is always visible, hedgerows and watercourses only when `projectHasHabitatData(project, type)` finds a non-empty array on **either** the baseline or the post-intervention document. A baseline with no hedgerows renders **two** sections, not three. **Any test asserting a fixed three sections now fails**, and the empty-section values it used to assert (`N/A` / `0.00 units` / no tag) are no longer reachable this way.
+- ~~**The three section headings are styled as links but are not links.**~~ **Resolved by BMD-854.** They are now real `<a class="govuk-link">` elements inside the `<h2>`, pointing at each unit type's drill-down page.
 - **The post-intervention link is not post-intervention-specific.** Its text says "Upload on-site post intervention file" but its href is the generic file-type selection page (Step 3), where the user could equally pick baseline.
 - **The post-intervention tile heading is spelled two ways.** Without post-intervention data it reads "On-site post intervention"; with it, "On-site post-**intervention**" (hyphenated) — `buildUnitSummary` picks the heading per variant (`project-summary/controller.js`). Nothing else on the page hyphenates it, and the baseline tile's counterpart wording does not change. A test that looks a tile up by its heading must use the right spelling for the variant under test, or it fails as a missing element rather than a wrong value. Raised from the BMD-852 source analysis (2026-08-18).

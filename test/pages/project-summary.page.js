@@ -1,7 +1,12 @@
+import { readTileUnits, readTileValue } from '@utils/tile-value.js'
+
 import { BasePage } from './base.page.js'
 
 const UPLOAD_POST_INTERVENTION_TEXT = 'Upload on-site post intervention file'
 const VIEW_ON_SITE_BASELINE_TEXT = 'View on-site baseline'
+// BMD-857: the area-habitats baseline tile is the only one that links, and the
+// only one whose wording says "area". Its href is the area baseline page.
+const VIEW_ON_SITE_AREA_BASELINE_TEXT = 'View on-site area baseline'
 
 /**
  * The project summary (`/projects/{id}/project-summary`, BMD-870) — the landing
@@ -77,39 +82,38 @@ export class ProjectSummaryPage extends BasePage {
     })
   }
 
+  /**
+   * The area-habitats baseline tile's link to the area baseline page (BMD-857).
+   * Every other unit type keeps the inert `viewOnSiteBaselineText` below.
+   */
+  viewOnSiteAreaBaselineLink(label) {
+    return this.unitSection(label).getByRole('link', {
+      name: VIEW_ON_SITE_AREA_BASELINE_TEXT
+    })
+  }
+
+  /** A unit-type section heading rendered as a link to its drill-down page. */
+  sectionHeadingLink(label) {
+    return this.sectionHeading(label).getByRole('link', { name: label })
+  }
+
   navItem(text) {
     return this.navigation.getByText(text, { exact: true })
   }
 
-  /**
-   * The value rendered directly beneath a tile heading within a section, e.g.
-   * tileValue('Hedgerows', 'On-site baseline') → '4.50 units'.
-   *
-   * The tiles carry no role, so the section's rendered text is split into lines
-   * and the line after the heading is returned. That keeps the lookup off CSS
-   * selectors while still being anchored to the visible heading rather than to
-   * a positional index.
-   */
-  async tileValue(sectionLabel, tileHeading) {
-    const text = await this.unitSection(sectionLabel).innerText()
-    const lines = text
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean)
-    const headingIndex = lines.indexOf(tileHeading)
-
-    if (headingIndex === -1 || headingIndex === lines.length - 1) {
-      throw new Error(
-        `No value found under "${tileHeading}" in the "${sectionLabel}" section. Rendered lines: ${JSON.stringify(lines)}`
-      )
-    }
-
-    return lines[headingIndex + 1]
+  tileValue(sectionLabel, tileHeading) {
+    return readTileValue(
+      this.unitSection(sectionLabel),
+      tileHeading,
+      sectionLabel
+    )
   }
 
-  /** The numeric part of a "N.NN units" tile value. */
-  async tileUnits(sectionLabel, tileHeading) {
-    const value = await this.tileValue(sectionLabel, tileHeading)
-    return Number(value.replace(' units', ''))
+  tileUnits(sectionLabel, tileHeading) {
+    return readTileUnits(
+      this.unitSection(sectionLabel),
+      tileHeading,
+      sectionLabel
+    )
   }
 }
