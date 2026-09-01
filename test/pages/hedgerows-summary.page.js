@@ -1,7 +1,5 @@
 import { UnitTypeSummaryPage } from './unit-type-summary.page.js'
-
-const HEDGEROWS = 'Hedgerows'
-const VIEW_ON_SITE_BASELINE_TEXT = 'View on-site baseline'
+import { HEDGEROWS, VIEW_ON_SITE_BASELINE } from '@utils/unit-type-labels.js'
 
 /**
  * The hedgerows summary (`/projects/{id}/hedgerows-summary`, BMD-855/BMD-919).
@@ -18,14 +16,14 @@ export class HedgerowsSummaryPage extends UnitTypeSummaryPage {
 
   /** The inert baseline text. There is no hedgerow baseline page to link to. */
   viewOnSiteBaselineText() {
-    return this.unitSection().getByText(VIEW_ON_SITE_BASELINE_TEXT, {
+    return this.unitSection().getByText(VIEW_ON_SITE_BASELINE, {
       exact: true
     })
   }
 
   baselineAction() {
     return this.unitSection().getByRole('link', {
-      name: VIEW_ON_SITE_BASELINE_TEXT
+      name: VIEW_ON_SITE_BASELINE
     })
   }
 }

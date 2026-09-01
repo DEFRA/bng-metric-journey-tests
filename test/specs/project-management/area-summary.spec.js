@@ -2,16 +2,17 @@ import { test, expect } from '@fixtures'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import { getBaselineOnlyProject } from '@utils/summary-projects.js'
+import {
+  AREA_HABITATS,
+  BASELINE_NAV_CHILD,
+  HEDGEROWS,
+  SUMMARY,
+  TILE_BASELINE,
+  WATERCOURSES
+} from '@utils/unit-type-labels.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 
-const AREA_HABITATS = 'Area habitats'
-const SUMMARY = 'Summary'
-const WATERCOURSES = 'Watercourses'
-const HEDGEROWS = 'Hedgerows'
-const BASELINE = 'Baseline'
-
-const TILE_BASELINE = 'On-site baseline'
 const TARGET_PERCENTAGE = 'Target percentage net gain'
 const TARGET_UNITS_REQUIRED = 'Units required'
 const TARGET_UNIT_DEFICIT = 'Unit deficit'
@@ -230,10 +231,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
         await expect(areaBaselinePage.heading).toBeVisible()
         // The child is now the current item, and its parent keeps its link.
-        await expect(areaBaselinePage.navItem(BASELINE)).toHaveAttribute(
-          'aria-current',
-          'page'
-        )
+        await expect(
+          areaBaselinePage.navItem(BASELINE_NAV_CHILD)
+        ).toHaveAttribute('aria-current', 'page')
       })
     }
   )

@@ -1,3 +1,5 @@
+import { readTileUnits, readTileValue } from '@utils/tile-value.js'
+
 import { BasePage } from './base.page.js'
 
 /**
@@ -53,22 +55,8 @@ export class UnitTypeSummaryPage extends BasePage {
     return this.navigation.getByRole('link', { name: text })
   }
 
-  /** Value rendered directly beneath a tile heading, within a given region. */
-  async tileValueIn(region, tileHeading) {
-    const text = await region.innerText()
-    const lines = text
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean)
-    const headingIndex = lines.indexOf(tileHeading)
-
-    if (headingIndex === -1 || headingIndex === lines.length - 1) {
-      throw new Error(
-        `No value found under "${tileHeading}". Rendered lines: ${JSON.stringify(lines)}`
-      )
-    }
-
-    return lines[headingIndex + 1]
+  tileValueIn(region, tileHeading) {
+    return readTileValue(region, tileHeading)
   }
 
   tileValue(tileHeading) {
@@ -79,9 +67,7 @@ export class UnitTypeSummaryPage extends BasePage {
     return this.tileValueIn(this.targetsSection, tileHeading)
   }
 
-  /** The numeric part of a "N.NN units" tile value. */
-  async tileUnits(tileHeading) {
-    const value = await this.tileValue(tileHeading)
-    return Number(value.replace(' units', ''))
+  tileUnits(tileHeading) {
+    return readTileUnits(this.unitSection(), tileHeading)
   }
 }

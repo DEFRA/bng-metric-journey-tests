@@ -5,15 +5,16 @@ import {
   getBaselineOnlyProject,
   getHedgerowGainProject
 } from '@utils/summary-projects.js'
+import {
+  AREA_HABITATS,
+  BASELINE_NAV_CHILD,
+  HEDGEROWS,
+  SUMMARY,
+  TILE_BASELINE
+} from '@utils/unit-type-labels.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 
-const HEDGEROWS = 'Hedgerows'
-const AREA_HABITATS = 'Area habitats'
-const SUMMARY = 'Summary'
-const BASELINE_NAV_CHILD = 'Baseline'
-
-const TILE_BASELINE = 'On-site baseline'
 const TILE_NET_PERCENTAGE = 'Total on-site net percentage change'
 const TILE_POST_INTERVENTION = 'On-site post intervention'
 const TARGET_PERCENTAGE = 'Target percentage net gain'

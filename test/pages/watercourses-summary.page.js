@@ -1,6 +1,6 @@
 import { BasePage } from './base.page.js'
+import { WATERCOURSES } from '@utils/unit-type-labels.js'
 
-const WATERCOURSES = 'Watercourses'
 const UNDER_CONSTRUCTION_COPY =
   'The Watercourses summary page is under construction.'
 

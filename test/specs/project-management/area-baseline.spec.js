@@ -1,13 +1,14 @@
 import { test, expect } from '@fixtures'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { getBaselineOnlyProject } from '@utils/summary-projects.js'
+import { TILE_BASELINE } from '@utils/unit-type-labels.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 
-const TILE_BASELINE = 'On-site baseline'
 const UNITS_2DP = /^\d+\.\d{2}$/
 const HECTARES = /^\d+(\.\d+)?ha$/
 const FIXED_STRATEGIC_SIGNIFICANCE = 'Low (1)'
+const REF_SORT_LOCALE = 'en'
 
 // `Baseline - no hedgerows.gpkg` — 50 habitat parcels and 25 urban trees. The
 // counts are asserted rather than hardcoded blindly: the point of the test is
@@ -72,7 +73,11 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
         // Server-side ordering is by ref, ascending, across the combined list —
         // so the trees are interleaved by ref rather than appended.
-        expect(refs).toEqual([...refs].sort((a, b) => a.localeCompare(b)))
+        expect(refs).toEqual(
+          [...refs].sort((a, b) =>
+            a.localeCompare(b, REF_SORT_LOCALE, { numeric: true })
+          )
+        )
 
         // Folded in rather than paid for separately: the baseline action is
         // inert here (areaBaselineAction() with no href) because the page it

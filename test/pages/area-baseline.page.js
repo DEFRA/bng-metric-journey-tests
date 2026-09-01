@@ -1,7 +1,10 @@
-import { BasePage } from './base.page.js'
+import { readTileUnits, readTileValue } from '@utils/tile-value.js'
 
-const AREA_HABITATS = 'Area habitats'
-const VIEW_ON_SITE_AREA_BASELINE_TEXT = 'View on-site area baseline'
+import { BasePage } from './base.page.js'
+import {
+  AREA_HABITATS,
+  VIEW_ON_SITE_AREA_BASELINE
+} from '@utils/unit-type-labels.js'
 
 // Column order is fixed by COLUMNS in area-baseline/controller.js.
 const COLUMN = {
@@ -60,38 +63,17 @@ export class AreaBaselinePage extends BasePage {
    * user is already on the page it would point at.
    */
   viewOnSiteAreaBaselineText() {
-    return this.unitSection().getByText(VIEW_ON_SITE_AREA_BASELINE_TEXT, {
+    return this.unitSection().getByText(VIEW_ON_SITE_AREA_BASELINE, {
       exact: true
     })
   }
 
-  /**
-   * Value rendered directly beneath a tile heading in the unit summary. Tiles
-   * carry no role of their own (a heading followed by a paragraph), so the
-   * section text is split into lines and the line after the heading returned —
-   * same approach as ProjectSummaryPage.tileValue.
-   */
-  async tileValue(tileHeading) {
-    const text = await this.unitSection().innerText()
-    const lines = text
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean)
-    const headingIndex = lines.indexOf(tileHeading)
-
-    if (headingIndex === -1 || headingIndex === lines.length - 1) {
-      throw new Error(
-        `No value found under "${tileHeading}". Rendered lines: ${JSON.stringify(lines)}`
-      )
-    }
-
-    return lines[headingIndex + 1]
+  tileValue(tileHeading) {
+    return readTileValue(this.unitSection(), tileHeading)
   }
 
-  /** The numeric part of a "N.NN units" tile value. */
-  async tileUnits(tileHeading) {
-    const value = await this.tileValue(tileHeading)
-    return Number(value.replace(' units', ''))
+  tileUnits(tileHeading) {
+    return readTileUnits(this.unitSection(), tileHeading)
   }
 
   table() {
@@ -134,5 +116,3 @@ export class AreaBaselinePage extends BasePage {
     return this.table().getByRole('link', { name: reference, exact: true })
   }
 }
-
-export { COLUMN }

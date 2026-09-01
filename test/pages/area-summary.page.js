@@ -1,8 +1,9 @@
 import { UnitTypeSummaryPage } from './unit-type-summary.page.js'
-
-const AREA_HABITATS = 'Area habitats'
-const BASELINE_NAV_CHILD = 'Baseline'
-const VIEW_ON_SITE_AREA_BASELINE_TEXT = 'View on-site area baseline'
+import {
+  AREA_HABITATS,
+  BASELINE_NAV_CHILD,
+  VIEW_ON_SITE_AREA_BASELINE
+} from '@utils/unit-type-labels.js'
 
 /**
  * The area habitats summary (`/projects/{id}/area-summary`, BMD-854).
@@ -25,7 +26,7 @@ export class AreaSummaryPage extends UnitTypeSummaryPage {
 
   viewOnSiteAreaBaselineLink() {
     return this.unitSection().getByRole('link', {
-      name: VIEW_ON_SITE_AREA_BASELINE_TEXT
+      name: VIEW_ON_SITE_AREA_BASELINE
     })
   }
 }

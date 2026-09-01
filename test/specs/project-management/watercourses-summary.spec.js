@@ -1,13 +1,14 @@
 import { test, expect } from '@fixtures'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { getAllUnitTypesProject } from '@utils/summary-projects.js'
+import {
+  AREA_HABITATS,
+  BASELINE_NAV_CHILD,
+  HEDGEROWS,
+  WATERCOURSES
+} from '@utils/unit-type-labels.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
-
-const WATERCOURSES = 'Watercourses'
-const HEDGEROWS = 'Hedgerows'
-const AREA_HABITATS = 'Area habitats'
-const BASELINE_NAV_CHILD = 'Baseline'
 
 // The watercourses page is still the shared placeholder. These tests assert it
 // FOR WHAT IT IS rather than skipping the page entirely, for the same reason
