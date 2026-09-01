@@ -40,6 +40,14 @@ export const ALL_UNIT_TYPES_FILE =
 export const HEDGEROWS_PI_FILE =
   'Post-intervention - complete with hedgerows.gpkg'
 
+// A baseline with 16 hedgerows and NO rivers, paired below with a
+// post-intervention file that has watercourses — the watercourse equivalent of
+// the hedgerow pairing above, and the only route to BMD-897's
+// post-intervention-only variant for that unit type.
+export const NO_WATERCOURSES_FILE = 'Baseline - no watercourses.gpkg'
+export const WATERCOURSES_PI_FILE =
+  'Post-intervention - complete with watercourses.gpkg'
+
 const UPLOAD_TIMEOUT = 120_000
 
 async function buildBaselineOnlyProject(browser, file) {
@@ -120,6 +128,22 @@ export function getAllUnitTypesProject(browser) {
 export function getHedgerowGainProject(browser) {
   return getOrBuildProject(HEDGEROWS_PI_FILE, () =>
     buildPostInterventionProject(browser, NO_HEDGEROWS_FILE, HEDGEROWS_PI_FILE)
+  )
+}
+
+/**
+ * A project whose watercourses exist ONLY post-intervention. Mirrors
+ * getHedgerowGainProject for the other linear unit type — each controller
+ * passes its own habitat-type string to hasPostInterventionOnlyHabitat, so a
+ * witness for one does not cover the other.
+ */
+export function getWatercourseGainProject(browser) {
+  return getOrBuildProject(WATERCOURSES_PI_FILE, () =>
+    buildPostInterventionProject(
+      browser,
+      NO_WATERCOURSES_FILE,
+      WATERCOURSES_PI_FILE
+    )
   )
 }
 

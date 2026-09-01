@@ -2,34 +2,32 @@
 
 ## Overview
 
-The watercourses drill-down. The route, the auth, the no-baseline guard and the left-hand navigation are all live, but the page itself is still the shared **placeholder** — it renders an "under construction" line where the results and targets belong.
+The watercourse equivalent of the [area habitats summary](area-summary.flow.md) and the [hedgerows summary](hedgerows-summary.flow.md): one unit type's units in isolation, plus the net-gain targets it has to meet. Reached from the left-hand unit-type navigation, which only offers it when the project actually has watercourse data.
 
-The route arrived with **BMD-854** (frontend PR#237, 2026-08-25) alongside a hedgerows placeholder. **BMD-855 / BMD-919** (PR#249, 2026-08-28) then built the real hedgerows page and left this one behind, so the two linear unit types are **no longer symmetrical**: `/hedgerows-summary` renders results and targets, `/watercourses-summary` does not. See [`hedgerows-summary.flow.md`](hedgerows-summary.flow.md).
+**Was a placeholder until 2026-09-01.** BMD-854 (PR#237, 2026-08-25) added the route with a shared "under construction" controller for both linear types. BMD-855/BMD-919 (PR#249, 08-28) built the real hedgerows page and left this one behind, so for four days the two linear types were not symmetrical. **BMD-856/BMD-921** (PR#250, 2026-09-01) closed that gap — the shared `createUnitSummaryPlaceholderController` now has no callers in the frontend, which the service team may want to remove.
+
+That PR also lifted `buildTargetsSummary` out of the area and hedgerow controllers into the shared `unit-summary.js`; all three unit types now compute their targets through one function.
 
 ## Steps
 
-### Step 1 — View the watercourses placeholder `[IMPLEMENTED]`
-
-Marked `[IMPLEMENTED]` rather than `[PLANNED]` because the route, the role check, the redirect guard, the navigation and the placeholder copy are all real and testable today. Only the results content is missing — tracked separately below.
+### Step 1 — View watercourses summary `[IMPLEMENTED]`
 
 - **Route:** `GET /projects/{id}/watercourses-summary`
-- **Template:** `src/server/common/templates/unit-summary-placeholder.njk` — **shared**, not a `watercourses-summary/index.njk`. The route directory contains no template of its own.
+- **Template:** `src/server/watercourses-summary/index.njk` (extends `common/templates/unit-type-page.njk`)
 - **Auth required:** Yes — active session + an **approved (status 3)** `bng completer` role (`requireBngCompleterRole` pre-method)
 - **Backend endpoint:** `GET /projects/{id}` (via `fetchProjectOrThrow`)
-- **Description:** The controller is `createUnitSummaryPlaceholderController({ label: 'Watercourses', current: 'Watercourses', summaryPath: 'watercourses-summary' })` from `src/server/common/helpers/unit-summary-placeholder-controller.js`. It fetches the project, applies the same baseline guard as every other unit-type page, and renders the placeholder.
+- **Description:** Renders the watercourses view of a project that has a baseline. Layout, navigation, Results and Targets are identical to [`hedgerows-summary.flow.md`](hedgerows-summary.flow.md) Step 1 — the same `unit-type-page.njk` shell, the same `appUnitTypeSummary` and `appTargetsSummary` macros, and the same conditional navigation.
 
-  The page has the same wide two-column shell as the real pages — one-sixth navigation, five-sixths main — but the main column holds only:
+  **Navigation edge case**, as for hedgerows: the Watercourses nav item is conditional on `projectHasHabitatData(project, 'watercourses')`, but the **route is not**. A project with no watercourse data still renders this page on a direct URL, showing zeroes, with nothing in the nav marked current.
 
-  - project name as a `govuk-caption-l`
-  - `<h1 class="govuk-heading-xl">Watercourses</h1>`
-  - `<p class="govuk-body">The Watercourses summary page is under construction.</p>`
+  As on every drill-down page the unit summary section carries **no `<h2>`** (no `headingHref`), so it is reachable by `aria-label="Watercourses"`.
 
-  **There is no "Upload file" button** on the placeholder — `unit-summary-placeholder.njk` extends `layouts/page.njk` directly, not `unit-type-page.njk`, so it inherits neither the heading row's button nor the `unitTypeBody` block. That is the clearest signal distinguishing a placeholder page from a real one.
+  The baseline tile passes **no `baselineAction`** — no watercourse baseline page exists — so it falls back to the shared inert default "View on-site baseline", without the word "area" the linked area variant carries.
 
-  **Left navigation** — identical construction to the other unit-type pages (`buildUnitTypeNavigation`), with **Watercourses** as the current item. Area habitats renders collapsed. The Watercourses nav item is conditional on `projectHasHabitatData(project, 'watercourses')`, while the route is not — so on a direct URL to a project with no watercourse data the page still renders and no nav item is marked current.
-
+- **Post-intervention-only watercourses (BMD-897) `[IMPLEMENTED]`:** when watercourses exist in `postIntervention` but not in `baseline`, `hasPostInterventionOnlyHabitat(project, 'watercourses')` is true and the summary changes shape exactly as documented for hedgerows — `Not applicable` percentage, no status tag, no baseline action, and the unhyphenated post-intervention heading.
+- **Unit sourcing:** baseline is `normaliseUnits(project.baseline.units.watercoursesTotal)`. Post-intervention reads `watercoursesTotal`, `watercoursesNetUnitChange` and `watercoursesNetUnitChangePercentage` from `project.postIntervention.units`; the frontend computes none of them.
 - **Validation:** `id` path param must be a valid uuidv4 (Joi); invalid → Hapi 400
-- **On success:** Renders `common/templates/unit-summary-placeholder` with page title "Watercourses - {serviceName}"
+- **On success:** Renders `watercourses-summary/index` with page title "Watercourses - {serviceName}"
 - **On error:** As [`area-summary.flow.md`](area-summary.flow.md) Step 1 — no-baseline redirect, 404, 502, session-expired
 
 ---
@@ -40,51 +38,36 @@ Marked `[IMPLEMENTED]` rather than `[PLANNED]` because the route, the role check
 - **Template:** None (302)
 - **Auth required:** Yes — as Step 1
 - **Backend endpoint:** `GET /projects/{id}`
-- **Description:** `hasBaselineData(project)` false → redirect. The guard runs **before** the placeholder renders, so it is genuinely exercised despite the page having no content of its own.
+- **Description:** `hasBaselineData(project)` false → redirect. Guards on **any** baseline, not on watercourse data specifically.
 - **Validation:** As Step 1
 - **On success:** 302 to `/add-project-details/{id}`
 - **On error:** As Step 1
 
 ---
 
-### Step 3 — Watercourse results and targets `[PLANNED]`
-
-- **Route:** `GET /projects/{id}/watercourses-summary`
-- **Template:** Unknown — presumably a `watercourses-summary/index.njk` extending `unit-type-page.njk`, mirroring hedgerows
-- **Auth required:** Yes — as Step 1
-- **Backend endpoint:** `GET /projects/{id}`
-- **Description:** The unit summary and targets sections the placeholder stands in for. The backend already supplies everything needed — `watercoursesTotal`, `watercoursesNetUnitChange` and `watercoursesNetUnitChangePercentage` are all present on `project.baseline.units` / `project.postIntervention.units` and are already consumed by the project summary — so this is frontend-only work. Expect it to mirror [`hedgerows-summary.flow.md`](hedgerows-summary.flow.md) Step 1 exactly, including the BMD-897 post-intervention-only variant.
-- **Validation:** Unknown
-- **On success:** Unknown
-- **On error:** Unknown
-
----
-
-## Entry points
-
-| From                                             | Href                                  | When                                       |
-| ------------------------------------------------ | ------------------------------------- | ------------------------------------------ |
-| Project summary nav                              | `/projects/{id}/watercourses-summary` | only when the project has watercourse data |
-| Project summary — "Watercourses" section heading | `/projects/{id}/watercourses-summary` | only when the Watercourses section renders |
-| Any unit-type page nav                           | `/projects/{id}/watercourses-summary` | same condition                             |
-
----
-
 ## Journey coverage
 
-Added 2026-09-01 — `test/specs/project-management/watercourses-summary.spec.js` (2 tests, domain tag `@project-management`).
+Rewritten 2026-09-01 — `test/specs/project-management/watercourses-summary.spec.js` (4 tests, domain tag `@project-management`).
 
-The placeholder is asserted **for what it is** rather than skipped, for the same reason `project-summary.spec.js` pins its deferred elements: when Step 3 ships, these fail immediately and are rewritten, instead of the placeholder quietly surviving behind a skip nobody revisits.
+**The placeholder tests earned their keep.** They asserted the "under construction" copy and the absence of the upload button, Results heading and Targets section, on the reasoning that "when the real page ships these fail immediately and are rewritten, instead of the placeholder surviving behind a skip nobody revisits". BMD-856 shipped hours later and the first CI run failed on exactly that assertion. Worth remembering the next time a placeholder tempts a `test.skip`.
 
-| Test                                          | Covers                                                                                                                                                                                                                                                           |
-| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Renders the placeholder, not a unit-type page | the "under construction" copy **and** the absence of the Upload file button, Results heading and Targets section — the structural tells that it extends `layouts/page.njk` rather than `unit-type-page.njk`. The copy alone could survive a half-built real page |
-| Reachable from the project summary            | the nav, the current-item marking and the collapsed area section — the only genuinely finished parts of this route                                                                                                                                               |
+As with hedgerows, the tests do not re-assert the shared layout or nav mechanics — `area-summary.spec.js` witnesses those. Covered here:
 
-No results or targets assertions exist, by design. Guard, auth, role and uuid validation are covered by the shared reasoning recorded in [`area-summary.flow.md`](area-summary.flow.md).
+| Test                                         | Why it is not covered elsewhere                                                                                                       |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Watercourse figures and targets              | reads `watercoursesTotal`, a third distinct backend field                                                                             |
+| Inert baseline tile                          | no watercourse baseline page exists                                                                                                   |
+| Watercourses current, area section collapsed | the collapse case for this unit type                                                                                                  |
+| Post-intervention-only variant               | `hasPostInterventionOnlyHabitat` is called with this page's own habitat-type argument — hedgerows' witness does not cover a typo here |
+
+The post-intervention-only test needs a baseline with no watercourses plus a post-intervention file that has them — `getWatercourseGainProject` in `@utils/summary-projects.js`.
 
 ---
 
-## Testing note
+## Deferred elements
 
-Assert the placeholder for what it is — the `<h1>`, the "under construction" sentence, the navigation state and the guard redirect. Do **not** write assertions for the results or targets tiles: they will need rewriting rather than un-skipping when Step 3 lands, and a skipped placeholder test is easy to overlook. When the real page ships, this doc's Step 1 and Step 3 merge into one.
+| Element                          | Current state                                        | Marker      |
+| -------------------------------- | ---------------------------------------------------- | ----------- |
+| "View trading rules"             | inert `<span>` in the Trading Rules tile             | `[PLANNED]` |
+| "View on-site baseline"          | inert `<span>` — no watercourse baseline page exists | `[PLANNED]` |
+| "View on-site post intervention" | inert `<span>` once post-intervention exists         | `[PLANNED]` |
