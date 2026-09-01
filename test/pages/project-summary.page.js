@@ -2,6 +2,9 @@ import { BasePage } from './base.page.js'
 
 const UPLOAD_POST_INTERVENTION_TEXT = 'Upload on-site post intervention file'
 const VIEW_ON_SITE_BASELINE_TEXT = 'View on-site baseline'
+// BMD-857: the area-habitats baseline tile is the only one that links, and the
+// only one whose wording says "area". Its href is the area baseline page.
+const VIEW_ON_SITE_AREA_BASELINE_TEXT = 'View on-site area baseline'
 
 /**
  * The project summary (`/projects/{id}/project-summary`, BMD-870) — the landing
@@ -75,6 +78,21 @@ export class ProjectSummaryPage extends BasePage {
     return this.unitSection(label).getByText(VIEW_ON_SITE_BASELINE_TEXT, {
       exact: true
     })
+  }
+
+  /**
+   * The area-habitats baseline tile's link to the area baseline page (BMD-857).
+   * Every other unit type keeps the inert `viewOnSiteBaselineText` below.
+   */
+  viewOnSiteAreaBaselineLink(label) {
+    return this.unitSection(label).getByRole('link', {
+      name: VIEW_ON_SITE_AREA_BASELINE_TEXT
+    })
+  }
+
+  /** A unit-type section heading rendered as a link to its drill-down page. */
+  sectionHeadingLink(label) {
+    return this.sectionHeading(label).getByRole('link', { name: label })
   }
 
   navItem(text) {

@@ -28,8 +28,22 @@ const REPLACED_HEDGEROW_REF = 'HR3'
 const BASELINE_HEDGEROW_REF = 'HR1'
 const NO_HEDGEROW_DATA_COPY = 'No hedgerow data uploaded.'
 const TASK_POST_INTERVENTION = 'On-site post intervention habitats'
-const STRUCTURAL_ERROR_FILE =
-  'Post-intervention (missing data) - fails validation.gpkg'
+// REMOVED 2026-09-01: STRUCTURAL_ERROR_FILE / the 'structural validation
+// errors' describe. The fixture was
+// 'Post-intervention (missing data) - fails validation.gpkg', a rename of the
+// harness file 'Post-intervention - missing proposed habitat data.gpkg'
+// (identical md5) — and the rename introduced the PARENTHESES that were doing
+// all the rejecting. The backend gates the filename on SAFE_FILENAME_RE before
+// reading a byte of content, and '(' was not in the whitelist. BMD-958
+// (backend PR#280) added '()' so names like 'survey (1).gpkg' work; the name
+// then passed, the content was validated for the first time, and it turned out
+// to be VALID — the upload was accepted and persisted. The test had never once
+// exercised content validation.
+//
+// Its assertions are all covered by the 'content validation errors' cases
+// below, whose three single-layout fixtures each produce exactly one unmapped
+// error and the same catch-all copy. Its two unique assertions (the PR#175
+// negatives) were folded into that runner's single-error branch.
 const FORMAT_ERROR_FILE = 'Not a valid geopackage.gpkg'
 const FORMAT_ERROR_MESSAGE = 'The selected file must be a GeoPackage (.gpkg)'
 const ERROR_SUMMARY_TITLE = 'There is a problem'
@@ -319,49 +333,6 @@ async function uploadToErrorFile(fixtures, fixture) {
   return id
 }
 
-function describeStructuralErrors() {
-  test.describe(
-    'Upload post-intervention — structural validation errors',
-    { tag: '@regression' },
-    () => {
-      // The fixture surfaces exactly one schema error, so the BMD-405
-      // single-error catch-all page renders; its inline upload link must
-      // target the post-intervention route (validationUploadType routing).
-      test('uploading a .gpkg file with content errors shows the post-intervention error-file page', async ({
-        createProjectFlow,
-        projectDashboardPage,
-        uploadPostInterventionFileFlow,
-        errorFilePage,
-        page
-      }) => {
-        const id = await uploadToErrorFile(
-          {
-            createProjectFlow,
-            projectDashboardPage,
-            uploadPostInterventionFileFlow,
-            page
-          },
-          STRUCTURAL_ERROR_FILE
-        )
-
-        await expect(errorFilePage.geopackageErrorHeading).toBeVisible()
-        await expect(errorFilePage.errorSummary).not.toBeVisible()
-        await expect(
-          page.getByText(NATURAL_ENGLAND_MISMATCH_COPY)
-        ).toBeVisible()
-        await expect(errorFilePage.uploadNewFileLink).toHaveAttribute(
-          'href',
-          `/projects/${id}/upload-post-intervention-file`
-        )
-        // QA fix (frontend PR#175): the single-error layout no longer shows
-        // the "Upload a different file" button or "Back to project" link.
-        await expect(errorFilePage.uploadDifferentFileLink).not.toBeVisible()
-        await expect(errorFilePage.backToProjectLink).not.toBeVisible()
-      })
-    }
-  )
-}
-
 // ─── Content validation errors (structure + data quality) ────────────────────
 
 function describeContentValidationErrors() {
@@ -397,12 +368,21 @@ function describeContentValidationErrors() {
       expected: NATURAL_ENGLAND_MISMATCH_COPY
     },
     {
-      // Sole witness for the wrong-geometry-type branch, and the only test that
-      // pins its multi-error rendering ("Zero red line boundaries in GeoPackage").
+      // Sole witness for the wrong-geometry-type branch.
+      //
+      // Was `layout: 'multi'` expecting "Zero red line boundaries in
+      // GeoPackage (expecting one)" alongside the type mismatch. BMD-910
+      // (backend PR#268, 2026-08-20) rewrote the parse layer into a
+      // single-pass reader whose geometry counting depends on the layer
+      // opening successfully — so once gpkg_geometry_columns registers the
+      // wrong type, the polygon-count gate never runs and only the root-cause
+      // mismatch is reported. The file is still rejected; what changed is that
+      // the derived "zero boundaries" consequence no longer piles on, which
+      // drops the page from the multi-error layout to the single-error one.
       name: 'a Red Line Boundary layer with the wrong geometry type',
       file: RLB_WRONG_GEOMETRY_FILE,
-      layout: 'multi',
-      expected: 'Zero red line boundaries in GeoPackage (expecting one)'
+      layout: 'single',
+      expected: NATURAL_ENGLAND_MISMATCH_COPY
     },
     {
       // BMD-883: the statutory metric rejects a habitat that sets both advance
@@ -446,10 +426,21 @@ function describeContentValidationErrors() {
           if (layout === 'single') {
             await expect(errorFilePage.geopackageErrorHeading).toBeVisible()
             await expect(errorFilePage.errorSummary).not.toBeVisible()
+            // The inline upload link must target the POST-INTERVENTION route,
+            // not the baseline one — this is the validationUploadType routing.
             await expect(errorFilePage.uploadNewFileLink).toHaveAttribute(
               'href',
               `/projects/${id}/upload-post-intervention-file`
             )
+            // QA fix (frontend PR#175): the single-error layout no longer
+            // shows the "Upload a different file" button or the "Back to
+            // project" link. Folded in here on 2026-09-01 from the deleted
+            // 'structural validation errors' describe — see the note by
+            // STRUCTURAL_ERROR_FILE's removal below.
+            await expect(
+              errorFilePage.uploadDifferentFileLink
+            ).not.toBeVisible()
+            await expect(errorFilePage.backToProjectLink).not.toBeVisible()
           } else {
             await expect(
               errorFilePage.postInterventionRejectedHeading
@@ -655,7 +646,6 @@ test.describe(
     describePostInterventionReplacement()
     describeNoPendingUpload()
     describeFormatError()
-    describeStructuralErrors()
     describeContentValidationErrors()
     describeDistinctivenessError()
     describeCrossUserAccess()

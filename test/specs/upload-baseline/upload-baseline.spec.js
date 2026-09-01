@@ -681,8 +681,18 @@ function describeFieldValidation() {
       }
 
       // This fixture's incorrect habitat geometry surfaces as a geometry-column
-      // schema mismatch, so the readable area parcels come back empty — the page
-      // reports "Zero area habitat parcels" alongside the "baseline mismatch".
+      // schema mismatch.
+      //
+      // It used to report "Zero area habitat parcels" alongside the "baseline
+      // mismatch": the readable area parcels came back empty, so the
+      // parcel-count gate fired too. BMD-910 (backend PR#268, 2026-08-20)
+      // rewrote the parse layer into a single-pass reader whose geometry
+      // counting depends on the layer opening successfully, so a
+      // geometry-column mismatch now short-circuits before that gate runs and
+      // only the root-cause mismatch is reported. The file is still rejected —
+      // what went away is the derived consequence, not the rejection. Same
+      // change as the RLB wrong-geometry-type case in
+      // test/specs/upload-post-intervention/upload-post-intervention.spec.js.
       test('rejects a habitats layer with incorrect geometry', async ({
         createProjectFlow,
         projectDashboardPage,
@@ -699,7 +709,7 @@ function describeFieldValidation() {
             page
           },
           'Baseline - habitats with incorrect geometry.gpkg',
-          'Zero area habitat parcels in GeoPackage'
+          'Layer "Habitats" baseline mismatch'
         )
       })
 

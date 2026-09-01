@@ -11,11 +11,14 @@ import {
 } from '@utils/access-checks.js'
 import { setupProject } from '@utils/project-helpers.js'
 import { createProjectCache } from '@utils/shared-project.js'
+import {
+  ALL_UNIT_TYPES_FILE,
+  buildPostInterventionProject,
+  getAllUnitTypesProject,
+  getBaselineOnlyProject,
+  getHedgerowGainProject
+} from '@utils/summary-projects.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
-import { CreateProjectFlow } from '@flows/project-management/create-project.flow.js'
-import { UploadBaselineFileFlow } from '@flows/upload-baseline/upload-baseline-file.flow.js'
-import { UploadPostInterventionFileFlow } from '@flows/upload-post-intervention/upload-post-intervention-file.flow.js'
-import { ProjectDashboardPage } from '@pages/project-dashboard.page.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const PROJECT_LABEL = 'Project summary test'
@@ -30,11 +33,17 @@ const HEDGEROWS = 'Hedgerows'
 const WATERCOURSES = 'Watercourses'
 const UNIT_TYPES = [AREA_HABITATS, HEDGEROWS, WATERCOURSES]
 
-// The left-hand navigation labels its area entry "Area Habitats" while the
-// section heading below it reads "Area habitats". Deliberately spelled out
-// rather than reusing UNIT_TYPES, so the casing mismatch is visible here
-// instead of surfacing as a confusing locator miss.
-const NAV_ITEMS = ['Area Habitats', HEDGEROWS, WATERCOURSES]
+// BMD-854 made the unit-type sections conditional on the project having data
+// for that type. `Baseline - no hedgerows.gpkg` has 50 habitats, 25 urban trees
+// and 3 rivers but an EMPTY Hedgerows layer, so every describe built on
+// `getBaselineOnlyProject` sees these two sections and no Hedgerows one.
+const BASELINE_ONLY_UNIT_TYPES = [AREA_HABITATS, WATERCOURSES]
+
+// BMD-854 also removed the old casing mismatch: the navigation used to label
+// its area entry "Area Habitats" while the section heading read "Area
+// habitats". `buildUnitTypeNavigation` now shares the section's constant, so
+// both read "Area habitats" — which is why the nav assertions below reuse the
+// section labels directly rather than keeping a separate NAV_ITEMS list.
 
 const ZERO_UNITS = '0.00 units'
 const UNITS_2DP = /^\d+\.\d{2} units$/
@@ -53,7 +62,11 @@ const TILE_TRADING_RULES = 'Trading Rules'
 const VIEW_TRADING_RULES = 'View trading rules'
 const VIEW_ON_SITE_BASELINE = 'View on-site baseline'
 const VIEW_ON_SITE_POST_INTERVENTION = 'View on-site post intervention'
-const NOT_APPLICABLE = 'N/A'
+// BMD-897 (frontend PR#238, 2026-08-25): a unit type present ONLY in the
+// post-intervention document has no baseline to divide by, so its percentage
+// tile reads this literal rather than the non-finite "N/A" — and its baseline
+// tile drops its action line entirely.
+const POST_INTERVENTION_ONLY_PERCENTAGE = 'Not applicable'
 const NET_PERCENTAGE_NOT_MET = '-100.00%'
 // The ticket specifies the "Not met" status as having a red background; the
 // GOV.UK red tag modifier is what paints it.
@@ -64,13 +77,14 @@ const GREEN_TAG_CLASS = /govuk-tag--green/
 // trees, which is what makes the treesTotal assertion below possible) and
 // watercourses, but no hedgerow features. One upload therefore covers both the
 // populated-section and the zero-unit-section rendering.
-const NO_HEDGEROWS_FILE = 'Baseline - no hedgerows.gpkg'
+// NO_HEDGEROWS_FILE and its builder now live in @utils/summary-projects.js so
+// the unit-type drill-down specs share this project rather than each paying for
+// their own upload.
 
 // The counterpart fixture: the only shipped baseline that populates all three
 // unit types at once (120 Habitats, 60 Urban Trees, 40 Hedgerows, 8 Rivers).
 // It is what gives the *populated* Hedgerows section a real-data witness, which
 // NO_HEDGEROWS_FILE by definition cannot.
-const ALL_UNIT_TYPES_FILE = 'Baseline - all unit and intervention types.gpkg'
 
 // BMD-852 post-intervention pairs. The all-types pair is the ticket's stated
 // scenario — baseline *and* post-intervention data for every habitat type — and
@@ -82,7 +96,6 @@ const ALL_UNIT_TYPES_PI_FILE =
 // hedgerows at all, the post-intervention file does. Because the baseline is
 // zero the backend's percentage is non-finite, which is what drives the "N/A"
 // branch — see the zero-baseline describe below.
-const HEDGEROWS_PI_FILE = 'Post-intervention - complete with hedgerows.gpkg'
 
 // BMD-852 net-gain pairs, copied from bng-metric-harness
 // example-files/permutations/. The harness generator prices each pair through
@@ -110,67 +123,7 @@ const NET_GAIN_TARGET_PERCENTAGE = 10
 // slowest and flakiest step we have, and concurrent uploads clobber the single
 // pendingUploadId yar key, so the project is built once per worker and the file
 // runs serially. See "Sharing uploads in read-only specs" in AGENTS.md.
-async function buildBaselineOnlyProject(browser, file) {
-  const context = await browser.newContext({
-    storageState: STORAGE_STATE,
-    baseURL: baseUrl
-  })
-  const page = await context.newPage()
-  try {
-    const { id, name } = await setupProject(
-      new CreateProjectFlow(page),
-      new ProjectDashboardPage(page),
-      PROJECT_LABEL
-    )
-    await new UploadBaselineFileFlow(page).uploadFileAndWaitForSummary(id, file)
-    return { id, name }
-  } finally {
-    await context.close()
-  }
-}
-
 const getOrBuildProject = createProjectCache()
-
-function getBaselineOnlyProject(browser) {
-  return getOrBuildProject(NO_HEDGEROWS_FILE, () =>
-    buildBaselineOnlyProject(browser, NO_HEDGEROWS_FILE)
-  )
-}
-
-function getAllUnitTypesProject(browser) {
-  return getOrBuildProject(ALL_UNIT_TYPES_FILE, () =>
-    buildBaselineOnlyProject(browser, ALL_UNIT_TYPES_FILE)
-  )
-}
-
-// BMD-852. Two uploads rather than one, so these are shared even harder than
-// the baseline-only projects: one build per fixture pair, per worker.
-async function buildPostInterventionProject(browser, baselineFile, piFile) {
-  const context = await browser.newContext({
-    storageState: STORAGE_STATE,
-    baseURL: baseUrl
-  })
-  const page = await context.newPage()
-  try {
-    const { id, name } = await setupProject(
-      new CreateProjectFlow(page),
-      new ProjectDashboardPage(page),
-      PROJECT_LABEL
-    )
-    await new UploadBaselineFileFlow(page).uploadFileAndWaitForSummary(
-      id,
-      baselineFile
-    )
-    await new UploadPostInterventionFileFlow(page).uploadFile(id, piFile)
-    await page.waitForURL(
-      new RegExp(`/projects/${id}/post-intervention-habitat-list`),
-      { timeout: UPLOAD_TIMEOUT }
-    )
-    return { id, name }
-  } finally {
-    await context.close()
-  }
-}
 
 function getPostInterventionProject(browser) {
   return getOrBuildProject(ALL_UNIT_TYPES_PI_FILE, () =>
@@ -179,12 +132,6 @@ function getPostInterventionProject(browser) {
       ALL_UNIT_TYPES_FILE,
       ALL_UNIT_TYPES_PI_FILE
     )
-  )
-}
-
-function getGainProject(browser) {
-  return getOrBuildProject(HEDGEROWS_PI_FILE, () =>
-    buildPostInterventionProject(browser, NO_HEDGEROWS_FILE, HEDGEROWS_PI_FILE)
   )
 }
 
@@ -292,8 +239,21 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       project = await getBaselineOnlyProject(browser)
     })
 
+    // BMD-854 (frontend PR#237, 2026-08-25) made the unit-type sections
+    // CONDITIONAL. `buildProjectSummary` filters on a `visible` flag: area
+    // habitats always renders, hedgerows and watercourses only when
+    // `projectHasHabitatData(project, type)` finds a non-empty array on the
+    // baseline or the post-intervention document. The same condition drives
+    // the left-hand navigation, so the nav is two to four items, not four.
+    //
+    // This fixture (`Baseline - no hedgerows.gpkg`) carries 50 habitats,
+    // 25 urban trees and 3 rivers but an EMPTY Hedgerows layer, so it is the
+    // witness for both branches at once — two sections present, one absent.
+    // Before BMD-854 all three rendered unconditionally and the absent one
+    // showed N/A / 0.00 units, which is why this test used to loop over all
+    // three; that state is no longer reachable this way.
     test(
-      'summary renders the project caption, heading, navigation and all three unit-type sections',
+      'summary renders the caption, heading and navigation, with a unit-type section only where the project has data',
       { tag: ['@smoke', '@happy-path'] },
       async ({ projectSummaryPage }) => {
         await projectSummaryPage.open(project.id)
@@ -303,15 +263,22 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expect(projectSummaryPage.uploadFileButton).toBeVisible()
         await expect(projectSummaryPage.navigation).toBeVisible()
         // "Summary" is the current page: rendered bold, as a <strong> carrying
-        // aria-current, rather than as one of the (still inert) siblings.
+        // aria-current, rather than as one of the sibling links.
         await expect(projectSummaryPage.currentNavItem).toHaveAttribute(
           'aria-current',
           'page'
         )
 
-        for (const label of UNIT_TYPES) {
+        for (const label of [AREA_HABITATS, WATERCOURSES]) {
           await expect(projectSummaryPage.sectionHeading(label)).toBeVisible()
+          await expect(projectSummaryPage.navItem(label)).toBeVisible()
         }
+
+        // The empty Hedgerows layer is dropped from both the page and the nav.
+        await expect(projectSummaryPage.sectionHeading(HEDGEROWS)).toHaveCount(
+          0
+        )
+        await expect(projectSummaryPage.navItem(HEDGEROWS)).toHaveCount(0)
       }
     )
 
@@ -357,7 +324,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       }) => {
         await projectSummaryPage.open(project.id)
 
-        for (const label of UNIT_TYPES) {
+        for (const label of BASELINE_ONLY_UNIT_TYPES) {
           const baseline = await projectSummaryPage.tileUnits(
             label,
             TILE_BASELINE
@@ -395,25 +362,19 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         }
       })
 
-      test('a unit type with no features shows N/A, zero units and no status tag', async ({
-        projectSummaryPage
-      }) => {
-        await projectSummaryPage.open(project.id)
-
-        // The fixture has no Hedgerows layer, so hedgerowsTotal is absent from
-        // the backend payload and normaliseUnits floors it to 0.
-        expect(
-          await projectSummaryPage.tileValue(HEDGEROWS, TILE_NET_PERCENTAGE)
-        ).toBe(NOT_APPLICABLE)
-        expect(
-          await projectSummaryPage.tileValue(HEDGEROWS, TILE_BASELINE)
-        ).toBe(ZERO_UNITS)
-        // Guards the explicit negative-zero branch: -0 must render as 0.00.
-        expect(
-          await projectSummaryPage.tileValue(HEDGEROWS, TILE_NET_UNIT_CHANGE)
-        ).toBe(ZERO_UNITS)
-        await expect(projectSummaryPage.statusTag(HEDGEROWS)).toHaveCount(0)
-      })
+      // REMOVED 2026-09-01: 'a unit type with no features shows N/A, zero units
+      // and no status tag'. BMD-854 (frontend PR#237) made the sections
+      // conditional, so a unit type with no features renders NO SECTION rather
+      // than a section full of zeroes — the N/A / 0.00 / no-tag state this
+      // asserted is unreachable through an empty unit type. The replacement
+      // coverage is in "Project summary — page content", which asserts the
+      // Hedgerows section and its nav item are both absent for this fixture.
+      //
+      // Do not restore this against a different fixture expecting it to pass.
+      // The `-0 renders as 0.00` guard it also covered (unit-summary.js
+      // `formatUnits`) survives in the frontend unit tests; nothing on this
+      // page can reach it now, because a section needs features to render and
+      // features carry units.
 
       test('the area habitats figure includes individual tree units, matching the habitat list', async ({
         projectSummaryPage,
@@ -617,15 +578,17 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getGainProject(browser)
+        project = await getHedgerowGainProject(browser)
       })
 
       // The baseline has no hedgerows and the post-intervention file does, so
-      // the hedgerow percentage is computed against zero and comes back
-      // non-finite. This is the only route to the "N/A" branch that a real
-      // upload can take — the frontend unit test reaches it with a fabricated
-      // payload (controller.test.js), nothing else renders it.
-      test('a habitat type gained from a zero baseline shows N/A and no status tag', async ({
+      // this is the post-intervention-ONLY case. Until BMD-897 the percentage
+      // was computed against zero, came back non-finite and rendered "N/A";
+      // BMD-897 gave the state its own branch and its own wording, because
+      // there is no baseline to express a change against. This is still the
+      // only route a real upload can take to it — the frontend unit test
+      // reaches it with a fabricated payload (controller.test.js).
+      test('a habitat type gained from a zero baseline shows "Not applicable" and no status tag', async ({
         projectSummaryPage
       }) => {
         await projectSummaryPage.open(project.id)
@@ -635,24 +598,33 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         ).toBe(ZERO_UNITS)
         expect(
           await projectSummaryPage.tileValue(HEDGEROWS, TILE_NET_PERCENTAGE)
-        ).toBe(NOT_APPLICABLE)
+        ).toBe(POST_INTERVENTION_ONLY_PERCENTAGE)
         await expect(projectSummaryPage.statusTag(HEDGEROWS)).toHaveCount(0)
+        // BMD-897 also nulls the baseline tile's action for this state, so the
+        // inert "View on-site baseline" line is not rendered at all.
+        await expect(
+          projectSummaryPage.viewOnSiteBaselineText(HEDGEROWS)
+        ).toHaveCount(0)
       })
 
       // Documents a real oddity rather than an intended design: the units did
       // go up, and the page says so in the net-unit-change tile, but the
-      // percentage tile reads "N/A" and no "Met" tag appears. See "Known
-      // deviations" in test/flows/project-management/project-summary.flow.md.
+      // percentage tile reads "Not applicable" and no "Met" tag appears. See
+      // "Known deviations" in
+      // test/flows/project-management/project-summary.flow.md.
+      //
+      // Note the tile heading: BMD-897 treats post-intervention-only as NOT a
+      // standard intervention, so this variant keeps the UNHYPHENATED "On-site
+      // post intervention" wording even though post-intervention data exists.
+      // Using the hyphenated constant here fails as a missing element rather
+      // than a wrong value.
       test('the gain is still reported in the net unit change tile', async ({
         projectSummaryPage
       }) => {
         await projectSummaryPage.open(project.id)
 
         expect(
-          await projectSummaryPage.tileUnits(
-            HEDGEROWS,
-            TILE_POST_INTERVENTION_WITH_PI
-          )
+          await projectSummaryPage.tileUnits(HEDGEROWS, TILE_POST_INTERVENTION)
         ).toBeGreaterThan(0)
         expect(
           await projectSummaryPage.tileUnits(HEDGEROWS, TILE_NET_UNIT_CHANGE)
@@ -748,18 +720,19 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         project = await getBaselineOnlyProject(browser)
       })
 
-      // BMD-870 explicitly scopes out the trading-rules clickthrough, the
-      // area/hedgerow/watercourse drill-downs and the project-details link;
-      // they render as text with no href. Pinning that is what makes the
-      // follow-up tickets visible — when one lands, this test fails and is
-      // replaced by a navigation assertion rather than the deferred state
-      // quietly persisting.
-      test('sections deferred to later tickets render as text rather than links', async ({
+      // BMD-870 scoped out the trading-rules clickthrough, the drill-down
+      // links and the project-details link; all rendered as text with no href.
+      // The original test pinned all of them together and noted that "when one
+      // lands, this test fails and is replaced by a navigation assertion rather
+      // than the deferred state quietly persisting". BMD-854 and BMD-857 landed
+      // the drill-downs on 2026-08-25/27, so that is exactly what happened —
+      // the two halves are now separate tests.
+      test('elements still deferred to later tickets render as text rather than links', async ({
         projectSummaryPage
       }) => {
         await projectSummaryPage.open(project.id)
 
-        for (const label of UNIT_TYPES) {
+        for (const label of BASELINE_ONLY_UNIT_TYPES) {
           // Asserting the copy *is there* as well as unlinked: a bare
           // `toHaveCount(0)` on the link passes just as happily when the text
           // has disappeared altogether. Reading it through `tileValue` anchors
@@ -772,26 +745,64 @@ test.describe('project-management', { tag: '@project-management' }, () => {
               .unitSection(label)
               .getByRole('link', { name: VIEW_TRADING_RULES })
           ).toHaveCount(0)
-
-          await expect(
-            projectSummaryPage.viewOnSiteBaselineText(label)
-          ).toBeVisible()
-          await expect(
-            projectSummaryPage
-              .unitSection(label)
-              .getByRole('link', { name: VIEW_ON_SITE_BASELINE })
-          ).toHaveCount(0)
         }
+
+        // Only area habitats got a baseline page (BMD-857). The linear types
+        // keep the inert wording, without the word "area".
+        await expect(
+          projectSummaryPage.viewOnSiteBaselineText(WATERCOURSES)
+        ).toBeVisible()
+        await expect(
+          projectSummaryPage
+            .unitSection(WATERCOURSES)
+            .getByRole('link', { name: VIEW_ON_SITE_BASELINE })
+        ).toHaveCount(0)
 
         await expect(projectSummaryPage.projectDetailsHeading).toBeVisible()
         await expect(projectSummaryPage.projectDetailsBody).toBeVisible()
         await expect(projectSummaryPage.projectDetailsLink).toHaveCount(0)
+      })
+
+      // The other half of the split above: what BMD-854 (nav + section
+      // headings) and BMD-857 (area baseline tile) turned into real links.
+      // Every one of these was a `toHaveCount(0)` assertion before.
+      test('the drill-down navigation and headings are links', async ({
+        projectSummaryPage
+      }) => {
+        await projectSummaryPage.open(project.id)
+
+        // Nav: the current page stays a <strong>, its siblings are links.
+        await expect(projectSummaryPage.navItem(AREA_HABITATS)).toBeVisible()
         await expect(
-          projectSummaryPage.navigation.getByRole('link')
-        ).toHaveCount(0)
-        for (const label of NAV_ITEMS) {
-          await expect(projectSummaryPage.navItem(label)).toBeVisible()
-        }
+          projectSummaryPage.navigation.getByRole('link', {
+            name: AREA_HABITATS
+          })
+        ).toHaveAttribute('href', `/projects/${project.id}/area-summary`)
+        await expect(
+          projectSummaryPage.navigation.getByRole('link', {
+            name: WATERCOURSES
+          })
+        ).toHaveAttribute(
+          'href',
+          `/projects/${project.id}/watercourses-summary`
+        )
+
+        // Section headings became links to the same drill-down pages.
+        await expect(
+          projectSummaryPage.sectionHeadingLink(AREA_HABITATS)
+        ).toHaveAttribute('href', `/projects/${project.id}/area-summary`)
+        await expect(
+          projectSummaryPage.sectionHeadingLink(WATERCOURSES)
+        ).toHaveAttribute(
+          'href',
+          `/projects/${project.id}/watercourses-summary`
+        )
+
+        // BMD-857: the area baseline tile is the only linked baseline tile,
+        // and the only one whose wording carries "area".
+        await expect(
+          projectSummaryPage.viewOnSiteAreaBaselineLink(AREA_HABITATS)
+        ).toHaveAttribute('href', `/projects/${project.id}/area-baseline`)
       })
     }
   )
@@ -845,19 +856,22 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         )
 
         // The links are worded for post-intervention but resolve to the shared
-        // chooser, where the user still has to pick the file type. All three
-        // sections carry one, and the ticket treats each as its own entry
-        // point.
-        for (const label of UNIT_TYPES) {
+        // chooser, where the user still has to pick the file type. Every
+        // rendered section carries one, and the ticket treats each as its own
+        // entry point.
+        for (const label of BASELINE_ONLY_UNIT_TYPES) {
           await expect(
             projectSummaryPage.uploadPostInterventionLink(label)
           ).toHaveAttribute('href', expectedHref)
         }
 
-        // One click stands for all three — the href is the same value from the
+        // One click stands for the rest — the href is the same value from the
         // same controller variable, so what is left to prove is that following
-        // one of them really lands on the selection page.
-        await projectSummaryPage.uploadPostInterventionLink(HEDGEROWS).click()
+        // one of them really lands on the selection page. Was HEDGEROWS until
+        // BMD-854 stopped rendering that section for this fixture.
+        await projectSummaryPage
+          .uploadPostInterventionLink(WATERCOURSES)
+          .click()
 
         await expect(page).toHaveURL(new RegExp(expectedHref.split('?')[0]))
         await expect(uploadFilePage.heading).toBeVisible()
