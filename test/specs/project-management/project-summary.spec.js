@@ -12,11 +12,12 @@ import {
 import { setupProject } from '@utils/project-helpers.js'
 import { createProjectCache } from '@utils/shared-project.js'
 import {
-  ALL_UNIT_TYPES_FILE,
   buildPostInterventionProject,
+  getAllUnitTypesPostInterventionProject,
   getAllUnitTypesProject,
   getBaselineOnlyProject,
-  getHedgerowGainProject
+  getHedgerowGainProject,
+  getTargetMetProject
 } from '@utils/summary-projects.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 
@@ -89,9 +90,10 @@ const GREEN_TAG_CLASS = /govuk-tag--green/
 // BMD-852 post-intervention pairs. The all-types pair is the ticket's stated
 // scenario — baseline *and* post-intervention data for every habitat type — and
 // each of its six tiles carries a distinct non-round value, so a renamed or
-// mixed-up backend field cannot pass unnoticed.
-const ALL_UNIT_TYPES_PI_FILE =
-  'Post-intervention - all unit and intervention types.gpkg'
+// mixed-up backend field cannot pass unnoticed. It and the linear net-gain pair
+// are built by @utils/summary-projects.js, which the unit-type drill-downs
+// share: the same two uploads back both this file and hedgerows-summary.spec.js.
+//
 // The only shipped pair that yields a real net *gain*: the baseline has no
 // hedgerows at all, the post-intervention file does. Because the baseline is
 // zero the backend's percentage is non-finite, which is what drives the "N/A"
@@ -105,10 +107,6 @@ const ALL_UNIT_TYPES_PI_FILE =
 // harness net-gain/met-* — area habitats gain ~292%.
 const AREA_GAIN_BASELINE_FILE = 'Baseline - net gain met.gpkg'
 const AREA_GAIN_PI_FILE = 'Post-intervention - net gain met.gpkg'
-// harness intervention/watercourse-created-* — hedgerows ~64%, watercourses
-// ~21%. One project covers the Met branch for both linear habitat types.
-const LINEAR_GAIN_BASELINE_FILE = 'Baseline - linear net gain met.gpkg'
-const LINEAR_GAIN_PI_FILE = 'Post-intervention - linear net gain met.gpkg'
 // harness intervention/watercourse-enhanced-* — watercourses gain ~3.8%: a real
 // gain that is still under the target, so the tag must stay red. This is the
 // only fixture that pins the threshold at 10 rather than at 0.
@@ -125,32 +123,12 @@ const NET_GAIN_TARGET_PERCENTAGE = 10
 // runs serially. See "Sharing uploads in read-only specs" in AGENTS.md.
 const getOrBuildProject = createProjectCache()
 
-function getPostInterventionProject(browser) {
-  return getOrBuildProject(ALL_UNIT_TYPES_PI_FILE, () =>
-    buildPostInterventionProject(
-      browser,
-      ALL_UNIT_TYPES_FILE,
-      ALL_UNIT_TYPES_PI_FILE
-    )
-  )
-}
-
 function getAreaGainProject(browser) {
   return getOrBuildProject(AREA_GAIN_PI_FILE, () =>
     buildPostInterventionProject(
       browser,
       AREA_GAIN_BASELINE_FILE,
       AREA_GAIN_PI_FILE
-    )
-  )
-}
-
-function getLinearGainProject(browser) {
-  return getOrBuildProject(LINEAR_GAIN_PI_FILE, () =>
-    buildPostInterventionProject(
-      browser,
-      LINEAR_GAIN_BASELINE_FILE,
-      LINEAR_GAIN_PI_FILE
     )
   )
 }
@@ -480,7 +458,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getPostInterventionProject(browser)
+        project = await getAllUnitTypesPostInterventionProject(browser)
       })
 
       test(
@@ -673,7 +651,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         projectSummaryPage,
         browser
       }) => {
-        const project = await getLinearGainProject(browser)
+        const project = await getTargetMetProject(browser)
         await projectSummaryPage.open(project.id)
 
         for (const label of [HEDGEROWS, WATERCOURSES]) {
