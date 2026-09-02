@@ -40,6 +40,19 @@ export const ALL_UNIT_TYPES_FILE =
 export const HEDGEROWS_PI_FILE =
   'Post-intervention - complete with hedgerows.gpkg'
 
+// The post-intervention half of the all-unit-types pair: baseline AND
+// post-intervention data for every habitat type, with a net LOSS on each. On a
+// unit-type summary that is the targets section's shortfall branch — the
+// deficit is a real subtraction rather than the whole requirement or zero.
+export const ALL_UNIT_TYPES_PI_FILE =
+  'Post-intervention - all unit and intervention types.gpkg'
+
+// harness intervention/watercourse-created-* — hedgerows gain ~64% and
+// watercourses ~21%, so both linear types clear the 10% target. One pair
+// therefore covers the zero-deficit branch for either of them.
+export const TARGET_MET_BASELINE_FILE = 'Baseline - linear net gain met.gpkg'
+export const TARGET_MET_PI_FILE = 'Post-intervention - linear net gain met.gpkg'
+
 // A baseline with 16 hedgerows and NO rivers, paired below with a
 // post-intervention file that has watercourses — the watercourse equivalent of
 // the hedgerow pairing above, and the only route to BMD-897's
@@ -128,6 +141,38 @@ export function getAllUnitTypesProject(browser) {
 export function getHedgerowGainProject(browser) {
   return getOrBuildProject(HEDGEROWS_PI_FILE, () =>
     buildPostInterventionProject(browser, NO_HEDGEROWS_FILE, HEDGEROWS_PI_FILE)
+  )
+}
+
+/**
+ * A project carrying baseline AND post-intervention data for every unit type,
+ * every one of them a net loss. Shared by the project summary and the
+ * unit-type drill-downs: on the summary it is the populated post-intervention
+ * variant, on a drill-down it is the targets section's shortfall branch.
+ */
+export function getAllUnitTypesPostInterventionProject(browser) {
+  return getOrBuildProject(ALL_UNIT_TYPES_PI_FILE, () =>
+    buildPostInterventionProject(
+      browser,
+      ALL_UNIT_TYPES_FILE,
+      ALL_UNIT_TYPES_PI_FILE
+    )
+  )
+}
+
+/**
+ * A project whose linear unit types both clear the 10% net-gain target — the
+ * only pairing that drives a unit-type summary's deficit to zero from a
+ * NON-zero baseline. (The post-intervention-only projects above reach 0.00 the
+ * degenerate way, with nothing required in the first place.)
+ */
+export function getTargetMetProject(browser) {
+  return getOrBuildProject(TARGET_MET_PI_FILE, () =>
+    buildPostInterventionProject(
+      browser,
+      TARGET_MET_BASELINE_FILE,
+      TARGET_MET_PI_FILE
+    )
   )
 }
 

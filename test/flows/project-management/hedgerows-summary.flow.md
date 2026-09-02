@@ -4,7 +4,7 @@
 
 The hedgerow equivalent of the [area habitats summary](area-summary.flow.md): one unit type's units in isolation, plus the net-gain targets it has to meet. Reached from the left-hand unit-type navigation, which only offers it when the project actually has hedgerow data.
 
-Added by **BMD-855 / BMD-919** (frontend PR#249, 2026-08-28). Before it, `/projects/{id}/hedgerows-summary` served the shared "under construction" placeholder; the route existed from BMD-854 but the page did not. **Its sibling `/watercourses-summary` is still on that placeholder** — see [`watercourses-summary.flow.md`](watercourses-summary.flow.md). The two linear unit types are no longer symmetrical, and a test that assumes they behave alike will be wrong about one of them.
+Added by **BMD-855 / BMD-919** (frontend PR#249, 2026-08-28). Before it, `/projects/{id}/hedgerows-summary` served the shared "under construction" placeholder; the route existed from BMD-854 but the page did not. Its sibling `/watercourses-summary` caught up on 2026-09-01 (BMD-856 / BMD-921, frontend PR#250) and is now the same shape — see [`watercourses-summary.flow.md`](watercourses-summary.flow.md). The two linear unit types are symmetrical again, but each controller passes its **own** habitat-type string and unit field, so a witness for one is still not a witness for the other.
 
 ## Steps
 
@@ -73,7 +73,7 @@ There is **no back link**; the left navigation is the only way back.
 
 ## Journey coverage
 
-Added 2026-09-01 — `test/specs/project-management/hedgerows-summary.spec.js` (5 tests, domain tag `@project-management`).
+Added 2026-09-01, extended 2026-09-02 for BMD-855 — `test/specs/project-management/hedgerows-summary.spec.js` (11 tests, domain tag `@project-management`).
 
 This page is structurally identical to the area summary, so the tests deliberately do **not** re-assert the shared layout, the targets arithmetic or the nav mechanics — `area-summary.spec.js` witnesses all of that against real data, and repeating it would test the shared macro rather than this page's wiring. Covered here is only what differs:
 
@@ -86,6 +86,22 @@ This page is structurally identical to the area summary, so the tests deliberate
 | Direct URL with no hedgerow data          | the nav entry is conditional, the route is not; nothing is marked current                                                                                                                                                                                 |
 
 The post-intervention-only test needs a baseline with no hedgerows plus a post-intervention file that has them — `getHedgerowGainProject` in `@utils/summary-projects.js`.
+
+### BMD-855 AC validation (2026-09-02)
+
+`/validate-ac-manual` passed all seven ACs against the running stack; `/validate-ac-automated` then found the gaps below, all closed in the same spec file. Two of them are the page's own wiring rather than the shared macro's behaviour, which is why the "don't re-assert the shared layout" rule above does not cover them:
+
+| Added test                                          | AC      | Why the shared coverage does not reach it                                                                                                                                                                         |
+| --------------------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Entry from the project summary (nav + heading link) | AC1     | `project-summary.spec.js` asserts the equivalent links for area habitats and watercourses only — its fixture has no hedgerows, so nothing followed the hedgerow route into this page                              |
+| Figures agree with the project summary              | AC4     | Cross-page agreement on `hedgerowsTotal`; the area equivalent proves the habitats+trees field, not this one                                                                                                       |
+| Upload button opens the file-type selection page    | AC3/AC6 | The `returnUrl` is built **by this controller** for this page — a caller-parameterised value, so the area page's identical assertion is not shared coverage                                                       |
+| Each nav link opens its target page                 | AC7     | The nav test above asserts the current/collapsed _state_; the destinations were never followed from here                                                                                                          |
+| Targets against post-intervention data (2 tests)    | AC5     | The zero-deficit and shortfall branches had **no journey witness on any unit-type page** — every drill-down test ran on a baseline-only project. `buildTargetsSummary` is fed `hedgerowsTotal` by this controller |
+
+The two post-intervention projects come from `getTargetMetProject` and `getAllUnitTypesPostInterventionProject` in `@utils/summary-projects.js`, moved there from `project-summary.spec.js` so both files share the uploads rather than paying for them twice.
+
+**Not covered, deliberately:** the negative half of AC2's Watercourses condition (hedgerow data present, watercourse data absent) needs a baseline-only build of `Baseline - no watercourses.gpkg` — a whole upload to witness one conditional nav item whose positive half is asserted here and whose hedgerow twin is already witnessed on `area-summary.spec.js`.
 
 ---
 

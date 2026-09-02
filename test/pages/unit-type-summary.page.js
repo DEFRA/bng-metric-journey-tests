@@ -70,4 +70,8 @@ export class UnitTypeSummaryPage extends BasePage {
   tileUnits(tileHeading) {
     return readTileUnits(this.unitSection(), tileHeading)
   }
+
+  targetUnits(tileHeading) {
+    return readTileUnits(this.targetsSection, tileHeading)
+  }
 }
