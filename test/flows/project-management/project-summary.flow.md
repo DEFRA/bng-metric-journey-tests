@@ -89,7 +89,16 @@ Trading rules and the project-details clickthrough remain separate tickets and a
 
   There is no baseline to divide by, so a percentage would be meaningless — hence `Not applicable` rather than `N/A` or `-100.00%`. Both the missing tag and the missing baseline action are absences: assert them with a count or a non-visibility check, not by looking for different text.
 
-  This variant applies to hedgerows and watercourses; area habitats always has a baseline when the page renders at all, since the no-baseline case redirects at Step 2.
+  This variant applies to hedgerows and watercourses; area habitats always has a baseline when the page renders at all, since the no-baseline case redirects at Step 2. `buildProjectSummary` calls `hasPostInterventionOnlyHabitat` **once per unit type**, each with its own habitat-type string, so a witness for one linear type does not cover the other's call site.
+
+  **Fixtures that reach this variant** — each pairs a baseline empty for one linear type with a post-intervention file that populates it. Pairing either baseline with `Post-intervention - complete.gpkg` instead drives the visibility OR the other way and suppresses the section entirely (BMD-898), so the PI file is what decides which ticket's behaviour is under test.
+
+  | Unit type    | Baseline fixture                  | Post-intervention fixture                             |
+  | ------------ | --------------------------------- | ----------------------------------------------------- |
+  | Hedgerows    | `Baseline - no hedgerows.gpkg`    | `Post-intervention - complete with hedgerows.gpkg`    |
+  | Watercourses | `Baseline - no watercourses.gpkg` | `Post-intervention - complete with watercourses.gpkg` |
+
+  **BMD-897** (2026-08-25) is the ticket that states this variant as acceptance criteria — one AC per linear unit type, each enumerating all five tiles. Validated against the shipped page on 2026-09-02: both pass. Two questions the ACs raise are flagged "CONFIRM WITH UCD" and remain open — whether "View trading rules" should appear at all when no trading is possible, and whether the trading-rules status should read something rather than nothing.
 
   **"View project details"** — a closing `<section aria-labelledby="project-details-heading">` with `<h2>View project details</h2>` and the body text "View and amend your project details, including project name and target percentage". No link.
 

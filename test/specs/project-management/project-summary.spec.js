@@ -20,7 +20,8 @@ import {
   getNoHedgerowsPostInterventionProject,
   getNoWatercoursesPostInterventionProject,
   getNoWatercoursesProject,
-  getTargetMetProject
+  getTargetMetProject,
+  getWatercourseGainProject
 } from '@utils/summary-projects.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 
@@ -225,6 +226,79 @@ async function expectUnitTypeSuppressed(projectSummaryPage, absent, present) {
   await expect(projectSummaryPage.unitSection(absent)).toHaveCount(0)
 }
 
+// BMD-897 AC1/AC2, the half of the section that goes quiet when a unit type has
+// no baseline to compare against: a literal instead of a percentage, no status
+// tag, and a baseline tile that loses its action line entirely. Two of the
+// three are absences, so they are asserted with a count rather than by looking
+// for different text.
+//
+// The ACs also enumerate the Trading Rules tile. It is deliberately not
+// asserted here: `tradingRules` is an unbranched literal in `buildUnitSummary`,
+// identical in every variant, and the deferred-elements describe below already
+// witnesses it from real data. One witness per family, not one per variant.
+async function expectPostInterventionOnlySuppressedTiles(
+  projectSummaryPage,
+  label
+) {
+  expect(await projectSummaryPage.tileValue(label, TILE_BASELINE)).toBe(
+    ZERO_UNITS
+  )
+  expect(await projectSummaryPage.tileValue(label, TILE_NET_PERCENTAGE)).toBe(
+    POST_INTERVENTION_ONLY_PERCENTAGE
+  )
+  await expect(projectSummaryPage.statusTag(label)).toHaveCount(0)
+  await expect(projectSummaryPage.viewOnSiteBaselineText(label)).toHaveCount(0)
+}
+
+// The other half: the two tiles that do carry a figure.
+//
+// Note the tile heading. BMD-897 treats post-intervention-only as NOT a
+// standard intervention, so this variant keeps the UNHYPHENATED "On-site post
+// intervention" wording even though post-intervention data exists — reading the
+// tile through it is what proves `postInterventionOnly` reached
+// `buildPostInterventionSummary` at all. The hyphenated constant would fail
+// here as a missing element rather than a wrong value.
+//
+// The upload link is what distinguishes this variant from the standard
+// both-documents one, where the same tile renders inert text. "Upload entry
+// points" below asserts the same link on a BASELINE-ONLY project, which reaches
+// it through the absent-intervention branch instead; break the
+// `postInterventionOnly` half of `hasStandardIntervention` and that test stays
+// green while this state silently loses its only call to action.
+async function expectPostInterventionOnlyGain(
+  projectSummaryPage,
+  label,
+  projectId
+) {
+  const postIntervention = await projectSummaryPage.tileValue(
+    label,
+    TILE_POST_INTERVENTION
+  )
+  const netUnitChange = await projectSummaryPage.tileValue(
+    label,
+    TILE_NET_UNIT_CHANGE
+  )
+
+  // Asserted on the rendered strings. The ACs specify 2 decimal places, and the
+  // numeric read below would accept "1.0642 units" just as happily.
+  expect(postIntervention).toMatch(UNITS_2DP)
+  expect(netUnitChange).toMatch(UNITS_2DP)
+  // The ACs state this equality holds "by definition", the baseline being zero.
+  // Asserting the two tiles against each other is what makes a mixed-up habitat
+  // type detectable: each is a positive number on its own either way.
+  expect(netUnitChange).toBe(postIntervention)
+  expect(
+    await projectSummaryPage.tileUnits(label, TILE_POST_INTERVENTION)
+  ).toBeGreaterThan(0)
+
+  const uploadLink = projectSummaryPage.uploadPostInterventionLink(label)
+  await expect(uploadLink).toBeVisible()
+  await expect(uploadLink).toHaveAttribute(
+    'href',
+    uploadFileHref(projectId, `/projects/${projectId}/project-summary`)
+  )
+}
+
 test.describe('project-management', { tag: '@project-management' }, () => {
   // Serial mode keeps the shared upload above from racing the other uploads in
   // this file's worker.
@@ -316,7 +390,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
   // layer persists as an empty array. The backend cannot stand in either: its
   // only fixture (integration-tests/fixtures/baseline-complete.gpkg) carries 2
   // hedgerows and 1 river, and both persistence tests assert `length > 0`
-  // (baseline-persistence.test.js:50, post-intervention-persistence.test.js:40).
+  // (baseline-persistence.test.js:51, post-intervention-persistence.test.js:40).
   // Do not delete without adding an empty-layer fixture there first.
 
   test.describe(
@@ -688,18 +762,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       }) => {
         await projectSummaryPage.open(project.id)
 
-        expect(
-          await projectSummaryPage.tileValue(HEDGEROWS, TILE_BASELINE)
-        ).toBe(ZERO_UNITS)
-        expect(
-          await projectSummaryPage.tileValue(HEDGEROWS, TILE_NET_PERCENTAGE)
-        ).toBe(POST_INTERVENTION_ONLY_PERCENTAGE)
-        await expect(projectSummaryPage.statusTag(HEDGEROWS)).toHaveCount(0)
-        // BMD-897 also nulls the baseline tile's action for this state, so the
-        // inert "View on-site baseline" line is not rendered at all.
-        await expect(
-          projectSummaryPage.viewOnSiteBaselineText(HEDGEROWS)
-        ).toHaveCount(0)
+        await expectPostInterventionOnlySuppressedTiles(
+          projectSummaryPage,
+          HEDGEROWS
+        )
       })
 
       // Documents a real oddity rather than an intended design: the units did
@@ -707,23 +773,60 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // percentage tile reads "Not applicable" and no "Met" tag appears. See
       // "Known deviations" in
       // test/flows/project-management/project-summary.flow.md.
-      //
-      // Note the tile heading: BMD-897 treats post-intervention-only as NOT a
-      // standard intervention, so this variant keeps the UNHYPHENATED "On-site
-      // post intervention" wording even though post-intervention data exists.
-      // Using the hyphenated constant here fails as a missing element rather
-      // than a wrong value.
-      test('the gain is still reported in the net unit change tile', async ({
+      test('the gain is still reported in the net unit change tile, above an upload link', async ({
         projectSummaryPage
       }) => {
         await projectSummaryPage.open(project.id)
 
-        expect(
-          await projectSummaryPage.tileUnits(HEDGEROWS, TILE_POST_INTERVENTION)
-        ).toBeGreaterThan(0)
-        expect(
-          await projectSummaryPage.tileUnits(HEDGEROWS, TILE_NET_UNIT_CHANGE)
-        ).toBeGreaterThan(0)
+        await expectPostInterventionOnlyGain(
+          projectSummaryPage,
+          HEDGEROWS,
+          project.id
+        )
+      })
+
+      // The mirror of the two tests above for the other linear unit type, and
+      // the ONLY project-summary witness for it. `buildProjectSummary` calls
+      // `hasPostInterventionOnlyHabitat` once per unit type, each with its own
+      // habitat-type string, so the hedgerow tests above do not cover this call
+      // site — point it at the wrong type and both still pass.
+      //
+      // Nothing else covers it either. The frontend unit suite parameterises
+      // both types
+      // (../bng-metric-frontend/src/server/project-summary/controller.test.js:501)
+      // but mocks the backend client and hand-writes the payload, so it proves
+      // the rendering and never that a real watercourse-bearing PI file over a
+      // watercourse-free baseline produces this shape. The watercourses
+      // drill-down (watercourses-summary.spec.js:129) renders the variant from
+      // real data, but through a different controller and a page with no
+      // section headings. The backend cannot stand in at all: its only fixture
+      // (integration-tests/fixtures/baseline-complete.gpkg) carries rivers, and
+      // both persistence tests assert `length > 0`
+      // (baseline-persistence.test.js:51, post-intervention-persistence.test.js:40).
+      //
+      // Do not delete without moving these assertions onto another
+      // project-summary test built on getWatercourseGainProject.
+      test('watercourses gained from a zero baseline render the same variant', async ({
+        projectSummaryPage,
+        browser
+      }) => {
+        // 'Baseline - no watercourses.gpkg' + 'Post-intervention - complete
+        // with watercourses.gpkg'. watercourses-summary.spec.js needs the same
+        // pair, and @utils/summary-projects.js caches it per worker, so whichever
+        // of the two runs first pays for the uploads and the other reuses them —
+        // the suite spends one build either way, not two.
+        const watercourseProject = await getWatercourseGainProject(browser)
+        await projectSummaryPage.open(watercourseProject.id)
+
+        await expectPostInterventionOnlySuppressedTiles(
+          projectSummaryPage,
+          WATERCOURSES
+        )
+        await expectPostInterventionOnlyGain(
+          projectSummaryPage,
+          WATERCOURSES,
+          watercourseProject.id
+        )
       })
     }
   )
