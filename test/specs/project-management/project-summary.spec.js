@@ -17,6 +17,9 @@ import {
   getAllUnitTypesProject,
   getBaselineOnlyProject,
   getHedgerowGainProject,
+  getNoHedgerowsPostInterventionProject,
+  getNoWatercoursesPostInterventionProject,
+  getNoWatercoursesProject,
   getTargetMetProject
 } from '@utils/summary-projects.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
@@ -201,6 +204,27 @@ async function expectPopulatedUnitType(projectSummaryPage, label) {
   await expect(tag).toHaveClass(RED_TAG_CLASS)
 }
 
+// BMD-898: a unit type with no features in either document disappears from the
+// left navigation and the main page together. The unit types the project DOES
+// have data for are asserted too — without that half, a blank or errored page
+// would satisfy the absence checks on its own.
+async function expectUnitTypeSuppressed(projectSummaryPage, absent, present) {
+  for (const label of present) {
+    await expect(projectSummaryPage.navItem(label)).toBeVisible()
+    await expect(projectSummaryPage.sectionHeading(label)).toBeVisible()
+  }
+
+  await expect(projectSummaryPage.navItem(absent)).toHaveCount(0)
+  await expect(
+    projectSummaryPage.navigation.getByRole('link', { name: absent })
+  ).toHaveCount(0)
+  // The section region as well as its heading: `appUnitTypeSummary` renders no
+  // <h2> when it is handed no headingHref, so a heading-only check could pass
+  // while the section itself still rendered.
+  await expect(projectSummaryPage.sectionHeading(absent)).toHaveCount(0)
+  await expect(projectSummaryPage.unitSection(absent)).toHaveCount(0)
+}
+
 test.describe('project-management', { tag: '@project-management' }, () => {
   // Serial mode keeps the shared upload above from racing the other uploads in
   // this file's worker.
@@ -270,6 +294,102 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       }
     )
   })
+
+  // ─── Unit types absent from both documents (BMD-898) ─────────────────────────
+  //
+  // `projectHasHabitatData` is an OR across the baseline and post-intervention
+  // documents, so a unit type is only suppressed when BOTH are empty for it.
+  // Every other post-intervention project in this file drives that OR *true*:
+  // they pair a linear-free baseline with a PI file that HAS the type, which
+  // renders BMD-897's post-intervention-only variant rather than nothing. The
+  // both-empty branch needs `Post-intervention - complete.gpkg`, the only
+  // shipped PI fixture with neither a Hedgerows nor a Rivers layer.
+  //
+  // AC1 (baseline only, no hedgerows) is asserted in "page content" above,
+  // which already owns that fixture. These three complete the set.
+  //
+  // Sole witnesses that the both-empty shape reaches the page from real
+  // uploads. The frontend unit suite names all four cases explicitly
+  // (../bng-metric-frontend/src/server/project-summary/controller.test.js:439)
+  // but mocks the backend client and deletes the key from a hand-written
+  // payload — it proves the rendering, never that an empty Hedgerows or Rivers
+  // layer persists as an empty array. The backend cannot stand in either: its
+  // only fixture (integration-tests/fixtures/baseline-complete.gpkg) carries 2
+  // hedgerows and 1 river, and both persistence tests assert `length > 0`
+  // (baseline-persistence.test.js:50, post-intervention-persistence.test.js:40).
+  // Do not delete without adding an empty-layer fixture there first.
+
+  test.describe(
+    'Project summary — unit types absent from both documents',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      test('a baseline with no watercourses drops the Watercourses section and nav item', async ({
+        projectSummaryPage,
+        browser
+      }) => {
+        const project = await getNoWatercoursesProject(browser)
+        await projectSummaryPage.open(project.id)
+
+        // The mirror of the no-hedgerows case in "page content": the same rule
+        // reached through the other habitat-type string. `buildUnitTypeNavigation`
+        // and the controller each call `projectHasHabitatData` once per type, so
+        // the hedgerow witness does not cover this call site.
+        await expectUnitTypeSuppressed(projectSummaryPage, WATERCOURSES, [
+          AREA_HABITATS,
+          HEDGEROWS
+        ])
+      })
+
+      test('hedgerows absent from both documents drops the section and nav item', async ({
+        projectSummaryPage,
+        browser
+      }) => {
+        const project = await getNoHedgerowsPostInterventionProject(browser)
+        await projectSummaryPage.open(project.id)
+
+        // The project really does carry post-intervention data — the tile
+        // heading only gains its hyphen in that variant. Without this the test
+        // would still pass against a baseline-only project, i.e. against AC1.
+        await expect(
+          projectSummaryPage.tileHeading(
+            AREA_HABITATS,
+            TILE_POST_INTERVENTION_WITH_PI
+          )
+        ).toBeVisible()
+
+        // Watercourses survives on the baseline's 3 rivers even though the PI
+        // file has none, which is the OR's baseline side asserted in passing.
+        await expectUnitTypeSuppressed(projectSummaryPage, HEDGEROWS, [
+          AREA_HABITATS,
+          WATERCOURSES
+        ])
+      })
+
+      test('watercourses absent from both documents drops the section and nav item', async ({
+        projectSummaryPage,
+        browser
+      }) => {
+        const project = await getNoWatercoursesPostInterventionProject(browser)
+        await projectSummaryPage.open(project.id)
+
+        await expect(
+          projectSummaryPage.tileHeading(
+            AREA_HABITATS,
+            TILE_POST_INTERVENTION_WITH_PI
+          )
+        ).toBeVisible()
+
+        // Hedgerows survives on the baseline's 16.
+        await expectUnitTypeSuppressed(projectSummaryPage, WATERCOURSES, [
+          AREA_HABITATS,
+          HEDGEROWS
+        ])
+      })
+    }
+  )
 
   // ─── Unit figures ────────────────────────────────────────────────────────────
   //
@@ -520,16 +640,13 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           const section = projectSummaryPage.unitSection(label)
           // The heading gains a hyphen once post-intervention data exists.
           await expect(
-            section.getByRole('heading', {
-              name: TILE_POST_INTERVENTION_WITH_PI,
-              exact: true
-            })
+            projectSummaryPage.tileHeading(
+              label,
+              TILE_POST_INTERVENTION_WITH_PI
+            )
           ).toBeVisible()
           await expect(
-            section.getByRole('heading', {
-              name: TILE_POST_INTERVENTION,
-              exact: true
-            })
+            projectSummaryPage.tileHeading(label, TILE_POST_INTERVENTION)
           ).toHaveCount(0)
 
           // The upload link is replaced by inert text — there is nothing left to

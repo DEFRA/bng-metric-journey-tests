@@ -54,6 +54,13 @@ export class ProjectSummaryPage extends BasePage {
     return this.page.getByRole('heading', { name: label, level: 2 })
   }
 
+  tileHeading(sectionLabel, headingText) {
+    return this.unitSection(sectionLabel).getByRole('heading', {
+      name: headingText,
+      exact: true
+    })
+  }
+
   /**
    * The status tag in a section's percentage tile — "Met" (green) or "Not met"
    * (red). Matches either: BMD-870 could only ever render "Not met", so an
