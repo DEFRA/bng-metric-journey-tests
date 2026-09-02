@@ -12,7 +12,7 @@ Added by **BMD-870** (frontend PR#219, 2026-08-14), which built the baseline-onl
 | ----------- | ---- | ---------- | ---------------------------------------------------------------------------------------------- |
 | **BMD-854** | #237 | 2026-08-25 | Nav items, section headings and the area baseline tile became links; empty sections now hidden |
 | **BMD-897** | #238 | 2026-08-25 | Post-intervention-only variant — `Not applicable`, no status tag, no baseline action           |
-| **BMD-898** | #233 | 2026-08-24 | Shared `buildUnitSummary` refactor behind the above                                            |
+| **BMD-898** | #233 | 2026-08-24 | Shared `buildUnitSummary` refactor behind the above; owns the ACs for the suppressed state     |
 
 Trading rules and the project-details clickthrough remain separate tickets and are still `[PLANNED]` here.
 
@@ -182,6 +182,18 @@ The `appProjectNavigation` and `action()` macros both branch on `item.href` / `p
 ## Known deviations from the design
 
 - ~~**Empty sections are not hidden.**~~ **Resolved by BMD-854 (PR#237, 2026-08-25.)** `buildProjectSummary` now filters `unitTypes` on a `visible` flag before rendering: area habitats is always visible, hedgerows and watercourses only when `projectHasHabitatData(project, type)` finds a non-empty array on **either** the baseline or the post-intervention document. A baseline with no hedgerows renders **two** sections, not three. **Any test asserting a fixed three sections now fails**, and the empty-section values it used to assert (`N/A` / `0.00 units` / no tag) are no longer reachable this way.
+
+  **The condition is an OR across the two documents, and the same flag drives the nav** (`buildUnitTypeNavigation`, `unit-type-navigation.js:64,71`) — so a unit type disappears from the left navigation and the main page together, and only when **both** documents are empty for it. **BMD-898** (2026-09-02) is the ticket that states that as acceptance criteria, one AC per combination:
+
+  | Scenario                    | Baseline fixture                  | Post-intervention fixture           | Sections rendered           |
+  | --------------------------- | --------------------------------- | ----------------------------------- | --------------------------- |
+  | Baseline only, no hedgerows | `Baseline - no hedgerows.gpkg`    | —                                   | Area habitats, Watercourses |
+  | Baseline + PI, no hedgerows | `Baseline - no hedgerows.gpkg`    | `Post-intervention - complete.gpkg` | Area habitats, Watercourses |
+  | Baseline only, no rivers    | `Baseline - no watercourses.gpkg` | —                                   | Area habitats, Hedgerows    |
+  | Baseline + PI, no rivers    | `Baseline - no watercourses.gpkg` | `Post-intervention - complete.gpkg` | Area habitats, Hedgerows    |
+
+  `Post-intervention - complete.gpkg` is the only shipped PI fixture with **no** Hedgerows and **no** Rivers layer, which is what makes the both-empty branch reachable at all. Note the contrast with the pairings above it in this doc: `Post-intervention - complete with hedgerows.gpkg` over the same no-hedgerows baseline drives the OR the **other** way and renders the section as BMD-897's post-intervention-only variant. Picking the wrong PI file therefore silently tests the opposite behaviour.
+
 - ~~**The three section headings are styled as links but are not links.**~~ **Resolved by BMD-854.** They are now real `<a class="govuk-link">` elements inside the `<h2>`, pointing at each unit type's drill-down page.
 - **The post-intervention link is not post-intervention-specific.** Its text says "Upload on-site post intervention file" but its href is the generic file-type selection page (Step 3), where the user could equally pick baseline.
 - **The post-intervention tile heading is spelled two ways.** Without post-intervention data it reads "On-site post intervention"; with it, "On-site post-**intervention**" (hyphenated) — `buildUnitSummary` picks the heading per variant (`project-summary/controller.js`). Nothing else on the page hyphenates it, and the baseline tile's counterpart wording does not change. A test that looks a tile up by its heading must use the right spelling for the variant under test, or it fails as a missing element rather than a wrong value. Raised from the BMD-852 source analysis (2026-08-18).

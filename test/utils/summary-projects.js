@@ -61,6 +61,16 @@ export const NO_WATERCOURSES_FILE = 'Baseline - no watercourses.gpkg'
 export const WATERCOURSES_PI_FILE =
   'Post-intervention - complete with watercourses.gpkg'
 
+// 12 habitat parcels, a red line boundary, and nothing else — no Hedgerows and
+// no Rivers layer at all. The only shipped post-intervention fixture empty for
+// BOTH linear types, which is what makes BMD-898's "no hedgerows/watercourses
+// in baseline OR PI" reachable: `projectHasHabitatData` is an OR across the two
+// documents, so suppressing a unit type on a both-documents project needs a PI
+// file that is also empty for it. Paired the other way — the "complete with
+// hedgerows/watercourses" files above — the same baselines drive the OR true
+// and render BMD-897's post-intervention-only variant instead.
+export const NO_LINEAR_PI_FILE = 'Post-intervention - complete.gpkg'
+
 const UPLOAD_TIMEOUT = 120_000
 
 async function buildBaselineOnlyProject(browser, file) {
@@ -113,6 +123,10 @@ async function buildPostInterventionProject(browser, baselineFile, piFile) {
 
 const getOrBuildProject = createProjectCache()
 
+function projectKey(baselineFile, piFile) {
+  return `${baselineFile}+${piFile ?? 'none'}`
+}
+
 /**
  * A project with a baseline and no post-intervention data, built from
  * NO_HEDGEROWS_FILE. Shared across every spec that imports this module.
@@ -121,14 +135,14 @@ const getOrBuildProject = createProjectCache()
  * @returns {Promise<{id: string, name: string}>}
  */
 export function getBaselineOnlyProject(browser) {
-  return getOrBuildProject(NO_HEDGEROWS_FILE, () =>
+  return getOrBuildProject(projectKey(NO_HEDGEROWS_FILE), () =>
     buildBaselineOnlyProject(browser, NO_HEDGEROWS_FILE)
   )
 }
 
 /** A baseline-only project populating every unit type. */
 export function getAllUnitTypesProject(browser) {
-  return getOrBuildProject(ALL_UNIT_TYPES_FILE, () =>
+  return getOrBuildProject(projectKey(ALL_UNIT_TYPES_FILE), () =>
     buildBaselineOnlyProject(browser, ALL_UNIT_TYPES_FILE)
   )
 }
@@ -139,8 +153,14 @@ export function getAllUnitTypesProject(browser) {
  * BMD-897's post-intervention-only variant.
  */
 export function getHedgerowGainProject(browser) {
-  return getOrBuildProject(HEDGEROWS_PI_FILE, () =>
-    buildPostInterventionProject(browser, NO_HEDGEROWS_FILE, HEDGEROWS_PI_FILE)
+  return getOrBuildProject(
+    projectKey(NO_HEDGEROWS_FILE, HEDGEROWS_PI_FILE),
+    () =>
+      buildPostInterventionProject(
+        browser,
+        NO_HEDGEROWS_FILE,
+        HEDGEROWS_PI_FILE
+      )
   )
 }
 
@@ -151,12 +171,14 @@ export function getHedgerowGainProject(browser) {
  * variant, on a drill-down it is the targets section's shortfall branch.
  */
 export function getAllUnitTypesPostInterventionProject(browser) {
-  return getOrBuildProject(ALL_UNIT_TYPES_PI_FILE, () =>
-    buildPostInterventionProject(
-      browser,
-      ALL_UNIT_TYPES_FILE,
-      ALL_UNIT_TYPES_PI_FILE
-    )
+  return getOrBuildProject(
+    projectKey(ALL_UNIT_TYPES_FILE, ALL_UNIT_TYPES_PI_FILE),
+    () =>
+      buildPostInterventionProject(
+        browser,
+        ALL_UNIT_TYPES_FILE,
+        ALL_UNIT_TYPES_PI_FILE
+      )
   )
 }
 
@@ -167,12 +189,14 @@ export function getAllUnitTypesPostInterventionProject(browser) {
  * degenerate way, with nothing required in the first place.)
  */
 export function getTargetMetProject(browser) {
-  return getOrBuildProject(TARGET_MET_PI_FILE, () =>
-    buildPostInterventionProject(
-      browser,
-      TARGET_MET_BASELINE_FILE,
-      TARGET_MET_PI_FILE
-    )
+  return getOrBuildProject(
+    projectKey(TARGET_MET_BASELINE_FILE, TARGET_MET_PI_FILE),
+    () =>
+      buildPostInterventionProject(
+        browser,
+        TARGET_MET_BASELINE_FILE,
+        TARGET_MET_PI_FILE
+      )
   )
 }
 
@@ -183,12 +207,57 @@ export function getTargetMetProject(browser) {
  * witness for one does not cover the other.
  */
 export function getWatercourseGainProject(browser) {
-  return getOrBuildProject(WATERCOURSES_PI_FILE, () =>
-    buildPostInterventionProject(
-      browser,
-      NO_WATERCOURSES_FILE,
-      WATERCOURSES_PI_FILE
-    )
+  return getOrBuildProject(
+    projectKey(NO_WATERCOURSES_FILE, WATERCOURSES_PI_FILE),
+    () =>
+      buildPostInterventionProject(
+        browser,
+        NO_WATERCOURSES_FILE,
+        WATERCOURSES_PI_FILE
+      )
+  )
+}
+
+/**
+ * A baseline-only project with 16 hedgerows and NO rivers — the mirror of
+ * `getBaselineOnlyProject` for the other linear unit type. BMD-898 AC3.
+ */
+export function getNoWatercoursesProject(browser) {
+  return getOrBuildProject(projectKey(NO_WATERCOURSES_FILE), () =>
+    buildBaselineOnlyProject(browser, NO_WATERCOURSES_FILE)
+  )
+}
+
+/**
+ * A project carrying both documents with hedgerows in NEITHER. BMD-898 AC2.
+ * Watercourses survive on the baseline's rivers, so this project also witnesses
+ * the OR being honoured on its baseline side.
+ */
+export function getNoHedgerowsPostInterventionProject(browser) {
+  return getOrBuildProject(
+    projectKey(NO_HEDGEROWS_FILE, NO_LINEAR_PI_FILE),
+    () =>
+      buildPostInterventionProject(
+        browser,
+        NO_HEDGEROWS_FILE,
+        NO_LINEAR_PI_FILE
+      )
+  )
+}
+
+/**
+ * A project carrying both documents with watercourses in NEITHER. BMD-898 AC4,
+ * and the mirror of the above — hedgerows survive on the baseline's 16.
+ */
+export function getNoWatercoursesPostInterventionProject(browser) {
+  return getOrBuildProject(
+    projectKey(NO_WATERCOURSES_FILE, NO_LINEAR_PI_FILE),
+    () =>
+      buildPostInterventionProject(
+        browser,
+        NO_WATERCOURSES_FILE,
+        NO_LINEAR_PI_FILE
+      )
   )
 }
 
