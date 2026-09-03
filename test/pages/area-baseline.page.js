@@ -39,6 +39,17 @@ export class AreaBaselinePage extends BasePage {
       level: 1
     })
     this.navigation = page.getByRole('navigation', { name: 'Project summary' })
+    this.uploadFileButton = page.getByRole('button', { name: 'Upload file' })
+    this.resultsHeading = page.getByRole('heading', {
+      name: 'Area habitats results',
+      level: 2
+    })
+    this.detailsHeading = page.getByRole('heading', {
+      name: 'Area habitat details',
+      level: 2
+    })
+    // The MOJ scrollable pane. It is also the region that names the table, so
+    // one locator serves both — see `scrollDetailsPaneToEnd`.
     this.detailsTable = page.getByRole('region', {
       name: 'Area habitat details'
     })
@@ -48,8 +59,16 @@ export class AreaBaselinePage extends BasePage {
     return super.open(`/projects/${id}/area-baseline`)
   }
 
+  caption(projectName) {
+    return this.page.getByText(projectName, { exact: true })
+  }
+
   navItem(text) {
     return this.navigation.getByText(text, { exact: true })
+  }
+
+  navLink(text) {
+    return this.navigation.getByRole('link', { name: text })
   }
 
   /** The unit summary section — labelled, not headed. See the class note. */
@@ -66,6 +85,11 @@ export class AreaBaselinePage extends BasePage {
     return this.unitSection().getByText(VIEW_ON_SITE_AREA_BASELINE, {
       exact: true
     })
+  }
+
+  /** Every tile heading in the unit summary section, in rendered order. */
+  tileHeadings() {
+    return this.unitSection().getByRole('heading', { level: 3 })
   }
 
   tileValue(tileHeading) {
@@ -114,5 +138,26 @@ export class AreaBaselinePage extends BasePage {
 
   refLink(reference) {
     return this.table().getByRole('link', { name: reference, exact: true })
+  }
+
+  /**
+   * Scroll the details pane fully right and report what happened.
+   *
+   * The scrollbar is a LAYOUT fact, not a markup one: the MOJ scrollable pane
+   * shows a bar only when its content is wider than the box, and Chromium on
+   * Linux paints overlay scrollbars that no screenshot would show. Measuring
+   * the overflow — and then moving it — is the only way a test can witness the
+   * requirement. A resulting `scrollLeft` above zero is the proof: a pane that
+   * overflowed but clipped (`overflow: hidden`) would refuse to move.
+   */
+  async scrollDetailsPaneToEnd() {
+    return this.detailsTable.evaluate((pane) => {
+      pane.scrollLeft = pane.scrollWidth
+      return {
+        scrollWidth: pane.scrollWidth,
+        clientWidth: pane.clientWidth,
+        scrollLeft: pane.scrollLeft
+      }
+    })
   }
 }

@@ -89,18 +89,24 @@ There is **no back link**; the left navigation is the only way up.
 
 ## Journey coverage
 
-Added 2026-09-01 — `test/specs/project-management/area-baseline.spec.js` (4 tests, domain tag `@project-management`).
+Added 2026-09-01, extended 2026-09-03 for the BMD-857 AC sweep — `test/specs/project-management/area-baseline.spec.js` (7 tests, domain tag `@project-management`), plus one entry-point test in `project-summary.spec.js`.
 
 `area-baseline/controller.test.js` covers this page in 16 tests, all with `wreck` mocked and hand-built features. The journey tests cover only what that cannot reach:
 
-| Test                                      | Why it needs a browser and real data                                                                                                                                 |
-| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Parcels and trees in one table            | proves `baseline.habitats` **and** `baseline.trees` both arrive and render as one table — trees are a separate collection in the payload but area habitats for units |
-| Totals row agrees with the unit aggregate | the totals are summed server-side from the rendered features; the tile comes from the backend's persisted aggregate. Two independent paths, compared nowhere else    |
-| Row formatting + fixed `Low (1)`          | that real uploaded data does not leak its own strategic-significance category                                                                                        |
-| Ref clickthrough                          | unit tests assert the href is in the markup, not that following it resolves to that feature                                                                          |
+| Test                                      | AC       | Why it needs a browser and real data                                                                                                                                 |
+| ----------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Parcels and trees in one table            | 6        | proves `baseline.habitats` **and** `baseline.trees` both arrive and render as one table — trees are a separate collection in the payload but area habitats for units |
+| Totals row agrees with the unit aggregate | 6        | the totals are summed server-side from the rendered features; the tile comes from the backend's persisted aggregate. Two independent paths, compared nowhere else    |
+| Row formatting + fixed `Low (1)`          | 6        | that real uploaded data does not leak its own strategic-significance category, and that every row — not just the first — formats                                     |
+| Details pane overflows horizontally       | 6        | the scrollbar requirement is a **layout** fact. `controller.test.js:434` sees the pane in the markup; only a browser can see it overflow                             |
+| Heading, results tiles and upload action  | 4, 5, 11 | that the caption, the five tiles and this page's own `returnUrl` render from a real project                                                                          |
+| Left navigation                           | 3, 12    | the only page where the current item is a nested child **and** its parent stays a link. Needs the all-unit-types fixture: the shared baseline has no hedgerows       |
+| Ref clickthrough                          | 10       | unit tests assert the href is in the markup, not that following it resolves to that feature                                                                          |
+| (project-summary.spec.js) baseline tile   | 2        | the project summary asserted the href but had never followed it                                                                                                      |
 
-**Deliberately not covered, with reasons.** The zero-padded Ref sort key (`refSortValue`) is **unreachable by journey test**: every valid fixture in this repo and the harness uses fixed-width refs (`H001`, `T001`), where naive string sorting gives the identical order. The only variable-width fixture is `Baseline - duplicate habitat ref.gpkg` (`DUP-1`, `H003`), which fails validation and never reaches this page. Covering it end-to-end would need a new fixture built for the purpose; `controller.test.js:188` covers the attribute value meanwhile. `aria-sort` toggling is the MoJ component's own behaviour, already witnessed by real clicks in `habitat-list-upload.spec.js:341-381`.
+**Deliberately not covered, with reasons.** The zero-padded Ref sort key (`refSortValue`) is **unreachable by journey test**: every valid fixture in this repo and the harness uses fixed-width refs (`H001`, `T001`), where naive string sorting gives the identical order. The only variable-width fixture is `Baseline - duplicate habitat ref.gpkg` (`DUP-1`, `H003`), which fails validation and never reaches this page. Covering it end-to-end would need a new fixture built for the purpose; `controller.test.js:188` covers the attribute value meanwhile.
+
+`aria-sort` toggling (**AC8/AC9**) is the MoJ component's own behaviour — the ACs say so themselves — and is already witnessed by real clicks against our `data-sort-value` attributes in `habitat-list-upload.spec.js:342-380`. The attributes this page emits are asserted in `baseline-habitat-grid.test.js:27,55`. A second real-click witness here would test MoJ's library rather than our wiring. Manual evidence for both directions on this page was captured under BMD-857's `/validate-ac-manual` run.
 
 ---
 
