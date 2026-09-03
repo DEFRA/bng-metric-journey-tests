@@ -1,5 +1,8 @@
 import { readTileUnits, readTileValue } from '@utils/tile-value.js'
-import { UPLOAD_POST_INTERVENTION } from '@utils/unit-type-labels.js'
+import {
+  UPLOAD_POST_INTERVENTION,
+  VIEW_ON_SITE_WATERCOURSES_BASELINE
+} from '@utils/unit-type-labels.js'
 
 import { BasePage } from './base.page.js'
 
@@ -91,11 +94,21 @@ export class ProjectSummaryPage extends BasePage {
 
   /**
    * The area-habitats baseline tile's link to the area baseline page (BMD-857).
-   * Every other unit type keeps the inert `viewOnSiteBaselineText` below.
    */
   viewOnSiteAreaBaselineLink(label) {
     return this.unitSection(label).getByRole('link', {
       name: VIEW_ON_SITE_AREA_BASELINE_TEXT
+    })
+  }
+
+  /**
+   * The watercourses equivalent, added by BMD-859/861. Each unit type's
+   * baseline link names its own type, so there is no shared locator: the
+   * wording is what tells them apart.
+   */
+  viewOnSiteWatercoursesBaselineLink(label) {
+    return this.unitSection(label).getByRole('link', {
+      name: VIEW_ON_SITE_WATERCOURSES_BASELINE
     })
   }
 

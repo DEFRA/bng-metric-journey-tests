@@ -66,7 +66,6 @@ const TILE_NET_PERCENTAGE = 'Total on-site net percentage change'
 const TILE_TRADING_RULES = 'Trading Rules'
 
 const VIEW_TRADING_RULES = 'View trading rules'
-const VIEW_ON_SITE_BASELINE = 'View on-site baseline'
 const VIEW_ON_SITE_POST_INTERVENTION = 'View on-site post intervention'
 // BMD-897 (frontend PR#238, 2026-08-25): a unit type present ONLY in the
 // post-intervention document has no baseline to divide by, so its percentage
@@ -937,17 +936,6 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           ).toHaveCount(0)
         }
 
-        // Only area habitats got a baseline page (BMD-857). The linear types
-        // keep the inert wording, without the word "area".
-        await expect(
-          projectSummaryPage.viewOnSiteBaselineText(WATERCOURSES)
-        ).toBeVisible()
-        await expect(
-          projectSummaryPage
-            .unitSection(WATERCOURSES)
-            .getByRole('link', { name: VIEW_ON_SITE_BASELINE })
-        ).toHaveCount(0)
-
         await expect(projectSummaryPage.projectDetailsHeading).toBeVisible()
         await expect(projectSummaryPage.projectDetailsBody).toBeVisible()
         await expect(projectSummaryPage.projectDetailsLink).toHaveCount(0)
@@ -988,11 +976,19 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           `/projects/${project.id}/watercourses-summary`
         )
 
-        // BMD-857: the area baseline tile is the only linked baseline tile,
-        // and the only one whose wording carries "area".
+        // BMD-857 linked the area baseline tile; BMD-859/861 did the same for
+        // the linear types, so every baseline tile is now a link — each with
+        // its own unit type in the wording. The inert-text assertion that used
+        // to live in the deferred test above moved here when that landed.
         await expect(
           projectSummaryPage.viewOnSiteAreaBaselineLink(AREA_HABITATS)
         ).toHaveAttribute('href', `/projects/${project.id}/area-baseline`)
+        await expect(
+          projectSummaryPage.viewOnSiteWatercoursesBaselineLink(WATERCOURSES)
+        ).toHaveAttribute(
+          'href',
+          `/projects/${project.id}/watercourses-baseline`
+        )
       })
     }
   )

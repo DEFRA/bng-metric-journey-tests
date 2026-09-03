@@ -22,7 +22,7 @@ That PR also lifted `buildTargetsSummary` out of the area and hedgerow controlle
 
   As on every drill-down page the unit summary section carries **no `<h2>`** (no `headingHref`), so it is reachable by `aria-label="Watercourses"`.
 
-  The baseline tile passes **no `baselineAction`** — no watercourse baseline page exists — so it falls back to the shared inert default "View on-site baseline", without the word "area" the linked area variant carries.
+  The baseline tile passes **no `baselineAction`**, so it falls back to the shared inert default "View on-site baseline", without the word "area" the linked area variant carries. **BMD-859/861** (frontend PR#258, 2026-09-02) built `/projects/{id}/watercourses-baseline` and linked it from the **project summary** tile and this page's navigation, but left this tile inert.
 
 - **Post-intervention-only watercourses (BMD-897) `[IMPLEMENTED]`:** when watercourses exist in `postIntervention` but not in `baseline`, `hasPostInterventionOnlyHabitat(project, 'watercourses')` is true and the summary changes shape exactly as documented for hedgerows — `Not applicable` percentage, no status tag, no baseline action, and the unhyphenated post-intervention heading.
 - **Unit sourcing:** baseline is `normaliseUnits(project.baseline.units.watercoursesTotal)`. Post-intervention reads `watercoursesTotal`, `watercoursesNetUnitChange` and `watercoursesNetUnitChangePercentage` from `project.postIntervention.units`; the frontend computes none of them.
@@ -66,8 +66,8 @@ The post-intervention-only test needs a baseline with no watercourses plus a pos
 
 ## Deferred elements
 
-| Element                          | Current state                                        | Marker      |
-| -------------------------------- | ---------------------------------------------------- | ----------- |
-| "View trading rules"             | inert `<span>` in the Trading Rules tile             | `[PLANNED]` |
-| "View on-site baseline"          | inert `<span>` — no watercourse baseline page exists | `[PLANNED]` |
-| "View on-site post intervention" | inert `<span>` once post-intervention exists         | `[PLANNED]` |
+| Element                          | Current state                                                   | Marker      |
+| -------------------------------- | --------------------------------------------------------------- | ----------- |
+| "View trading rules"             | inert `<span>` in the Trading Rules tile                        | `[PLANNED]` |
+| "View on-site baseline"          | inert `<span>` — the page exists, this tile does not link to it | `[PLANNED]` |
+| "View on-site post intervention" | inert `<span>` once post-intervention exists                    | `[PLANNED]` |

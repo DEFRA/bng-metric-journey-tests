@@ -16,7 +16,7 @@ Added by **BMD-855 / BMD-919** (frontend PR#249, 2026-08-28). Before it, `/proje
 - **Backend endpoint:** `GET /projects/{id}` (via `fetchProjectOrThrow`)
 - **Description:** Renders the hedgerows view of a project that has a baseline.
 
-  **Left navigation** — as [`area-summary.flow.md`](area-summary.flow.md) Step 1, with **Hedgerows** as the current item. Area habitats renders **collapsed** here: `buildUnitTypeItem` only attaches the Baseline child when the current page is `area-summary` or `area-baseline`, so moving to a different unit type collapses the section you came from. Hedgerows itself never expands — there is no hedgerow baseline page.
+  **Left navigation** — as [`area-summary.flow.md`](area-summary.flow.md) Step 1, with **Hedgerows** as the current item. Area habitats renders **collapsed** here: `buildUnitTypeItem` only attaches the Baseline child when the current page is `area-summary` or `area-baseline`, so moving to a different unit type collapses the section you came from. Hedgerows itself expands a **Baseline** child (→ `/projects/{id}/hedgerows-baseline`) since **BMD-859/861** (frontend PR#258, 2026-09-02); that page is not yet documented here.
 
   **Navigation edge case.** The Hedgerows nav item is conditional on `projectHasHabitatData(project, 'hedgerows')`, but the **route is not**. A project with no hedgerow data anywhere still renders this page on a direct URL — it just shows zeros, and the nav contains no Hedgerows item to mark current, so nothing on the page is flagged `aria-current="page"`. Worth pinning in a test; it is the kind of state a user reaches from a stale bookmark.
 
@@ -24,7 +24,7 @@ Added by **BMD-855 / BMD-919** (frontend PR#249, 2026-08-28). Before it, `/proje
 
   **Results** — `<h2>Results</h2>` and one `appUnitTypeSummary`. As on every drill-down page there is **no section `<h2>`** (no `headingHref`), so the section carries `aria-label="Hedgerows"`.
 
-  Unlike area habitats, the baseline tile passes **no `baselineAction`**, so it falls back to the shared default: inert text "View on-site baseline" (not "View on-site _area_ baseline") with no link, since no hedgerow baseline page exists.
+  Unlike area habitats, the baseline tile passes **no `baselineAction`**, so it falls back to the shared default: inert text "View on-site baseline" (not "View on-site _area_ baseline") with no link. BMD-859/861 built a hedgerow baseline page and linked it from the **project summary** tile, but left this drill-down's own tile inert — reach it from the left navigation's Baseline child instead.
 
   **Targets** — the same three tiles as the area summary: `10%` target, `baselineUnits × 1.1` units required, and `max(0, unitsRequired − postInterventionUnits)` deficit floored at zero, or `N/A` when the post-intervention figure is non-finite.
 

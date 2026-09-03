@@ -29,7 +29,7 @@ Added by **BMD-854** (frontend PR#237, 2026-08-25, "Area Habitats Redesign"), wh
 
   **Current-item rendering.** `markCurrent` strips the `href` from the item matching the current page and sets `current: true`; `projectNavLabel` then renders it as `<strong class="app-project-navigation__current" aria-current="page">` rather than a link. On this page that is **Area habitats**.
 
-  **Expansion.** Only the unit type being viewed expands. `buildUnitTypeItem` gives Area habitats a `children` array containing a single **Baseline** child (→ `/projects/{id}/area-baseline`) when the current href is either `area-summary` or `area-baseline`; on any other page Area habitats renders collapsed with no child. Hedgerows and Watercourses never expand — they have no baseline page.
+  **Expansion.** Only the unit type being viewed expands. `buildUnitTypeItem` gives Area habitats a `children` array containing a single **Baseline** child (→ `/projects/{id}/area-baseline`) when the current href is either `area-summary` or `area-baseline`; on any other page Area habitats renders collapsed with no child. Since **BMD-859/861** (frontend PR#258, 2026-09-02) the same rule applies to Hedgerows and Watercourses, which now have baseline pages of their own — so exactly one section is expanded at a time, whichever is current.
 
   **Heading** — project name as a `govuk-caption-l`, `<h1>Area habitats</h1>`, and a GOV.UK **"Upload file"** button to the right, href `uploadFileHref(projectId, '/projects/{id}/area-summary')` — i.e. the shared file-type selection page carrying a `returnUrl` back to **this** page.
 

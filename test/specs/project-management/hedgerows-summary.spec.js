@@ -160,7 +160,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       ).toHaveCount(0)
     })
 
-    test('Hedgerows is current and the Area habitats section is collapsed', async ({
+    test('Hedgerows is current and expands its own Baseline child', async ({
       hedgerowsSummaryPage
     }) => {
       await hedgerowsSummaryPage.open(project.id)
@@ -173,12 +173,15 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // href, so the item is a <strong> with nothing to click.
       await expect(hedgerowsSummaryPage.navLink(HEDGEROWS)).toHaveCount(0)
 
-      // Moving to a different unit type collapses the one you came from, so the
-      // Baseline child is gone even though Area habitats still links.
+      // BMD-859/861 gave every unit type a baseline page, so the Baseline child
+      // now follows whichever section is current rather than belonging to area
+      // habitats alone. Asserting its href rather than counting: the locator is
+      // nav-wide, so strict mode fails if a second section were expanded too —
+      // which is what still proves Area habitats collapsed on this page.
       await expect(hedgerowsSummaryPage.navLink(AREA_HABITATS)).toBeVisible()
       await expect(
         hedgerowsSummaryPage.navLink(BASELINE_NAV_CHILD)
-      ).toHaveCount(0)
+      ).toHaveAttribute('href', `/projects/${project.id}/hedgerows-baseline`)
       await expect(hedgerowsSummaryPage.navLink(SUMMARY)).toBeVisible()
 
       // This fixture has rivers, so the conditional Watercourses item renders.

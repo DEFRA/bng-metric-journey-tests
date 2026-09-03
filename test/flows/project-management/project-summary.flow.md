@@ -8,11 +8,12 @@ Added by **BMD-870** (frontend PR#219, 2026-08-14), which built the baseline-onl
 
 **Three further tickets have since changed this page** — check the [Deferred elements](#deferred-elements) and [Known deviations](#known-deviations-from-the-design) sections before trusting any older assertion about it:
 
-| Ticket      | PR   | Date       | Effect on this page                                                                            |
-| ----------- | ---- | ---------- | ---------------------------------------------------------------------------------------------- |
-| **BMD-854** | #237 | 2026-08-25 | Nav items, section headings and the area baseline tile became links; empty sections now hidden |
-| **BMD-897** | #238 | 2026-08-25 | Post-intervention-only variant — `Not applicable`, no status tag, no baseline action           |
-| **BMD-898** | #233 | 2026-08-24 | Shared `buildUnitSummary` refactor behind the above; owns the ACs for the suppressed state     |
+| Ticket          | PR   | Date       | Effect on this page                                                                                                                               |
+| --------------- | ---- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **BMD-854**     | #237 | 2026-08-25 | Nav items, section headings and the area baseline tile became links; empty sections now hidden                                                    |
+| **BMD-897**     | #238 | 2026-08-25 | Post-intervention-only variant — `Not applicable`, no status tag, no baseline action                                                              |
+| **BMD-898**     | #233 | 2026-08-24 | Shared `buildUnitSummary` refactor behind the above; owns the ACs for the suppressed state                                                        |
+| **BMD-859/861** | #258 | 2026-09-02 | Hedgerow and watercourse baseline pages: their baseline tiles became links, and every unit type now expands a Baseline nav child on its own pages |
 
 Trading rules and the project-details clickthrough remain separate tickets and are still `[PLANNED]` here.
 
@@ -35,7 +36,7 @@ Trading rules and the project-details clickthrough remain separate tickets and a
   | Hedgerows     | only when `projectHasHabitatData(project, 'hedgerows')`                          |
   | Watercourses  | only when `projectHasHabitatData(project, 'watercourses')`                       |
 
-  So the nav carries **two to four items**, not four. On this page every unit type renders collapsed — `buildUnitTypeItem` only attaches the **Baseline** child when the current page is `area-summary` or `area-baseline`.
+  So the nav carries **two to four items**, not four. On this page every unit type renders collapsed — `withBaselineChild` attaches the **Baseline** child only to the section whose own summary or baseline page is current, and none of them is current here.
 
   **Heading** — project name as a `govuk-caption-l`, `<h1>Summary</h1>`, and a GOV.UK **"Upload file"** button aligned to the right.
 
@@ -51,9 +52,9 @@ Trading rules and the project-details clickthrough remain separate tickets and a
   | ------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
   | Trading Rules                               | text "View trading rules" — no link, see [Deferred elements](#deferred-elements)                       |
   | On-site baseline — **area habitats**        | `{units} units` + **link** "View on-site **area** baseline" → `/projects/{id}/area-baseline` (BMD-857) |
-  | On-site baseline — hedgerows / watercourses | `{units} units` + text "View on-site baseline" — no link                                               |
+  | On-site baseline — hedgerows / watercourses | `{units} units` + **link** "View on-site **hedgerows/watercourses** baseline" (BMD-859/861)            |
 
-  The area-habitats tile is the **only** baseline tile in the service that is a link, and the only one whose text says "area". `buildUnitSummary` takes a `baselineAction`; the project summary passes `areaBaselineAction('/projects/{id}/area-baseline')` for area habitats and nothing for the linear types, which fall back to the inert default.
+  Every baseline tile here is a link since **BMD-859/861** (frontend PR#258, 2026-09-02), each naming its own unit type: "View on-site **area** baseline", "View on-site **hedgerows** baseline", "View on-site **watercourses** baseline". `buildUnitSummary` takes a `baselineAction`; the project summary now passes one per unit type, pointing at `/projects/{id}/{area|hedgerows|watercourses}-baseline`. The drill-down pages still pass none, so their own tiles stay inert.
 
   The other three depend on whether `project.postIntervention` exists (**BMD-852**):
 
@@ -168,19 +169,19 @@ Trading rules and the project-details clickthrough remain separate tickets and a
 
 ## Deferred elements
 
-Out of scope for BMD-870 per the ticket. Four of the seven have since shipped — **BMD-854** (PR#237, 2026-08-25) built the drill-down pages and wired the navigation, **BMD-857** (PR#244) the area baseline page, **BMD-855/919** (PR#249) the hedgerows page. What remains is inert text rather than links.
+Out of scope for BMD-870 per the ticket. Four of the seven have since shipped — **BMD-854** (PR#237, 2026-08-25) built the drill-down pages and wired the navigation, **BMD-857** (PR#244) the area baseline page, **BMD-855/919** (PR#249) the hedgerows page, and **BMD-859/861** (PR#258, 2026-09-02) the hedgerow and watercourse baseline pages. What remains is inert text rather than links.
 
-| Element                                            | Current state                                                                            | Marker          |
-| -------------------------------------------------- | ---------------------------------------------------------------------------------------- | --------------- |
-| "Area Habitats" / "Hedgerows" / "Watercourses" nav | **real links** — and conditional; see Step 1                                             | `[IMPLEMENTED]` |
-| Unit-type section headings                         | **real links** to each drill-down page                                                   | `[IMPLEMENTED]` |
-| "View on-site baseline" — **area habitats only**   | **link** to `/projects/{id}/area-baseline`, text changed to "View on-site area baseline" | `[IMPLEMENTED]` |
-| "View on-site baseline" — hedgerows / watercourses | `<span>` inside the On-site baseline tile — no baseline page exists for either type      | `[PLANNED]`     |
-| "View trading rules"                               | `<span>` inside the Trading Rules tile                                                   | `[PLANNED]`     |
-| Trading rules status                               | not rendered                                                                             | `[PLANNED]`     |
-| "View on-site post intervention"                   | `<span>` in the PI tile once PI exists                                                   | `[PLANNED]`     |
-| "View project details" clickthrough                | heading + body text only, no link                                                        | `[PLANNED]`     |
-| Submitting the metric                              | not rendered                                                                             | `[PLANNED]`     |
+| Element                                            | Current state                                                                               | Marker          |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------- | --------------- |
+| "Area Habitats" / "Hedgerows" / "Watercourses" nav | **real links** — and conditional; see Step 1                                                | `[IMPLEMENTED]` |
+| Unit-type section headings                         | **real links** to each drill-down page                                                      | `[IMPLEMENTED]` |
+| "View on-site baseline" — **area habitats only**   | **link** to `/projects/{id}/area-baseline`, text changed to "View on-site area baseline"    | `[IMPLEMENTED]` |
+| "View on-site baseline" — hedgerows / watercourses | **links** to `/projects/{id}/hedgerows-baseline` and `/watercourses-baseline` (BMD-859/861) | `[IMPLEMENTED]` |
+| "View trading rules"                               | `<span>` inside the Trading Rules tile                                                      | `[PLANNED]`     |
+| Trading rules status                               | not rendered                                                                                | `[PLANNED]`     |
+| "View on-site post intervention"                   | `<span>` in the PI tile once PI exists                                                      | `[PLANNED]`     |
+| "View project details" clickthrough                | heading + body text only, no link                                                           | `[PLANNED]`     |
+| Submitting the metric                              | not rendered                                                                                | `[PLANNED]`     |
 
 The drill-down pages are documented in [`area-summary.flow.md`](area-summary.flow.md), [`area-baseline.flow.md`](area-baseline.flow.md), [`hedgerows-summary.flow.md`](hedgerows-summary.flow.md) and [`watercourses-summary.flow.md`](watercourses-summary.flow.md).
 
