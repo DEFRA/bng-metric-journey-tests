@@ -15,6 +15,7 @@ import {
   buildPostInterventionProject,
   getAllUnitTypesPostInterventionProject,
   getAllUnitTypesProject,
+  getAreaGainProject,
   getBaselineOnlyProject,
   getHedgerowGainProject,
   getNoHedgerowsPostInterventionProject,
@@ -65,7 +66,6 @@ const TILE_NET_PERCENTAGE = 'Total on-site net percentage change'
 const TILE_TRADING_RULES = 'Trading Rules'
 
 const VIEW_TRADING_RULES = 'View trading rules'
-const VIEW_ON_SITE_BASELINE = 'View on-site baseline'
 const VIEW_ON_SITE_POST_INTERVENTION = 'View on-site post intervention'
 // BMD-897 (frontend PR#238, 2026-08-25): a unit type present ONLY in the
 // post-intervention document has no baseline to divide by, so its percentage
@@ -108,9 +108,10 @@ const GREEN_TAG_CLASS = /govuk-tag--green/
 // the real bng-metric-engine and fails if it lands on the wrong side of the
 // 10% target, so these labels cannot drift from the arithmetic.
 //
-// harness net-gain/met-* — area habitats gain ~292%.
-const AREA_GAIN_BASELINE_FILE = 'Baseline - net gain met.gpkg'
-const AREA_GAIN_PI_FILE = 'Post-intervention - net gain met.gpkg'
+// The area-gain pair used to be cached here too. BMD-854 moved it into
+// @utils/summary-projects.js as `getAreaGainProject` so the area summary's
+// zero-deficit test shares this file's build instead of uploading it twice.
+//
 // harness intervention/watercourse-enhanced-* — watercourses gain ~3.8%: a real
 // gain that is still under the target, so the tag must stay red. This is the
 // only fixture that pins the threshold at 10 rather than at 0.
@@ -126,16 +127,6 @@ const NET_GAIN_TARGET_PERCENTAGE = 10
 // pendingUploadId yar key, so the project is built once per worker and the file
 // runs serially. See "Sharing uploads in read-only specs" in AGENTS.md.
 const getOrBuildProject = createProjectCache()
-
-function getAreaGainProject(browser) {
-  return getOrBuildProject(AREA_GAIN_PI_FILE, () =>
-    buildPostInterventionProject(
-      browser,
-      AREA_GAIN_BASELINE_FILE,
-      AREA_GAIN_PI_FILE
-    )
-  )
-}
 
 function getBelowTargetProject(browser) {
   return getOrBuildProject(BELOW_TARGET_PI_FILE, () =>
@@ -945,17 +936,6 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           ).toHaveCount(0)
         }
 
-        // Only area habitats got a baseline page (BMD-857). The linear types
-        // keep the inert wording, without the word "area".
-        await expect(
-          projectSummaryPage.viewOnSiteBaselineText(WATERCOURSES)
-        ).toBeVisible()
-        await expect(
-          projectSummaryPage
-            .unitSection(WATERCOURSES)
-            .getByRole('link', { name: VIEW_ON_SITE_BASELINE })
-        ).toHaveCount(0)
-
         await expect(projectSummaryPage.projectDetailsHeading).toBeVisible()
         await expect(projectSummaryPage.projectDetailsBody).toBeVisible()
         await expect(projectSummaryPage.projectDetailsLink).toHaveCount(0)
@@ -996,11 +976,19 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           `/projects/${project.id}/watercourses-summary`
         )
 
-        // BMD-857: the area baseline tile is the only linked baseline tile,
-        // and the only one whose wording carries "area".
+        // BMD-857 linked the area baseline tile; BMD-859/861 did the same for
+        // the linear types, so every baseline tile is now a link — each with
+        // its own unit type in the wording. The inert-text assertion that used
+        // to live in the deferred test above moved here when that landed.
         await expect(
           projectSummaryPage.viewOnSiteAreaBaselineLink(AREA_HABITATS)
         ).toHaveAttribute('href', `/projects/${project.id}/area-baseline`)
+        await expect(
+          projectSummaryPage.viewOnSiteWatercoursesBaselineLink(WATERCOURSES)
+        ).toHaveAttribute(
+          'href',
+          `/projects/${project.id}/watercourses-baseline`
+        )
       })
     }
   )

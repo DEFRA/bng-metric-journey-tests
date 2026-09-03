@@ -53,6 +53,13 @@ export const ALL_UNIT_TYPES_PI_FILE =
 export const TARGET_MET_BASELINE_FILE = 'Baseline - linear net gain met.gpkg'
 export const TARGET_MET_PI_FILE = 'Post-intervention - linear net gain met.gpkg'
 
+// harness net-gain/met-* — every parcel enhanced from Low/Poor to Medium/Good,
+// so AREA habitats gain ~292%. The linear pair above does nothing for area
+// units, which makes this the only pairing that drives the AREA deficit to zero
+// from a non-zero baseline.
+export const AREA_GAIN_BASELINE_FILE = 'Baseline - net gain met.gpkg'
+export const AREA_GAIN_PI_FILE = 'Post-intervention - net gain met.gpkg'
+
 // A baseline with 16 hedgerows and NO rivers, paired below with a
 // post-intervention file that has watercourses — the watercourse equivalent of
 // the hedgerow pairing above, and the only route to BMD-897's
@@ -196,6 +203,25 @@ export function getTargetMetProject(browser) {
         browser,
         TARGET_MET_BASELINE_FILE,
         TARGET_MET_PI_FILE
+      )
+  )
+}
+
+/**
+ * A project whose AREA habitats clear the 10% target — the area-unit
+ * counterpart of `getTargetMetProject`, which moves only the linear types.
+ * Shared by the project summary (green "Met" tag) and the area summary
+ * (zero unit deficit) so the pair is uploaded once per worker rather than once
+ * per spec file.
+ */
+export function getAreaGainProject(browser) {
+  return getOrBuildProject(
+    projectKey(AREA_GAIN_BASELINE_FILE, AREA_GAIN_PI_FILE),
+    () =>
+      buildPostInterventionProject(
+        browser,
+        AREA_GAIN_BASELINE_FILE,
+        AREA_GAIN_PI_FILE
       )
   )
 }

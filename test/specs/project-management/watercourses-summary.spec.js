@@ -89,7 +89,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       await expect(watercoursesSummaryPage.baselineAction()).toHaveCount(0)
     })
 
-    test('Watercourses is current and the Area habitats section is collapsed', async ({
+    test('Watercourses is current and expands its own Baseline child', async ({
       watercoursesSummaryPage
     }) => {
       await watercoursesSummaryPage.open(project.id)
@@ -100,10 +100,12 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       await expect(watercoursesSummaryPage.navLink(AREA_HABITATS)).toBeVisible()
       await expect(watercoursesSummaryPage.navLink(HEDGEROWS)).toBeVisible()
       await expect(watercoursesSummaryPage.navLink(SUMMARY)).toBeVisible()
-      // Moving to another unit type collapses the one you came from.
+      // BMD-859/861: the Baseline child follows the current section now that
+      // every unit type has a baseline page. The locator is nav-wide, so strict
+      // mode fails if another section were expanded alongside this one.
       await expect(
         watercoursesSummaryPage.navLink(BASELINE_NAV_CHILD)
-      ).toHaveCount(0)
+      ).toHaveAttribute('href', `/projects/${project.id}/watercourses-baseline`)
     })
   })
 
