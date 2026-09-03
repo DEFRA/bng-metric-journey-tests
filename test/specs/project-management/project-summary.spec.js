@@ -990,6 +990,30 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           `/projects/${project.id}/watercourses-baseline`
         )
       })
+
+      // BMD-857 AC2. Sole witness that this route into the area baseline
+      // works: the assertions above prove the href is RENDERED, and
+      // `area-baseline/controller.test.js` proves the destination renders
+      // against mocked data — but until this test nothing had followed the
+      // link. area-summary.spec.js:312 closed the same gap for the other two
+      // entry points. Do not delete without moving the click onto another test
+      // that reaches the area baseline from the project summary.
+      test('the area habitats baseline tile opens the area baseline page', async ({
+        page,
+        projectSummaryPage,
+        areaBaselinePage
+      }) => {
+        await projectSummaryPage.open(project.id)
+        await projectSummaryPage
+          .viewOnSiteAreaBaselineLink(AREA_HABITATS)
+          .click()
+
+        await expect(page).toHaveURL(
+          new RegExp(`/projects/${project.id}/area-baseline`)
+        )
+        await expect(areaBaselinePage.heading).toBeVisible()
+        await expect(areaBaselinePage.detailsTable).toBeVisible()
+      })
     }
   )
 
