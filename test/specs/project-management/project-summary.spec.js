@@ -15,6 +15,7 @@ import {
   buildPostInterventionProject,
   getAllUnitTypesPostInterventionProject,
   getAllUnitTypesProject,
+  getAreaGainProject,
   getBaselineOnlyProject,
   getHedgerowGainProject,
   getNoHedgerowsPostInterventionProject,
@@ -108,9 +109,10 @@ const GREEN_TAG_CLASS = /govuk-tag--green/
 // the real bng-metric-engine and fails if it lands on the wrong side of the
 // 10% target, so these labels cannot drift from the arithmetic.
 //
-// harness net-gain/met-* — area habitats gain ~292%.
-const AREA_GAIN_BASELINE_FILE = 'Baseline - net gain met.gpkg'
-const AREA_GAIN_PI_FILE = 'Post-intervention - net gain met.gpkg'
+// The area-gain pair used to be cached here too. BMD-854 moved it into
+// @utils/summary-projects.js as `getAreaGainProject` so the area summary's
+// zero-deficit test shares this file's build instead of uploading it twice.
+//
 // harness intervention/watercourse-enhanced-* — watercourses gain ~3.8%: a real
 // gain that is still under the target, so the tag must stay red. This is the
 // only fixture that pins the threshold at 10 rather than at 0.
@@ -126,16 +128,6 @@ const NET_GAIN_TARGET_PERCENTAGE = 10
 // pendingUploadId yar key, so the project is built once per worker and the file
 // runs serially. See "Sharing uploads in read-only specs" in AGENTS.md.
 const getOrBuildProject = createProjectCache()
-
-function getAreaGainProject(browser) {
-  return getOrBuildProject(AREA_GAIN_PI_FILE, () =>
-    buildPostInterventionProject(
-      browser,
-      AREA_GAIN_BASELINE_FILE,
-      AREA_GAIN_PI_FILE
-    )
-  )
-}
 
 function getBelowTargetProject(browser) {
   return getOrBuildProject(BELOW_TARGET_PI_FILE, () =>

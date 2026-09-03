@@ -1,4 +1,8 @@
 import { readTileUnits, readTileValue } from '@utils/tile-value.js'
+import {
+  UPLOAD_POST_INTERVENTION,
+  VIEW_ON_SITE_POST_INTERVENTION
+} from '@utils/unit-type-labels.js'
 
 import { BasePage } from './base.page.js'
 
@@ -45,6 +49,24 @@ export class UnitTypeSummaryPage extends BasePage {
   /** The unit summary section — labelled, not headed. See the class note. */
   unitSection() {
     return this.page.getByRole('region', { name: this.label })
+  }
+
+  /**
+   * The post-intervention tile's upload link. Present only while the project
+   * has no post-intervention document — once it has one the tile carries inert
+   * text instead, so this is the locator that tells the two states apart.
+   */
+  uploadPostInterventionLink() {
+    return this.unitSection().getByRole('link', {
+      name: UPLOAD_POST_INTERVENTION
+    })
+  }
+
+  /** The inert text that replaces the upload link once the document exists. */
+  viewOnSitePostInterventionText() {
+    return this.unitSection().getByText(VIEW_ON_SITE_POST_INTERVENTION, {
+      exact: true
+    })
   }
 
   navItem(text) {

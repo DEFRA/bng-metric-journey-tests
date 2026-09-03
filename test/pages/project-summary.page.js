@@ -1,8 +1,8 @@
 import { readTileUnits, readTileValue } from '@utils/tile-value.js'
+import { UPLOAD_POST_INTERVENTION } from '@utils/unit-type-labels.js'
 
 import { BasePage } from './base.page.js'
 
-const UPLOAD_POST_INTERVENTION_TEXT = 'Upload on-site post intervention file'
 const VIEW_ON_SITE_BASELINE_TEXT = 'View on-site baseline'
 // BMD-857: the area-habitats baseline tile is the only one that links, and the
 // only one whose wording says "area". Its href is the area baseline page.
@@ -74,7 +74,7 @@ export class ProjectSummaryPage extends BasePage {
 
   uploadPostInterventionLink(label) {
     return this.unitSection(label).getByRole('link', {
-      name: UPLOAD_POST_INTERVENTION_TEXT
+      name: UPLOAD_POST_INTERVENTION
     })
   }
 
@@ -106,6 +106,10 @@ export class ProjectSummaryPage extends BasePage {
 
   navItem(text) {
     return this.navigation.getByText(text, { exact: true })
+  }
+
+  navLink(text) {
+    return this.navigation.getByRole('link', { name: text })
   }
 
   tileValue(sectionLabel, tileHeading) {
