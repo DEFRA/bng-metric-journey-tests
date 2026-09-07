@@ -4,7 +4,7 @@
 
 The user drills one level below the [hedgerows summary](hedgerows-summary.flow.md) to see every baseline hedgerow in one sortable table, with a totals row, and clicks any row's Ref to open that feature's [habitat details](../habitat-details/habitat-details.flow.md) page. It replaces the hedgerow half of the deprecated Habitat List page.
 
-Added by **BMD-859** (frontend PR#258, 2026-09-02), with the missing summary-page link added by **PR#266** (2026-09-04). Its watercourse twin `/watercourses-baseline` (BMD-861) shipped in the same two PRs and is the same shape.
+Added by **BMD-859** (frontend PR#258, 2026-09-02), with the missing summary-page link added by **PR#266** (2026-09-04). Its watercourse twin [`/watercourses-baseline`](watercourses-baseline.flow.md) (BMD-861) shipped in the same two PRs and is the same shape.
 
 Structurally this is the [area habitats baseline](area-baseline.flow.md) with a different feature collection: one shared controller factory (`create-habitat-baseline-controller`), one shared grid builder (`baseline-habitat-grid`), and a linear wrapper (`create-linear-habitat-baseline-controller`) that swaps hectares for kilometres. Each page still passes its **own** habitat key and unit field, so a witness for one is not a witness for the other.
 
