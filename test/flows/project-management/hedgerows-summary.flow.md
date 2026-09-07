@@ -16,7 +16,7 @@ Added by **BMD-855 / BMD-919** (frontend PR#249, 2026-08-28). Before it, `/proje
 - **Backend endpoint:** `GET /projects/{id}` (via `fetchProjectOrThrow`)
 - **Description:** Renders the hedgerows view of a project that has a baseline.
 
-  **Left navigation** — as [`area-summary.flow.md`](area-summary.flow.md) Step 1, with **Hedgerows** as the current item. Area habitats renders **collapsed** here: `buildUnitTypeItem` only attaches the Baseline child when the current page is `area-summary` or `area-baseline`, so moving to a different unit type collapses the section you came from. Hedgerows itself expands a **Baseline** child (→ `/projects/{id}/hedgerows-baseline`) since **BMD-859/861** (frontend PR#258, 2026-09-02); that page is not yet documented here.
+  **Left navigation** — as [`area-summary.flow.md`](area-summary.flow.md) Step 1, with **Hedgerows** as the current item. Area habitats renders **collapsed** here: `buildUnitTypeItem` only attaches the Baseline child when the current page is `area-summary` or `area-baseline`, so moving to a different unit type collapses the section you came from. Hedgerows itself expands a **Baseline** child (→ `/projects/{id}/hedgerows-baseline`) since **BMD-859/861** (frontend PR#258, 2026-09-02) — see [`hedgerows-baseline.flow.md`](hedgerows-baseline.flow.md).
 
   **Navigation edge case.** The Hedgerows nav item is conditional on `projectHasHabitatData(project, 'hedgerows')`, but the **route is not**. A project with no hedgerow data anywhere still renders this page on a direct URL — it just shows zeros, and the nav contains no Hedgerows item to mark current, so nothing on the page is flagged `aria-current="page"`. Worth pinning in a test; it is the kind of state a user reaches from a stale bookmark.
 
@@ -24,7 +24,7 @@ Added by **BMD-855 / BMD-919** (frontend PR#249, 2026-08-28). Before it, `/proje
 
   **Results** — `<h2>Results</h2>` and one `appUnitTypeSummary`. As on every drill-down page there is **no section `<h2>`** (no `headingHref`), so the section carries `aria-label="Hedgerows"`.
 
-  Unlike area habitats, the baseline tile passes **no `baselineAction`**, so it falls back to the shared default: inert text "View on-site baseline" (not "View on-site _area_ baseline") with no link. BMD-859/861 built a hedgerow baseline page and linked it from the **project summary** tile, but left this drill-down's own tile inert — reach it from the left navigation's Baseline child instead.
+  The baseline tile passes `hedgerowsBaselineAction(href)`, so it renders a **link** "View on-site hedgerows baseline" → `/projects/{id}/hedgerows-baseline`, naming its own unit type exactly as the area summary's does. Until **frontend PR#266** (2026-09-04) this controller passed no `baselineAction` at all and the tile fell back to the shared inert default "View on-site baseline" — BMD-859 shipped the baseline page and the project-summary link but missed this one, which is the half of its AC1 that failed manual validation on 2026-09-03. Both routes to the page — this link and the left navigation's Baseline child — now work.
 
   **Targets** — the same three tiles as the area summary: `10%` target, `baselineUnits × 1.1` units required, and `max(0, unitsRequired − postInterventionUnits)` deficit floored at zero, or `N/A` when the post-intervention figure is non-finite.
 
@@ -80,7 +80,7 @@ This page is structurally identical to the area summary, so the tests deliberate
 | Test                                      | Why it is not covered by the area summary                                                                                                                                                                                                                 |
 | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Hedgerow figures and targets              | reads `baseline.units.hedgerowsTotal`, a different backend field                                                                                                                                                                                          |
-| Inert baseline tile                       | no hedgerow baseline page exists, so the wording drops "area" and carries no link                                                                                                                                                                         |
+| Linked baseline tile (BMD-859 AC1)        | the wording names this unit type — "View on-site hedgerows baseline" — and the href is built by **this** controller, so the area page's identical assertion is not shared coverage                                                                        |
 | Hedgerows current, area section collapsed | the collapse case — area-summary witnesses the expansion                                                                                                                                                                                                  |
 | Post-intervention-only variant (BMD-897)  | `hasPostInterventionOnlyHabitat` is called by each controller with its own habitat-type argument. A shared helper is not shared coverage when the caller picks the parameter — point this page's call at the wrong type and every other test still passes |
 | Direct URL with no hedgerow data          | the nav entry is conditional, the route is not; nothing is marked current                                                                                                                                                                                 |
@@ -107,8 +107,7 @@ The two post-intervention projects come from `getTargetMetProject` and `getAllUn
 
 ## Deferred elements
 
-| Element                          | Current state                                     | Marker      |
-| -------------------------------- | ------------------------------------------------- | ----------- |
-| "View trading rules"             | inert `<span>` in the Trading Rules tile          | `[PLANNED]` |
-| "View on-site baseline"          | inert `<span>` — no hedgerow baseline page exists | `[PLANNED]` |
-| "View on-site post intervention" | inert `<span>` once post-intervention exists      | `[PLANNED]` |
+| Element                          | Current state                                | Marker      |
+| -------------------------------- | -------------------------------------------- | ----------- |
+| "View trading rules"             | inert `<span>` in the Trading Rules tile     | `[PLANNED]` |
+| "View on-site post intervention" | inert `<span>` once post-intervention exists | `[PLANNED]` |

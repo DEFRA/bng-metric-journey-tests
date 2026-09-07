@@ -1,6 +1,7 @@
 import { readTileUnits, readTileValue } from '@utils/tile-value.js'
 import {
   UPLOAD_POST_INTERVENTION,
+  VIEW_ON_SITE_HEDGEROWS_BASELINE,
   VIEW_ON_SITE_WATERCOURSES_BASELINE
 } from '@utils/unit-type-labels.js'
 
@@ -98,6 +99,13 @@ export class ProjectSummaryPage extends BasePage {
   viewOnSiteAreaBaselineLink(label) {
     return this.unitSection(label).getByRole('link', {
       name: VIEW_ON_SITE_AREA_BASELINE_TEXT
+    })
+  }
+
+  /** The hedgerows equivalent, added by BMD-859/861. */
+  viewOnSiteHedgerowsBaselineLink(label) {
+    return this.unitSection(label).getByRole('link', {
+      name: VIEW_ON_SITE_HEDGEROWS_BASELINE
     })
   }
 

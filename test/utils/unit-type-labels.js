@@ -1,6 +1,10 @@
 export const AREA_HABITATS = 'Area habitats'
 export const HEDGEROWS = 'Hedgerows'
 export const WATERCOURSES = 'Watercourses'
+// The watercourses summary's H1 diverged from its unit-type label in frontend
+// PR#271 (2026-09-07): the heading reads "Watercourse habitats" while the nav
+// item and the summary section's aria-label stay "Watercourses".
+export const WATERCOURSE_HABITATS_HEADING = 'Watercourse habitats'
 export const SUMMARY = 'Summary'
 export const BASELINE_NAV_CHILD = 'Baseline'
 
@@ -9,6 +13,8 @@ export const VIEW_ON_SITE_BASELINE = 'View on-site baseline'
 export const VIEW_ON_SITE_AREA_BASELINE = 'View on-site area baseline'
 // BMD-859/861 gave the linear types baseline pages too, so their project
 // summary tiles carry their own linked wording rather than the inert default.
+// Since frontend PR#266 the unit-type summary pages carry the same links.
+export const VIEW_ON_SITE_HEDGEROWS_BASELINE = 'View on-site hedgerows baseline'
 export const VIEW_ON_SITE_WATERCOURSES_BASELINE =
   'View on-site watercourses baseline'
 

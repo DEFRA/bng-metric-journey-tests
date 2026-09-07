@@ -51,7 +51,7 @@ const SHARED_TILES = [
 // nav mechanics — area-summary.spec.js witnesses all of that against real data,
 // and repeating it here would test the shared macro rather than this page's
 // wiring. What is covered here is only what differs: the hedgerow BACKEND
-// FIELDS, the inert baseline tile, and the post-intervention-only variant.
+// FIELDS, the baseline tile's own link, and the post-intervention-only variant.
 test.describe('project-management', { tag: '@project-management' }, () => {
   test.describe.configure({ mode: 'serial' })
 
@@ -142,22 +142,41 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       }
     )
 
-    // The one deliberate difference from the area summary. No hedgerow baseline
-    // page exists, so the controller passes no `baselineAction` and the tile
-    // falls back to the shared inert default — note the wording drops the word
-    // "area" the linked variant carries.
-    test('the baseline tile is inert, with no "area" in its wording', async ({
-      hedgerowsSummaryPage
+    // BMD-859 AC1, second trigger. This tile was inert until frontend PR#266
+    // (2026-09-04) — BMD-859 shipped the baseline page and the project-summary
+    // link but left this one unlinked, which is the half of AC1 that failed
+    // manual validation on 2026-09-03. The test that used to stand here
+    // asserted the inert default and is what caught the fix landing.
+    //
+    // Both routes into the baseline page are followed here because both are
+    // AC1: the nav child's href was asserted below long before anything
+    // clicked it. `hedgerows-summary/controller.test.js:112` proves the link is
+    // rendered against mocked data; only this proves it resolves.
+    test('both baseline triggers open the hedgerows baseline page', async ({
+      page,
+      hedgerowsSummaryPage,
+      hedgerowsBaselinePage
     }) => {
+      const baselineUrl = `/projects/${project.id}/hedgerows-baseline`
+
       await hedgerowsSummaryPage.open(project.id)
 
-      await expect(hedgerowsSummaryPage.viewOnSiteBaselineText()).toBeVisible()
-      await expect(hedgerowsSummaryPage.baselineAction()).toHaveCount(0)
-      await expect(
-        hedgerowsSummaryPage
-          .unitSection()
-          .getByText('View on-site area baseline')
-      ).toHaveCount(0)
+      // The wording names this unit type, as the area summary's does — the
+      // shared inert default ("View on-site baseline", no type) would mean the
+      // controller had stopped passing its own `baselineAction`.
+      const baselineLink = hedgerowsSummaryPage.baselineLink()
+      await expect(baselineLink).toHaveAttribute('href', baselineUrl)
+      await expect(hedgerowsSummaryPage.viewOnSiteBaselineText()).toHaveCount(0)
+
+      await baselineLink.click()
+      await expect(page).toHaveURL(new RegExp(baselineUrl))
+      await expect(hedgerowsBaselinePage.heading).toBeVisible()
+
+      // Route two: the left nav's Baseline child.
+      await hedgerowsSummaryPage.open(project.id)
+      await hedgerowsSummaryPage.navLink(BASELINE_NAV_CHILD).click()
+      await expect(page).toHaveURL(new RegExp(baselineUrl))
+      await expect(hedgerowsBaselinePage.heading).toBeVisible()
     })
 
     test('Hedgerows is current and expands its own Baseline child', async ({

@@ -24,11 +24,15 @@ import { BasePage } from './base.page.js'
  * their values are read positionally off the section text.
  */
 export class UnitTypeSummaryPage extends BasePage {
-  constructor(page, { label, path }) {
+  // `heading` defaults to `label` because on most of these pages the H1, the
+  // nav item and the summary section's aria-label are the same string. The
+  // watercourses page is the exception — see WatercoursesSummaryPage — so a
+  // subclass whose copy diverges passes its own.
+  constructor(page, { label, path, heading = label }) {
     super(page)
     this.label = label
     this.path = path
-    this.heading = page.getByRole('heading', { name: label, level: 1 })
+    this.heading = page.getByRole('heading', { name: heading, level: 1 })
     this.uploadFileButton = page.getByRole('button', { name: 'Upload file' })
     this.navigation = page.getByRole('navigation', { name: 'Project summary' })
     this.resultsHeading = page.getByRole('heading', {
