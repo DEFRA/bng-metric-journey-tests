@@ -78,15 +78,23 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       }
     )
 
-    test('the baseline tile is inert, with no "area" in its wording', async ({
+    // BMD-861's half of frontend PR#266 (2026-09-04), the watercourse twin of
+    // BMD-859 AC1: the tile was inert until that PR passed
+    // `watercoursesBaselineAction(href)` into this controller. Following the
+    // link belongs to BMD-861's own AC sweep — asserted here is that this page
+    // emits its own unit type's wording rather than the shared default.
+    test('the baseline tile links to the watercourses baseline page', async ({
       watercoursesSummaryPage
     }) => {
       await watercoursesSummaryPage.open(project.id)
 
+      await expect(watercoursesSummaryPage.baselineLink()).toHaveAttribute(
+        'href',
+        `/projects/${project.id}/watercourses-baseline`
+      )
       await expect(
         watercoursesSummaryPage.viewOnSiteBaselineText()
-      ).toBeVisible()
-      await expect(watercoursesSummaryPage.baselineAction()).toHaveCount(0)
+      ).toHaveCount(0)
     })
 
     test('Watercourses is current and expands its own Baseline child', async ({

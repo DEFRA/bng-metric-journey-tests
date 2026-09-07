@@ -20,7 +20,7 @@ Added by **BMD-857** (frontend PR#244, 2026-08-27). It is the deepest page in th
 
   **Heading** — project name caption, `<h1>Baseline for area habitats</h1>`, and the "Upload file" button with `returnUrl` pointing back here.
 
-  **Results** — `<h2>Area habitats results</h2>` followed by an `appUnitTypeSummary`. As on the area summary there is **no section `<h2>`** (no `headingHref`), so the section carries `aria-label="Area habitats"`. Its baseline tile action is `areaBaselineAction()` called with **no href** — the text "View on-site area baseline" renders as an inert `<span>`, because the user is already on that page.
+  **Results** — `<h2>Area habitats results</h2>` followed by an `appUnitTypeSummary`. As on the area summary there is **no section `<h2>`** (no `headingHref`), so the section carries `aria-label="Area habitats"`. Its baseline tile has **no action line at all**: `create-habitat-baseline-controller` passes `baselineAction: null`, because the link would point at the page the user is already on. Until **frontend PR#266** (2026-09-04) it passed `areaBaselineAction()` with no href and the tile rendered "View on-site area baseline" as an inert `<span>`; that text is now gone entirely. The change was made for BMD-859's hedgerow twin and lands here too — the controller is shared by all three baseline pages.
 
   **Details** — `<h2>Area habitat details</h2>` and a table inside `<div class="moj-scrollable-pane" role="region" aria-label="Area habitat details" tabindex="0">`, marked `data-module="moj-sortable-table"`. Eight columns, in order:
 
@@ -112,8 +112,8 @@ Added 2026-09-01, extended 2026-09-03 for the BMD-857 AC sweep — `test/specs/p
 
 ## Deferred elements
 
-| Element                               | Current state                                | Marker      |
-| ------------------------------------- | -------------------------------------------- | ----------- |
-| "View trading rules"                  | inert `<span>` in the Trading Rules tile     | `[PLANNED]` |
-| "View on-site post intervention"      | inert `<span>` once post-intervention exists | `[PLANNED]` |
-| Hedgerow / watercourse baseline pages | do not exist — only area habitats has one    | `[PLANNED]` |
+| Element                               | Current state                                                                           | Marker          |
+| ------------------------------------- | --------------------------------------------------------------------------------------- | --------------- |
+| "View trading rules"                  | inert `<span>` in the Trading Rules tile                                                | `[PLANNED]`     |
+| "View on-site post intervention"      | inert `<span>` once post-intervention exists                                            | `[PLANNED]`     |
+| Hedgerow / watercourse baseline pages | shipped by BMD-859/861 — see [`hedgerows-baseline.flow.md`](hedgerows-baseline.flow.md) | `[IMPLEMENTED]` |

@@ -11,6 +11,7 @@ import {
   HEDGEROWS,
   SUMMARY,
   TILE_BASELINE,
+  VIEW_ON_SITE_AREA_BASELINE,
   WATERCOURSES
 } from '@utils/unit-type-labels.js'
 
@@ -107,15 +108,19 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           )
         )
 
-        // Folded in rather than paid for separately: the baseline action is
-        // inert here (areaBaselineAction() with no href) because the page it
-        // would link to is this one.
-        await expect(
-          areaBaselinePage.viewOnSiteAreaBaselineText()
-        ).toBeVisible()
+        // Folded in rather than paid for separately: the baseline tile carries
+        // NO action line here. Frontend PR#266 (2026-09-04) set
+        // `baselineAction: null` in the shared baseline controller, so the
+        // inert "View on-site area baseline" text this used to assert is gone
+        // entirely rather than merely unlinked — the link would point at the
+        // page the user is already on. The change was made for BMD-859's
+        // hedgerow twin and lands here because the controller is shared.
+        await expect(areaBaselinePage.viewOnSiteAreaBaselineText()).toHaveCount(
+          0
+        )
         await expect(
           areaBaselinePage.unitSection().getByRole('link', {
-            name: 'View on-site area baseline'
+            name: VIEW_ON_SITE_AREA_BASELINE
           })
         ).toHaveCount(0)
       }

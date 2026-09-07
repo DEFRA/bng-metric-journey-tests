@@ -9,6 +9,8 @@ export const VIEW_ON_SITE_BASELINE = 'View on-site baseline'
 export const VIEW_ON_SITE_AREA_BASELINE = 'View on-site area baseline'
 // BMD-859/861 gave the linear types baseline pages too, so their project
 // summary tiles carry their own linked wording rather than the inert default.
+// Since frontend PR#266 the unit-type summary pages carry the same links.
+export const VIEW_ON_SITE_HEDGEROWS_BASELINE = 'View on-site hedgerows baseline'
 export const VIEW_ON_SITE_WATERCOURSES_BASELINE =
   'View on-site watercourses baseline'
 
