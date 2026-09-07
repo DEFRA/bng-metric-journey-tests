@@ -20,7 +20,9 @@ That PR also lifted `buildTargetsSummary` out of the area and hedgerow controlle
 
   **Navigation edge case**, as for hedgerows: the Watercourses nav item is conditional on `projectHasHabitatData(project, 'watercourses')`, but the **route is not**. A project with no watercourse data still renders this page on a direct URL, showing zeroes, with nothing in the nav marked current.
 
-  As on every drill-down page the unit summary section carries **no `<h2>`** (no `headingHref`), so it is reachable by `aria-label="Watercourses"`.
+  **Heading** — project name caption, `<h1>Watercourse habitats</h1>`, and the "Upload file" button. The H1 is the one place a unit-type page's copy diverges from its label: **frontend PR#271** (`25a5cbf`, 2026-09-07) re-headed it from "Watercourses" to "Watercourse habitats" for BMD-856, matching the area page's "Area habitats", while the nav item and the summary section's `aria-label` both stayed "Watercourses". The hedgerows page was not renamed, so it is still bare "Hedgerows". A locator that derives the H1 from the unit-type label — as `UnitTypeSummaryPage` did until that rename — finds nothing here.
+
+  As on every drill-down page the unit summary section carries **no `<h2>`** (no `headingHref`), so it is reachable by `aria-label="Watercourses"` — the label, not the heading.
 
   The baseline tile passes **no `baselineAction`**, so it falls back to the shared inert default "View on-site baseline", without the word "area" the linked area variant carries. **BMD-859/861** (frontend PR#258, 2026-09-02) built `/projects/{id}/watercourses-baseline` and linked it from the **project summary** tile and this page's navigation, but left this tile inert.
 

@@ -1,7 +1,8 @@
 import {
   VIEW_ON_SITE_BASELINE,
   VIEW_ON_SITE_WATERCOURSES_BASELINE,
-  WATERCOURSES
+  WATERCOURSES,
+  WATERCOURSE_HABITATS_HEADING
 } from '@utils/unit-type-labels.js'
 
 import { UnitTypeSummaryPage } from './unit-type-summary.page.js'
@@ -14,6 +15,11 @@ import { UnitTypeSummaryPage } from './unit-type-summary.page.js'
  * unit-type-page.njk like the others, so it has the heading row's upload
  * button, a Results section and a Targets section.
  *
+ * Its H1 is the one place a unit-type page's copy diverges from its label:
+ * frontend PR#271 (2026-09-07) re-headed it "Watercourse habitats" while the
+ * nav item and the summary section's aria-label stayed "Watercourses", so the
+ * heading is passed explicitly and `label` still drives the section locator.
+ *
  * Same shape as the hedgerows summary, including its baseline tile: since
  * frontend PR#266 (2026-09-04) the controller passes
  * `watercoursesBaselineAction(href)`, so the tile is a LINK naming its own unit
@@ -22,7 +28,11 @@ import { UnitTypeSummaryPage } from './unit-type-summary.page.js'
  */
 export class WatercoursesSummaryPage extends UnitTypeSummaryPage {
   constructor(page) {
-    super(page, { label: WATERCOURSES, path: 'watercourses-summary' })
+    super(page, {
+      label: WATERCOURSES,
+      path: 'watercourses-summary',
+      heading: WATERCOURSE_HABITATS_HEADING
+    })
   }
 
   /**

@@ -1,6 +1,10 @@
 export const AREA_HABITATS = 'Area habitats'
 export const HEDGEROWS = 'Hedgerows'
 export const WATERCOURSES = 'Watercourses'
+// The watercourses summary's H1 diverged from its unit-type label in frontend
+// PR#271 (2026-09-07): the heading reads "Watercourse habitats" while the nav
+// item and the summary section's aria-label stay "Watercourses".
+export const WATERCOURSE_HABITATS_HEADING = 'Watercourse habitats'
 export const SUMMARY = 'Summary'
 export const BASELINE_NAV_CHILD = 'Baseline'
 
