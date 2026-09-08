@@ -29,7 +29,7 @@ That PR also lifted `buildTargetsSummary` out of the area and hedgerow controlle
 - **Post-intervention-only watercourses (BMD-897) `[IMPLEMENTED]`:** when watercourses exist in `postIntervention` but not in `baseline`, `hasPostInterventionOnlyHabitat(project, 'watercourses')` is true and the summary changes shape exactly as documented for hedgerows — `Not applicable` percentage, no status tag, no baseline action, and the unhyphenated post-intervention heading.
 - **Unit sourcing:** baseline is `normaliseUnits(project.baseline.units.watercoursesTotal)`. Post-intervention reads `watercoursesTotal`, `watercoursesNetUnitChange` and `watercoursesNetUnitChangePercentage` from `project.postIntervention.units`; the frontend computes none of them.
 - **Validation:** `id` path param must be a valid uuidv4 (Joi); invalid → Hapi 400
-- **On success:** Renders `watercourses-summary/index` with page title "Watercourses - {serviceName}"
+- **On success:** Renders `watercourses-summary/index` with page title "Watercourse habitats - {serviceName}" — PR#271 re-pointed `pageTitle` at the same constant as the H1, so the tab title changed with the heading
 - **On error:** As [`area-summary.flow.md`](area-summary.flow.md) Step 1 — no-baseline redirect, 404, 502, session-expired
 
 ---
@@ -49,27 +49,30 @@ That PR also lifted `buildTargetsSummary` out of the area and hedgerow controlle
 
 ## Journey coverage
 
-Rewritten 2026-09-01 — `test/specs/project-management/watercourses-summary.spec.js` (4 tests, domain tag `@project-management`).
+Rewritten 2026-09-01, extended 2026-09-08 — `test/specs/project-management/watercourses-summary.spec.js` (7 tests, domain tag `@project-management`).
 
 **The placeholder tests earned their keep.** They asserted the "under construction" copy and the absence of the upload button, Results heading and Targets section, on the reasoning that "when the real page ships these fail immediately and are rewritten, instead of the placeholder surviving behind a skip nobody revisits". BMD-856 shipped hours later and the first CI run failed on exactly that assertion. Worth remembering the next time a placeholder tempts a `test.skip`.
 
-As with hedgerows, the tests do not re-assert the shared layout or nav mechanics — `area-summary.spec.js` witnesses those. Covered here:
+As with hedgerows, the tests do not re-assert the shared layout or the nav component's mechanics — `area-summary.spec.js` witnesses those. This page's own nav destinations are asserted here, because the AC names one per link. Covered here:
 
-| Test                                         | Why it is not covered elsewhere                                                                                                       |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Watercourse figures and targets              | reads `watercoursesTotal`, a third distinct backend field                                                                             |
-| Inert baseline tile                          | no watercourse baseline page exists                                                                                                   |
-| Watercourses current, area section collapsed | the collapse case for this unit type                                                                                                  |
-| Post-intervention-only variant               | `hasPostInterventionOnlyHabitat` is called with this page's own habitat-type argument — hedgerows' witness does not cover a typo here |
+| Test                                             | Why it is not covered elsewhere                                                                                                         |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Watercourse figures and targets                  | reads `watercoursesTotal`, a third distinct backend field; also pins the upload button's returnUrl, which this controller builds itself |
+| Baseline tile links to the watercourses baseline | the tile emits this unit type's own wording rather than the shared inert default                                                        |
+| Watercourses current, area section collapsed     | the collapse case for this unit type, plus the three nav destinations this page offers                                                  |
+| Both triggers open this page from the summary    | BMD-856 AC1 — the only witness that either route _into_ this page resolves                                                              |
+| Post-intervention results and deficit            | BMD-856 AC4/AC5 — the only witness that watercourse post-intervention units reach this page and feed its targets arithmetic             |
+| Post-intervention-only variant                   | `hasPostInterventionOnlyHabitat` is called with this page's own habitat-type argument — hedgerows' witness does not cover a typo here   |
 
-The post-intervention-only test needs a baseline with no watercourses plus a post-intervention file that has them — `getWatercourseGainProject` in `@utils/summary-projects.js`.
+The post-intervention-only test needs a baseline with no watercourses plus a post-intervention file that has them — `getWatercourseGainProject` in `@utils/summary-projects.js`. The post-intervention results test needs both documents populated for every unit type — `getAllUnitTypesPostInterventionProject`, shared with the area and hedgerow specs, so it costs no extra upload in CI.
+
+**Not covered here, deliberately:** the zero-clamped deficit branch. The clamp lives in the shared `buildTargetsSummary` (`unit-summary.test.js:207` proves it as a pure function) and `hedgerows-summary.spec.js` witnesses that rendering shape against real data. Once the shortfall test above proves this controller feeds watercourse units into that function, a second branch adds no wiring this suite does not already hold.
 
 ---
 
 ## Deferred elements
 
-| Element                          | Current state                                                   | Marker      |
-| -------------------------------- | --------------------------------------------------------------- | ----------- |
-| "View trading rules"             | inert `<span>` in the Trading Rules tile                        | `[PLANNED]` |
-| "View on-site baseline"          | inert `<span>` — the page exists, this tile does not link to it | `[PLANNED]` |
-| "View on-site post intervention" | inert `<span>` once post-intervention exists                    | `[PLANNED]` |
+| Element                          | Current state                                | Marker      |
+| -------------------------------- | -------------------------------------------- | ----------- |
+| "View trading rules"             | inert `<span>` in the Trading Rules tile     | `[PLANNED]` |
+| "View on-site post intervention" | inert `<span>` once post-intervention exists | `[PLANNED]` |
