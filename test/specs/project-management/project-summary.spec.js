@@ -987,7 +987,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           projectSummaryPage.viewOnSiteWatercoursesBaselineLink(WATERCOURSES)
         ).toHaveAttribute(
           'href',
-          `/projects/${project.id}/watercourses-baseline`
+          `/projects/${project.id}/watercourses-baseline-summary`
         )
       })
 

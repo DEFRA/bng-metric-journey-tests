@@ -121,7 +121,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       await expect(watercoursesSummaryPage.baselineLink()).toHaveAttribute(
         'href',
-        `/projects/${project.id}/watercourses-baseline`
+        `/projects/${project.id}/watercourses-baseline-summary`
       )
       await expect(
         watercoursesSummaryPage.viewOnSiteBaselineText()
@@ -162,7 +162,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // mode fails if another section were expanded alongside this one.
       await expect(
         watercoursesSummaryPage.navLink(BASELINE_NAV_CHILD)
-      ).toHaveAttribute('href', `/projects/${project.id}/watercourses-baseline`)
+      ).toHaveAttribute(
+        'href',
+        `/projects/${project.id}/watercourses-baseline-summary`
+      )
     })
 
     // BMD-856 AC1. Sole witness that either route INTO this page from the

@@ -17,7 +17,7 @@ import {
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 
-const BASELINE_PATH = 'watercourses-baseline'
+const BASELINE_PATH = 'watercourses-baseline-summary'
 
 const UNITS_2DP = /^\d+\.\d{2}$/
 const KILOMETRES = /^\d+(\.\d+)?km$/
