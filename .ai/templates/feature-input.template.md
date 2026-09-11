@@ -30,7 +30,16 @@ bng-metric-frontend: PR#<pr-number>
 
 ## Acceptance criteria
 
-<acceptance-criteria-if-exist-in-the-ticket>
+<acceptance-criteria-if-exist-in-the-ticket — numbered, verbatim from the ticket>
+
+Under each AC, add the sequence of user actions the demo video will follow:
+
+    Steps:
+    1. <what the user does>
+    2. <what the user does>
+    3. <the outcome the AC asserts>
+
+Use `Steps: n/a — assertion only` for an AC with no meaningful sequence.
 
 ## Notes
 

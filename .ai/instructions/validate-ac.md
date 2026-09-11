@@ -68,6 +68,24 @@ Each AC is treated as an independent unit. Do not combine ACs into a single test
 
 Choose the file that matches the scenario (happy path, specific validation error, invalid format). If the right file is ambiguous, ask the user before proceeding.
 
+### Deriving the user-action sequence
+
+Ticket ACs state an outcome; a demo has to show a journey. So each AC also carries a
+`Steps:` sub-list in `feature-input.md` recording the sequence of user actions that
+demonstrates it. `/validate-ac-manual` turns each step into a captioned step in the AC's
+demo video, so this list is what a reviewer ends up reading on screen.
+
+- **Keep the AC text verbatim** — the ticket's wording is the traceable record. The `Steps:`
+  list sits underneath it and is derived, not a replacement.
+- **Write steps in the user's language, not the test's**: "Select _Watercourses_ in the left
+  navigation", not "click `navLink(WATERCOURSES)`".
+- **One action or observation per step.** The last step is the outcome the AC asserts.
+- **Aim for 3–6 steps.** If an AC needs more, or spans several scenarios, split it into
+  `AC5b`, `AC5c` and so on — several short demos are more useful than one long one.
+- **`Steps: n/a — assertion only`** when the AC is a pure rendering or calculation assertion
+  with no journey (e.g. "the Results section shows the same five tiles as the Project
+  Summary page"). These still get screenshots and still get a video; it is just a short one.
+
 ---
 
 ## Automated validation (`/validate-ac-automated`)
@@ -141,6 +159,9 @@ On approval:
 
 ## Manual validation (`/validate-ac-manual`)
 
+The run produces two kinds of evidence per AC: **screenshots**, which prove the outcome, and a
+short **demo video**, which shows the journey the AC describes. Both come out of the same spec.
+
 ### Evidence folder
 
 - Location: `test/evidence/YYYY-MM-DD/` (use today's date)
@@ -150,28 +171,85 @@ On approval:
 
 Generate `test/evidence/tmp-validation.spec.js` before running. Do not place it in `test/specs/`. The file is kept alongside the evidence after the run — do not delete it.
 
-The spec structure:
+Every numbered step in an AC's `Steps:` list becomes one `demoStep()`, with the step text
+passed verbatim as the title — that text is captioned onto the video, so the demo narrates
+itself in the AC's own words.
 
 ```javascript
-import { test } from '@fixtures'
+import { test, expect } from '@fixtures'
+import { STORAGE_STATE } from '@utils/env.js'
+import {
+  demoStep,
+  demoTitleCard,
+  demoVideoName,
+  saveDemoVideo
+} from '@utils/evidence-video.js'
+
+const DIR = 'test/evidence/YYYY-MM-DD'
+const shot = (name) => ({ path: `${DIR}/${name}.png` })
 
 test.describe('AC Validation — <Feature title from feature-input.md>', () => {
-  test('AC1: <AC description> @ac-validation', async ({ page }) => {
-    // Navigate and interact to exercise this AC
-    await page.screenshot({
-      path: 'test/evidence/YYYY-MM-DD/ac1-step1-<description>.png'
-    })
-    // Continue steps...
-    await page.screenshot({
-      path: 'test/evidence/YYYY-MM-DD/ac1-step2-<description>.png'
-    })
+  test.use({ storageState: STORAGE_STATE })
+
+  // Must be the LAST afterEach — it closes the context to finalise the video,
+  // so nothing after it may touch `page`.
+  test.afterEach(async ({ page }, testInfo) => {
+    await saveDemoVideo(page, DIR, demoVideoName(testInfo))
   })
 
-  test('AC2: <AC description> @ac-validation', async ({ page }) => {
-    // ...
+  test('AC1: <short AC summary> @ac-validation', async ({
+    page,
+    projectSummaryPage
+  }) => {
+    // First thing in the test, before any navigation — see demoTitleCard.
+    await demoTitleCard(page, 'AC1', '<short AC summary>')
+
+    await demoStep(page, 'Step 1 — Open the Project Summary page', async () => {
+      await projectSummaryPage.open(project.id)
+      await page.screenshot({
+        ...shot('ac1-step1-project-summary-loaded'),
+        fullPage: true
+      })
+    })
+
+    await demoStep(
+      page,
+      'Step 2 — Select "Watercourses" in the left navigation',
+      async () => {
+        await projectSummaryPage.navLink(WATERCOURSES).click()
+      }
+    )
+
+    await demoStep(
+      page,
+      'Step 3 — The "Watercourse habitats" page is displayed',
+      async () => {
+        await expect.soft(watercoursesSummaryPage.heading).toBeVisible()
+        await page.screenshot({
+          ...shot('ac1-step3-watercourses-summary-loaded'),
+          fullPage: true
+        })
+      }
+    )
   })
 })
 ```
+
+Use `expect.soft` throughout, so a failing assertion still leaves the remaining screenshots
+and a complete video.
+
+### Rules for a demo that matches the AC
+
+- **Click what the AC says the user clicks.** Where a step describes an interaction, perform
+  it — do not shortcut with `page.goto()` or a page object's `.open()`. Reaching the
+  precondition state may navigate directly; the numbered steps may not. A test that jumps
+  straight to a URL proves the page renders, but it does not demonstrate the journey, and on
+  video it reads as a jump cut.
+- **Step numbers line up.** A screenshot taken inside `Step 3` is named `ac1-step3-…png`, so
+  the PNG index and the video caption point at the same moment.
+- **Keep `beforeAll` setup off camera.** Project creation and file uploads via
+  `@utils/summary-projects.js` run on their own browser context, so they are correctly absent
+  from the video. Leave them there — do not move setup into the test body to put it on screen.
 
 ### Screenshot naming
 
@@ -184,16 +262,40 @@ Examples:
 - `ac2-step2-success-banner-visible.png`
 
 Take at least one screenshot at the start of each AC and one at the key assertion point.
+Prefer `locator.screenshot()` for content evidence (a panel, table or row) and
+`page.screenshot({ fullPage: true })` for whole-page context.
+
+### Demo video
+
+One `.webm` per AC, named `ac<N>-demo.webm` from the test title, saved next to that AC's
+screenshots. Recording is configured in `playwright.evidence.config.js` — the spec only has to
+call the helpers in `test/utils/evidence-video.js`. Each video shows an animated pointer, a
+label and highlight on every element acted upon, an opening title card naming the AC, and the
+current step's caption.
+
+Two constraints are baked into those helpers; both were established against the running app,
+so do not re-litigate them in the generated spec:
+
+- **Captions cannot be styled with CSS.** The frontend sends
+  `Content-Security-Policy: style-src 'self'`, and Playwright injects overlay HTML into the
+  page's own document, so every `style=` attribute and `<style>` block is dropped by the
+  browser. Captions therefore use semantic tags (`<h2>`, `<mark>`) that the user agent styles
+  on its own. This is also why `video.show.test` is left off in the config — its built-in
+  caption is unreadable under this CSP.
+- **The title card must come before the first navigation.** It is styled with inline CSS, so
+  it only renders properly while the page is still on `about:blank`.
 
 ### Run command
 
 ```sh
-EVIDENCE=true RUN_MODE=local npx playwright test test/evidence/tmp-validation.spec.js --reporter=list
+npm run test:evidence
 ```
 
-This uses the local base URL (`http://localhost:3000`). The service must be running before executing this command.
-
-`EVIDENCE=true` is required: the committed `playwright.config.js` ignores `**/evidence/**` for the normal suite (so the throwaway spec never runs in CI/regression) and only opts that one spec back in when this flag is set.
+This runs the evidence spec through `playwright.evidence.config.js` at the local base URL
+(`http://localhost:3000`); the service must be running first. That config — not the main one —
+is what makes the evidence run correct: video recording on, `workers: 1` (concurrent uploads
+clobber the shared `pendingUploadId` key), a pinned 1280×800 viewport, and a timeout long
+enough for uploads plus the per-action dwell.
 
 ### Pass/fail report
 
@@ -201,10 +303,10 @@ After the run, parse the terminal output and produce a summary table. Include a
 **GeoPackage file(s)** column naming the `.gpkg` fixture(s) each AC exercised (from
 `test/example-files/`); use `—` when the AC involves no file upload:
 
-| AC  | Description | GeoPackage file(s)    | Result      | Screenshots                            |
-| --- | ----------- | --------------------- | ----------- | -------------------------------------- |
-| AC1 | ...         | `valid-baseline.gpkg` | PASS / FAIL | `ac1-step1-...png`, `ac1-step2-...png` |
-| AC2 | ...         | —                     | PASS / FAIL | `ac2-step1-...png`                     |
+| AC  | Description | GeoPackage file(s)    | Result      | Screenshots                            | Demo video      |
+| --- | ----------- | --------------------- | ----------- | -------------------------------------- | --------------- |
+| AC1 | ...         | `valid-baseline.gpkg` | PASS / FAIL | `ac1-step1-...png`, `ac1-step2-...png` | `ac1-demo.webm` |
+| AC2 | ...         | —                     | PASS / FAIL | `ac2-step1-...png`                     | `ac2-demo.webm` |
 
 If a test fails, include the error message from the terminal output alongside the result.
 

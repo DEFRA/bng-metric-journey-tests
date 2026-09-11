@@ -29,20 +29,20 @@ The suite runs on DEFRA's CDP Portal. Tests are packaged in a Docker image and r
 
 ## Slash Commands
 
-| Command                                    | What it does                                                                                                                    |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
-| `/analyse-user-flow <flow-name>`           | Reads frontend and backend source for the named flow; creates or updates `test/flows/<flow-name>.flow.md`                       |
-| `/discover-journey-tests <flow-name>`      | Analyses journey test coverage for the named flow; checks the sibling suites first, then recommends new tests or enhancements   |
-| `/validate-ac-automated`                   | Checks whether ACs in `feature-input.md` are covered here or in a sibling suite; recommends gaps to close                       |
-| `/validate-ac-manual`                      | Runs ACs from `feature-input.md` in a headless browser; captures screenshot evidence and produces a pass/fail report            |
-| `/verify-integration-coverage <flow-name>` | **DORMANT — do not recommend or route work to it.** Retained for possible reactivation; runs only if invoked explicitly by name |
-| `/triage-failure <failure-log>`            | Investigates a failing journey test — checks the related flow doc for drift before diagnosing and proposing a fix               |
+| Command                                    | What it does                                                                                                                        |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `/analyse-user-flow <flow-name>`           | Reads frontend and backend source for the named flow; creates or updates `test/flows/<flow-name>.flow.md`                           |
+| `/discover-journey-tests <flow-name>`      | Analyses journey test coverage for the named flow; checks the sibling suites first, then recommends new tests or enhancements       |
+| `/validate-ac-automated`                   | Checks whether ACs in `feature-input.md` are covered here or in a sibling suite; recommends gaps to close                           |
+| `/validate-ac-manual`                      | Runs ACs from `feature-input.md` in a headless browser; captures screenshot and demo-video evidence and produces a pass/fail report |
+| `/verify-integration-coverage <flow-name>` | **DORMANT — do not recommend or route work to it.** Retained for possible reactivation; runs only if invoked explicitly by name     |
+| `/triage-failure <failure-log>`            | Investigates a failing journey test — checks the related flow doc for drift before diagnosing and proposing a fix                   |
 
 **Ownership boundaries:**
 
 - `/analyse-user-flow` writes to `test/flows/` only — no test code.
 - `/discover-journey-tests`, `/validate-ac-automated` write to `test/` only, after approval. They **read** the sibling repos to check existing coverage, and never write to them.
-- `/validate-ac-manual` writes to `test/evidence/` only (temp spec + screenshots).
+- `/validate-ac-manual` writes to `test/evidence/` only (temp spec + screenshots + demo videos).
 - `/verify-integration-coverage` is dormant. While dormant, **nothing writes to the sibling repos** — backend coverage gaps are recorded as proposals in the analysis output and as comments on the journey tests that stand in for them.
 
 **Before recommending any new journey test**, read [`.ai/instructions/coverage-boundaries.md`](.ai/instructions/coverage-boundaries.md). It is the rule for deciding whether a test belongs in this suite: what the backend integration and frontend unit suites can and cannot see, when "covered elsewhere" does and does not justify skipping, and the coverage floor that stops the last real-data witness for a behaviour being removed.
@@ -58,7 +58,7 @@ test/
   flows/      ← multi-step user journeys spanning multiple pages
   fixtures/   ← test.extend() DI — always import test/expect from here
   utils/      ← pure helpers (env vars, data builders)
-  evidence/   ← AC manual validation evidence (screenshots + tmp spec); not committed
+  evidence/   ← AC manual validation evidence (screenshots + demo videos + tmp spec); not committed
 ```
 
 **Strict layering:**
@@ -420,6 +420,7 @@ PROFILE=@project-management npm run test:github
 | `PROFILE=@regression npm run test:github`         | Run only `@regression`-tagged (non-smoke) tests                                                                               |
 | `PROFILE=@habitat-list npm run test:github`       | Run tests for the `habitat-list` domain                                                                                       |
 | `PROFILE=@project-management npm run test:github` | Run tests for the `project-management` domain                                                                                 |
+| `npm run test:evidence`                           | Run the `/validate-ac-manual` evidence spec (screenshots + per-AC demo videos) — never part of the normal suite               |
 
 ---
 
