@@ -446,6 +446,55 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           await hedgerowsSummaryPage.tileValue(TILE_POST_INTERVENTION)
         ).toMatch(UNITS_2DP)
       })
+
+      // BMD-919. Sole real-data witness that this controller forwards
+      // `postInterventionOnly` into `buildTargetsSummary`.
+      //
+      // Kept separate from the BMD-897 test above because the controller passes
+      // that flag TWICE, as two independent arguments — once to
+      // buildUnitSummary (the Results rows the test above asserts) and once to
+      // buildTargetsSummary (the Targets tiles here). Drop it from the targets
+      // call and the test above still passes; that is the regression this
+      // guards, and it is exactly the one PR#275 was written to fix.
+      //
+      // The frontend unit suite covers the rule twice and neither reaches this:
+      // unit-summary.test.js:230 calls buildTargetsSummary with a fabricated
+      // options object, and hedgerows-summary/controller.test.js:264 asserts
+      // the rendered targets against a wreck-mocked project — so nothing there
+      // shows a real upload produces a project this branch fires on. Do not
+      // delete without moving the targets assertions onto another test that
+      // uploads a hedgerow-free baseline plus a hedgerow-bearing
+      // post-intervention file.
+      test('the targets tiles drop the 10% goal when there is no baseline to grow from', async ({
+        hedgerowsSummaryPage
+      }) => {
+        await hedgerowsSummaryPage.open(project.id)
+
+        await expect(hedgerowsSummaryPage.targetsSection).toBeVisible()
+
+        // No baseline, so no percentage goal is meaningful — this is the tile
+        // that read "10%" until PR#275.
+        expect(await hedgerowsSummaryPage.targetValue(TARGET_PERCENTAGE)).toBe(
+          POST_INTERVENTION_ONLY_PERCENTAGE
+        )
+
+        // Both derive from a zero baseline: nothing is required, so nothing is
+        // outstanding however much the post-intervention file gained.
+        expect(
+          await hedgerowsSummaryPage.targetValue(TARGET_UNITS_REQUIRED)
+        ).toBe(ZERO_UNITS)
+        expect(
+          await hedgerowsSummaryPage.targetValue(TARGET_UNIT_DEFICIT)
+        ).toBe(ZERO_UNITS)
+
+        // Fixture check: the deficit above is only meaningful while the
+        // post-intervention file actually carries hedgerows. If the harness
+        // re-prices it to zero this is the BMD-898 empty case, not this one,
+        // and the two zeroes would pass for the wrong reason.
+        expect(
+          await hedgerowsSummaryPage.tileUnits(TILE_POST_INTERVENTION)
+        ).toBeGreaterThan(0)
+      })
     }
   )
 
