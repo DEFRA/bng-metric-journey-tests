@@ -50,6 +50,11 @@ Key locations in the response:
 - The instance has ~40 "Acceptance Criteria" custom fields. Scan **every populated** `customfield_*` for AC-shaped content — do not go by the field-name list.
 - ACs may span **multiple** custom fields (e.g. BMD-597 had SET 1 in `customfield_19051` and SET 2 in `customfield_20938`). Cross-check the summary/description's action list to spot AC sets a single field misses.
 - Parse the **raw ADF JSON**, not `renderedFields` HTML: ADF tables are stubbed in HTML as `<!-- ADF macro (type = 'table') -->`. Walk `table`/`tableRow`/`tableCell`, `heading`, `bulletList`/`orderedList`/`listItem`, and `paragraph`/`text` nodes to reconstruct the text.
+- Once each AC's text is reconstructed, derive its `Steps:` sequence of user actions per
+  "Deriving the user-action sequence" in `.ai/instructions/validate-ac.md`, and write it into
+  `feature-input.md` beneath the verbatim AC. Report the step counts in the extraction summary
+  you confirm with the user — a sequence derived from a misread AC is as worth catching as a
+  wrong field, and it is what the demo videos will show.
 
 ## Pull requests
 

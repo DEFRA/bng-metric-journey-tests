@@ -120,7 +120,7 @@ Each command is independent — use whichever fits your current task.
 | `/analyse-user-flow <flow>`           | After pulling latest frontend or backend changes — syncs `test/flows/<flow>.flow.md` with the current source | Nothing pre-filled                                           |
 | `/discover-journey-tests <flow>`      | To find gaps in journey test coverage for a flow and discover edge cases                                     | An up-to-date flow doc in `test/flows/`                      |
 | `/validate-ac-automated`              | To check whether specific ACs are covered by existing journey tests                                          | `feature-input.md` filled with ACs                           |
-| `/validate-ac-manual`                 | To run ACs in a headless browser and capture screenshot evidence                                             | `feature-input.md` filled with ACs; frontend running locally |
+| `/validate-ac-manual`                 | To run ACs in a headless browser and capture screenshot and demo-video evidence                              | `feature-input.md` filled with ACs; frontend running locally |
 | `/verify-integration-coverage <flow>` | **Dormant — not in use.** Retained for possible reactivation; runs only if invoked explicitly by name        | An up-to-date flow doc in `test/flows/`                      |
 | `/triage-failure <failure-log>`       | To investigate a failing journey test — checks flow doc for drift before diagnosing the test                 | A failure log or description of the failing test             |
 
