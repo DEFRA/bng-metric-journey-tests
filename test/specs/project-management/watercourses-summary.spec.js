@@ -350,6 +350,58 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           await watercoursesSummaryPage.tileValue(TILE_POST_INTERVENTION)
         ).toMatch(UNITS_2DP)
       })
+
+      // BMD-921. Sole real-data witness that this controller forwards
+      // `postInterventionOnly` into `buildTargetsSummary`.
+      //
+      // Kept separate from the BMD-897 test above because the controller passes
+      // that flag TWICE, as two independent arguments — once to
+      // buildUnitSummary (the Results rows above) and once to
+      // buildTargetsSummary (the Targets tiles here). The test above would stay
+      // green if the targets call lost the flag, which is the regression PR#275
+      // was written to fix.
+      //
+      // The frontend unit suite covers the rule twice, and the mocked
+      // watercourses-summary/controller.test.js WOULD catch that particular
+      // edit — its targets assertions require "Not applicable" and forbid
+      // "10%". But it mocks wreck, and unit-summary.test.js:230 calls
+      // buildTargetsSummary with a fabricated options object, so neither shows a
+      // real upload producing a project this branch fires on. Rename
+      // `watercoursesTotal` or reshape the baseline/postIntervention documents
+      // and both stay green while this page breaks. Do not delete without moving
+      // the targets assertions onto another test that uploads a
+      // watercourse-free baseline plus a watercourse-bearing post-intervention
+      // file.
+      test('the targets tiles drop the 10% goal when there is no baseline to grow from', async ({
+        watercoursesSummaryPage
+      }) => {
+        await watercoursesSummaryPage.open(project.id)
+
+        await expect(watercoursesSummaryPage.targetsSection).toBeVisible()
+
+        // No baseline, so no percentage goal is meaningful — this is the tile
+        // that read "10%" until PR#275.
+        expect(
+          await watercoursesSummaryPage.targetValue(TARGET_PERCENTAGE)
+        ).toBe(POST_INTERVENTION_ONLY_PERCENTAGE)
+
+        // Both derive from a zero baseline: nothing is required, so nothing is
+        // outstanding however much the post-intervention file gained.
+        expect(
+          await watercoursesSummaryPage.targetValue(TARGET_UNITS_REQUIRED)
+        ).toBe(ZERO_UNITS)
+        expect(
+          await watercoursesSummaryPage.targetValue(TARGET_UNIT_DEFICIT)
+        ).toBe(ZERO_UNITS)
+
+        // Fixture check: the zeroes above are only meaningful while the
+        // post-intervention file actually carries watercourses. If the harness
+        // re-prices it to zero this is the BMD-898 empty case, not this one, and
+        // they would pass for the wrong reason.
+        expect(
+          await watercoursesSummaryPage.tileUnits(TILE_POST_INTERVENTION)
+        ).toBeGreaterThan(0)
+      })
     }
   )
 })
