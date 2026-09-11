@@ -285,6 +285,12 @@ so do not re-litigate them in the generated spec:
 - **The title card must come before the first navigation.** It is styled with inline CSS, so
   it only renders properly while the page is still on `about:blank`.
 
+A failure to save a video never fails its AC — `saveDemoVideo` records it as a
+`demo-video-failed` annotation and lets the AC's own assertions stand, so an evidence problem
+cannot report a passing AC as FAIL. The `list` reporter does not print annotations, so when
+building the report **list the evidence folder and confirm every AC has its `.webm`**; if one
+is missing, say so in the Demo video column rather than assuming it is there.
+
 ### Run command
 
 ```sh

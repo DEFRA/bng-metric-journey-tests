@@ -11,8 +11,8 @@ import { test } from '@fixtures'
 // Playwright injects overlay HTML into the page's own document. The browser
 // therefore drops every `style=` attribute and `<style>` block in that HTML.
 // Verified against the running app: an inline-styled div, a <style> block with
-// a class, and a nested styled span all rendered as unstyled 8px text, while
-// semantic tags rendered normally. So captions are built from tags the user
+// a class, and a nested styled span all rendered as very small unstyled text,
+// while semantic tags rendered normally. So captions are built from tags the user
 // agent styles on its own (<h2>, <mark>) — do not "improve" them with CSS, it
 // will silently do nothing. The same CSP is why Playwright's own
 // `video.show.test` caption is unreadable and is left off in the config.
@@ -107,7 +107,19 @@ export async function saveDemoVideo(page, dir, name) {
   const video = page.video()
   if (!video) return
 
-  await page.context().close()
-  await fs.mkdir(dir, { recursive: true })
-  await video.saveAs(path.join(dir, `${name}.webm`))
+  try {
+    await page.context().close()
+    await fs.mkdir(dir, { recursive: true })
+    await video.saveAs(path.join(dir, `${name}.webm`))
+  } catch (error) {
+    // Evidence decoration must never decide an AC's verdict. This runs in
+    // afterEach, where a throw fails the test — so a disk or video-finalisation
+    // problem would report a passing AC as FAIL in the pass/fail table, which
+    // is the whole deliverable. Record it as an annotation and let the AC's own
+    // assertions stand.
+    test.info().annotations.push({
+      type: 'demo-video-failed',
+      description: `${name}.webm was not saved: ${error.message}`
+    })
+  }
 }
