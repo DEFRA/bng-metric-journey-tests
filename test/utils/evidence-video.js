@@ -1,5 +1,5 @@
-import fs from 'fs/promises'
-import path from 'path'
+import fs from 'node:fs/promises'
+import path from 'node:path'
 import { test } from '@fixtures'
 
 // Demo-video helpers for the throwaway /validate-ac-manual evidence spec.
@@ -26,10 +26,10 @@ const AC_TOKEN = /^(ac\d+[a-z]?)\b/i
 
 function escapeHtml(text) {
   return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
 }
 
 /**
@@ -105,7 +105,9 @@ function showCaption(page, text) {
  */
 export async function saveDemoVideo(page, dir, name) {
   const video = page.video()
-  if (!video) return
+  if (!video) {
+    return
+  }
 
   try {
     await page.context().close()
