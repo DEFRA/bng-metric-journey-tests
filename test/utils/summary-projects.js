@@ -60,6 +60,20 @@ export const TARGET_MET_PI_FILE = 'Post-intervention - linear net gain met.gpkg'
 export const AREA_GAIN_BASELINE_FILE = 'Baseline - net gain met.gpkg'
 export const AREA_GAIN_PI_FILE = 'Post-intervention - net gain met.gpkg'
 
+// BMD-860's three-tab pairing. HEDGEROW_REFS_BASELINE_FILE carries hedgerows
+// HR1/HR2 AND a Rivers layer, so the hedgerows post-intervention page renders
+// both its "Baseline" nav child (baseline hedgerows exist) and its conditional
+// "Watercourses" nav item. Its partner mutates only the Retention Category of
+// "Post-intervention - complete with hedgerows.gpkg" — HR1 Retained, HR2
+// Enhanced, HR3 Created — which makes it the ONLY shipped pairing where all
+// three intervention-type tabs are visible at once. Every other hedgerow-
+// bearing pair is missing at least one category, so AC6's default-selection
+// rule and AC7's tab switch have nothing else to run against.
+export const HEDGEROW_REFS_BASELINE_FILE =
+  'Baseline - complete with hedgerow refs.gpkg'
+export const HEDGEROWS_MIXED_RETENTION_PI_FILE =
+  'Post-intervention - hedgerows mixed retention.gpkg'
+
 // A baseline with 16 hedgerows and NO rivers, paired below with a
 // post-intervention file that has watercourses — the watercourse equivalent of
 // the hedgerow pairing above, and the only route to BMD-897's
@@ -222,6 +236,25 @@ export function getAreaGainProject(browser) {
         browser,
         AREA_GAIN_BASELINE_FILE,
         AREA_GAIN_PI_FILE
+      )
+  )
+}
+
+/**
+ * A project whose hedgerows cover all three intervention types — Retained,
+ * Enhanced and Created — over a baseline that has hedgerows and rivers.
+ * BMD-860's witness for the hedgerows post-intervention page: the tab set, the
+ * default selection, the tab switch, the "Baseline" nav child and the
+ * conditional "Watercourses" nav item all need this one shape.
+ */
+export function getHedgerowInterventionTypesProject(browser) {
+  return getOrBuildProject(
+    projectKey(HEDGEROW_REFS_BASELINE_FILE, HEDGEROWS_MIXED_RETENTION_PI_FILE),
+    () =>
+      buildPostInterventionProject(
+        browser,
+        HEDGEROW_REFS_BASELINE_FILE,
+        HEDGEROWS_MIXED_RETENTION_PI_FILE
       )
   )
 }
