@@ -114,4 +114,133 @@ export class HedgerowsPostInterventionPage extends BasePage {
       name: `${label} hedgerow habitats`
     })
   }
+
+  /**
+   * One tab's grid (BMD-998). Every locator below is scoped to a tab LABEL,
+   * because all three grids are in the DOM at once — an unscoped `getByRole`
+   * would resolve against whichever panel GOV.UK happens to have visible.
+   *
+   * A hidden panel is `display:none`, so it is out of the accessibility tree
+   * and these locators resolve to nothing until that tab is selected. Click
+   * the tab first.
+   */
+  table(label) {
+    return this.panel(label).getByRole('table')
+  }
+
+  columnHeaders(label) {
+    return this.table(label).locator('thead th')
+  }
+
+  /**
+   * A column heading's sort button, injected by the MOJ component, named by
+   * the heading's own text — the column INDEX differs per intervention type
+   * (Retained has 7 columns, Enhanced and Created 12), so indexes cannot be
+   * shared the way `HedgerowsBaselinePage`'s single table shares them.
+   *
+   * Matched by accessible name and `exact`, not by `hasText`: that filter is a
+   * case-insensitive SUBSTRING match, so "Condition" would also select the
+   * "Target condition" heading sitting beside it in the Enhanced grid.
+   */
+  sortButton(label, heading) {
+    return this.table(label)
+      .locator('thead')
+      .getByRole('button', { name: heading, exact: true })
+  }
+
+  featureRows(label) {
+    return this.table(label).locator('tbody tr')
+  }
+
+  totalsRow(label) {
+    return this.table(label).locator('tfoot tr')
+  }
+
+  /** Every column heading in a tab's grid, in rendered order. */
+  async columnHeadings(label) {
+    const headings = await this.columnHeaders(label).allInnerTexts()
+    return headings.map((heading) => heading.trim())
+  }
+
+  /**
+   * A column's index in a tab's grid, by heading text.
+   *
+   * Throws rather than returning -1, because neither caller below fails
+   * usefully on one: `locator.nth(-1)` is Playwright's LAST element, so a
+   * heading that no longer exists would assert against the final column — and
+   * the totals row's final cell is empty, so `toHaveText('')` would pass.
+   */
+  async columnIndex(label, heading) {
+    const headings = await this.columnHeadings(label)
+    const index = headings.indexOf(heading)
+
+    if (index === -1) {
+      throw new Error(
+        `No "${heading}" column in the ${label} grid — found: ${headings.join(', ')}`
+      )
+    }
+
+    return index
+  }
+
+  /** Every value in a named column, in rendered order. */
+  async columnValues(label, heading) {
+    const index = await this.columnIndex(label, heading)
+    const values = await this.featureRows(label)
+      .locator(`td:nth-child(${index + 1})`)
+      .allInnerTexts()
+    return values.map((value) => value.trim())
+  }
+
+  /** One feature row's cells, by the habitat reference in its first column. */
+  async rowValues(label, reference) {
+    const cells = await this.featureRows(label)
+      .filter({
+        has: this.page.getByRole('link', { name: reference, exact: true })
+      })
+      .locator('td')
+      .allInnerTexts()
+    return cells.map((cell) => cell.trim())
+  }
+
+  async totalsCell(label, heading) {
+    return this.totalsRow(label)
+      .locator('td')
+      .nth(await this.columnIndex(label, heading))
+  }
+
+  /** Every column heading's `aria-sort` — how MOJ marks the sorted column. */
+  sortStates(label) {
+    return this.columnHeaders(label).evaluateAll((cells) =>
+      cells.map((cell) => cell.getAttribute('aria-sort'))
+    )
+  }
+
+  refLink(label, reference) {
+    return this.table(label).getByRole('link', {
+      name: reference,
+      exact: true
+    })
+  }
+
+  /**
+   * Scroll one tab's pane fully right and report what happened.
+   *
+   * The scrollbar is a LAYOUT fact, not a markup one: the pane shows a bar only
+   * when its content is wider than the box, and Chromium on Linux paints
+   * overlay scrollbars no screenshot would show. Measuring the overflow — and
+   * then moving it — is the only way a test can witness the requirement. A
+   * resulting `scrollLeft` above zero is the proof: a pane that overflowed but
+   * clipped (`overflow: hidden`) would refuse to move.
+   */
+  async scrollPaneToEnd(label) {
+    return this.panel(label).evaluate((element) => {
+      element.scrollLeft = element.scrollWidth
+      return {
+        scrollWidth: element.scrollWidth,
+        clientWidth: element.clientWidth,
+        scrollLeft: element.scrollLeft
+      }
+    })
+  }
 }

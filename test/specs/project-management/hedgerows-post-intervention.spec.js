@@ -3,7 +3,8 @@ import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
   getAllUnitTypesPostInterventionProject,
-  getHedgerowInterventionTypesProject
+  getHedgerowInterventionTypesProject,
+  getLinearInterventionTypesProject
 } from '@utils/summary-projects.js'
 import {
   AREA_HABITATS,
@@ -66,6 +67,139 @@ const CREATED = 'Created'
 const ALL_TABS = [RETAINED, ENHANCED, CREATED]
 
 const UNITS_2DP = /^-?\d+\.\d{2} units$/
+
+// ── BMD-998 grid expectations ───────────────────────────────────────────────
+
+// Grid cells carry the bare number; the tiles above them append " units".
+const GRID_UNITS_2DP = /^-?\d+\.\d{2}$/
+// Kilometres with no space before the suffix — the linear pages' formatter.
+const KILOMETRES = /^\d+(\.\d+)?km$/
+// "{label} ({score})". The score is REQUIRED, not optional: the builder drops
+// it only for a non-finite multiplier, which no calculated row carries, and an
+// optional group would let a regression that dropped every multiplier pass.
+const LABEL_AND_SCORE = /^[^()]+ \(-?\d+(\.\d+)?\)$/
+const YEARS = /^\d+ years?$/
+// "{n} year(s) ({multiplier})" — the Final time to target shape.
+const YEARS_AND_SCORE = /^\d+ years? \(-?\d+(\.\d+)?\)$/
+const FIXED_STRATEGIC_SIGNIFICANCE = 'Low (1)'
+
+// Column sets from `buildColumns` in
+// common/helpers/post-intervention-habitat-grid.js. Retained carries Condition;
+// Enhanced and Created swap it for the target/time-to-target block. Headings
+// render in GOV.UK sentence case, where the ticket's AC4 table title-cases
+// "Standard Difficulty".
+const RETAINED_COLUMNS = [
+  'Ref',
+  'Units',
+  'Size',
+  'Habitat type',
+  'Distinctiveness',
+  'Condition',
+  'Strategic significance'
+]
+const TARGET_COLUMNS = [
+  'Ref',
+  'Units',
+  'Size',
+  'Habitat type',
+  'Distinctiveness',
+  'Strategic significance',
+  'Target condition',
+  'Standard time to target',
+  'Advance',
+  'Delay',
+  'Final time to target',
+  'Standard difficulty'
+]
+
+// The refs `Post-intervention - created linear features.gpkg` carries per
+// intervention type, in the ascending order AC7 requires. Pinned rather than
+// counted loosely: a partial render is exactly the failure a `> 0` check would
+// wave through. Its other 5 hedgerows are Lost, which the backend drops at
+// import (BMD-531/534), so they reach no tab.
+const RETAINED_REFS = [
+  'HG004',
+  'HG007',
+  'HG008',
+  'HG012',
+  'HG015',
+  'HG016',
+  'HG017'
+]
+const CREATED_REFS = ['HG005', 'HG010', 'HG013', 'HG018']
+// The same file's Enhanced refs — used only to click one (AC10b); their VALUES
+// are uncalculated, see the Enhanced grid test.
+const ENHANCED_ON_GRID_REF = 'HG006'
+
+// `Post-intervention - all unit and intervention types.gpkg`, whose Enhanced
+// hedgerows are the only ones that can witness AC4b's column values.
+const ENHANCED_REFS = [
+  'HG011',
+  'HG012',
+  'HG018',
+  'HG026',
+  'HG030',
+  'HG031',
+  'HG032',
+  'HG034',
+  'HG040'
+]
+const ENHANCED_CALCULATED_REF = 'HG018'
+
+const detailsHrefPattern = (projectId) =>
+  new RegExp(
+    `/post-intervention-habitat-details\\?featureId=[^&]+&projectId=${projectId}$`
+  )
+
+async function expectColumn(grid, label, heading, pattern) {
+  const values = await grid.columnValues(label, heading)
+  // Length-checked as well as matched — a column that returned no cells at all
+  // would satisfy the loop vacuously.
+  expect(values.length, `${label} ${heading} cells`).toBeGreaterThan(0)
+  for (const value of values) {
+    expect(value, `${label} ${heading} "${value}"`).toMatch(pattern)
+  }
+}
+
+const sizeValues = async (grid, label) =>
+  (await grid.columnValues(label, 'Size')).map((value) =>
+    Number(value.replace('km', ''))
+  )
+
+/**
+ * AC5. The totals row is summed SERVER-SIDE from the rendered features
+ * (`sumFinite`), so comparing it back against those rows is what proves the
+ * sum is of THIS tab's hedgerows and not of every hedgerow on the project.
+ *
+ * Compared numerically with a tolerance rather than as strings: each row's
+ * Units is already rounded to 2 dp, so a sum of rounded values can differ from
+ * the rounded sum by up to half a penny per row.
+ */
+async function expectTotalsRow(grid, label) {
+  const sum = (values) => values.reduce((total, value) => total + value, 0)
+
+  await expect(await grid.totalsCell(label, 'Ref')).toHaveText('Total')
+  const totalUnits = await (await grid.totalsCell(label, 'Units')).innerText()
+  const totalSize = await (await grid.totalsCell(label, 'Size')).innerText()
+  expect(totalUnits.trim()).toMatch(GRID_UNITS_2DP)
+  expect(totalSize.trim()).toMatch(KILOMETRES)
+
+  const rowUnits = (await grid.columnValues(label, 'Units')).map(Number)
+  expect(Number(totalUnits), `${label} Units total`).toBeCloseTo(
+    sum(rowUnits),
+    1
+  )
+  expect(
+    Number(totalSize.replace('km', '')),
+    `${label} Size total`
+  ).toBeCloseTo(sum(await sizeValues(grid, label)), 3)
+
+  // Every non-numeric column stays empty in the totals row.
+  await expect(await grid.totalsCell(label, 'Habitat type')).toHaveText('')
+  await expect(
+    await grid.totalsCell(label, 'Strategic significance')
+  ).toHaveText('')
+}
 
 // Deliberately a pattern rather than VIEW_ON_SITE_HEDGEROWS_POST_INTERVENTION:
 // AC5 writes the wording it wants removed as "post-intervention" while the app
@@ -318,6 +452,15 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           ).toBeFocused()
 
           await expectTabNotSelected(hedgerowsPostInterventionPage, RETAINED)
+
+          // BMD-998 AC3. Selecting Created is the only way its subheading is
+          // ever asserted VISIBLE: every other test in this file sees that
+          // heading hidden (an unselected panel) or absent (the two-tab
+          // fixture below), and neither proves it renders when the tab is
+          // chosen.
+          await hedgerowsPostInterventionPage.tab(CREATED).click()
+          await expectTabSelected(hedgerowsPostInterventionPage, CREATED)
+          await expectTabNotSelected(hedgerowsPostInterventionPage, ENHANCED)
         }
       )
     }
@@ -474,6 +617,291 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
             await expect(page).toHaveURL(new RegExp(target))
             await expect(heading).toBeVisible()
+          }
+        }
+      )
+    }
+  )
+
+  // ─── Intervention type grids (BMD-998 AC1-AC10) ──────────────────────────────
+  //
+  // BMD-860 shipped the tab shell; BMD-998 shipped the grids inside it. Nothing
+  // in any suite rendered those grids from real data before this describe.
+  //
+  // `hedgerows-post-intervention/controller.test.js:365-461` asserts the
+  // columns, the rows, the totals and the `aria-sort="none"` headers in
+  // markup — but with `wreck` mocked and hand-built hedgerow literals, so it
+  // proves the grid renders `proposed.distinctivenessScore` IF it arrives,
+  // never that a real import emits it. The backend integration suite is the
+  // other half of the same gap: `post-intervention-persistence.test.js:154`
+  // asserts `status` and a numeric `units` for Enhanced LINEAR features and
+  // nothing else — no Retained or Created hedgerow, and none of the ten
+  // `proposed.*` display fields these columns read.
+  //
+  // Sole witness, do not delete without a replacement: these tests are the only
+  // place any suite proves a real uploaded hedgerow carries the fields this
+  // grid renders. See the Backend coverage proposals in the BMD-998 analysis.
+
+  test.describe(
+    'Hedgerows post-intervention — intervention type grids',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      // Two projects. The first is the grid fixture: several hedgerows in each
+      // of the three tabs, which is what a totals row, a default ordering and a
+      // re-sort all need. The second is free — `project-summary.spec.js` builds
+      // it in the same module-scope cache — and is here for one row only, see
+      // ENHANCED_CALCULATED_REF.
+      let project
+      let enhancedProject
+      test.beforeAll(async ({ browser }) => {
+        project = await getLinearInterventionTypesProject(browser)
+        enhancedProject = await getAllUnitTypesPostInterventionProject(browser)
+      })
+
+      // AC4a, AC5, AC7 on the Retained grid — the only tab with a Condition
+      // column and no target/time-to-target block.
+      test(
+        'the Retained grid lists every retained hedgerow with formatted values and a totals row',
+        { tag: ['@smoke', '@happy-path'] },
+        async ({ hedgerowsPostInterventionPage }) => {
+          const grid = hedgerowsPostInterventionPage
+          await grid.open(project.id)
+
+          // Retained is the first visible tab, so it is selected on load.
+          expect(await grid.columnHeadings(RETAINED)).toEqual(RETAINED_COLUMNS)
+          await expect(grid.featureRows(RETAINED)).toHaveCount(
+            RETAINED_REFS.length
+          )
+
+          // AC7: sorted by ref ascending server-side. Pinned to the expected
+          // refs rather than "is this array sorted" — a partial render is
+          // exactly the failure a self-comparison would wave through.
+          expect(await grid.columnValues(RETAINED, 'Ref')).toEqual(
+            RETAINED_REFS
+          )
+          // ...and no column highlighted until the user clicks one.
+          expect(await grid.sortStates(RETAINED)).toEqual(
+            RETAINED_COLUMNS.map(() => 'none')
+          )
+
+          // Across every row, not just the first: the formatters are applied
+          // per cell, so a value only some features carry would slip past a
+          // row-0 check.
+          await expectColumn(grid, RETAINED, 'Units', GRID_UNITS_2DP)
+          await expectColumn(grid, RETAINED, 'Size', KILOMETRES)
+          await expectColumn(grid, RETAINED, 'Distinctiveness', LABEL_AND_SCORE)
+          await expectColumn(grid, RETAINED, 'Condition', LABEL_AND_SCORE)
+
+          // BMD-315 AC9 pins this to Low (1) for MVS regardless of what the
+          // GeoPackage carried — the engine hardcodes the multiplier to 1.
+          expect(
+            new Set(await grid.columnValues(RETAINED, 'Strategic significance'))
+          ).toEqual(new Set([FIXED_STRATEGIC_SIGNIFICANCE]))
+
+          // AC4's Ref link. The unit test asserts this href against a mocked
+          // featureId; only a real import proves the feature has one to put in
+          // it — `buildRefCell` renders a plain text cell when it does not.
+          await expect(
+            grid.refLink(RETAINED, RETAINED_REFS[0])
+          ).toHaveAttribute('href', detailsHrefPattern(project.id))
+
+          await expectTotalsRow(grid, RETAINED)
+        }
+      )
+
+      // AC4c, AC5, AC7 on the Created grid — the 12-column shape, with the
+      // target and time-to-target block in place of Condition.
+      test('the Created grid carries the target and time-to-target columns', async ({
+        hedgerowsPostInterventionPage
+      }) => {
+        const grid = hedgerowsPostInterventionPage
+        await grid.open(project.id)
+        await grid.tab(CREATED).click()
+
+        expect(await grid.columnHeadings(CREATED)).toEqual(TARGET_COLUMNS)
+        expect(await grid.columnHeadings(CREATED)).not.toContain('Condition')
+        await expect(grid.featureRows(CREATED)).toHaveCount(CREATED_REFS.length)
+        expect(await grid.columnValues(CREATED, 'Ref')).toEqual(CREATED_REFS)
+        expect(await grid.sortStates(CREATED)).toEqual(
+          TARGET_COLUMNS.map(() => 'none')
+        )
+
+        await expectColumn(grid, CREATED, 'Units', GRID_UNITS_2DP)
+        await expectColumn(grid, CREATED, 'Size', KILOMETRES)
+        await expectColumn(grid, CREATED, 'Target condition', LABEL_AND_SCORE)
+        await expectColumn(
+          grid,
+          CREATED,
+          'Standard difficulty',
+          LABEL_AND_SCORE
+        )
+
+        // The three columns the FRONTEND formats (`formatYears`), so the
+        // singular/plural rule is its own to keep. `Final time to target` is
+        // deliberately not swept: the backend sends that cell pre-formatted
+        // with a hardcoded plural, so a one-year value reads "1 years" — raised
+        // during the BMD-998 manual validation (2026-09-14) and accepted by the
+        // ticket owner as out of scope. It is still asserted for shape below.
+        await expectColumn(grid, CREATED, 'Standard time to target', YEARS)
+        await expectColumn(grid, CREATED, 'Advance', YEARS)
+        await expectColumn(grid, CREATED, 'Delay', YEARS)
+        await expectColumn(
+          grid,
+          CREATED,
+          'Final time to target',
+          YEARS_AND_SCORE
+        )
+
+        await expectTotalsRow(grid, CREATED)
+      })
+
+      // AC4b, AC5 on the Enhanced grid — on the OTHER project.
+      //
+      // This pairing's two Enhanced hedgerows do not improve on their baseline
+      // condition (HG006 Good -> Good, HG009 Moderate -> Poor), so the engine
+      // calculates no units for either and their Units, Distinctiveness and
+      // whole target/time block render empty — the case BMD-998's AC
+      // preconditions exclude ("units were successfully calculated on import").
+      // HG018 in the all-unit-types fixture is the only Enhanced hedgerow in
+      // any shipped fixture with a real uplift (Poor -> Moderate), so it is the
+      // only row that can witness AC4b's column VALUES.
+      test('the Enhanced grid carries the same columns, populated on a calculated row', async ({
+        hedgerowsPostInterventionPage
+      }) => {
+        const grid = hedgerowsPostInterventionPage
+        await grid.open(enhancedProject.id)
+        await grid.tab(ENHANCED).click()
+
+        expect(await grid.columnHeadings(ENHANCED)).toEqual(TARGET_COLUMNS)
+        expect(await grid.columnHeadings(ENHANCED)).not.toContain('Condition')
+        await expect(grid.featureRows(ENHANCED)).toHaveCount(
+          ENHANCED_REFS.length
+        )
+        expect(await grid.columnValues(ENHANCED, 'Ref')).toEqual(ENHANCED_REFS)
+
+        const cells = await grid.rowValues(ENHANCED, ENHANCED_CALCULATED_REF)
+        const row = Object.fromEntries(
+          TARGET_COLUMNS.map((column, index) => [column, cells[index]])
+        )
+        expect(row.Units).toMatch(GRID_UNITS_2DP)
+        expect(row.Size).toMatch(KILOMETRES)
+        expect(row.Distinctiveness).toMatch(LABEL_AND_SCORE)
+        expect(row['Strategic significance']).toBe(FIXED_STRATEGIC_SIGNIFICANCE)
+        expect(row['Target condition']).toMatch(LABEL_AND_SCORE)
+        expect(row['Standard time to target']).toMatch(YEARS)
+        expect(row.Advance).toMatch(YEARS)
+        expect(row.Delay).toMatch(YEARS)
+        expect(row['Final time to target']).toMatch(YEARS_AND_SCORE)
+        expect(row['Standard difficulty']).toMatch(LABEL_AND_SCORE)
+
+        await expectTotalsRow(grid, ENHANCED)
+      })
+
+      // AC8 and AC9. The `aria-sort` toggle itself is MOJ's own component
+      // behaviour, already witnessed by real clicks in
+      // habitat-list-upload.spec.js:342 and hedgerows-baseline.spec.js:217. Two
+      // things here are not:
+      //
+      //  - the RESULTING ROW ORDER on THIS grid, which depends on the
+      //    `data-sort-value` attributes `post-intervention-habitat-grid.js`
+      //    writes — a different builder from the baseline page's; and
+      //  - that `createAll(SortableTable)` binds a table sitting inside a
+      //    `display:none` GOV.UK tab panel at all. Every other sortable table
+      //    in the service is visible on load. No other suite can see this: the
+      //    frontend unit tests parse markup with cheerio and never run the
+      //    client-side JS.
+      test(
+        'clicking a column heading re-orders a tab grid ascending, then descending',
+        { tag: '@happy-path' },
+        async ({ hedgerowsPostInterventionPage }) => {
+          const grid = hedgerowsPostInterventionPage
+          await grid.open(project.id)
+
+          const sizeHeader = grid
+            .columnHeaders(RETAINED)
+            .nth(RETAINED_COLUMNS.indexOf('Size'))
+          const sortButton = grid.sortButton(RETAINED, 'Size')
+
+          await sortButton.click()
+          await expect(sizeHeader).toHaveAttribute('aria-sort', 'ascending')
+          const ascending = await sizeValues(grid, RETAINED)
+          expect(ascending).toHaveLength(RETAINED_REFS.length)
+          expect(ascending).toEqual([...ascending].sort((a, b) => a - b))
+
+          await sortButton.click()
+          await expect(sizeHeader).toHaveAttribute('aria-sort', 'descending')
+          const descending = await sizeValues(grid, RETAINED)
+          expect(descending).toEqual([...descending].sort((a, b) => b - a))
+
+          // Only the clicked column is highlighted — MOJ clears the rest.
+          const states = await grid.sortStates(RETAINED)
+          expect(states.filter((state) => state !== 'none')).toEqual([
+            'descending'
+          ])
+        }
+      )
+
+      // AC6. The unit suite asserts the pane is in the markup with the right
+      // aria-label; what it cannot see is whether the pane ever actually
+      // overflows, which is the whole point of the requirement. Run on a
+      // twelve-column grid — the seven-column Retained one is the narrow case,
+      // and `hedgerows-baseline.spec.js:195` already witnesses that width on
+      // its own page.
+      test('a twelve-column grid sits in a pane that overflows horizontally', async ({
+        hedgerowsPostInterventionPage
+      }) => {
+        const grid = hedgerowsPostInterventionPage
+        await grid.open(project.id)
+        await grid.tab(CREATED).click()
+
+        const { scrollWidth, clientWidth, scrollLeft } =
+          await grid.scrollPaneToEnd(CREATED)
+
+        expect(scrollWidth).toBeGreaterThan(clientWidth)
+        // It moved, so the overflow is scrollable rather than clipped.
+        expect(scrollLeft).toBeGreaterThan(0)
+      })
+
+      // AC10a, AC10b, AC10c. `post-intervention-habitat-details.spec.js` reaches
+      // these same detail pages from the DEPRECATED post-intervention habitat
+      // list's Hedgerows tab, which is a different page with different Ref
+      // cells; nothing witnesses the trip from this grid. Asserted once per
+      // intervention type because the AC enumerates three destinations and the
+      // detail page's own layout differs between them.
+      test(
+        'clicking a habitat reference opens that hedgerow on the post-intervention details page',
+        { tag: '@happy-path' },
+        async ({
+          page,
+          hedgerowsPostInterventionPage,
+          postInterventionHabitatDetailsPage
+        }) => {
+          const grid = hedgerowsPostInterventionPage
+
+          for (const [label, reference] of [
+            [RETAINED, RETAINED_REFS[0]],
+            [ENHANCED, ENHANCED_ON_GRID_REF],
+            [CREATED, CREATED_REFS[0]]
+          ]) {
+            await grid.open(project.id)
+            if (label !== RETAINED) {
+              await grid.tab(label).click()
+            }
+
+            await grid.refLink(label, reference).click()
+
+            await expect(page).toHaveURL(detailsHrefPattern(project.id))
+            await expect(
+              postInterventionHabitatDetailsPage.viewOnlyHeading
+            ).toBeVisible()
+            // The ref identifies WHICH hedgerow was opened — without it the
+            // assertions above pass on any of the three.
+            await expect(
+              page.getByText(reference, { exact: true }).first()
+            ).toBeVisible()
           }
         }
       )

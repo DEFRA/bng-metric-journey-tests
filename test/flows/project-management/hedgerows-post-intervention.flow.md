@@ -50,9 +50,39 @@ Its area and watercourse equivalents are separate stories (PI Areas, PI Watercou
 
   Order is fixed by `INTERVENTION_TAB_ORDER`, not by the data. The **first visible** tab is selected on load, so a project with no Retained hedgerows opens on Enhanced. Each panel holds an `<h3>{Tab} hedgerow habitats</h3>` and that intervention type's grid (BMD-998). Every panel is rendered on a single page load — the tabs are client-side only, with no second request.
 
-  **Tab visibility depends on normalisation, not on the raw value.** `visibleInterventionTabs` filters through `interventionDisplay`, which strips a leading `"N. "` list prefix. The backend normalises the category to pick an engine calculation but **never writes the normalised value back** (see the header comment in `post-intervention-habitat-details/retention.js`), so the document keeps whatever the GeoPackage carried — `"Retained"`, `"1. Retained"` or `"  Retained  "` all have to land in the same tab. Nothing but a real upload exercises that.
+#### Intervention-type grid (BMD-998) `[IMPLEMENTED]`
 
-  **`Lost` has no tab.** The backend drops Lost features at import (BMD-531/534), so they never reach the view. A fixture whose hedgerows are all Lost renders the page with no tabs at all — `{% if tabItems.length %}` suppresses the whole block.
+Each panel holds a `moj-sortable-table` wrapped in an MOJ **scrollable pane** — a `<div class="moj-scrollable-pane" role="region" aria-label="{Tab} hedgerow habitats" tabindex="0">`, so the pane and the `<h3>` above it share a name. Built by `buildPostInterventionHabitatGrid` (`common/helpers/post-intervention-habitat-grid.js`) via the shared `appHabitatDetailsTable` macro, with one row per hedgerow of that intervention type.
+
+**The column set varies by intervention type.** Retained carries `Condition`; Enhanced and Created drop it and carry the target/time-to-target block instead:
+
+| Column                    | Retained | Enhanced | Created | Value                                                                   |
+| ------------------------- | -------- | -------- | ------- | ----------------------------------------------------------------------- |
+| `Ref`                     | ✓        | ✓        | ✓       | `feature.ref` (trimmed, falling back to `featureId`), linked to details |
+| `Units`                   | ✓        | ✓        | ✓       | `formatHabitatUnits` — 2 dp, capped at 7 s.f.                           |
+| `Size`                    | ✓        | ✓        | ✓       | `formatLengthKmDisplay` — 7 s.f. + `km`, no space                       |
+| `Habitat type`            | ✓        | ✓        | ✓       | `proposed.type`                                                         |
+| `Distinctiveness`         | ✓        | ✓        | ✓       | `"{label} ({score})"`                                                   |
+| `Condition`               | ✓        | —        | —       | `"{label} ({score})"`                                                   |
+| `Strategic significance`  | ✓        | ✓        | ✓       | fixed `Low (1)` for MVS (BMD-315 AC9)                                   |
+| `Target condition`        | —        | ✓        | ✓       | `"{label} ({score})"` — the **proposed** condition                      |
+| `Standard time to target` | —        | ✓        | ✓       | `formatYears` — `"1 year"` / `"N years"`                                |
+| `Advance`                 | —        | ✓        | ✓       | `formatYears`                                                           |
+| `Delay`                   | —        | ✓        | ✓       | `formatYears`                                                           |
+| `Final time to target`    | —        | ✓        | ✓       | the **backend's** pre-formatted string — see the copy note below        |
+| `Standard difficulty`     | —        | ✓        | ✓       | `"{label} ({multiplier})"`                                              |
+
+A `<tfoot>` **totals row** closes every grid: the fixed text `Total` in the Ref column, `formatHabitatUnits` over the summed units, `formatTotalLengthSize` over the summed size, and an empty cell for every other column. Both sums are computed **server-side from the rendered features** (`sumFinite`), independently of the backend's persisted `postIntervention.units.hedgerowsTotal` driving the tiles above.
+
+**Default order and sorting.** `sortHabitatFeatures` sorts by ref ascending before rendering, and every `<th>` ships `aria-sort="none"` — so no column is highlighted until the user clicks one. `createAll(SortableTable)` then binds MOJ's component to **every** grid on the page, including those inside `display:none` tab panels; a click toggles that column `ascending` → `descending` and clears the rest. Ref cells carry a zero-padded `data-sort-value` (`refSortValue`, 10-digit runs) so `P-10` sorts after `P-2`; numeric cells carry the raw value.
+
+> **Copy note — `Final time to target` pluralises a one-year value.** The cell renders `"1 years (0.965)"` where the `Standard time to target` beside it correctly renders `"1 year"`. The frontend formats its own year columns with `formatYears`, which handles the singular, but takes `proposed.finalTimeToTargetCondition` **verbatim** from the backend, which hardcodes the plural (`bng-metric-backend` `proposed-time-difficulty-display.js`, `` `${finalYears} years (${timeMultiplier})` ``). It predates BMD-998 and is shared with area habitats and watercourses. Raised during the BMD-998 manual validation (2026-09-14) and **accepted by the ticket owner as out of scope** — not a defect against this page.
+
+> **An Incomplete hedgerow renders as blank cells.** When the backend could not calculate units — an Enhanced hedgerow whose proposed condition does not improve on its baseline is the common case — `Units`, `Distinctiveness` and the whole target/time block render empty. This grid has **no `Status` column**, unlike the [post-intervention habitat list](../habitat-list/post-intervention-habitat-list.flow.md) (BMD-531), so nothing on the page says why. AC4's column table does not ask for one; flagged to the PO rather than treated as a defect.
+
+**Tab visibility depends on normalisation, not on the raw value.** `visibleInterventionTabs` filters through `interventionDisplay`, which strips a leading `"N. "` list prefix. The backend normalises the category to pick an engine calculation but **never writes the normalised value back** (see the header comment in `post-intervention-habitat-details/retention.js`), so the document keeps whatever the GeoPackage carried — `"Retained"`, `"1. Retained"` or `"  Retained  "` all have to land in the same tab. Nothing but a real upload exercises that.
+
+**`Lost` has no tab.** The backend drops Lost features at import (BMD-531/534), so they never reach the view. A fixture whose hedgerows are all Lost renders the page with no tabs at all — `{% if tabItems.length %}` suppresses the whole block.
 
 - **Validation:** `id` path param must be a valid uuidv4 (Joi); invalid → Hapi 400
 - **On success:** Renders `common/templates/habitat-post-intervention-page` with page title "Post intervention for hedgerows - {serviceName}"
@@ -121,7 +151,7 @@ There is **no back link**; the left navigation is the only way up.
 
 ## Journey coverage
 
-Added 2026-09-14 for the BMD-860 AC sweep — `test/specs/project-management/hedgerows-post-intervention.spec.js` (10 tests, domain tag `@project-management`), plus the AC1 entry-point assertions folded into `project-summary.spec.js`.
+Added 2026-09-14 for the BMD-860 AC sweep and extended the same day for BMD-998 — `test/specs/project-management/hedgerows-post-intervention.spec.js` (16 tests, domain tag `@project-management`), plus the AC1 entry-point assertions folded into `project-summary.spec.js`.
 
 `hedgerows-post-intervention/controller.test.js` covers this page in 15 tests, all with `wreck` mocked and four hand-built hedgerows. The journey tests cover only what that cannot reach:
 
@@ -138,7 +168,29 @@ Added 2026-09-14 for the BMD-860 AC sweep — `test/specs/project-management/hed
 | Both hedgerows summary triggers open it       | 2a, 2b | the nav child and the results link are separate view-model paths that happen to share a target                                                                                  |
 | (project-summary.spec.js) the tile link       | 1      | `project-summary.spec.js` asserted the **inert** default for all three unit types until BMD-860; the hedgerow tile is now the one that links                                    |
 
-The three-tab project comes from `getHedgerowInterventionTypesProject` in `@utils/summary-projects.js` — the only fixture pairing that makes Retained, Enhanced **and** Created visible at once, so it is a new build. The AC6 negative case and the AC1 entry point both ride on `getAllUnitTypesPostInterventionProject`, already built by `project-summary.spec.js` in the same module-scope cache, so they cost **no upload**.
+### BMD-998 — the grids inside the tabs
+
+`hedgerows-post-intervention/controller.test.js:365-461` asserts the columns, rows, totals and `aria-sort="none"` headers in markup, but with `wreck` mocked and hand-built hedgerow literals: it proves the grid renders `proposed.distinctivenessScore` **if it arrives**, never that a real import emits it. The backend is the other half of the same gap — `post-intervention-persistence.test.js:154` asserts `status` and a numeric `units` for Enhanced **linear** features and nothing else: no Retained or Created hedgerow, and none of the ten `proposed.*` display fields these columns read.
+
+| Test                                                     | AC        | Why it needs a browser and real data                                                                                                                   |
+| -------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Retained grid — columns, rows, formats, Ref href, totals | 4a, 5, 7  | sole witness that a real hedgerow carries `ref`, `sizeMetres`, `units`, distinctiveness and condition through import into this grid                    |
+| Created grid — target and time-to-target columns         | 4c, 5, 7  | the 12-column shape, and the only real-data witness for the target/time block                                                                          |
+| Enhanced grid — same columns, populated on HG018         | 4b, 5     | runs on the **other** fixture; see the calculated-row note below                                                                                       |
+| Click a column heading → ascending, then descending      | 8, 9      | the resulting ROW ORDER on this grid's own `data-sort-value`s, **and** that `createAll(SortableTable)` binds a table inside a `display:none` tab panel |
+| A twelve-column grid's pane overflows horizontally       | 6         | the pane's overflow is a layout fact no markup assertion can see                                                                                       |
+| Clicking a habitat reference opens the details page      | 10a, b, c | `post-intervention-habitat-details.spec.js` arrives from the **deprecated** habitat list's Hedgerows tab — a different page with different Ref cells   |
+| (tabs describe) selecting Created reveals its subheading | 3         | every other test sees that heading hidden or absent, neither of which proves it renders when the tab is chosen                                         |
+
+**Fixtures.** The BMD-860 pairing has exactly one hedgerow per tab, which cannot witness a totals row worth summing, a default ordering or a re-sort — so the grids use `getLinearInterventionTypesProject` (`created linear features`: 7 Retained, 2 Enhanced, 4 Created). Its Enhanced pair is the exception: **HG006 Good → Good and HG009 Moderate → Poor do not improve on their baseline condition**, so the engine calculates no units and their Units, Distinctiveness and target/time cells render empty. AC4b's column values therefore run on `getAllUnitTypesPostInterventionProject` instead, whose **HG018 (Poor → Moderate) is the only Enhanced hedgerow in any shipped fixture with a real uplift**.
+
+`post-intervention-habitat-details.spec.js:281` builds the created-linear pairing through its own file-local project cache, so a worker running both files uploads it twice. Consolidating means unpicking that file's build-time unit harvesting, so it is deliberately left alone.
+
+**Sole witness, do not delete without a replacement.** These are the only tests in any suite where a real uploaded hedgerow's fields reach a rendered grid. See the Backend coverage proposals in the BMD-998 analysis.
+
+---
+
+The three-tab project comes from `getHedgerowInterventionTypesProject` in `@utils/summary-projects.js` — the only fixture pairing that makes Retained, Enhanced **and** Created visible at once with the BMD-860 shape, so it is a new build. The AC6 negative case and the AC1 entry point both ride on `getAllUnitTypesPostInterventionProject`, already built by `project-summary.spec.js` in the same module-scope cache, so they cost **no upload**.
 
 **Sole witness, do not delete without a replacement.** The tab tests are the only place in any suite where a real GeoPackage's retention values decide what renders — the backend integration suite asserts `retentionCategory === 'Enhanced'` persists with units (`post-intervention-persistence.test.js:172`) but never `Retained` or `Created`, and never renders. See the Backend coverage proposals in the BMD-860 analysis.
 
