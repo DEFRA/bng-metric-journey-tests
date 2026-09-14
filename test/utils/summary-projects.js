@@ -74,6 +74,17 @@ export const HEDGEROW_REFS_BASELINE_FILE =
 export const HEDGEROWS_MIXED_RETENTION_PI_FILE =
   'Post-intervention - hedgerows mixed retention.gpkg'
 
+// BMD-998's three-tab pairing. The pairing above has exactly ONE hedgerow per
+// intervention type, which is enough for BMD-860's tab shell and useless for
+// the grids inside it: a single-row table cannot witness a totals row worth
+// summing, a default ordering, or a re-sort. This pairing carries 7 Retained,
+// 2 Enhanced and 4 Created hedgerows (plus 5 Lost the backend drops at import)
+// — the only shipped pairing with SEVERAL rows in all three tabs.
+export const CREATED_LINEAR_BASELINE_FILE =
+  'Baseline - created linear features.gpkg'
+export const CREATED_LINEAR_PI_FILE =
+  'Post-intervention - created linear features.gpkg'
+
 // A baseline with 16 hedgerows and NO rivers, paired below with a
 // post-intervention file that has watercourses — the watercourse equivalent of
 // the hedgerow pairing above, and the only route to BMD-897's
@@ -255,6 +266,29 @@ export function getHedgerowInterventionTypesProject(browser) {
         browser,
         HEDGEROW_REFS_BASELINE_FILE,
         HEDGEROWS_MIXED_RETENTION_PI_FILE
+      )
+  )
+}
+
+/**
+ * The same three intervention types with SEVERAL hedgerows in each tab —
+ * BMD-998's grid witness, where `getHedgerowInterventionTypesProject` above is
+ * BMD-860's tab-shell witness. See the fixture note on
+ * CREATED_LINEAR_BASELINE_FILE for why one cannot serve both.
+ *
+ * `post-intervention-habitat-details.spec.js` builds this same pairing through
+ * its own file-local project cache, so in a worker that runs both files it is
+ * uploaded twice. Consolidating the two caches means unpicking that file's
+ * build-time unit harvesting, so it is deliberately left alone.
+ */
+export function getLinearInterventionTypesProject(browser) {
+  return getOrBuildProject(
+    projectKey(CREATED_LINEAR_BASELINE_FILE, CREATED_LINEAR_PI_FILE),
+    () =>
+      buildPostInterventionProject(
+        browser,
+        CREATED_LINEAR_BASELINE_FILE,
+        CREATED_LINEAR_PI_FILE
       )
   )
 }
