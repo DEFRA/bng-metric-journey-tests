@@ -22,3 +22,12 @@ export const VIEW_ON_SITE_WATERCOURSES_BASELINE =
 // exists; once one does, the link is replaced by the inert text below.
 export const UPLOAD_POST_INTERVENTION = 'Upload on-site post intervention file'
 export const VIEW_ON_SITE_POST_INTERVENTION = 'View on-site post intervention'
+// BMD-860 gave HEDGEROWS alone a post-intervention page, so its tile carries
+// its own linked wording where area habitats and watercourses keep the inert
+// default above. Their equivalents are separate, unshipped stories — so unlike
+// the baseline actions there is no matching AREA_/WATERCOURSES_ constant yet.
+export const VIEW_ON_SITE_HEDGEROWS_POST_INTERVENTION =
+  'View on-site hedgerows post intervention'
+// The current-page item in the left nav's Hedgerows section. Note the hyphen:
+// BMD-860's ACs write "Post intervention", the app renders "Post-intervention".
+export const POST_INTERVENTION_NAV_CHILD = 'Post-intervention'

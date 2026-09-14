@@ -35,7 +35,7 @@ Added by **BMD-855 / BMD-919** (frontend PR#249, 2026-08-28). Before it, `/proje
   | Net percentage change       | formatted percentage + `Met`/`Not met` tag      | **`Not applicable`**, **no tag**                 |
   | Baseline tile action        | link "View on-site hedgerows baseline"          | **`null` — no action paragraph rendered at all** |
   | Post-intervention heading   | "On-site post-**intervention**" (hyphenated)    | "On-site post intervention" (unhyphenated)       |
-  | Post-intervention action    | inert "View on-site post intervention"          | **link** "Upload on-site post intervention file" |
+  | Post-intervention action    | link "View on-site hedgerows post intervention" | **link** "Upload on-site post intervention file" |
   | Targets — target % (Tile 1) | `10%`                                           | **`Not applicable`**                             |
   | Targets — units required    | `baselineUnits × 1.1`                           | `0.00 units` (the baseline is zero)              |
   | Targets — unit deficit      | `max(0, unitsRequired − postInterventionUnits)` | `0.00 units` (nothing was required)              |
@@ -127,7 +127,8 @@ The single new test costs no extra upload: it joins the BMD-897 describe, which 
 
 ## Deferred elements
 
-| Element                          | Current state                                | Marker      |
-| -------------------------------- | -------------------------------------------- | ----------- |
-| "View trading rules"             | inert `<span>` in the Trading Rules tile     | `[PLANNED]` |
-| "View on-site post intervention" | inert `<span>` once post-intervention exists | `[PLANNED]` |
+| Element              | Current state                            | Marker      |
+| -------------------- | ---------------------------------------- | ----------- |
+| "View trading rules" | inert `<span>` in the Trading Rules tile | `[PLANNED]` |
+
+"View on-site hedgerows post intervention" is no longer deferred: **BMD-860** (frontend PR#278, 2026-09-11) turned it into a link to [`/hedgerows-post-intervention`](hedgerows-post-intervention.flow.md), and gave the left nav a `Post-intervention` child alongside `Baseline`. Both are `[IMPLEMENTED]`.

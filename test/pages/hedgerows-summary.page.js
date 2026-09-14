@@ -2,7 +2,8 @@ import { UnitTypeSummaryPage } from './unit-type-summary.page.js'
 import {
   HEDGEROWS,
   VIEW_ON_SITE_BASELINE,
-  VIEW_ON_SITE_HEDGEROWS_BASELINE
+  VIEW_ON_SITE_HEDGEROWS_BASELINE,
+  VIEW_ON_SITE_HEDGEROWS_POST_INTERVENTION
 } from '@utils/unit-type-labels.js'
 
 /**
@@ -35,6 +36,20 @@ export class HedgerowsSummaryPage extends UnitTypeSummaryPage {
   baselineLink() {
     return this.unitSection().getByRole('link', {
       name: VIEW_ON_SITE_HEDGEROWS_BASELINE
+    })
+  }
+
+  /**
+   * The post-intervention tile's link to the hedgerows post-intervention page
+   * (BMD-860 AC2b). Present only once the project HAS post-intervention data —
+   * before that the tile offers `uploadPostInterventionLink()` instead, so the
+   * two are the pair that tells the states apart. The nav route to the same
+   * page is `navLink('Post-intervention')`; they are separate view-model paths
+   * that happen to share a target.
+   */
+  interventionLink() {
+    return this.unitSection().getByRole('link', {
+      name: VIEW_ON_SITE_HEDGEROWS_POST_INTERVENTION
     })
   }
 }
