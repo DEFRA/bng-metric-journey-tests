@@ -12,6 +12,11 @@ const PROJECT_LABEL = 'Upload baseline test'
 const ERROR_NO_FILE = 'Select a GeoPackage (.gpkg) file'
 const ERROR_WRONG_EXTENSION = 'The selected file must be a GeoPackage (.gpkg)'
 const NON_GPKG_FILE = 'not-a-geopackage.txt'
+// BMD-958. Square brackets are outside SAFE_FILENAME_RE, so this is rejected on
+// its NAME — the content is a valid GeoPackage.
+const INVALID_FILENAME_FILE = 'Baseline [invalid chars].gpkg'
+const ERROR_INVALID_FILENAME =
+  'The file name can only include letters, numbers, spaces, hyphens, underscores, full stops or brackets'
 
 test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
   // ─── Form display ────────────────────────────────────────────────────────────
@@ -129,7 +134,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
         await expect(page).toHaveURL(/\/upload-baseline-file/)
       })
 
-      test('selecting a non-.gpkg file shows the wrong-extension error', async ({
+      test('Continue with a non-.gpkg file selected shows the wrong-extension error', async ({
         createProjectFlow,
         projectDashboardPage,
         uploadBaselineFileFlow,
@@ -145,9 +150,77 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
           uploadBaselineFileFlow.filePath(NON_GPKG_FILE)
         )
 
+        // BMD-958 (frontend PR#290) moved client-side validation from the file
+        // input's `change` event to form submit. Asserting the negative first is
+        // what pins that move: before the change, this error was already on
+        // screen at this point, so a revert would fail here rather than silently
+        // re-introduce the old behaviour.
+        await expect(uploadBaselineFilePage.errorSummary).toBeHidden()
+
+        await uploadBaselineFilePage.continueButton.click()
+
         await expect(
           uploadBaselineFilePage.clientError(ERROR_WRONG_EXTENSION)
         ).toBeVisible()
+      })
+
+      test('Continue with a disallowed filename shows the filename error inline, without uploading', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        uploadBaselineFilePage,
+        page
+      }) => {
+        // Sole witness that the filename rule is wired into the real upload
+        // page. The rule itself is unit-tested (frontend
+        // src/client/javascripts/file-validation-rules.test.js; backend
+        // src/validation/project.test.js), and the DOM shell is tested in JSDOM
+        // (file-upload-validation.test.js) — but that shell test builds its own
+        // form fixture, so it keeps passing if the Nunjucks template stops
+        // rendering the #tpl-error-summary/#tpl-error-message templates the
+        // script clones, or if the script stops being loaded on this page.
+        //
+        // It is also the only check that the file never leaves the browser.
+        // Because the frontend now mirrors the backend's SAFE_FILENAME_RE, the
+        // backend's own INVALID_FILENAME branch is no longer reachable through
+        // the UI at all, and it has no integration-test coverage
+        // (../bng-metric-backend/integration-tests/ has none; the unit test at
+        // src/validation/geopackage/errors.test.js feeds a fabricated Joi error,
+        // which proves mapping, not emission). Deleting this test would leave
+        // the whole filename-rejection path unwitnessed end to end.
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
+        )
+
+        const visited = []
+        page.on('framenavigated', (frame) => {
+          if (frame === page.mainFrame()) {
+            visited.push(frame.url())
+          }
+        })
+
+        await uploadBaselineFilePage.open(id)
+        await uploadBaselineFilePage.fileInput.setInputFiles(
+          uploadBaselineFileFlow.filePath(INVALID_FILENAME_FILE)
+        )
+        await uploadBaselineFilePage.continueButton.click()
+
+        // Order matters: this assertion is the synchronisation point. It waits
+        // for the client handler to have run, which is what makes the
+        // no-navigation check below meaningful — asserted any earlier, that
+        // check would pass simply because navigation had not started yet.
+        // `soft` so a copy change still reports the upload finding alongside it.
+        await expect
+          .soft(uploadBaselineFilePage.clientError(ERROR_INVALID_FILENAME))
+          .toBeVisible()
+        // Inline on the upload page (BMD-958), not the /error-file breakout the
+        // backend's rejection branch would have produced.
+        await expect(page).toHaveURL(/\/upload-baseline-file/)
+        expect(
+          visited.filter((url) => url.includes('upload-received'))
+        ).toEqual([])
       })
     }
   )

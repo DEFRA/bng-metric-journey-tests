@@ -31,6 +31,11 @@ const COMPLETE_BASELINE_HEDGEROW_REF = 'H1'
 // Trips PARCEL_OVERLAPS alongside side errors from the shared base data, so it
 // lands on the multi-error dropout layout.
 const INVALID_BASELINE_FILE = 'Baseline - overlapping parcels.gpkg'
+// BMD-958. A byte-identical copy of COMPLETE_BASELINE_FILE differing only in its
+// name, so anything that goes wrong here is provably about the filename. The
+// name is the strict case for the widened rule: it both STARTS with punctuation
+// and contains round brackets.
+const PUNCTUATED_BASELINE_FILE = '(Baseline) - complete with area refs.gpkg'
 const NATURAL_ENGLAND_MISMATCH_COPY =
   'The layer names and column names do not match what is required by Natural England'
 
@@ -119,6 +124,43 @@ function describeHappyPath() {
   )
 }
 
+// ─── Filename character rule (BMD-958) ───────────────────────────────────────
+
+function describeFilenameAcceptance() {
+  test.describe(
+    'Upload baseline — accepted filename characters (BMD-958)',
+    { tag: '@regression' },
+    () => {
+      // Sole end-to-end witness that the widened SAFE_FILENAME_RE actually
+      // admits a file. The rule is unit-tested on both sides (backend
+      // src/validation/project.test.js '#filename validation'; frontend
+      // src/client/javascripts/file-validation-rules.test.js), but both check
+      // the pattern against strings — neither proves an upload with such a name
+      // survives the browser, the CDP Uploader and the backend metadata gate to
+      // reach the project summary. The filename gate runs BEFORE a byte of
+      // content is read, so a regression here rejects a perfectly valid file.
+      //
+      // This suite has been burned by that exact gap: see the REMOVED note in
+      // upload-post-intervention.spec.js, where a renamed fixture was rejected
+      // on its name for months while the test appeared to prove content
+      // validation. Do not delete without an equivalent real-upload witness.
+      test('a filename with leading punctuation and brackets is accepted and reaches the project summary', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        projectSummaryPage
+      }) => {
+        await uploadToProjectSummary(
+          { createProjectFlow, projectDashboardPage, uploadBaselineFileFlow },
+          PUNCTUATED_BASELINE_FILE
+        )
+
+        await expect(projectSummaryPage.heading).toBeVisible()
+      })
+    }
+  )
+}
+
 // ─── Baseline replacement discards post-intervention data ────────────────────
 
 // Backend BMD-850 (PR#219) made setProjectBaseline delete the postIntervention
@@ -132,6 +174,7 @@ function describeHappyPath() {
 // data") uploads the same file twice, so it can only assert the uploadId
 // changed and the row counts match — nothing anywhere proved the *new file's*
 // habitats are what end up on the page. The hedgerow refs below are that proof.
+
 function describeBaselineReplacement() {
   test.describe(
     'Upload baseline — replacing an existing baseline',
@@ -1066,6 +1109,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
   test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
   describeHappyPath()
+  describeFilenameAcceptance()
   describeBaselineReplacement()
   describeFailedReplacement()
   describeNoPendingUpload()

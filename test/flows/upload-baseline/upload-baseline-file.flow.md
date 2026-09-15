@@ -36,7 +36,8 @@ but a test that navigates the **UI** now passes through the selection page first
   - `GET /projects/{id}` — fetches project name for the caption
   - `POST /upload/initiate` — creates a CDP upload session; returns `uploadId` and `uploadUrl`
 - **Description:** Renders a GOV.UK file-upload form whose `action` points directly to the CDP Uploader URL (not the app). The handler reads and immediately clears any `uploadError` flash from the session (set by previous failed/timed-out attempts) and stores the new `uploadId` in the session as `pendingUploadId`. The response sets `Cache-Control: no-store` to ensure the short-lived upload URL is always fresh. **Back link and Cancel link both navigate to the file-type selection page** — `uploadFileHref(projectId, safeUploadReturnUrl(request.query.returnUrl, projectId))`, i.e. `/projects/{projectId}/upload-file?returnUrl=<safe>` (BMD-850, frontend PR#207). They pointed at `/add-project-details/{projectId}` before that change; that path is now only what the sanitised `returnUrl` **defaults** to when none is supplied. The controller delegates to the shared upload-file factory; upload metadata sent to the CDP Uploader includes `uploadType: 'baseline'`, and backend calls forward the user's Defra ID bearer via `backendRequest` (BMD-511).
-- **Validation:** None (display-only). If `uploadUrl` is absent the template renders a fallback message ("Unable to start file upload") instead of the form.
+- **Validation:** Server-side, none (display-only). If `uploadUrl` is absent the template renders a fallback message ("Unable to start file upload") instead of the form.
+- **Client-side validation (progressive enhancement):** `src/client/javascripts/file-upload-validation.js` wires the pure rules in `file-validation-rules.js` into the form. It fires on **form submit — i.e. when Continue is pressed — not when the file is selected** (**changed by BMD-958**, frontend PR#290; it previously validated on the input's `change` event and cleared the selection). Choosing a file now only _clears_ any existing errors. The rules check extension (`.gpkg`), size (100 MB) and filename (≤ 255 chars, `SAFE_FILENAME_RE`), and on failure the handler calls `preventDefault()` and renders a GOV.UK error summary whose entries are links naming each message — which is why the journey tests match the error by link role. Degrades gracefully: with JS off, the server and the filename rule in Step 3 still apply.
 - **Route parameters:** `{id}` is **not** validated (no Joi `params` schema on this route). A non-UUID id does not 400 — `GET /projects/{id}` fails, the caption falls back to "Project", and the form still renders. The same applies to `upload-received`. (Contrast `/projects/{id}/upload-file`, which **does** require a uuidv4.)
 - **Query parameters:** `returnUrl` is read from `request.query` but is **not** Joi-validated; it is sanitised by `safeUploadReturnUrl` (must start with a single `/`, no `\`), falling back to `/add-project-details/{projectId}`.
 - **On success:** Renders the file-upload form
@@ -66,12 +67,19 @@ but a test that navigates the **UI** now passes through the selection page first
   - `GET /upload/{uploadId}/status` — polls upload status (treats `numberOfRejectedFiles > 0` as `rejected`)
   - **Filename rule (BMD-958)** — before any content validation, the upload metadata is checked
     against `habitatDataSchema`. The filename must be **≤ 255 characters** and match
-    `/^[a-z0-9][a-z0-9 ._()-]*\.gpkg$/i`: it has to start alphanumeric, end `.gpkg`, and may
-    otherwise contain only letters, digits, spaces, dots, underscores, hyphens and
-    **brackets**. BMD-958 **added `(` and `)`** to that set — the previous pattern was
-    `/^[a-z0-9][a-z0-9 ._-]*\.gpkg$/i`, so a file such as `site survey (final).gpkg` used to be
-    rejected and is now accepted. A rejection produces `INVALID_FILENAME` (see Step 4), split
-    out by `makeMetadataError` from the `INVALID_FILE_METADATA` it used to share.
+    `/^[ ._()-]*[a-z0-9][a-z0-9 ._()-]*\.gpkg$/i`: it must end `.gpkg`, contain at least one
+    letter or digit in the stem, and may otherwise contain only letters, digits, spaces, dots,
+    underscores, hyphens and **round brackets**. BMD-958 **added `(` and `)`** to that set —
+    the original pattern was `/^[a-z0-9][a-z0-9 ._-]*\.gpkg$/i`, so a file such as
+    `site survey (final).gpkg` used to be rejected and is now accepted. BMD-958 also **dropped
+    the leading-alphanumeric requirement** (the `[ ._()-]*` prefix), so `(Baseline).gpkg` is
+    now accepted too; an interim build rejected it, which is what sent the ticket back to dev
+    on 2026-09-09. Note the set is **round** brackets only — `Baseline [invalid chars].gpkg`
+    is still rejected, even though the user-facing copy says "brackets". A rejection produces
+    `INVALID_FILENAME` (see Step 4), split out by `makeMetadataError` from the
+    `INVALID_FILE_METADATA` it used to share. **The frontend mirrors this exact regex**
+    (`src/client/javascripts/file-validation-rules.js`), so an invalid name is normally caught
+    in the browser on Continue and never reaches this check — see Step 1.
   - `POST /baseline/validate/{uploadId}` (body: `{ projectId }`) — triggered once status is `ready`; validates the file contents and persists the baseline; forwards the user's Defra ID bearer via `backendRequest`. Content validation includes a distinctiveness-scope check (BMD-352): any habitat — area habitats, hedgerows, or watercourses — whose distinctiveness is **High** or **Very high** is rejected with error code `HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE` (the error names the offending feature ref; allowed bands are Medium, Low, Very low). This drives the structured-error branch below. Content validation also rejects (BMD-883) any habitat that sets **both** "Habitat created in advance/years" and "Delay in starting habitat creation/years" — error code `ADVANCE_AND_DELAY_BOTH_SET` — naming the offending feature refs; use one or the other, not both.
 - **Description:** Rendered by the shared `createUploadReceivedController(HABITAT_UPLOAD_TYPES.baseline, validateBaseline)` factory. The template renders a "Checking your file" message with a `<meta http-equiv="refresh" content="5">` tag so the browser re-hits the handler every 5 seconds. On each request the handler checks `pendingUploadId` from the session, polls upload status, and tracks elapsed time in `uploadStartedAt`. Once status is `ready` it calls baseline validation and clears both session keys. The rejected and structured-error branches also set `validationUploadType = 'baseline'` in session (consumed by the shared error-file page). Possible outcomes are listed below.
 - **Validation / branching:**
