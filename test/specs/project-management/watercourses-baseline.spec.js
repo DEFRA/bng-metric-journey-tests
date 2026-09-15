@@ -17,7 +17,10 @@ import {
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 
-const BASELINE_PATH = 'watercourses-baseline'
+// BMD-862 (frontend PR#285) renamed this route from 'watercourses-baseline'.
+// The old path still 301-redirects here for a migration window, so a test that
+// only navigates would not notice the rename — the href assertions would.
+const BASELINE_PATH = 'watercourses-baseline-summary'
 
 const UNITS_2DP = /^\d+\.\d{2}$/
 const KILOMETRES = /^\d+(\.\d+)?km$/

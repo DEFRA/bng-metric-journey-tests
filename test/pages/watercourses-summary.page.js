@@ -1,6 +1,7 @@
 import {
   VIEW_ON_SITE_BASELINE,
   VIEW_ON_SITE_WATERCOURSES_BASELINE,
+  VIEW_ON_SITE_WATERCOURSES_POST_INTERVENTION,
   WATERCOURSES,
   WATERCOURSE_HABITATS_HEADING
 } from '@utils/unit-type-labels.js'
@@ -48,6 +49,19 @@ export class WatercoursesSummaryPage extends UnitTypeSummaryPage {
   baselineLink() {
     return this.unitSection().getByRole('link', {
       name: VIEW_ON_SITE_WATERCOURSES_BASELINE
+    })
+  }
+
+  /**
+   * The post-intervention tile's link to the watercourses post-intervention
+   * page (BMD-862, frontend PR#285) — the watercourse twin of the hedgerows
+   * `interventionLink()`. Present only once the project HAS post-intervention
+   * data; before that the tile offers `uploadPostInterventionLink()` instead,
+   * so the two are the pair that tells the states apart.
+   */
+  interventionLink() {
+    return this.unitSection().getByRole('link', {
+      name: VIEW_ON_SITE_WATERCOURSES_POST_INTERVENTION
     })
   }
 }

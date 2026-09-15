@@ -720,23 +720,25 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           ).toHaveCount(0)
         }
 
-        // BMD-860 split what used to be one shape. Hedgerows is the only unit
-        // type with a post-intervention page, so its tile LINKS there; the
-        // other two keep the inert default because `buildProjectUnitTypes`
-        // passes them no `interventionAction`. Asserting the inert text for
-        // every type — as this test did until BMD-860 merged — is what broke.
-        for (const label of [AREA_HABITATS, WATERCOURSES]) {
+        // BMD-860 split what used to be one shape, and BMD-862 (frontend
+        // PR#285) moved watercourses across the split too: both linear types
+        // now have a post-intervention page, so their tiles LINK there while
+        // area habitats keeps the inert default — it is the only type
+        // `buildProjectUnitTypes` still passes no `interventionAction`.
+        // Asserting the inert text for every type is what broke at BMD-860;
+        // asserting it for watercourses is what broke at BMD-862.
+        await expect(
+          projectSummaryPage
+            .unitSection(AREA_HABITATS)
+            .getByText(VIEW_ON_SITE_POST_INTERVENTION, { exact: true })
+        ).toBeVisible()
+        for (const label of [HEDGEROWS, WATERCOURSES]) {
           await expect(
             projectSummaryPage
               .unitSection(label)
               .getByText(VIEW_ON_SITE_POST_INTERVENTION, { exact: true })
-          ).toBeVisible()
+          ).toHaveCount(0)
         }
-        await expect(
-          projectSummaryPage
-            .unitSection(HEDGEROWS)
-            .getByText(VIEW_ON_SITE_POST_INTERVENTION, { exact: true })
-        ).toHaveCount(0)
       })
 
       // BMD-860 AC1. The hedgerow tile's text became a link to the new
@@ -1026,7 +1028,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           projectSummaryPage.viewOnSiteWatercoursesBaselineLink(WATERCOURSES)
         ).toHaveAttribute(
           'href',
-          `/projects/${project.id}/watercourses-baseline`
+          `/projects/${project.id}/watercourses-baseline-summary`
         )
       })
 
