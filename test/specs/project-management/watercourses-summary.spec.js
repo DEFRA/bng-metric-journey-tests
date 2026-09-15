@@ -121,7 +121,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       await expect(watercoursesSummaryPage.baselineLink()).toHaveAttribute(
         'href',
-        `/projects/${project.id}/watercourses-baseline`
+        `/projects/${project.id}/watercourses-baseline-summary`
       )
       await expect(
         watercoursesSummaryPage.viewOnSiteBaselineText()
@@ -162,7 +162,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // mode fails if another section were expanded alongside this one.
       await expect(
         watercoursesSummaryPage.navLink(BASELINE_NAV_CHILD)
-      ).toHaveAttribute('href', `/projects/${project.id}/watercourses-baseline`)
+      ).toHaveAttribute(
+        'href',
+        `/projects/${project.id}/watercourses-baseline-summary`
+      )
     })
 
     // BMD-856 AC1. Sole witness that either route INTO this page from the
@@ -240,12 +243,15 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expect(
           watercoursesSummaryPage.uploadPostInterventionLink()
         ).toHaveCount(0)
-        // Asserting the inert text IS there as well as unlinked: a bare
-        // toHaveCount(0) passes just as happily when the action line has
-        // disappeared altogether.
+        // Asserting the action line IS still there as well as no longer being
+        // the upload link: a bare toHaveCount(0) passes just as happily when
+        // the line has disappeared altogether. BMD-862 (frontend PR#285) made
+        // it a LINK to the new watercourses post-intervention page, where it
+        // used to be the inert shared default.
+        await expect(watercoursesSummaryPage.interventionLink()).toBeVisible()
         await expect(
           watercoursesSummaryPage.viewOnSitePostInterventionText()
-        ).toBeVisible()
+        ).toHaveCount(0)
 
         // Read all five here, then compare against the project summary's
         // Watercourses section: both pages source them from the same backend

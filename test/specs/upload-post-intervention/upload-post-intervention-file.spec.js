@@ -143,7 +143,7 @@ test.describe(
           await expect(page).toHaveURL(/\/upload-post-intervention-file/)
         })
 
-        test('selecting a non-.gpkg file shows the wrong-extension error', async ({
+        test('Continue with a non-.gpkg file selected shows the wrong-extension error', async ({
           createProjectFlow,
           projectDashboardPage,
           uploadPostInterventionFileFlow,
@@ -158,6 +158,12 @@ test.describe(
           await uploadPostInterventionFilePage.fileInput.setInputFiles(
             uploadPostInterventionFileFlow.filePath(NON_GPKG_FILE)
           )
+          // Client-side validation runs on submit, not on selection
+          // (BMD-958, frontend PR#290) — the error appears once Continue is pressed.
+          // The negative half (no error on selection alone) is asserted once, on
+          // the baseline side — both pages share one template and one client
+          // script, so a second copy would add runtime without adding a witness.
+          await uploadPostInterventionFilePage.continueButton.click()
 
           await expect(
             uploadPostInterventionFilePage.clientError(ERROR_WRONG_EXTENSION)

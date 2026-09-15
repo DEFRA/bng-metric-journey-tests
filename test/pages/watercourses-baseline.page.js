@@ -18,7 +18,8 @@ const COLUMN = {
 }
 
 /**
- * The watercourses baseline (`/projects/{id}/watercourses-baseline`, BMD-861) —
+ * The watercourses baseline (`/projects/{id}/watercourses-baseline-summary`,
+ * BMD-861; renamed from `watercourses-baseline` by BMD-862, frontend PR#285) —
  * the feature table one level below the watercourses summary.
  *
  * The hedgerow twin of this page, `HedgerowsBaselinePage`, is the same shape:
@@ -58,7 +59,7 @@ export class WatercoursesBaselinePage extends BasePage {
   }
 
   async open(id) {
-    return super.open(`/projects/${id}/watercourses-baseline`)
+    return super.open(`/projects/${id}/watercourses-baseline-summary`)
   }
 
   caption(projectName) {
