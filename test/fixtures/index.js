@@ -11,6 +11,7 @@ import { AreaSummaryPage } from '@pages/area-summary.page.js'
 import { AreaBaselinePage } from '@pages/area-baseline.page.js'
 import { HedgerowsSummaryPage } from '@pages/hedgerows-summary.page.js'
 import { HedgerowsBaselinePage } from '@pages/hedgerows-baseline.page.js'
+import { HedgerowsPostInterventionPage } from '@pages/hedgerows-post-intervention.page.js'
 import { WatercoursesSummaryPage } from '@pages/watercourses-summary.page.js'
 import { WatercoursesBaselinePage } from '@pages/watercourses-baseline.page.js'
 import { UploadFilePage } from '@pages/upload-file.page.js'
@@ -65,6 +66,9 @@ export const test = base.extend({
   },
   hedgerowsBaselinePage: async ({ page }, use) => {
     await use(new HedgerowsBaselinePage(page))
+  },
+  hedgerowsPostInterventionPage: async ({ page }, use) => {
+    await use(new HedgerowsPostInterventionPage(page))
   },
   watercoursesSummaryPage: async ({ page }, use) => {
     await use(new WatercoursesSummaryPage(page))

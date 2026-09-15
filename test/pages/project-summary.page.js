@@ -2,6 +2,8 @@ import { readTileUnits, readTileValue } from '@utils/tile-value.js'
 import {
   UPLOAD_POST_INTERVENTION,
   VIEW_ON_SITE_HEDGEROWS_BASELINE,
+  VIEW_ON_SITE_HEDGEROWS_POST_INTERVENTION,
+  VIEW_ON_SITE_WATERCOURSES_POST_INTERVENTION,
   VIEW_ON_SITE_WATERCOURSES_BASELINE
 } from '@utils/unit-type-labels.js'
 
@@ -117,6 +119,27 @@ export class ProjectSummaryPage extends BasePage {
   viewOnSiteWatercoursesBaselineLink(label) {
     return this.unitSection(label).getByRole('link', {
       name: VIEW_ON_SITE_WATERCOURSES_BASELINE
+    })
+  }
+
+  /**
+   * The hedgerows post-intervention tile's link (BMD-860). Area habitats alone
+   * still renders the inert `viewOnSitePostInterventionText` above, because its
+   * post-intervention page has not shipped. These stay deliberately separate
+   * rather than one shared `viewOnSitePostInterventionLink(label)`: each unit
+   * type names itself in its link text, so passing the wrong label would find
+   * nothing, and quietly.
+   */
+  viewOnSiteHedgerowsPostInterventionLink(label) {
+    return this.unitSection(label).getByRole('link', {
+      name: VIEW_ON_SITE_HEDGEROWS_POST_INTERVENTION
+    })
+  }
+
+  /** The watercourses post-intervention tile's link (BMD-862, frontend PR#285). */
+  viewOnSiteWatercoursesPostInterventionLink(label) {
+    return this.unitSection(label).getByRole('link', {
+      name: VIEW_ON_SITE_WATERCOURSES_POST_INTERVENTION
     })
   }
 

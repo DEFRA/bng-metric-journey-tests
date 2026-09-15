@@ -696,13 +696,12 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         }
       })
 
-      test('the post-intervention tile is re-headed and its upload link becomes inert text', async ({
+      test('the post-intervention tile is re-headed and its upload link is replaced', async ({
         projectSummaryPage
       }) => {
         await projectSummaryPage.open(project.id)
 
         for (const label of UNIT_TYPES) {
-          const section = projectSummaryPage.unitSection(label)
           // The heading gains a hyphen once post-intervention data exists.
           await expect(
             projectSummaryPage.tileHeading(
@@ -714,16 +713,58 @@ test.describe('project-management', { tag: '@project-management' }, () => {
             projectSummaryPage.tileHeading(label, TILE_POST_INTERVENTION)
           ).toHaveCount(0)
 
-          // The upload link is replaced by inert text — there is nothing left to
-          // upload for this habitat type.
-          await expect(
-            section.getByText(VIEW_ON_SITE_POST_INTERVENTION, { exact: true })
-          ).toBeVisible()
+          // Whatever the tile now offers, it is no longer the upload link —
+          // there is nothing left to upload for this habitat type.
           await expect(
             projectSummaryPage.uploadPostInterventionLink(label)
           ).toHaveCount(0)
         }
+
+        // BMD-860 split what used to be one shape, and BMD-862 (frontend
+        // PR#285) moved watercourses across the split too: both linear types
+        // now have a post-intervention page, so their tiles LINK there while
+        // area habitats keeps the inert default — it is the only type
+        // `buildProjectUnitTypes` still passes no `interventionAction`.
+        // Asserting the inert text for every type is what broke at BMD-860;
+        // asserting it for watercourses is what broke at BMD-862.
+        await expect(
+          projectSummaryPage
+            .unitSection(AREA_HABITATS)
+            .getByText(VIEW_ON_SITE_POST_INTERVENTION, { exact: true })
+        ).toBeVisible()
+        for (const label of [HEDGEROWS, WATERCOURSES]) {
+          await expect(
+            projectSummaryPage
+              .unitSection(label)
+              .getByText(VIEW_ON_SITE_POST_INTERVENTION, { exact: true })
+          ).toHaveCount(0)
+        }
       })
+
+      // BMD-860 AC1. The hedgerow tile's text became a link to the new
+      // post-intervention page. `project-summary/controller.test.js:353`
+      // proves the href is rendered against mocked data; only this proves it
+      // resolves — and that it renders at all, which needs a project whose
+      // hedgerows exist in BOTH documents (the post-intervention-only shape
+      // suppresses the whole action line).
+      test(
+        'the hedgerows post-intervention tile opens the hedgerows post-intervention page',
+        { tag: '@happy-path' },
+        async ({ page, projectSummaryPage, hedgerowsPostInterventionPage }) => {
+          const target = `/projects/${project.id}/hedgerows-post-intervention`
+          await projectSummaryPage.open(project.id)
+
+          const link =
+            projectSummaryPage.viewOnSiteHedgerowsPostInterventionLink(
+              HEDGEROWS
+            )
+          await expect(link).toHaveAttribute('href', target)
+
+          await link.click()
+          await expect(page).toHaveURL(new RegExp(target))
+          await expect(hedgerowsPostInterventionPage.heading).toBeVisible()
+        }
+      )
     }
   )
 

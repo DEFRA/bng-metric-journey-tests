@@ -58,12 +58,14 @@ Trading rules and the project-details clickthrough remain separate tickets and a
 
   The other three depend on whether `project.postIntervention` exists (**BMD-852**):
 
-  | Tile                                | Baseline only                                                                                       | Baseline **and** post-intervention                                                                                                  |
-  | ----------------------------------- | --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-  | Total on-site net percentage change | `-100.00%` when baseline units > 0, otherwise `N/A`                                                 | backend `*NetUnitChangePercentage`, 2dp + `%`; `N/A` when non-finite                                                                |
-  | (status tag)                        | red `Not met` when baseline units > 0; **no tag at all** when 0                                     | green `Met` when the percentage ≥ **10**, else red `Not met`; **no tag** when `N/A`                                                 |
-  | On-site post intervention           | heading `On-site post intervention`; `0.00 units`; **link** "Upload on-site post intervention file" | heading `On-site post-intervention` (**hyphenated**); backend units or `N/A`; inert text "View on-site post intervention" — no link |
-  | Total on-site net unit change       | `{-baseline units} units`                                                                           | backend `*NetUnitChange` formatted as `{n} units`, or `N/A` when non-finite                                                         |
+  | Tile                                | Baseline only                                                                                       | Baseline **and** post-intervention                                                                                       |
+  | ----------------------------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+  | Total on-site net percentage change | `-100.00%` when baseline units > 0, otherwise `N/A`                                                 | backend `*NetUnitChangePercentage`, 2dp + `%`; `N/A` when non-finite                                                     |
+  | (status tag)                        | red `Not met` when baseline units > 0; **no tag at all** when 0                                     | green `Met` when the percentage ≥ **10**, else red `Not met`; **no tag** when `N/A`                                      |
+  | On-site post intervention           | heading `On-site post intervention`; `0.00 units`; **link** "Upload on-site post intervention file" | heading `On-site post-intervention` (**hyphenated**); backend units or `N/A`; action varies **by unit type** — see below |
+  | Total on-site net unit change       | `{-baseline units} units`                                                                           | backend `*NetUnitChange` formatted as `{n} units`, or `N/A` when non-finite                                              |
+
+  **The post-intervention action is no longer uniform.** Since **BMD-860** (frontend PR#278, 2026-09-11) the **Hedgerows** section renders a **link** "View on-site hedgerows post intervention" to [`/hedgerows-post-intervention`](hedgerows-post-intervention.flow.md), while Area habitats and Watercourses keep the inert "View on-site post intervention" text — their post-intervention pages are separate, unshipped stories. `buildProjectUnitTypes` passes `interventionAction` for hedgerows only; the other two pass `undefined`, which `resolveInterventionAction` maps to the shared inert default. A test that loops over all three unit types asserting one shape will fail on hedgerows, which is exactly what happened to `project-summary.spec.js` when PR#278 merged.
 
   The green `Met` state and the 10% target (`NET_GAIN_TARGET_PERCENTAGE`) are new in BMD-852 — before it, red `Not met` was the only reachable tag.
 
@@ -171,17 +173,18 @@ Trading rules and the project-details clickthrough remain separate tickets and a
 
 Out of scope for BMD-870 per the ticket. Four of the seven have since shipped — **BMD-854** (PR#237, 2026-08-25) built the drill-down pages and wired the navigation, **BMD-857** (PR#244) the area baseline page, **BMD-855/919** (PR#249) the hedgerows page, and **BMD-859/861** (PR#258, 2026-09-02) the hedgerow and watercourse baseline pages. What remains is inert text rather than links.
 
-| Element                                            | Current state                                                                               | Marker          |
-| -------------------------------------------------- | ------------------------------------------------------------------------------------------- | --------------- |
-| "Area Habitats" / "Hedgerows" / "Watercourses" nav | **real links** — and conditional; see Step 1                                                | `[IMPLEMENTED]` |
-| Unit-type section headings                         | **real links** to each drill-down page                                                      | `[IMPLEMENTED]` |
-| "View on-site baseline" — **area habitats only**   | **link** to `/projects/{id}/area-baseline`, text changed to "View on-site area baseline"    | `[IMPLEMENTED]` |
-| "View on-site baseline" — hedgerows / watercourses | **links** to `/projects/{id}/hedgerows-baseline` and `/watercourses-baseline` (BMD-859/861) | `[IMPLEMENTED]` |
-| "View trading rules"                               | `<span>` inside the Trading Rules tile                                                      | `[PLANNED]`     |
-| Trading rules status                               | not rendered                                                                                | `[PLANNED]`     |
-| "View on-site post intervention"                   | `<span>` in the PI tile once PI exists                                                      | `[PLANNED]`     |
-| "View project details" clickthrough                | heading + body text only, no link                                                           | `[PLANNED]`     |
-| Submitting the metric                              | not rendered                                                                                | `[PLANNED]`     |
+| Element                                                 | Current state                                                                               | Marker          |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------- | --------------- |
+| "Area Habitats" / "Hedgerows" / "Watercourses" nav      | **real links** — and conditional; see Step 1                                                | `[IMPLEMENTED]` |
+| Unit-type section headings                              | **real links** to each drill-down page                                                      | `[IMPLEMENTED]` |
+| "View on-site baseline" — **area habitats only**        | **link** to `/projects/{id}/area-baseline`, text changed to "View on-site area baseline"    | `[IMPLEMENTED]` |
+| "View on-site baseline" — hedgerows / watercourses      | **links** to `/projects/{id}/hedgerows-baseline` and `/watercourses-baseline` (BMD-859/861) | `[IMPLEMENTED]` |
+| "View trading rules"                                    | `<span>` inside the Trading Rules tile                                                      | `[PLANNED]`     |
+| Trading rules status                                    | not rendered                                                                                | `[PLANNED]`     |
+| "View on-site post intervention" — **hedgerows**        | **link** to `/projects/{id}/hedgerows-post-intervention` (BMD-860)                          | `[IMPLEMENTED]` |
+| "View on-site post intervention" — areas / watercourses | `<span>` in the PI tile once PI exists                                                      | `[PLANNED]`     |
+| "View project details" clickthrough                     | heading + body text only, no link                                                           | `[PLANNED]`     |
+| Submitting the metric                                   | not rendered                                                                                | `[PLANNED]`     |
 
 The drill-down pages are documented in [`area-summary.flow.md`](area-summary.flow.md), [`area-baseline.flow.md`](area-baseline.flow.md), [`hedgerows-summary.flow.md`](hedgerows-summary.flow.md) and [`watercourses-summary.flow.md`](watercourses-summary.flow.md).
 

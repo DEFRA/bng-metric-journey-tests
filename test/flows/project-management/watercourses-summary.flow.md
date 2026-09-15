@@ -27,6 +27,12 @@ That PR also lifted `buildTargetsSummary` out of the area and hedgerow controlle
   The baseline tile **links** to [`/projects/{id}/watercourses-baseline`](watercourses-baseline.flow.md), reading "View on-site watercourses baseline" — its own unit type's wording, not the shared inert default "View on-site baseline". **BMD-859/861** (frontend PR#258, 2026-09-02) built the baseline page and linked it from the **project summary** tile and this page's navigation but left this tile inert; **PR#266** (2026-09-04) closed that gap by passing `watercoursesBaselineAction(href)` into this controller. The inert default survives only in the post-intervention-only state below, where BMD-897 nulls the action entirely.
 
 - **Post-intervention-only watercourses (BMD-897) `[IMPLEMENTED]`:** when watercourses exist in `postIntervention` but not in `baseline`, `hasPostInterventionOnlyHabitat(project, 'watercourses')` is true and the summary changes shape exactly as documented for hedgerows — `Not applicable` percentage, no status tag, no baseline action, and the unhyphenated post-intervention heading.
+- **Post-intervention-only targets (BMD-921) `[IMPLEMENTED]`:** the same flag also reshapes the **Targets** section. With no baseline to grow from, Tile 1 reads `Not applicable` instead of the fixed `10%`, and Tiles 2 and 3 both read `0.00 units` — units required is `0 × 1.1`, and the deficit clamps `max(0, 0 - PI units)` to zero. Until **frontend PR#275** (2026-09-11) Tile 1 read `10%` here; `/validate-ac-manual` caught it on 2026-09-04.
+
+  The controller propagates `postInterventionOnly` **twice, as two independent arguments** — into `buildUnitSummary` for the Results rows and into `buildTargetsSummary` for the Targets tiles. The two shapes above therefore fail independently, which is why they carry a journey test each.
+
+  The same PR gave `area-summary/controller.js` the new object signature but passes **no flag**, so an area project with post-intervention-only data still shows `10%` — consistent with BMD-918 being _Won't do_.
+
 - **Unit sourcing:** baseline is `normaliseUnits(project.baseline.units.watercoursesTotal)`. Post-intervention reads `watercoursesTotal`, `watercoursesNetUnitChange` and `watercoursesNetUnitChangePercentage` from `project.postIntervention.units`; the frontend computes none of them.
 - **Validation:** `id` path param must be a valid uuidv4 (Joi); invalid → Hapi 400
 - **On success:** Renders `watercourses-summary/index` with page title "Watercourse habitats - {serviceName}" — PR#271 re-pointed `pageTitle` at the same constant as the H1, so the tab title changed with the heading
@@ -49,7 +55,7 @@ That PR also lifted `buildTargetsSummary` out of the area and hedgerow controlle
 
 ## Journey coverage
 
-Rewritten 2026-09-01, extended 2026-09-08 — `test/specs/project-management/watercourses-summary.spec.js` (7 tests, domain tag `@project-management`).
+Rewritten 2026-09-01, extended 2026-09-08 and 2026-09-11 — `test/specs/project-management/watercourses-summary.spec.js` (8 tests, domain tag `@project-management`).
 
 **The placeholder tests earned their keep.** They asserted the "under construction" copy and the absence of the upload button, Results heading and Targets section, on the reasoning that "when the real page ships these fail immediately and are rewritten, instead of the placeholder surviving behind a skip nobody revisits". BMD-856 shipped hours later and the first CI run failed on exactly that assertion. Worth remembering the next time a placeholder tempts a `test.skip`.
 
@@ -63,10 +69,11 @@ As with hedgerows, the tests do not re-assert the shared layout or the nav compo
 | Both triggers open this page from the summary    | BMD-856 AC1 — the only witness that either route _into_ this page resolves                                                              |
 | Post-intervention results and deficit            | BMD-856 AC4/AC5 — the only witness that watercourse post-intervention units reach this page and feed its targets arithmetic             |
 | Post-intervention-only variant                   | `hasPostInterventionOnlyHabitat` is called with this page's own habitat-type argument — hedgerows' witness does not cover a typo here   |
+| Post-intervention-only targets (BMD-921)         | the only real-data witness that the flag reaches `buildTargetsSummary`; the row above only proves it reaches `buildUnitSummary`         |
 
 The post-intervention-only test needs a baseline with no watercourses plus a post-intervention file that has them — `getWatercourseGainProject` in `@utils/summary-projects.js`. The post-intervention results test needs both documents populated for every unit type — `getAllUnitTypesPostInterventionProject`, shared with the area and hedgerow specs, so it costs no extra upload in CI.
 
-**Not covered here, deliberately:** the zero-clamped deficit branch. The clamp lives in the shared `buildTargetsSummary` (`unit-summary.test.js:207` proves it as a pure function) and `hedgerows-summary.spec.js` witnesses that rendering shape against real data. Once the shortfall test above proves this controller feeds watercourse units into that function, a second branch adds no wiring this suite does not already hold.
+**Not covered here, deliberately:** the deficit clamping to zero from a **non-zero** baseline — a post-intervention file that clears a real 10% target. The clamp lives in the shared `buildTargetsSummary` (`unit-summary.test.js:207` proves it as a pure function) and `hedgerows-summary.spec.js` witnesses that rendering shape against real data. Once the shortfall test above proves this controller feeds watercourse units into that function, a second branch adds no wiring this suite does not already hold. (The BMD-921 test above reaches `0.00 units` the degenerate way, with nothing required in the first place, so it is not a substitute for that branch.)
 
 ---
 
