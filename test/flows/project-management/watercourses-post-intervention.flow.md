@@ -145,11 +145,42 @@ Added 2026-09-16 for the BMD-862 AC sweep — `test/specs/project-management/wat
 
 **Sole witness, do not delete without a replacement.** The tab tests are the only place in any suite where a real GeoPackage's **watercourse** retention values decide what renders — the backend integration suite asserts `retentionCategory === 'Enhanced'` persists with units (`post-intervention-persistence.test.js:172`) but never `Retained` or `Created`, and never renders. The hedgerow tab tests do not stand in: `visibleInterventionTabs` is called per unit type with that type's own features. See the Backend coverage proposals in the BMD-862 analysis.
 
-### BMD-999 — the grids inside the tabs
+### BMD-999 — the grids inside the tabs `[IMPLEMENTED]`
 
-Out of BMD-862's scope and **not covered here**. `watercourses-post-intervention/controller.test.js:279-415` asserts the Retained / Enhanced / Created columns, values, totals and `aria-sort="none"` headers in markup, with `wreck` mocked and hand-built watercourse literals. No journey test renders a watercourse grid from real data; the hedgerow equivalents live in `hedgerows-post-intervention.spec.js` under BMD-998.
+Shipped by frontend PR#302 and covered here since 2026-09-16 — five tests in the
+"intervention type grids" describe of `watercourses-post-intervention.spec.js`, added after
+the BMD-999 AC sweep.
 
-> **Observed during the BMD-862 manual validation (2026-09-16).** In the Enhanced tab the fixture's WC2 renders an **empty Units cell and a `0.00` totals row** — the same "Incomplete feature renders as blank cells" shape the hedgerow grid has, with no `Status` column to explain it. It sits against BMD-862's shared precondition "units were successfully calculated on import" and against `post-intervention-persistence.test.js:177`, which asserts `units > 0` for Enhanced linear features. Raised against **BMD-999**, not this page's ACs.
+`watercourses-post-intervention/controller.test.js:279-415` asserts the Retained / Enhanced /
+Created columns, values, totals and `aria-sort="none"` headers in markup — but with `wreck`
+mocked and hand-built watercourse literals (`:28-56`), so it proves the grid renders
+`riparianEncroachmentMultiplier` IF it arrives, never that a real import emits it. The
+journey tests cover only what that cannot reach:
+
+| Test                              | AC       | Why it needs a browser and real data                                                                                                                                      |
+| --------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Retained grid                     | 4a, 5, 7 | the 9-column shape, and the only proof a real import emits the `baseline.*` fields it reads                                                                               |
+| Enhanced grid                     | 4b, 5, 6 | the 14-column shape from real `proposed.*` fields, and whether the pane actually overflows — markup cannot show a layout fact                                             |
+| Created grid                      | 4c, 5    | the same column set reached through a different retention path                                                                                                            |
+| Re-sort ascending then descending | 8, 9     | the GOV.UK/MOJ sort is client-side JS; the unit tests parse markup with cheerio and cannot run it                                                                         |
+| Ref link opens the details page   | 10       | `post-intervention-habitat-details.spec.js` reaches those pages by harvesting a featureId from the DEPRECATED habitat list and opening the URL — nothing clicks THIS grid |
+
+**Not covered by the neighbours**, both of which look like coverage at a glance:
+
+- The **deprecated post-intervention habitat list** asserts watercourse units and a totals row
+  from real data (`post-intervention-habitat-list.spec.js:826,845`), but that page is built by
+  `createHabitatListController` — a different builder. Nothing transfers.
+- The **hedgerow twin** (`hedgerows-post-intervention.spec.js:646`) exercises the same
+  `buildPostInterventionHabitatGrid`, but the factory takes `buildExtraColumns` as per-page
+  config, and `buildWatercourseExtraColumns` — the Watercourse and Riparian encroachment
+  columns — is watercourse-only.
+
+**Sole witness, do not delete without a replacement.** These are the only tests in any suite
+where a real uploaded watercourse's encroachment fields reach a rendered grid. Deleting them
+would leave `buildWatercourseExtraColumns` proven only against fabricated literals. See the
+Backend coverage proposals in the BMD-999 analysis.
+
+> **Observed during the BMD-862 manual validation (2026-09-16).** In the Enhanced tab the fixture's WC2 renders an **empty Units cell and a `0.00` totals row** — the same "Incomplete feature renders as blank cells" shape the hedgerow grid has, with no `Status` column to explain it. It sits against BMD-862's shared precondition "units were successfully calculated on import" and against `post-intervention-persistence.test.js:177`, which asserts `units > 0` for Enhanced linear features. Raised against **BMD-999**, not this page's ACs. Confirmed again during the BMD-999 manual validation (2026-09-16) on a second fixture — R008 in `Post-intervention - all unit and intervention types.gpkg` (`Good -> Good`, no uplift) renders the same way, and its encroachment cells lose the `(multiplier)` suffix too. Both fixtures' non-uplift rows are excluded by the ACs' own precondition, so the grid tests assert VALUES only on a calculated row.
 
 ---
 
