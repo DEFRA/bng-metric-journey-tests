@@ -74,6 +74,21 @@ export const HEDGEROW_REFS_BASELINE_FILE =
 export const HEDGEROWS_MIXED_RETENTION_PI_FILE =
   'Post-intervention - hedgerows mixed retention.gpkg'
 
+// BMD-862's three-tab pairing — the watercourse twin of the hedgerow one above,
+// and a separate build for the same reason the page objects are separate:
+// `visibleInterventionTabs` is called per unit type with that type's own
+// features, so a hedgerow witness proves nothing about watercourses.
+// WATERCOURSE_REFS_BASELINE_FILE carries WC1 AND two hedgerows, so the
+// watercourses post-intervention page renders both its "Baseline" nav child
+// (baseline watercourses exist) and its conditional "Hedgerows" nav item. Its
+// partner mutates only the Retention Category of the complete-with-watercourses
+// file — WC1 Retained, WC2 Enhanced, WC3 Created — which makes it the ONLY
+// shipped pairing where all three intervention-type tabs are visible at once.
+export const WATERCOURSE_REFS_BASELINE_FILE =
+  'Baseline - complete with watercourse refs.gpkg'
+export const WATERCOURSES_MIXED_RETENTION_PI_FILE =
+  'Post-intervention - watercourses mixed retention.gpkg'
+
 // BMD-998's three-tab pairing. The pairing above has exactly ONE hedgerow per
 // intervention type, which is enough for BMD-860's tab shell and useless for
 // the grids inside it: a single-row table cannot witness a totals row worth
@@ -266,6 +281,34 @@ export function getHedgerowInterventionTypesProject(browser) {
         browser,
         HEDGEROW_REFS_BASELINE_FILE,
         HEDGEROWS_MIXED_RETENTION_PI_FILE
+      )
+  )
+}
+
+/**
+ * The watercourse equivalent: all three intervention types over a baseline that
+ * has watercourses and hedgerows. BMD-862's witness for the watercourses
+ * post-intervention page — the tab set, the default selection, the tab switch,
+ * the "Baseline" nav child and the conditional "Hedgerows" nav item all need
+ * this one shape.
+ *
+ * `post-intervention-habitat-list.spec.js` and
+ * `post-intervention-habitat-details.spec.js` build the same pairing through
+ * their own file-local caches, so a worker running those files as well pays for
+ * it more than once. Consolidating means unpicking their build-time harvesting,
+ * so it is deliberately left alone — the same call the hedgerow pairing makes.
+ */
+export function getWatercourseInterventionTypesProject(browser) {
+  return getOrBuildProject(
+    projectKey(
+      WATERCOURSE_REFS_BASELINE_FILE,
+      WATERCOURSES_MIXED_RETENTION_PI_FILE
+    ),
+    () =>
+      buildPostInterventionProject(
+        browser,
+        WATERCOURSE_REFS_BASELINE_FILE,
+        WATERCOURSES_MIXED_RETENTION_PI_FILE
       )
   )
 }

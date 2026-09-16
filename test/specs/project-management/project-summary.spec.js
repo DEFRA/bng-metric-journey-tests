@@ -765,6 +765,36 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           await expect(hedgerowsPostInterventionPage.heading).toBeVisible()
         }
       )
+
+      // BMD-862 AC1, the watercourse twin of the test above. Until it, the only
+      // watercourse assertion here was the ABSENCE of the inert default in the
+      // deferred-elements test — which passes just as happily if the action
+      // line disappears altogether. `project-summary/controller.test.js:761`
+      // proves the link and its href against mocked data; only this proves it
+      // renders from a real project and resolves. Each unit type names itself
+      // in its link wording, so the hedgerow test above witnesses none of it.
+      test(
+        'the watercourses post-intervention tile opens the watercourses post-intervention page',
+        { tag: '@happy-path' },
+        async ({
+          page,
+          projectSummaryPage,
+          watercoursesPostInterventionPage
+        }) => {
+          const target = `/projects/${project.id}/watercourses-post-intervention`
+          await projectSummaryPage.open(project.id)
+
+          const link =
+            projectSummaryPage.viewOnSiteWatercoursesPostInterventionLink(
+              WATERCOURSES
+            )
+          await expect(link).toHaveAttribute('href', target)
+
+          await link.click()
+          await expect(page).toHaveURL(new RegExp(target))
+          await expect(watercoursesPostInterventionPage.heading).toBeVisible()
+        }
+      )
     }
   )
 

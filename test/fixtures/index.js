@@ -14,6 +14,7 @@ import { HedgerowsBaselinePage } from '@pages/hedgerows-baseline.page.js'
 import { HedgerowsPostInterventionPage } from '@pages/hedgerows-post-intervention.page.js'
 import { WatercoursesSummaryPage } from '@pages/watercourses-summary.page.js'
 import { WatercoursesBaselinePage } from '@pages/watercourses-baseline.page.js'
+import { WatercoursesPostInterventionPage } from '@pages/watercourses-post-intervention.page.js'
 import { UploadFilePage } from '@pages/upload-file.page.js'
 import { UploadBaselineFilePage } from '@pages/upload-baseline-file.page.js'
 import { UploadReceivedPage } from '@pages/upload-received.page.js'
@@ -75,6 +76,9 @@ export const test = base.extend({
   },
   watercoursesBaselinePage: async ({ page }, use) => {
     await use(new WatercoursesBaselinePage(page))
+  },
+  watercoursesPostInterventionPage: async ({ page }, use) => {
+    await use(new WatercoursesPostInterventionPage(page))
   },
   uploadFilePage: async ({ page }, use) => {
     await use(new UploadFilePage(page))
