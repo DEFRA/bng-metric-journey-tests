@@ -11,7 +11,7 @@ Two things separate it from every other unit-type page:
 - It is the first page in the service whose tabs are the **GOV.UK Tabs component**. The existing [post-intervention habitat list](../habitat-list/post-intervention-habitat-list.flow.md) also has tabs, but they split by **unit type** (Areas / Hedgerows / Watercourses); these split by **intervention type** within one unit type. Do not reuse one page's tab locators on the other.
 - Its results tiles carry **no post-intervention action line at all** — the same self-link suppression the baseline page applies to its baseline tile, for the same reason: the link would point at the page the user is already on.
 
-Its area and watercourse equivalents are separate stories (PI Areas, PI Watercourses) and had not shipped when this doc was written — `unit-type-navigation.js` gives a `postInterventionPath` to hedgerows only.
+Its area and watercourse equivalents are separate stories. **PI Watercourses has since shipped** — BMD-862, frontend PR#285 (2026-09-15) — on this page's own `createHabitatPostInterventionController`; see [watercourses-post-intervention.flow.md](watercourses-post-intervention.flow.md). PI Areas (BMD-858) has not, so `unit-type-navigation.js` gives a `postInterventionPath` to both linear types and to neither area one.
 
 ## Steps
 
@@ -198,7 +198,7 @@ The three-tab project comes from `getHedgerowInterventionTypesProject` in `@util
 
 ## Deferred elements
 
-| Element                    | Current state                                                           | Marker      |
-| -------------------------- | ----------------------------------------------------------------------- | ----------- |
-| "View trading rules"       | inert `<span>` in the Trading Rules tile                                | `[PLANNED]` |
-| PI Areas / PI Watercourses | no `postInterventionPath` in `OPTIONAL_UNIT_TYPES` for either unit type | `[PLANNED]` |
+| Element              | Current state                                                                                                                 | Marker      |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| "View trading rules" | inert `<span>` in the Trading Rules tile                                                                                      | `[PLANNED]` |
+| PI Areas             | no `postInterventionPath` for area habitats in `OPTIONAL_UNIT_TYPES` — BMD-858 unshipped (PI Watercourses shipped at BMD-862) | `[PLANNED]` |
