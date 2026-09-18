@@ -164,6 +164,45 @@ GitHub → Actions → Run Journey Tests on GitHub → Run workflow
 
 ---
 
+## Performance test suite
+
+Performance tests are a separate JMeter suite in [DEFRA/bng-perf-tests](https://github.com/DEFRA/bng-perf-tests). Clone it alongside this repo (`../bng-perf-tests`); its README is the full reference.
+
+### On CDP
+
+1. Merge to `bng-perf-tests` `main` — the Publish workflow builds the image.
+2. CDP Portal → Test Suites → **bng-perf-tests** → environment **perf-test** → **Run**. Under **Profile**, leave it blank for the full `standard` suite (~20 min), or enter `short` for the saturation test (~10 min). Names must match exactly.
+3. Open the JMeter dashboard from the run page. The end of the task log has a plain-English summary.
+
+### Locally, against the journey-tests stack
+
+With the stack up (`docker compose up --wait -d`), run the perf container on the stack's Docker network:
+
+```sh
+cd ../bng-perf-tests
+docker build -t bng-perf-tests:local .
+docker run --rm --network bng-metric-journey-tests_bng-journey-tests \
+  -v "$PWD/reports:/opt/perftest/reports" \
+  -e ENVIRONMENT=local -e SERVICE_URL_SCHEME=http \
+  -e FRONTEND_DOMAIN=bng-metric-frontend -e FRONTEND_PORT=3000 \
+  -e BACKEND_DOMAIN=bng-metric-backend -e BACKEND_PORT=3001 \
+  -e STUB_BASE_URL=http://cdp-defra-id-stub:3200/cdp-defra-id-stub \
+  -e STUB_ISSUER_HOST=cdp-defra-id-stub:3200 \
+  -e CDP_UPLOADER_URL=http://cdp-uploader:7337 \
+  -e UPLOAD_S3_BUCKET=baseline-files \
+  bng-perf-tests:local
+```
+
+- **Results:** `../bng-perf-tests/reports/index.html` (JMeter dashboard). The summary is printed at the end of the container output.
+- **Shorter runs:** add `-e PROFILE=short` for the saturation test. For the home-page and project-list groups only (~25 s), add `-e STAGE_UPLOADS=false -e PROBE_THREADS=0 -e SIZE_RAMP_THREADS=0`.
+- **Red is not a failed run:** assertion failures don't change the exit code. Only a setup failure exits non-zero, e.g. token, seeding, or no upload staged at all.
+- **It writes to the stack's database** under the perf stub user: projects plus append-only audit rows. `docker compose down -v` clears them, along with all the stack's other data.
+- **Network name** comes from this repo's folder name. If your clone is named differently, check it with `docker network ls`.
+- **Report files are owned by root** because the container runs as root.
+- The harness's `npm run perf` does not work against this stack: it expects the backend on host port 3001, which this stack does not publish.
+
+---
+
 ## Licence
 
 THIS INFORMATION IS LICENSED UNDER THE CONDITIONS OF THE OPEN GOVERNMENT LICENCE found at:
