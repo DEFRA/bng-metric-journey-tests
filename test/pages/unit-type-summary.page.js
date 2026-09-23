@@ -1,4 +1,5 @@
 import { readTileUnits, readTileValue } from '@utils/tile-value.js'
+import { netPercentageTag, tradingRulesTag } from '@utils/unit-type-tiles.js'
 import {
   UPLOAD_POST_INTERVENTION,
   VIEW_ON_SITE_POST_INTERVENTION
@@ -79,6 +80,23 @@ export class UnitTypeSummaryPage extends BasePage {
 
   navLink(text) {
     return this.navigation.getByRole('link', { name: text })
+  }
+
+  /**
+   * The net-gain status tag in this page's percentage tile — the 10% threshold
+   * verdict, not the trading-rules one below it.
+   */
+  statusTag() {
+    return netPercentageTag(this.unitSection())
+  }
+
+  /**
+   * The trading-rules status tag (BMD-1008). Area habitats only: the hedgerow
+   * and watercourse rules are separate tickets, so on those pages this is a
+   * `toHaveCount(0)` assertion rather than a status.
+   */
+  tradingRulesTag() {
+    return tradingRulesTag(this.unitSection())
   }
 
   tileValueIn(region, tileHeading) {

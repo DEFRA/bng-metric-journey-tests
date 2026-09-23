@@ -9,6 +9,10 @@ export const SUMMARY = 'Summary'
 export const BASELINE_NAV_CHILD = 'Baseline'
 
 export const TILE_BASELINE = 'On-site baseline'
+// The two tiles that can hold a "Met"/"Not met" tag. They are different
+// verdicts — see test/utils/unit-type-tiles.js.
+export const TILE_NET_PERCENTAGE = 'Total on-site net percentage change'
+export const TILE_TRADING_RULES = 'Trading Rules'
 export const VIEW_ON_SITE_BASELINE = 'View on-site baseline'
 export const VIEW_ON_SITE_AREA_BASELINE = 'View on-site area baseline'
 // BMD-859/861 gave the linear types baseline pages too, so their project

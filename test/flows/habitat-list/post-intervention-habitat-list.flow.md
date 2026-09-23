@@ -7,8 +7,9 @@ post-intervention GeoPackage file. The page shares the same template as the base
 habitat list (`isPostIntervention: true`), which switches on the wider 7-column summary
 table, the "Intervention type" column in each tab table, and the post-intervention summary
 view model. The summary table has **four rows** (Site, Area habitats, Hedgerows,
-Watercourses); "Trading rules satisfied" is the only column still rendered as an empty
-string. The detail tab tables render real post-intervention feature data, with habitat type,
+Watercourses); "Trading rules satisfied" carries a `Met` / `Not met` tag on the **Area
+habitats** row since BMD-1008 (frontend PR#317, 2026-09-22) and stays empty on the other
+three, whose trading rules are separate tickets. The detail tab tables render real post-intervention feature data, with habitat type,
 distinctiveness and condition resolved from each feature's `proposed` sub-object.
 
 ## Steps
@@ -31,12 +32,19 @@ distinctiveness and condition resolved from each feature's `proposed` sub-object
 Seven column headings: **Unit type, Size, Baseline units, Post-intervention units, Net unit
 change, Net % change, Trading rules satisfied**. Four rows:
 
-| Row               | Size                                          | Baseline units                     | Post-intervention units                    | Net unit change             | Net % change                          | Trading rules |
-| ----------------- | --------------------------------------------- | ---------------------------------- | ------------------------------------------ | --------------------------- | ------------------------------------- | ------------- |
-| **Site**          | `habitatSizes.site.totalSquareMetres`         | _(empty)_                          | _(empty)_                                  | _(empty)_                   | _(empty)_                             | _(empty)_     |
-| **Area habitats** | `habitatSizes.areaHabitats.totalSquareMetres` | `baseline.units` habitats + trees  | `postIntervention.units` habitats + trees  | `habitatsNetUnitChange`     | `habitatsNetUnitChangePercentage`     | _(empty)_     |
-| **Hedgerows**     | `habitatSizes.hedgerows.totalMetres`          | `baseline.units.hedgerowsTotal`    | `postIntervention.units.hedgerowsTotal`    | `hedgerowsNetUnitChange`    | `hedgerowsNetUnitChangePercentage`    | _(empty)_     |
-| **Watercourses**  | `habitatSizes.watercourses.totalMetres`       | `baseline.units.watercoursesTotal` | `postIntervention.units.watercoursesTotal` | `watercoursesNetUnitChange` | `watercoursesNetUnitChangePercentage` | _(empty)_     |
+| Row               | Size                                          | Baseline units                     | Post-intervention units                    | Net unit change             | Net % change                          | Trading rules                    |
+| ----------------- | --------------------------------------------- | ---------------------------------- | ------------------------------------------ | --------------------------- | ------------------------------------- | -------------------------------- |
+| **Site**          | `habitatSizes.site.totalSquareMetres`         | _(empty)_                          | _(empty)_                                  | _(empty)_                   | _(empty)_                             | _(empty)_                        |
+| **Area habitats** | `habitatSizes.areaHabitats.totalSquareMetres` | `baseline.units` habitats + trees  | `postIntervention.units` habitats + trees  | `habitatsNetUnitChange`     | `habitatsNetUnitChangePercentage`     | `Met` / `Not met` tag (BMD-1008) |
+| **Hedgerows**     | `habitatSizes.hedgerows.totalMetres`          | `baseline.units.hedgerowsTotal`    | `postIntervention.units.hedgerowsTotal`    | `hedgerowsNetUnitChange`    | `hedgerowsNetUnitChangePercentage`    | _(empty)_                        |
+| **Watercourses**  | `habitatSizes.watercourses.totalMetres`       | `baseline.units.watercoursesTotal` | `postIntervention.units.watercoursesTotal` | `watercoursesNetUnitChange` | `watercoursesNetUnitChangePercentage` | _(empty)_                        |
+
+**BMD-1008 `[IMPLEMENTED]` — the trading-rules cell.** The status reaches this page by a
+**different route from the three unit-type pages**. Those read it off the project object,
+which `fetch-project.js` merges from the response envelope; this controller takes it as a
+separate argument — `buildPostInterventionSummary(projectData, project?.payload?.tradingRuleStatuses)`
+in `common/helpers/habitat-list-controller.js`. Two access paths to one backend field, so a
+witness for one proves nothing about the other.
 
 **BMD-722 / BMD-167 `[IMPLEMENTED]` — summary formatting.** The Summary cells use their own
 2-decimal-place formatters, deliberately independent of the tab tables' full-precision

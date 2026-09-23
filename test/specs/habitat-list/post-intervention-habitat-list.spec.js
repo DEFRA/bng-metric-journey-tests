@@ -13,8 +13,21 @@ import { ProjectDashboardPage } from '@pages/project-dashboard.page.js'
 import { CreateProjectFlow } from '@flows/project-management/create-project.flow.js'
 import { UploadBaselineFileFlow } from '@flows/upload-baseline/upload-baseline-file.flow.js'
 import { UploadPostInterventionFileFlow } from '@flows/upload-post-intervention/upload-post-intervention-file.flow.js'
+import {
+  getAllUnitTypesPostInterventionProject,
+  getAreaGainProject
+} from '@utils/summary-projects.js'
+import {
+  expectStatusTag,
+  STATUS_MET,
+  STATUS_NOT_MET
+} from '@utils/unit-type-tiles.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
+// Only the AREA rules have been calculated (BMD-1008); the other three rows'
+// cells stay empty until their own stories land.
+const AREA_HABITATS_ROW = 'Area habitats'
+const ROWS_WITHOUT_TRADING_RULES = ['Site', 'Hedgerows', 'Watercourses']
 const UPLOAD_TIMEOUT = 120_000
 // The first test needing a shared project pays its build (create + upload),
 // which overruns the default 60s per-test timeout.
@@ -860,7 +873,8 @@ test.describe(
     // The Summary table's Size, Baseline units, Post-intervention units, Net
     // unit change and Net % change columns are populated with persisted
     // project data for the Area habitats, Hedgerows and Watercourses rows
-    // ("Trading rules satisfied" stays empty — out of scope). Baseline units
+    // ("Trading rules satisfied" is BMD-1008's column and has its own describe
+    // at the end of this file). Baseline units
     // (and the net-change columns derived from it) are sourced from
     // `project.baseline.units`, so this needs a project that has been through
     // both a baseline and a post-intervention upload — every other describe
@@ -1146,6 +1160,68 @@ test.describe(
           }
         )
       })
+    })
+
+    // ─── Trading rules satisfied column (BMD-1008) ───────────────────────────
+    //
+    // The fourth of AC5's display surfaces, and the one that is NOT a repeat of
+    // the other three. They read the status off the project object, which
+    // `fetch-project.js` merges from the response envelope; this controller
+    // takes it as a separate argument instead —
+    // `buildPostInterventionSummary(projectData, project?.payload?.tradingRuleStatuses)`
+    // in `common/helpers/habitat-list-controller.js`. Two access paths to one
+    // backend field: a witness on the unit-type pages proves nothing here, and
+    // this one proves nothing there.
+    //
+    // Both projects come from @utils/summary-projects.js, so in CI (one worker)
+    // this describe costs no upload — project-summary.spec.js has already built
+    // them. See the sole-witness note there.
+
+    test.describe('Post-intervention habitat list — trading rules column', () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      test(
+        'the Area habitats row shows "Met", and the other three rows stay empty',
+        { tag: '@regression' },
+        async ({ postInterventionHabitatListPage, browser }) => {
+          const project = await getAreaGainProject(browser)
+          await postInterventionHabitatListPage.open(project.id)
+
+          await expectStatusTag(
+            postInterventionHabitatListPage.summaryTradingRulesTag(
+              AREA_HABITATS_ROW
+            ),
+            STATUS_MET
+          )
+
+          // The scope half. Asserted on the CELL rather than the tag: an empty
+          // cell and a missing column would both satisfy a `toHaveCount(0)` on
+          // the tag, and the column heading is asserted in the page-content
+          // describe above.
+          for (const row of ROWS_WITHOUT_TRADING_RULES) {
+            await expect(
+              postInterventionHabitatListPage.summaryTradingRulesCell(row)
+            ).toBeEmpty()
+          }
+        }
+      )
+
+      test(
+        'a project that breaks the trading rules shows "Not met" in the same cell',
+        { tag: '@regression' },
+        async ({ postInterventionHabitatListPage, browser }) => {
+          const project = await getAllUnitTypesPostInterventionProject(browser)
+          await postInterventionHabitatListPage.open(project.id)
+
+          await expectStatusTag(
+            postInterventionHabitatListPage.summaryTradingRulesTag(
+              AREA_HABITATS_ROW
+            ),
+            STATUS_NOT_MET
+          )
+        }
+      )
     })
   }
 )

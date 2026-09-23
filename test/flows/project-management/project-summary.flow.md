@@ -14,8 +14,22 @@ Added by **BMD-870** (frontend PR#219, 2026-08-14), which built the baseline-onl
 | **BMD-897**     | #238 | 2026-08-25 | Post-intervention-only variant — `Not applicable`, no status tag, no baseline action                                                              |
 | **BMD-898**     | #233 | 2026-08-24 | Shared `buildUnitSummary` refactor behind the above; owns the ACs for the suppressed state                                                        |
 | **BMD-859/861** | #258 | 2026-09-02 | Hedgerow and watercourse baseline pages: their baseline tiles became links, and every unit type now expands a Baseline nav child on its own pages |
+| **BMD-1008**    | #317 | 2026-09-22 | The Trading Rules tile gained a `Met` / `Not met` status tag — **area habitats only**                                                             |
 
-Trading rules and the project-details clickthrough remain separate tickets and are still `[PLANNED]` here.
+The project-details clickthrough remains a separate ticket and is still `[PLANNED]` here.
+So does the "View trading rules" clickthrough: **BMD-1008 shipped the status tag, not the
+link**. The tile now holds both.
+
+**Two `Met` / `Not met` tags now live in the same section.** The net-percentage tile has
+carried one since BMD-870/852; BMD-1008 added a second in the Trading Rules tile. They are
+different verdicts — one is the 10% net-gain threshold, the other the trading rules — and
+they disagree routinely. A section-scoped locator matching the tag _text_ resolves to both
+and fails Playwright's strict mode; scope to the tile. See
+[`project-summary.page.js`](../../pages/project-summary.page.js) `statusTag` /
+`tradingRulesTag`.
+
+The status is the site-wide `overall` verdict. The per-band `medium` / `low` values ride on
+the API response and are rendered **nowhere** — do not expect to assert them from a browser.
 
 ## Steps
 
@@ -48,11 +62,11 @@ Trading rules and the project-details clickthrough remain separate tickets and a
 
   Three tiles are the same in both variants:
 
-  | Tile                                        | Value                                                                                                  |
-  | ------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-  | Trading Rules                               | text "View trading rules" — no link, see [Deferred elements](#deferred-elements)                       |
-  | On-site baseline — **area habitats**        | `{units} units` + **link** "View on-site **area** baseline" → `/projects/{id}/area-baseline` (BMD-857) |
-  | On-site baseline — hedgerows / watercourses | `{units} units` + **link** "View on-site **hedgerows/watercourses** baseline" (BMD-859/861)            |
+  | Tile                                        | Value                                                                                                                                                                                    |
+  | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | Trading Rules                               | **area habitats:** `Met` (green) / `Not met` (red) tag above inert text "View trading rules" (BMD-1008); **hedgerows / watercourses:** the text alone — their rules are separate tickets |
+  | On-site baseline — **area habitats**        | `{units} units` + **link** "View on-site **area** baseline" → `/projects/{id}/area-baseline` (BMD-857)                                                                                   |
+  | On-site baseline — hedgerows / watercourses | `{units} units` + **link** "View on-site **hedgerows/watercourses** baseline" (BMD-859/861)                                                                                              |
 
   Every baseline tile here is a link since **BMD-859/861** (frontend PR#258, 2026-09-02), each naming its own unit type: "View on-site **area** baseline", "View on-site **hedgerows** baseline", "View on-site **watercourses** baseline". `buildUnitSummary` takes a `baselineAction`; the project summary now passes one per unit type, pointing at `/projects/{id}/{area|hedgerows|watercourses}-baseline`. The drill-down pages still pass none, so their own tiles stay inert.
 
@@ -179,8 +193,9 @@ Out of scope for BMD-870 per the ticket. Four of the seven have since shipped �
 | Unit-type section headings                              | **real links** to each drill-down page                                                      | `[IMPLEMENTED]` |
 | "View on-site baseline" — **area habitats only**        | **link** to `/projects/{id}/area-baseline`, text changed to "View on-site area baseline"    | `[IMPLEMENTED]` |
 | "View on-site baseline" — hedgerows / watercourses      | **links** to `/projects/{id}/hedgerows-baseline` and `/watercourses-baseline` (BMD-859/861) | `[IMPLEMENTED]` |
-| "View trading rules"                                    | `<span>` inside the Trading Rules tile                                                      | `[PLANNED]`     |
-| Trading rules status                                    | not rendered                                                                                | `[PLANNED]`     |
+| "View trading rules"                                    | `<span>` inside the Trading Rules tile — still no link                                      | `[PLANNED]`     |
+| Trading rules status — **area habitats**                | **`Met` / `Not met` tag** in the Trading Rules tile (BMD-1008, PR#317)                      | `[IMPLEMENTED]` |
+| Trading rules status — hedgerows / watercourses         | not rendered — their rules are separate tickets                                             | `[PLANNED]`     |
 | "View on-site post intervention" — **hedgerows**        | **link** to `/projects/{id}/hedgerows-post-intervention` (BMD-860)                          | `[IMPLEMENTED]` |
 | "View on-site post intervention" — areas / watercourses | `<span>` in the PI tile once PI exists                                                      | `[PLANNED]`     |
 | "View project details" clickthrough                     | heading + body text only, no link                                                           | `[PLANNED]`     |

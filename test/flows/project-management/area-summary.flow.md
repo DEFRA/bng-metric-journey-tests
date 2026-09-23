@@ -37,13 +37,13 @@ Added by **BMD-854** (frontend PR#237, 2026-08-25, "Area Habitats Redesign"), wh
 
   Tiles, per the shared macro:
 
-  | Tile                                | Value                                                                                                                                                            |
-  | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-  | Total on-site net percentage change | `-100.00%` + red `Not met` when baseline > 0 and no post-intervention; otherwise the backend percentage, green `Met` at ≥ 10%; `N/A` with no tag when non-finite |
-  | Trading Rules                       | inert text "View trading rules" — `[PLANNED]`                                                                                                                    |
-  | On-site baseline                    | `{units} units` + **link** "View on-site area baseline" → `/projects/{id}/area-baseline`                                                                         |
-  | On-site post intervention           | `0.00 units` + link "Upload on-site post intervention file" when absent; backend units + inert "View on-site post intervention" when present                     |
-  | Total on-site net unit change       | negated baseline when no post-intervention; else the backend `habitatsNetUnitChange`                                                                             |
+  | Tile                                | Value                                                                                                                                                                                      |
+  | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+  | Total on-site net percentage change | `-100.00%` + red `Not met` when baseline > 0 and no post-intervention; otherwise the backend percentage, green `Met` at ≥ 10%; `N/A` with no tag when non-finite                           |
+  | Trading Rules                       | `Met` (green) / `Not met` (red) tag above inert text "View trading rules" (BMD-1008). The tag is the site-wide `overall` verdict; a project with no post-intervention file reads `Not met` |
+  | On-site baseline                    | `{units} units` + **link** "View on-site area baseline" → `/projects/{id}/area-baseline`                                                                                                   |
+  | On-site post intervention           | `0.00 units` + link "Upload on-site post intervention file" when absent; backend units + inert "View on-site post intervention" when present                                               |
+  | Total on-site net unit change       | negated baseline when no post-intervention; else the backend `habitatsNetUnitChange`                                                                                                       |
 
   The baseline tile's action is `areaBaselineAction('/projects/{id}/area-baseline')` — **the only baseline tile anywhere that is a link**, and the only one whose text reads "View on-site **area** baseline" rather than "View on-site baseline".
 
@@ -118,8 +118,13 @@ Deliberately **not** covered here, each with its witness: invalid uuid → 400 (
 
 ## Deferred elements
 
-| Element                          | Current state                                | Marker      |
-| -------------------------------- | -------------------------------------------- | ----------- |
-| "View trading rules"             | inert `<span>` in the Trading Rules tile     | `[PLANNED]` |
-| Trading rules status             | not rendered                                 | `[PLANNED]` |
-| "View on-site post intervention" | inert `<span>` once post-intervention exists | `[PLANNED]` |
+| Element                          | Current state                                            | Marker          |
+| -------------------------------- | -------------------------------------------------------- | --------------- |
+| "View trading rules"             | inert `<span>` in the Trading Rules tile — still no link | `[PLANNED]`     |
+| Trading rules status             | **`Met` / `Not met` tag** in the tile (BMD-1008, PR#317) | `[IMPLEMENTED]` |
+| "View on-site post intervention" | inert `<span>` once post-intervention exists             | `[PLANNED]`     |
+
+Two `Met` / `Not met` tags now sit in the Results section — the net-percentage one and the
+trading-rules one. They are different verdicts and disagree routinely, so scope a locator to
+the tile rather than the tag text; see the note in
+[`project-summary.flow.md`](project-summary.flow.md).

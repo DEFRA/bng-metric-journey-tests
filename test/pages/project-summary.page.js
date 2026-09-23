@@ -1,5 +1,11 @@
 import { readTileUnits, readTileValue } from '@utils/tile-value.js'
 import {
+  netPercentageTag,
+  tile,
+  tradingRulesTag
+} from '@utils/unit-type-tiles.js'
+import {
+  TILE_TRADING_RULES,
   UPLOAD_POST_INTERVENTION,
   VIEW_ON_SITE_HEDGEROWS_BASELINE,
   VIEW_ON_SITE_HEDGEROWS_POST_INTERVENTION,
@@ -13,6 +19,9 @@ const VIEW_ON_SITE_BASELINE_TEXT = 'View on-site baseline'
 // BMD-857: the area-habitats baseline tile is the only one that links, and the
 // only one whose wording says "area". Its href is the area baseline page.
 const VIEW_ON_SITE_AREA_BASELINE_TEXT = 'View on-site area baseline'
+// BMD-870 deferred the trading-rules clickthrough; the tile still renders this
+// as inert text rather than a link.
+const VIEW_TRADING_RULES_TEXT = 'View trading rules'
 
 /**
  * The project summary (`/projects/{id}/project-summary`, BMD-870) — the landing
@@ -73,9 +82,38 @@ export class ProjectSummaryPage extends BasePage {
    * earlier version of this locator hardcoded that string and silently failed
    * to find the "Met" tag BMD-852 introduced. Sections whose percentage is
    * "N/A" render no tag at all, so `toHaveCount(0)` still reads naturally.
+   *
+   * Scoped to the percentage TILE rather than the section since BMD-1008
+   * (frontend PR#317): the Trading Rules tile beside it now carries a second
+   * tag matching the same text, so the old section-wide text locator resolved
+   * to two elements and failed strict mode. See `@utils/unit-type-tiles.js`.
    */
   statusTag(label) {
-    return this.unitSection(label).getByText(/^(Met|Not met)$/)
+    return netPercentageTag(this.unitSection(label))
+  }
+
+  /**
+   * The area-habitat trading-rules status tag (BMD-1008) — a different verdict
+   * from `statusTag` above, and the one that can disagree with it. Renders for
+   * area habitats only; the hedgerow and watercourse rules are separate
+   * tickets, so their tiles hold the "View trading rules" text alone.
+   */
+  tradingRulesTag(label) {
+    return tradingRulesTag(this.unitSection(label))
+  }
+
+  /**
+   * The inert "View trading rules" text inside a section's Trading Rules tile.
+   *
+   * Scoped to the tile rather than read off the line under its heading: until
+   * BMD-1008 that line WAS this text, and the status tag now sits between the
+   * two, so `tileValue` returns the status instead.
+   */
+  viewTradingRulesText(label) {
+    return tile(this.unitSection(label), TILE_TRADING_RULES).getByText(
+      VIEW_TRADING_RULES_TEXT,
+      { exact: true }
+    )
   }
 
   uploadPostInterventionLink(label) {

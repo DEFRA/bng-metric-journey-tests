@@ -1,4 +1,5 @@
 import { readTileUnits, readTileValue } from '@utils/tile-value.js'
+import { tradingRulesTag } from '@utils/unit-type-tiles.js'
 
 import { BasePage } from './base.page.js'
 import {
@@ -85,6 +86,14 @@ export class AreaBaselinePage extends BasePage {
     return this.unitSection().getByText(VIEW_ON_SITE_AREA_BASELINE, {
       exact: true
     })
+  }
+
+  /**
+   * The trading-rules status tag under "Area habitats results" (BMD-1008) —
+   * the third of the four surfaces AC5 enumerates.
+   */
+  tradingRulesTag() {
+    return tradingRulesTag(this.unitSection())
   }
 
   /** Every tile heading in the unit summary section, in rendered order. */

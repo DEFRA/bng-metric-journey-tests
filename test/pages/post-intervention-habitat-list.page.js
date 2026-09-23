@@ -1,6 +1,13 @@
 import { expect } from '@playwright/test'
 
+import { tagIn } from '@utils/unit-type-tiles.js'
+
 import { BasePage } from './base.page.js'
+
+// Summary-table column index of "Trading rules satisfied" — the seventh cell,
+// after Unit type / Size / Baseline units / Post-intervention units / Net unit
+// change / Net % change. Fixed by the `head` array in habitat-list.njk.
+const TRADING_RULES_COL = 6
 
 export class PostInterventionHabitatListPage extends BasePage {
   // Tab name → its tab control and the table inside its panel. The locator
@@ -69,6 +76,28 @@ export class PostInterventionHabitatListPage extends BasePage {
         table: this.watercoursesTable
       }
     }
+  }
+
+  /**
+   * A summary-table row's "Trading rules satisfied" cell.
+   *
+   * Since BMD-1008 the "Area habitats" row carries a Met / Not met tag here;
+   * Site, Hedgerows and Watercourses stay empty, because only the area rules
+   * have been calculated. `toBeEmpty()` on those three is what pins the scope.
+   *
+   * @param {'Site'|'Area habitats'|'Hedgerows'|'Watercourses'} rowLabel
+   */
+  summaryTradingRulesCell(rowLabel) {
+    return this.summaryTable
+      .getByRole('row')
+      .filter({ hasText: rowLabel })
+      .getByRole('cell')
+      .nth(TRADING_RULES_COL)
+  }
+
+  /** The tag inside that cell, for the colour assertion. */
+  summaryTradingRulesTag(rowLabel) {
+    return tagIn(this.summaryTradingRulesCell(rowLabel))
   }
 
   /**

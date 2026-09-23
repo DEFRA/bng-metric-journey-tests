@@ -112,8 +112,9 @@ Added 2026-09-01, extended 2026-09-03 for the BMD-857 AC sweep — `test/specs/p
 
 ## Deferred elements
 
-| Element                               | Current state                                                                           | Marker          |
-| ------------------------------------- | --------------------------------------------------------------------------------------- | --------------- |
-| "View trading rules"                  | inert `<span>` in the Trading Rules tile                                                | `[PLANNED]`     |
-| "View on-site post intervention"      | inert `<span>` once post-intervention exists                                            | `[PLANNED]`     |
-| Hedgerow / watercourse baseline pages | shipped by BMD-859/861 — see [`hedgerows-baseline.flow.md`](hedgerows-baseline.flow.md) | `[IMPLEMENTED]` |
+| Element                               | Current state                                                                                        | Marker          |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------- | --------------- |
+| "View trading rules"                  | inert `<span>` in the Trading Rules tile — still no link                                             | `[PLANNED]`     |
+| Trading rules status                  | **`Met` / `Not met` tag** in the Trading Rules tile under "Area habitats results" (BMD-1008, PR#317) | `[IMPLEMENTED]` |
+| "View on-site post intervention"      | inert `<span>` once post-intervention exists                                                         | `[PLANNED]`     |
+| Hedgerow / watercourse baseline pages | shipped by BMD-859/861 — see [`hedgerows-baseline.flow.md`](hedgerows-baseline.flow.md)              | `[IMPLEMENTED]` |

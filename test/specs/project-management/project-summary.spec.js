@@ -25,6 +25,11 @@ import {
   getWatercourseGainProject
 } from '@utils/summary-projects.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
+import {
+  expectStatusTag,
+  STATUS_MET,
+  STATUS_NOT_MET
+} from '@utils/unit-type-tiles.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const PROJECT_LABEL = 'Project summary test'
@@ -63,7 +68,6 @@ const TILE_POST_INTERVENTION = 'On-site post intervention'
 const TILE_POST_INTERVENTION_WITH_PI = 'On-site post-intervention'
 const TILE_NET_UNIT_CHANGE = 'Total on-site net unit change'
 const TILE_NET_PERCENTAGE = 'Total on-site net percentage change'
-const TILE_TRADING_RULES = 'Trading Rules'
 
 const VIEW_TRADING_RULES = 'View trading rules'
 const VIEW_ON_SITE_POST_INTERVENTION = 'View on-site post intervention'
@@ -77,6 +81,9 @@ const NET_PERCENTAGE_NOT_MET = '-100.00%'
 // GOV.UK red tag modifier is what paints it.
 const RED_TAG_CLASS = /govuk-tag--red/
 const GREEN_TAG_CLASS = /govuk-tag--green/
+// Both tags in a unit-type section match this. Since BMD-1008 an area-habitats
+// section holds two of them, which is why every tag locator is tile-scoped.
+const TAG_TEXT = /^(Met|Not met)$/
 
 // 'Baseline - no hedgerows.gpkg' carries area habitats (including individual
 // trees, which is what makes the treesTotal assertion below possible) and
@@ -966,6 +973,120 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     }
   )
 
+  // ─── Trading rules status (BMD-1008) ─────────────────────────────────────────
+  //
+  // SOLE WITNESS, and the reason these tests exist. The verdict is derived in
+  // bng-library and served by the backend on the `GET /projects/{id}` RESPONSE
+  // ENVELOPE — beside the project, not inside it, because `projectSchema`
+  // rejects unknown keys. `fetch-project.js` merges it back onto the project so
+  // callers read one object.
+  //
+  // Nothing else in any suite crosses that seam. The library and backend unit
+  // tests assert the rule from figures; every frontend test is handed a
+  // fabricated `tradingRuleStatuses` with `wreck` mocked; and
+  // `grep -rn tradingRuleStatuses ../bng-metric-backend/integration-tests/`
+  // returns nothing. Rename or move that envelope key and all four display
+  // surfaces would silently lose their tag with no test failing anywhere.
+  //
+  // Do not delete these without first adding an integration test asserting
+  // `tradingRuleStatuses.areaHabitats` on the `GET /projects/{id}` payload.
+  //
+  // Area habitats only — the hedgerow and watercourse trading rules are
+  // separate tickets, and their tiles hold the "View trading rules" text alone.
+
+  test.describe(
+    'Project summary — area habitats trading rules status',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      test('a project that breaks the trading rules shows a red "Not met" tag', async ({
+        projectSummaryPage,
+        browser
+      }) => {
+        const project = await getAllUnitTypesPostInterventionProject(browser)
+        await projectSummaryPage.open(project.id)
+
+        await expectStatusTag(
+          projectSummaryPage.tradingRulesTag(AREA_HABITATS),
+          STATUS_NOT_MET
+        )
+
+        // Scope. Only the area rules have been calculated, so the other two
+        // tiles carry no tag at all — asserted as an absence because there is
+        // no other text that would distinguish "not yet implemented" from
+        // "implemented and Met".
+        for (const label of [HEDGEROWS, WATERCOURSES]) {
+          await expect(projectSummaryPage.tradingRulesTag(label)).toHaveCount(0)
+        }
+      })
+
+      test('a project that satisfies the trading rules shows a green "Met" tag', async ({
+        projectSummaryPage,
+        browser
+      }) => {
+        const project = await getAreaGainProject(browser)
+        await projectSummaryPage.open(project.id)
+
+        await expectStatusTag(
+          projectSummaryPage.tradingRulesTag(AREA_HABITATS),
+          STATUS_MET
+        )
+      })
+
+      // The regression guard for what BMD-1008 broke. Two tags reading
+      // "Met"/"Not met" now live in the same <section> — the net-gain verdict
+      // and the trading-rules one — and the section-scoped text locator that
+      // used to find the first resolved to both, failing strict mode in four
+      // tests at once. Counting them is what stops a future locator quietly
+      // collapsing back onto whichever it happens to find first.
+      //
+      // The two verdicts are independent: a site can clear 10% net gain and
+      // still break the trading rules. No shipped fixture pairing separates
+      // them, so this asserts they are distinct ELEMENTS rather than distinct
+      // values — see `area-trading-rules-statuses.test.mjs`, "is Not met when
+      // only the Medium band is Not met", for the rule that makes them differ.
+      test('the trading-rules tag and the net-gain tag are separate elements', async ({
+        projectSummaryPage,
+        browser
+      }) => {
+        const project = await getAreaGainProject(browser)
+        await projectSummaryPage.open(project.id)
+
+        await expect(
+          projectSummaryPage.tradingRulesTag(AREA_HABITATS)
+        ).toHaveCount(1)
+        await expect(projectSummaryPage.statusTag(AREA_HABITATS)).toHaveCount(1)
+        await expect(
+          projectSummaryPage.unitSection(AREA_HABITATS).getByText(TAG_TEXT)
+        ).toHaveCount(2)
+      })
+
+      // BMD-1008 AC4. A project with no post-intervention document is a
+      // verdict, not an unknown: nothing has been delivered to trade against,
+      // so the backend returns Not met rather than null. The upload link is
+      // what proves the precondition — it is replaced by inert text the moment
+      // a post-intervention document exists.
+      test('a baseline with no post-intervention file reads "Not met"', async ({
+        projectSummaryPage,
+        browser
+      }) => {
+        const project = await getBaselineOnlyProject(browser)
+        await projectSummaryPage.open(project.id)
+
+        await expect(
+          projectSummaryPage.uploadPostInterventionLink(AREA_HABITATS)
+        ).toBeVisible()
+
+        await expectStatusTag(
+          projectSummaryPage.tradingRulesTag(AREA_HABITATS),
+          STATUS_NOT_MET
+        )
+      })
+    }
+  )
+
   // ─── Deferred elements ───────────────────────────────────────────────────────
 
   test.describe(
@@ -995,11 +1116,14 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         for (const label of BASELINE_ONLY_UNIT_TYPES) {
           // Asserting the copy *is there* as well as unlinked: a bare
           // `toHaveCount(0)` on the link passes just as happily when the text
-          // has disappeared altogether. Reading it through `tileValue` anchors
-          // it to the "Trading Rules" tile heading, which nothing else asserts.
-          expect(
-            await projectSummaryPage.tileValue(label, TILE_TRADING_RULES)
-          ).toBe(VIEW_TRADING_RULES)
+          // has disappeared altogether.
+          //
+          // The clickthrough is what this test is about and is still deferred;
+          // the status tag that BMD-1008 put above it is asserted by the
+          // trading-rules describe above.
+          await expect(
+            projectSummaryPage.viewTradingRulesText(label)
+          ).toBeVisible()
           await expect(
             projectSummaryPage
               .unitSection(label)
