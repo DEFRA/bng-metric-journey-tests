@@ -7,6 +7,7 @@ import { ProjectTaskListPage } from '@pages/project-task-list.page.js'
 import { ChangeProjectNamePage } from '@pages/change-project-name.page.js'
 import { ProjectDetailsPage } from '@pages/project-details.page.js'
 import { ProjectSummaryPage } from '@pages/project-summary.page.js'
+import { ProjectReportsPage } from '@pages/project-reports.page.js'
 import { AreaSummaryPage } from '@pages/area-summary.page.js'
 import { AreaBaselinePage } from '@pages/area-baseline.page.js'
 import { HedgerowsSummaryPage } from '@pages/hedgerows-summary.page.js'
@@ -52,6 +53,9 @@ export const test = base.extend({
   },
   projectDetailsPage: async ({ page }, use) => {
     await use(new ProjectDetailsPage(page))
+  },
+  projectReportsPage: async ({ page }, use) => {
+    await use(new ProjectReportsPage(page))
   },
   projectSummaryPage: async ({ page }, use) => {
     await use(new ProjectSummaryPage(page))

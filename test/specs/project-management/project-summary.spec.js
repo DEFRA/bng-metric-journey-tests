@@ -25,6 +25,7 @@ import {
   getWatercourseGainProject
 } from '@utils/summary-projects.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
+import { reportPdfPath } from '@utils/report-navigation.js'
 import {
   expectStatusTag,
   STATUS_MET,
@@ -1371,6 +1372,18 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
           expect(response.status()).toBe(HTTP_NOT_FOUND)
           await expect(otherPage.getByText(name)).toBeHidden()
+
+          // BMD-984: the site report is reachable from this project too, and is
+          // the one route that answers with a file rather than a page — so a
+          // leak here would hand over a PDF of somebody else's site. Folded in
+          // rather than given its own spec because the second context and the
+          // other user's session are already paid for above. The backend rule
+          // is covered by ../bng-metric-backend/integration-tests/report.test.js:135;
+          // this is the witness that the frontend passes the 404 through as a
+          // 404 rather than as a 502 or an empty download.
+          const reportResponse = await otherPage.goto(reportPdfPath(id))
+
+          expect(reportResponse.status()).toBe(HTTP_NOT_FOUND)
         } finally {
           await otherContext.close()
         }

@@ -18,14 +18,17 @@ Added by **BMD-854** (frontend PR#237, 2026-08-25, "Area Habitats Redesign"), wh
 
   **Left navigation** — `<nav aria-label="Project summary">` built by `buildUnitTypeNavigation` (`src/server/common/helpers/unit-type-navigation.js`). Items are **conditional**, not a fixed list:
 
-  | Item          | When present                                               |
-  | ------------- | ---------------------------------------------------------- |
-  | Summary       | always — links to `/projects/{id}/project-summary`         |
-  | Area habitats | always                                                     |
-  | Hedgerows     | only when `projectHasHabitatData(project, 'hedgerows')`    |
-  | Watercourses  | only when `projectHasHabitatData(project, 'watercourses')` |
+  | Item          | When present                                                            |
+  | ------------- | ----------------------------------------------------------------------- |
+  | Summary       | always — links to `/projects/{id}/project-summary`                      |
+  | Area habitats | always                                                                  |
+  | Hedgerows     | only when `projectHasHabitatData(project, 'hedgerows')`                 |
+  | Watercourses  | only when `projectHasHabitatData(project, 'watercourses')`              |
+  | Reports       | always — links to `/projects/{id}/reports`; **always last** in the list |
 
   `projectHasHabitatData` is true when **either** `baseline` **or** `postIntervention` carries a non-empty array for that type — so a hedgerow that exists only post-intervention still earns its nav item.
+
+  **Reports (BMD-984, frontend PR#248, 2026-09-18)** is appended after the loop over the optional unit types, so it is **not** habitat-gated: it renders on every page built by this helper, for every project, and is always the final item. Its page is documented in [`project-reports.flow.md`](project-reports.flow.md). A test that asserts the nav's full item list, or indexes items from the end, must account for it.
 
   **Current-item rendering.** `markCurrent` strips the `href` from the item matching the current page and sets `current: true`; `projectNavLabel` then renders it as `<strong class="app-project-navigation__current" aria-current="page">` rather than a link. On this page that is **Area habitats**.
 
