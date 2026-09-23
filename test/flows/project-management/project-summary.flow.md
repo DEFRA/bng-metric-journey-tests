@@ -49,8 +49,11 @@ the API response and are rendered **nowhere** — do not expect to assert them f
   | Area habitats | always — links to `/projects/{id}/area-summary`                                  |
   | Hedgerows     | only when `projectHasHabitatData(project, 'hedgerows')`                          |
   | Watercourses  | only when `projectHasHabitatData(project, 'watercourses')`                       |
+  | Reports       | always — links to `/projects/{id}/reports`; **always last**                      |
 
-  So the nav carries **two to four items**, not four. On this page every unit type renders collapsed — `withBaselineChild` attaches the **Baseline** child only to the section whose own summary or baseline page is current, and none of them is current here.
+  So the nav carries **three to five items**. **BMD-984** (frontend PR#248, 2026-09-18) added **Reports** after the loop over the optional unit types, so unlike Hedgerows and Watercourses it is not habitat-gated — it renders for every project and is always the final item. Its page is documented in [`project-reports.flow.md`](project-reports.flow.md). This is also the **only** entry point to the site report: the summary page itself gained no download button, just the nav item.
+
+  On this page every unit type renders collapsed — `withBaselineChild` attaches the **Baseline** child only to the section whose own summary or baseline page is current, and none of them is current here.
 
   **Heading** — project name as a `govuk-caption-l`, `<h1>Summary</h1>`, and a GOV.UK **"Upload file"** button aligned to the right.
 

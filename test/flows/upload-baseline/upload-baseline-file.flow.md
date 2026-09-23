@@ -138,6 +138,30 @@ but a test that navigates the **UI** now passes through the selection page first
        brackets and …". It is the **only** entry that overrides the shared link text, closing
        with **"upload the renamed file"** rather than "upload a new file" — a test matching the
        usual link text will not find this one.
+     - `GPKG_TOO_MANY_FEATURES` (**BMD-869**, frontend PR#274, 2026-09-10) — the file is too big
+       for the service to check, not broken. The backend pushes this from
+       `geopackage-internals-validate-features.js` against `VALIDATION_MAX_FEATURE_COUNT`.
+       Like the distinctiveness entry it carries **its own H1** — "Your Geopackage (.gpkg) file
+       contains too many features" — not the shared `GEOPACKAGE_ERROR_H1`, deliberately, because
+       nothing is wrong with the file and "contains an error" would say the wrong thing. Without
+       this entry it fell through to the catch-all and sent users off renaming columns that were
+       perfectly correct.
+
+       The help text is **count-dependent and has two forms**. `featureCount` and
+       `maxFeatureCount` ride on `error.details` (not parsed back out of the message), formatted
+       with `toLocaleString('en-GB')` — so **thousands separators are expected**: "This file
+       contains 250,000 features. This service can check up to 100,000." When either count is
+       missing the sentence still has to stand up, and degrades to "This file contains more
+       features than this service can check." A locator asserting the numeric form against a
+       backend that stopped sending `details` will fail on the fallback, and vice versa.
+
+       **Renamed in flight:** this code was `GPKG_TOO_MANY_PARCELS` until frontend PR#301
+       (2026-09-18); the backend emits `GPKG_TOO_MANY_FEATURES`
+       (`src/validation/geopackage/errors.js`). Nothing should still reference the old name.
+       The limit is configurable per environment via `VALIDATION_MAX_FEATURE_COUNT`, and **zero
+       turns the check off entirely** — so this error is not reachable by fixture alone unless
+       the deployed environment has a non-zero limit below the fixture's feature count.
+
      - Any unmapped code falls back to the AC1 catch-all copy ("The layer names and column names
        do not match what is required by Natural England…"). Note `INVALID_FILE_METADATA`, the
        sibling code `INVALID_FILENAME` split off from, still lands here: it now means the

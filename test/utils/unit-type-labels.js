@@ -6,6 +6,10 @@ export const WATERCOURSES = 'Watercourses'
 // item and the summary section's aria-label stay "Watercourses".
 export const WATERCOURSE_HABITATS_HEADING = 'Watercourse habitats'
 export const SUMMARY = 'Summary'
+// BMD-984 appended this to the unit-type navigation AFTER the optional unit
+// types, and unlike Hedgerows/Watercourses it is not habitat-gated — it renders
+// on every page the nav is built for, always last.
+export const REPORTS = 'Reports'
 export const BASELINE_NAV_CHILD = 'Baseline'
 
 export const TILE_BASELINE = 'On-site baseline'
