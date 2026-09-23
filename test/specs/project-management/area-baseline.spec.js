@@ -3,6 +3,7 @@ import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
   getAllUnitTypesProject,
+  getAreaGainProject,
   getBaselineOnlyProject
 } from '@utils/summary-projects.js'
 import {
@@ -14,6 +15,11 @@ import {
   VIEW_ON_SITE_AREA_BASELINE,
   WATERCOURSES
 } from '@utils/unit-type-labels.js'
+import {
+  expectStatusTag,
+  STATUS_MET,
+  STATUS_NOT_MET
+} from '@utils/unit-type-tiles.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 
@@ -337,6 +343,52 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expect(baselineHabitatDetailsPage.heading).toContainText(firstRef)
         expect(page.url()).toContain(`projectId=${project.id}`)
         expect(page.url()).toContain('featureId=')
+      })
+    }
+  )
+
+  // ─── Trading rules status (BMD-1008) ─────────────────────────────────────────
+  //
+  // The third of AC5's four display surfaces — inside the "Area habitats
+  // results" section, which is the wording the AC itself uses. Like the area
+  // summary this page has its own controller wiring (`tradingRulesStatus:
+  // areaTradingRulesStatus` passed to `createHabitatBaselineController`), so it
+  // needs its own witness. See the sole-witness note in
+  // `project-summary.spec.js` for why a journey test owns this at all.
+
+  test.describe(
+    'Area baseline — trading rules status',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      // BMD-1008 AC4 on this page. A baseline-only project has nothing to trade
+      // against, so the verdict is Not met rather than absent — which is also
+      // what makes this page's default state assertable without a second
+      // upload.
+      test('a baseline with no post-intervention file reads "Not met"', async ({
+        areaBaselinePage,
+        browser
+      }) => {
+        const project = await getBaselineOnlyProject(browser)
+        await areaBaselinePage.open(project.id)
+
+        await expect(areaBaselinePage.resultsHeading).toBeVisible()
+        await expectStatusTag(
+          areaBaselinePage.tradingRulesTag(),
+          STATUS_NOT_MET
+        )
+      })
+
+      test('a project that satisfies the trading rules reads "Met"', async ({
+        areaBaselinePage,
+        browser
+      }) => {
+        const project = await getAreaGainProject(browser)
+        await areaBaselinePage.open(project.id)
+
+        await expectStatusTag(areaBaselinePage.tradingRulesTag(), STATUS_MET)
       })
     }
   )

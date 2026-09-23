@@ -15,6 +15,11 @@ import {
   TILE_BASELINE,
   WATERCOURSES
 } from '@utils/unit-type-labels.js'
+import {
+  expectStatusTag,
+  STATUS_MET,
+  STATUS_NOT_MET
+} from '@utils/unit-type-tiles.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 
@@ -464,6 +469,61 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         expect(await areaSummaryPage.targetValue(TARGET_UNIT_DEFICIT)).toBe(
           ZERO_UNITS
         )
+      })
+    }
+  )
+
+  // ─── Trading rules status (BMD-1008) ─────────────────────────────────────────
+  //
+  // The second of AC5's four display surfaces. It is not a duplicate of the
+  // project summary's: this page has its own controller, which calls
+  // `areaTradingRulesStatus(project)` for itself, so a witness there says
+  // nothing about the wiring here.
+  //
+  // Both tests compare the tag against the project summary rather than only
+  // asserting a literal. A literal on its own passes when BOTH pages are wrong
+  // in the same direction — and they would be, since the bug this guards
+  // against is the shared envelope key going missing, which blanks every
+  // surface at once. Pinning the value AND the agreement catches both shapes.
+  // See the sole-witness note in `project-summary.spec.js`.
+
+  test.describe(
+    'Area summary — trading rules status',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      test('a project that breaks the trading rules shows "Not met" here and on the project summary', async ({
+        areaSummaryPage,
+        projectSummaryPage,
+        browser
+      }) => {
+        const project = await getAllUnitTypesPostInterventionProject(browser)
+
+        await areaSummaryPage.open(project.id)
+        await expectStatusTag(areaSummaryPage.tradingRulesTag(), STATUS_NOT_MET)
+
+        await projectSummaryPage.open(project.id)
+        await expect(
+          projectSummaryPage.tradingRulesTag(AREA_HABITATS)
+        ).toHaveText(STATUS_NOT_MET)
+      })
+
+      test('a project that satisfies the trading rules shows "Met" here and on the project summary', async ({
+        areaSummaryPage,
+        projectSummaryPage,
+        browser
+      }) => {
+        const project = await getAreaGainProject(browser)
+
+        await areaSummaryPage.open(project.id)
+        await expectStatusTag(areaSummaryPage.tradingRulesTag(), STATUS_MET)
+
+        await projectSummaryPage.open(project.id)
+        await expect(
+          projectSummaryPage.tradingRulesTag(AREA_HABITATS)
+        ).toHaveText(STATUS_MET)
       })
     }
   )
