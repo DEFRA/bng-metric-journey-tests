@@ -3,7 +3,8 @@
 # refresh-stack.sh
 #
 # Mirrors the manual workflow:
-#   1. git pull the main branch of frontend, backend and harness
+#   1. git pull the main branch of frontend, backend, harness, library
+#      and the digital prototype
 #   2. from the journey-tests repo: docker compose pull   (all latest images)
 #   3. docker compose up --wait -d   (once the pull completes)
 
@@ -15,6 +16,8 @@ WORKSPACE="$(cd "$JOURNEY_TESTS/.." && pwd)"
 FRONTEND="$WORKSPACE/bng-metric-frontend"
 BACKEND="$WORKSPACE/bng-metric-backend"
 HARNESS="$WORKSPACE/bng-metric-harness"
+LIBRARY="$WORKSPACE/bng-library"
+PROTOTYPE="$WORKSPACE/bng-metric-digital-prototype"
 
 info() { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
 
@@ -26,10 +29,12 @@ pull_main() {
   git -C "$dir" pull --ff-only origin main
 }
 
-# ---- Step 1: git pull main across the three repos ----
+# ---- Step 1: git pull main across the sibling repos ----
 pull_main "$FRONTEND"
 pull_main "$BACKEND"
 pull_main "$HARNESS"
+pull_main "$LIBRARY"
+pull_main "$PROTOTYPE"
 
 # ---- Step 2: pull all latest images (from the journey-tests repo) ----
 info "Pulling latest Docker images"
