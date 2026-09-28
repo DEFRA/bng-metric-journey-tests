@@ -18,6 +18,16 @@ const MAX_TEXT_FIELD_LENGTH = 500
 // unlike other routes' plain .uuid() — the all-zero UUID fails that stricter
 // check with 400 before the handler runs, so use a syntactically valid v4.
 const VALID_UUID_V4 = 'aaaaaaaa-bbbb-4ccc-bddd-eeeeeeeeeeee'
+// Entries from the backend's static Planning Data LPA list (BMD-1012). The
+// select shows the name; its value is the Planning Data reference.
+const BATH_LPA = {
+  name: 'Bath and North East Somerset LPA',
+  reference: 'E60000288'
+}
+const ADUR_LPA = { name: 'Adur LPA', reference: 'E60000281' }
+const LPA_PLACEHOLDER = 'Select a Local Planning Authority'
+// Matches the reference pattern the frontend checks, but is not in the list.
+const UNKNOWN_LPA_REFERENCE = 'E60099999'
 
 async function setupProject(createProjectFlow, projectDashboardPage) {
   const name = `Project details test ${Date.now()}`
@@ -37,7 +47,7 @@ async function fillAndSave(projectDetailsPage, page, id, values) {
 async function assertDetailsMatch(
   projectDetailsPage,
   {
-    localPlanningAuthority,
+    localPlanningAuthorityReference,
     surveyCompleters,
     day,
     month,
@@ -47,8 +57,8 @@ async function assertDetailsMatch(
     applicant
   }
 ) {
-  await expect(projectDetailsPage.localPlanningAuthorityInput).toHaveValue(
-    localPlanningAuthority
+  await expect(projectDetailsPage.localPlanningAuthoritySelect).toHaveValue(
+    localPlanningAuthorityReference
   )
   await expect(projectDetailsPage.surveyCompletersInput).toHaveValue(
     surveyCompleters
@@ -96,8 +106,16 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expect(projectDetailsPage.backLink).toBeVisible()
 
         await expect(
-          projectDetailsPage.localPlanningAuthorityInput
+          projectDetailsPage.localPlanningAuthoritySelect
         ).toHaveValue('')
+        await expect(
+          projectDetailsPage.localPlanningAuthorityOption(LPA_PLACEHOLDER)
+        ).toHaveJSProperty('selected', true)
+        // The options come from the backend's LPA list: each shows the name
+        // and carries the Planning Data reference as its value.
+        await expect(
+          projectDetailsPage.localPlanningAuthorityOption(ADUR_LPA.name)
+        ).toHaveAttribute('value', ADUR_LPA.reference)
         await expect(projectDetailsPage.surveyCompletersInput).toHaveValue('')
         await expect(projectDetailsPage.dayInput).toHaveValue('')
         await expect(projectDetailsPage.monthInput).toHaveValue('')
@@ -140,27 +158,55 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       }
     )
 
+    // Local Planning Authority is a select since BMD-1012, so no free-text
+    // length rule is reachable from the UI. A malformed reference is rejected
+    // by the frontend alone and unit-tested there (controller.test.js).
+
+    // Sole witness that the backend's real 400 for an unknown LPA reference
+    // reaches the frontend's re-render branch. The backend integration suite
+    // proves the 400 (project-details.test.js "rejects invalid LPA selection")
+    // and the frontend unit suite renders the error from a mocked 400; nothing
+    // else joins the two. Do not delete without an integration-level check of
+    // that contract.
     test(
-      'Local Planning Authority over 500 characters shows a length error',
+      'a Local Planning Authority no longer on the list shows an error and keeps the saved one',
       { tag: '@regression' },
       async ({
         createProjectFlow,
         projectDashboardPage,
-        projectDetailsPage
+        projectDetailsPage,
+        page
       }) => {
         const { id } = await setupProject(
           createProjectFlow,
           projectDashboardPage
         )
+        await fillAndSave(projectDetailsPage, page, id, {
+          localPlanningAuthority: BATH_LPA.name
+        })
+
         await projectDetailsPage.open(id)
+        await projectDetailsPage.makeLocalPlanningAuthorityStale(
+          ADUR_LPA.name,
+          UNKNOWN_LPA_REFERENCE
+        )
         await projectDetailsPage.fill({
-          localPlanningAuthority: 'a'.repeat(MAX_TEXT_FIELD_LENGTH + 1)
+          localPlanningAuthority: ADUR_LPA.name,
+          surveyCompleters: 'J. Smith'
         })
         await projectDetailsPage.submit()
 
         await projectDetailsPage.assertFieldError(
-          '"localPlanningAuthority" length must be less than or equal to 500 characters long'
+          'Select a Local Planning Authority from the list'
         )
+        await expect(projectDetailsPage.surveyCompletersInput).toHaveValue(
+          'J. Smith'
+        )
+
+        await projectDetailsPage.open(id)
+        await expect(
+          projectDetailsPage.localPlanningAuthoritySelect
+        ).toHaveValue(BATH_LPA.reference)
       }
     )
 
@@ -270,7 +316,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         )
         await projectDetailsPage.open(id)
         await projectDetailsPage.fill({
-          localPlanningAuthority: 'Test Borough Council',
+          localPlanningAuthority: BATH_LPA.name,
           surveyCompleters: 'J. Smith',
           day: '31',
           month: '2',
@@ -282,8 +328,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           'Survey completion date must be a real date'
         )
         await expect(
-          projectDetailsPage.localPlanningAuthorityInput
-        ).toHaveValue('Test Borough Council')
+          projectDetailsPage.localPlanningAuthoritySelect
+        ).toHaveValue(BATH_LPA.reference)
         await expect(projectDetailsPage.surveyCompletersInput).toHaveValue(
           'J. Smith'
         )
@@ -311,7 +357,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           projectDashboardPage
         )
         await fillAndSave(projectDetailsPage, page, id, {
-          localPlanningAuthority: 'Test Borough Council',
+          localPlanningAuthority: BATH_LPA.name,
           surveyCompleters: 'J. Smith, A. Jones',
           day: '15',
           month: '3',
@@ -345,7 +391,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         )
 
         await fillAndSave(projectDetailsPage, page, id, {
-          localPlanningAuthority: 'Test Borough Council',
+          localPlanningAuthority: BATH_LPA.name,
           surveyCompleters: 'J. Smith, A. Jones',
           day: '15',
           month: '3',
@@ -357,7 +403,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
         await projectDetailsPage.open(id)
         await assertDetailsMatch(projectDetailsPage, {
-          localPlanningAuthority: 'Test Borough Council',
+          localPlanningAuthorityReference: BATH_LPA.reference,
           surveyCompleters: 'J. Smith, A. Jones',
           day: '15',
           month: '03',
@@ -370,7 +416,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         // Resubmit with different values — must UPDATE the same record, not
         // create a second one or leave the old values in place.
         await fillAndSave(projectDetailsPage, page, id, {
-          localPlanningAuthority: 'Updated District Council',
+          localPlanningAuthority: ADUR_LPA.name,
           surveyCompleters: 'R. Patel',
           day: '22',
           month: '7',
@@ -382,7 +428,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
         await projectDetailsPage.open(id)
         await assertDetailsMatch(projectDetailsPage, {
-          localPlanningAuthority: 'Updated District Council',
+          localPlanningAuthorityReference: ADUR_LPA.reference,
           surveyCompleters: 'R. Patel',
           day: '22',
           month: '07',
@@ -391,6 +437,38 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           nsips: 'Yes',
           applicant: 'Updated Developments Ltd'
         })
+      }
+    )
+
+    test(
+      'choosing the placeholder clears a saved Local Planning Authority',
+      { tag: ['@regression', '@happy-path'] },
+      async ({
+        createProjectFlow,
+        projectDashboardPage,
+        projectDetailsPage,
+        page
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage
+        )
+        await fillAndSave(projectDetailsPage, page, id, {
+          localPlanningAuthority: BATH_LPA.name,
+          applicant: 'Acme Developments Ltd'
+        })
+
+        await fillAndSave(projectDetailsPage, page, id, {
+          localPlanningAuthority: LPA_PLACEHOLDER
+        })
+
+        await projectDetailsPage.open(id)
+        await expect(
+          projectDetailsPage.localPlanningAuthoritySelect
+        ).toHaveValue('')
+        await expect(projectDetailsPage.applicantInput).toHaveValue(
+          'Acme Developments Ltd'
+        )
       }
     )
   })
@@ -488,7 +566,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
         expect(response.status()).toBe(HTTP_NOT_FOUND)
         await expect(
-          projectDetailsPage.localPlanningAuthorityInput
+          projectDetailsPage.localPlanningAuthoritySelect
         ).not.toBeVisible()
       })
     }
@@ -526,7 +604,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           )
           await creatorDetails.open(id)
           await creatorDetails.fill({
-            localPlanningAuthority: 'Isolation Council',
+            localPlanningAuthority: BATH_LPA.name,
             applicant: 'Isolation Developments Ltd'
           })
           await creatorDetails.submit()
@@ -535,7 +613,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           const response = await otherPage.goto(`/project-details/${id}`)
 
           expect(response.status()).toBe(HTTP_NOT_FOUND)
-          await expect(otherPage.getByText('Isolation Council')).toBeHidden()
+          await expect(
+            otherPage.getByText('Isolation Developments Ltd')
+          ).toBeHidden()
         } finally {
           await creatorContext.close()
           await otherContext.close()

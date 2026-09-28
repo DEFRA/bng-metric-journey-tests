@@ -992,8 +992,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
   // Do not delete these without first adding an integration test asserting
   // `tradingRuleStatuses.areaHabitats` on the `GET /projects/{id}` payload.
   //
-  // Area habitats only — the hedgerow and watercourse trading rules are
-  // separate tickets, and their tiles hold the "View trading rules" text alone.
+  // Area habitats only. Watercourses gained their own tag in BMD-1002; the
+  // hedgerow trading rules are a separate ticket, so that tile holds the
+  // "View trading rules" text alone.
 
   test.describe(
     'Project summary — area habitats trading rules status',
@@ -1014,13 +1015,14 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           STATUS_NOT_MET
         )
 
-        // Scope. Only the area rules have been calculated, so the other two
-        // tiles carry no tag at all — asserted as an absence because there is
-        // no other text that would distinguish "not yet implemented" from
-        // "implemented and Met".
-        for (const label of [HEDGEROWS, WATERCOURSES]) {
-          await expect(projectSummaryPage.tradingRulesTag(label)).toHaveCount(0)
-        }
+        // Scope. Hedgerow trading rules are not calculated yet, so that tile
+        // carries no tag at all — asserted as an absence because there is no
+        // other text that would distinguish "not yet implemented" from
+        // "implemented and Met". Watercourses left this check when BMD-1002
+        // gave them a status of their own.
+        await expect(projectSummaryPage.tradingRulesTag(HEDGEROWS)).toHaveCount(
+          0
+        )
       })
 
       test('a project that satisfies the trading rules shows a green "Met" tag', async ({
@@ -1083,6 +1085,67 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expectStatusTag(
           projectSummaryPage.tradingRulesTag(AREA_HABITATS),
           STATUS_NOT_MET
+        )
+        // BMD-1002 AC, the watercourse twin: this baseline holds watercourses,
+        // so their verdict is Not met too rather than no tag at all.
+        await expectStatusTag(
+          projectSummaryPage.tradingRulesTag(WATERCOURSES),
+          STATUS_NOT_MET
+        )
+      })
+    }
+  )
+
+  // ─── Watercourses trading rules status (BMD-1002) ────────────────────────────
+  //
+  // SOLE WITNESS for `tradingRuleStatuses.watercourses` on the GET
+  // /projects/{id} response envelope, as the BMD-1008 block above is for
+  // areaHabitats. The backend unit tests derive the verdict from figures and
+  // every frontend test is handed a fabricated `tradingRuleStatuses`; no
+  // integration test asserts the watercourses key. Do not delete without one.
+  //
+  // Each project is chosen so its watercourse verdict DIFFERS from its area
+  // verdict: `watercourseTradingRulesStatus` is wired per page, and a tile
+  // wired to the area function by mistake would otherwise still pass.
+
+  test.describe(
+    'Project summary — watercourses trading rules status',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      test('watercourses that satisfy the trading rules show "Met" while area habitats show "Not met"', async ({
+        projectSummaryPage,
+        browser
+      }) => {
+        const project = await getTargetMetProject(browser)
+        await projectSummaryPage.open(project.id)
+
+        await expectStatusTag(
+          projectSummaryPage.tradingRulesTag(WATERCOURSES),
+          STATUS_MET
+        )
+        await expectStatusTag(
+          projectSummaryPage.tradingRulesTag(AREA_HABITATS),
+          STATUS_NOT_MET
+        )
+      })
+
+      test('watercourses that break the trading rules show "Not met" while area habitats show "Met"', async ({
+        projectSummaryPage,
+        browser
+      }) => {
+        const project = await getAreaGainProject(browser)
+        await projectSummaryPage.open(project.id)
+
+        await expectStatusTag(
+          projectSummaryPage.tradingRulesTag(WATERCOURSES),
+          STATUS_NOT_MET
+        )
+        await expectStatusTag(
+          projectSummaryPage.tradingRulesTag(AREA_HABITATS),
+          STATUS_MET
         )
       })
     }
