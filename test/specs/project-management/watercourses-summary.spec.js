@@ -11,8 +11,10 @@ import {
 import {
   getAllUnitTypesPostInterventionProject,
   getAllUnitTypesProject,
+  getTargetMetProject,
   getWatercourseGainProject
 } from '@utils/summary-projects.js'
+import { expectStatusTag, STATUS_MET } from '@utils/unit-type-tiles.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
@@ -340,6 +342,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           await watercoursesSummaryPage.tileValue(TILE_NET_PERCENTAGE)
         ).toBe(POST_INTERVENTION_ONLY_PERCENTAGE)
 
+        // Section-wide, so it covers both tags: the net-percentage one and,
+        // since BMD-1002, the trading-rules one — the backend's watercourse
+        // verdict is null here because trading rules do not apply without a
+        // baseline, and unknown must not render as failed.
         await expect(
           watercoursesSummaryPage.unitSection().getByText(/^(Met|Not met)$/)
         ).toHaveCount(0)
@@ -407,6 +413,36 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         expect(
           await watercoursesSummaryPage.tileUnits(TILE_POST_INTERVENTION)
         ).toBeGreaterThan(0)
+      })
+    }
+  )
+
+  // ─── Trading rules status (BMD-1002) ─────────────────────────────────────────
+  //
+  // Sole real-data witness for THIS page's wiring: the controller passes
+  // `watercourseTradingRulesStatus(project)` itself, and the mocked
+  // watercourses-summary/controller.test.js hands it a fabricated verdict. The
+  // project's area verdict is Not met, so a tile wired to the area function by
+  // mistake would read "Not met" and fail here.
+
+  test.describe(
+    'Watercourses summary — trading rules status',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      test('watercourses that satisfy the trading rules show a green "Met" tag', async ({
+        watercoursesSummaryPage,
+        browser
+      }) => {
+        const project = await getTargetMetProject(browser)
+        await watercoursesSummaryPage.open(project.id)
+
+        await expectStatusTag(
+          watercoursesSummaryPage.tradingRulesTag(),
+          STATUS_MET
+        )
       })
     }
   )

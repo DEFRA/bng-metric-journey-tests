@@ -6,7 +6,7 @@ export class ProjectDetailsPage extends BasePage {
     super(page)
     this.heading = page.getByRole('heading', { name: 'Project details' })
     this.backLink = page.getByRole('link', { name: 'Back' })
-    this.localPlanningAuthorityInput = page.getByLabel(
+    this.localPlanningAuthoritySelect = page.getByLabel(
       'Local Planning Authority'
     )
     this.surveyCompletersInput = page.getByLabel('Survey completer(s)')
@@ -28,6 +28,21 @@ export class ProjectDetailsPage extends BasePage {
     await super.open(`/project-details/${id}`)
   }
 
+  localPlanningAuthorityOption(name) {
+    return this.localPlanningAuthoritySelect.getByRole('option', {
+      name,
+      exact: true
+    })
+  }
+
+  // Point an option at a reference the backend does not hold, as a form loaded
+  // before an LPA list refresh removed that authority would.
+  async makeLocalPlanningAuthorityStale(name, reference) {
+    await this.localPlanningAuthorityOption(name).evaluate((option, value) => {
+      option.value = value
+    }, reference)
+  }
+
   async #fillIfDefined(locator, value) {
     if (value !== undefined) {
       await locator.fill(value)
@@ -43,6 +58,14 @@ export class ProjectDetailsPage extends BasePage {
     }
   }
 
+  // Choose an LPA by its visible name, as a user would; the option's value is
+  // its Planning Data reference.
+  async #selectIfDefined(locator, label) {
+    if (label !== undefined) {
+      await locator.selectOption({ label })
+    }
+  }
+
   async fill({
     localPlanningAuthority,
     surveyCompleters,
@@ -53,8 +76,8 @@ export class ProjectDetailsPage extends BasePage {
     nsips,
     applicant
   }) {
-    await this.#fillIfDefined(
-      this.localPlanningAuthorityInput,
+    await this.#selectIfDefined(
+      this.localPlanningAuthoritySelect,
       localPlanningAuthority
     )
     await this.#fillIfDefined(this.surveyCompletersInput, surveyCompleters)
