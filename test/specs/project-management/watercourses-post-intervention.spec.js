@@ -16,6 +16,7 @@ import {
   VIEW_ON_SITE_WATERCOURSES_BASELINE,
   WATERCOURSES
 } from '@utils/unit-type-labels.js'
+import { expectStatusTag, STATUS_MET } from '@utils/unit-type-tiles.js'
 
 // The watercourses post-intervention page (BMD-862) —
 // `/projects/{id}/watercourses-post-intervention`. See
@@ -303,7 +304,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     )
 
     // AC5.
-    test('renders the five results tiles with no post-intervention self-link', async ({
+    test('renders the five results tiles, the trading rules status and no post-intervention self-link', async ({
       watercoursesPostInterventionPage
     }) => {
       await watercoursesPostInterventionPage.open(project.id)
@@ -323,6 +324,16 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       expect(
         await watercoursesPostInterventionPage.tileValue(TILE_POST_INTERVENTION)
       ).toMatch(UNITS_2DP)
+
+      // BMD-1002. Sole real-data witness for this page's wiring:
+      // `tradingRulesStatus` is per-page config to
+      // createHabitatPostInterventionController, and the mocked
+      // controller.test.js hands it a fabricated verdict. This project's area
+      // verdict is Not met, so a mis-wiring to the area function fails here.
+      await expectStatusTag(
+        watercoursesPostInterventionPage.tradingRulesTag(),
+        STATUS_MET
+      )
 
       // AC5's exception. The baseline tile keeps its link while the
       // post-intervention tile has NO action line at all: the controller

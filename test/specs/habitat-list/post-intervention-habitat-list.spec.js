@@ -24,10 +24,11 @@ import {
 } from '@utils/unit-type-tiles.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
-// Only the AREA rules have been calculated (BMD-1008); the other three rows'
-// cells stay empty until their own stories land.
+// Area habitats (BMD-1008) and Watercourses (BMD-1002) carry a trading-rules
+// status; the Site and Hedgerows cells stay empty until their own stories land.
 const AREA_HABITATS_ROW = 'Area habitats'
-const ROWS_WITHOUT_TRADING_RULES = ['Site', 'Hedgerows', 'Watercourses']
+const WATERCOURSES_ROW = 'Watercourses'
+const ROWS_WITHOUT_TRADING_RULES = ['Site', 'Hedgerows']
 const UPLOAD_TIMEOUT = 120_000
 // The first test needing a shared project pays its build (create + upload),
 // which overruns the default 60s per-test timeout.
@@ -1182,7 +1183,7 @@ test.describe(
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
       test(
-        'the Area habitats row shows "Met", and the other three rows stay empty',
+        'the Area habitats row shows "Met", Watercourses "Not met", and the other two rows stay empty',
         { tag: '@regression' },
         async ({ postInterventionHabitatListPage, browser }) => {
           const project = await getAreaGainProject(browser)
@@ -1193,6 +1194,17 @@ test.describe(
               AREA_HABITATS_ROW
             ),
             STATUS_MET
+          )
+
+          // BMD-1002. The same project's watercourse verdict is the OPPOSITE of
+          // its area one, so this row reading "Not met" proves the controller
+          // passes the watercourse verdict, not the area one, through the
+          // habitat list's own access path.
+          await expectStatusTag(
+            postInterventionHabitatListPage.summaryTradingRulesTag(
+              WATERCOURSES_ROW
+            ),
+            STATUS_NOT_MET
           )
 
           // The scope half. Asserted on the CELL rather than the tag: an empty

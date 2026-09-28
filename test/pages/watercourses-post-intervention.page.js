@@ -1,4 +1,5 @@
 import { readTileUnits, readTileValue } from '@utils/tile-value.js'
+import { tradingRulesTag } from '@utils/unit-type-tiles.js'
 
 import { BasePage } from './base.page.js'
 import { WATERCOURSES } from '@utils/unit-type-labels.js'
@@ -84,6 +85,11 @@ export class WatercoursesPostInterventionPage extends BasePage {
   /** The unit summary section — labelled, not headed. See the class note. */
   unitSection() {
     return this.page.getByRole('region', { name: WATERCOURSES, exact: true })
+  }
+
+  /** The watercourse trading-rules status tag in the results tiles (BMD-1002). */
+  tradingRulesTag() {
+    return tradingRulesTag(this.unitSection())
   }
 
   /** Every tile heading in the unit summary section, in rendered order. */

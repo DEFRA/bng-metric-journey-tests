@@ -50,6 +50,7 @@ Each page still passes its **own** habitat key (`watercourses`) and unit field (
 
   **Totals row.** A `<tfoot>` row, all cells `govuk-!-font-weight-bold`: Ref reads `Total`, Units carries the summed value through `formatHabitatUnits`, and Size the summed metres through `formatBaselineTotalLengthSize` (**10** s.f., against the rows' 7). The remaining four columns are empty. `sumFinite` skips non-finite entries, so a feature with no units still lists but does not count — see "Rows with no calculable units" below, which is not a hypothetical for watercourses.
 
+- **Trading rules status (BMD-1002, frontend PR#327) `[IMPLEMENTED]`:** the Results section's Trading Rules tile carries the watercourse `Met` / `Not met` tag — `tradingRulesStatus: watercourseTradingRulesStatus` in this page's config for `createLinearHabitatBaselineController`. Per-page config, so a witness on another page does not cover a mis-wiring here.
 - **Validation:** `id` path param must be a valid uuidv4 (Joi); invalid → Hapi 400
 - **On success:** Renders `common/templates/habitat-baseline-page` with page title "Baseline for watercourses - {serviceName}"
 - **On error:** As [`area-baseline.flow.md`](area-baseline.flow.md) Step 1 — no-baseline redirect, 404, 502, session-expired
@@ -106,7 +107,7 @@ There is **no back link**; the left navigation is the only way up.
 
 ## Journey coverage
 
-Added 2026-09-07 for the BMD-861 AC sweep — `test/specs/project-management/watercourses-baseline.spec.js` (7 tests, domain tag `@project-management`).
+Added 2026-09-07 for the BMD-861 AC sweep — `test/specs/project-management/watercourses-baseline.spec.js` (8 tests since BMD-1002, domain tag `@project-management`).
 
 `watercourses-baseline/controller.test.js` covers this page through the shared `registerLinearBaselinePageTests` suite (13 tests), all with `wreck` mocked and two hand-built features. The journey tests cover only what that cannot reach:
 
@@ -119,6 +120,7 @@ Added 2026-09-07 for the BMD-861 AC sweep — `test/specs/project-management/wat
 | Ref clickthrough                          | 10       | `baseline.watercourses` is a third backend collection, resolved by its own branch of the features endpoint and its own details-page strategy                                             |
 | Entry from the watercourses summary       | 1        | both hrefs were asserted but neither was ever followed; the results-section link did not exist before PR#266                                                                             |
 | Entry from the project summary            | 2        | `project-summary.spec.js:986` asserts the href and stops there                                                                                                                           |
+| Trading rules status (BMD-1002)           | —        | per-page config; asserted on a project whose area verdict differs (area Not met, watercourses Met)                                                                                       |
 
 Both projects come from `@utils/summary-projects.js` (`getAllUnitTypesProject`, `getBaselineOnlyProject`) and are already built by other specs in the same module-scope cache, so this file costs **no upload of its own** in CI.
 

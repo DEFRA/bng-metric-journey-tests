@@ -3,8 +3,10 @@ import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
   getAllUnitTypesProject,
-  getBaselineOnlyProject
+  getBaselineOnlyProject,
+  getTargetMetProject
 } from '@utils/summary-projects.js'
+import { expectStatusTag, STATUS_MET } from '@utils/unit-type-tiles.js'
 import {
   AREA_HABITATS,
   BASELINE_NAV_CHILD,
@@ -397,6 +399,35 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         )
         await expect(watercoursesBaselinePage.heading).toBeVisible()
         await expect(watercoursesBaselinePage.detailsTable).toBeVisible()
+      })
+    }
+  )
+
+  // ─── Trading rules status (BMD-1002) ─────────────────────────────────────────
+  //
+  // Sole real-data witness for this page's wiring: `tradingRulesStatus` is
+  // per-page config to createLinearHabitatBaselineController, and the mocked
+  // controller.test.js hands it a fabricated verdict. The project's area
+  // verdict is Not met, so a mis-wiring to the area function fails here.
+
+  test.describe(
+    'Watercourses baseline — trading rules status',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      test('watercourses that satisfy the trading rules show a green "Met" tag', async ({
+        watercoursesBaselinePage,
+        browser
+      }) => {
+        const project = await getTargetMetProject(browser)
+        await watercoursesBaselinePage.open(project.id)
+
+        await expectStatusTag(
+          watercoursesBaselinePage.tradingRulesTag(),
+          STATUS_MET
+        )
       })
     }
   )
