@@ -11,7 +11,7 @@ Two things separate it from every other unit-type page:
 - It is the first page in the service whose tabs are the **GOV.UK Tabs component**. The existing [post-intervention habitat list](../habitat-list/post-intervention-habitat-list.flow.md) also has tabs, but they split by **unit type** (Areas / Hedgerows / Watercourses); these split by **intervention type** within one unit type. Do not reuse one page's tab locators on the other.
 - Its results tiles carry **no post-intervention action line at all** — the same self-link suppression the baseline page applies to its baseline tile, for the same reason: the link would point at the page the user is already on.
 
-Its area and watercourse equivalents are separate stories. **PI Watercourses has since shipped** — BMD-862, frontend PR#285 (2026-09-15) — on this page's own `createHabitatPostInterventionController`; see [watercourses-post-intervention.flow.md](watercourses-post-intervention.flow.md). PI Areas (BMD-858) has not, so `unit-type-navigation.js` gives a `postInterventionPath` to both linear types and to neither area one.
+Its area and watercourse equivalents are separate stories. **PI Watercourses has since shipped** — BMD-862, frontend PR#285 (2026-09-15) — on this page's own `createHabitatPostInterventionController`; see [watercourses-post-intervention.flow.md](watercourses-post-intervention.flow.md). **PI Areas has shipped too** — BMD-858/997, frontend PR#300 (2026-09-30) — on the same factory, with `unit-type-navigation.js` now giving the area unit type its own `postInterventionPath`; see [area-post-intervention.flow.md](area-post-intervention.flow.md).
 
 ## Steps
 
@@ -56,21 +56,23 @@ Each panel holds a `moj-sortable-table` wrapped in an MOJ **scrollable pane** �
 
 **The column set varies by intervention type.** Retained carries `Condition`; Enhanced and Created drop it and carry the target/time-to-target block instead:
 
-| Column                    | Retained | Enhanced | Created | Value                                                                   |
-| ------------------------- | -------- | -------- | ------- | ----------------------------------------------------------------------- |
-| `Ref`                     | ✓        | ✓        | ✓       | `feature.ref` (trimmed, falling back to `featureId`), linked to details |
-| `Units`                   | ✓        | ✓        | ✓       | `formatHabitatUnits` — 2 dp, capped at 7 s.f.                           |
-| `Size`                    | ✓        | ✓        | ✓       | `formatLengthKmDisplay` — 7 s.f. + `km`, no space                       |
-| `Habitat type`            | ✓        | ✓        | ✓       | `proposed.type`                                                         |
-| `Distinctiveness`         | ✓        | ✓        | ✓       | `"{label} ({score})"`                                                   |
-| `Condition`               | ✓        | —        | —       | `"{label} ({score})"`                                                   |
-| `Strategic significance`  | ✓        | ✓        | ✓       | fixed `Low (1)` for MVS (BMD-315 AC9)                                   |
-| `Target condition`        | —        | ✓        | ✓       | `"{label} ({score})"` — the **proposed** condition                      |
-| `Standard time to target` | —        | ✓        | ✓       | `formatYears` — `"1 year"` / `"N years"`                                |
-| `Advance`                 | —        | ✓        | ✓       | `formatYears`                                                           |
-| `Delay`                   | —        | ✓        | ✓       | `formatYears`                                                           |
-| `Final time to target`    | —        | ✓        | ✓       | the **backend's** pre-formatted string — see the copy note below        |
-| `Standard difficulty`     | —        | ✓        | ✓       | `"{label} ({multiplier})"`                                              |
+| Column                    | Retained | Enhanced | Created | Value                                                                                                                                                                                                |
+| ------------------------- | -------- | -------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Ref`                     | ✓        | ✓        | ✓       | `feature.ref` (trimmed, falling back to `featureId`), linked to `/post-intervention-habitat-details?featureId={featureId}&projectId={id}&returnUrl=%2Fprojects%2F{id}%2Fhedgerows-post-intervention` |
+| `Units`                   | ✓        | ✓        | ✓       | `formatHabitatUnits` — 2 dp, capped at 7 s.f.                                                                                                                                                        |
+| `Size`                    | ✓        | ✓        | ✓       | `formatLengthKmDisplay` — 7 s.f. + `km`, no space                                                                                                                                                    |
+| `Habitat type`            | ✓        | ✓        | ✓       | `proposed.type`                                                                                                                                                                                      |
+| `Distinctiveness`         | ✓        | ✓        | ✓       | `"{label} ({score})"`                                                                                                                                                                                |
+| `Condition`               | ✓        | —        | —       | `"{label} ({score})"`                                                                                                                                                                                |
+| `Strategic significance`  | ✓        | ✓        | ✓       | fixed `Low (1)` for MVS (BMD-315 AC9)                                                                                                                                                                |
+| `Target condition`        | —        | ✓        | ✓       | `"{label} ({score})"` — the **proposed** condition                                                                                                                                                   |
+| `Standard time to target` | —        | ✓        | ✓       | `formatYears` — `"1 year"` / `"N years"`                                                                                                                                                             |
+| `Advance`                 | —        | ✓        | ✓       | `formatYears`                                                                                                                                                                                        |
+| `Delay`                   | —        | ✓        | ✓       | `formatYears`                                                                                                                                                                                        |
+| `Final time to target`    | —        | ✓        | ✓       | the **backend's** pre-formatted string — see the copy note below                                                                                                                                     |
+| `Standard difficulty`     | —        | ✓        | ✓       | `"{label} ({multiplier})"`                                                                                                                                                                           |
+
+**The Ref link carries this page as `returnUrl`** (frontend PR#300, BMD-858/997). The details page uses it as the Back target on its unsupported-feature view (`post-intervention-habitat-details/controller.js:165`).
 
 A `<tfoot>` **totals row** closes every grid: the fixed text `Total` in the Ref column, `formatHabitatUnits` over the summed units, `formatTotalLengthSize` over the summed size, and an empty cell for every other column. Both sums are computed **server-side from the rendered features** (`sumFinite`), independently of the backend's persisted `postIntervention.units.hedgerowsTotal` driving the tiles above.
 

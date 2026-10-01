@@ -189,7 +189,8 @@ const MIX_CREATED_REF = 'WC3'
 
 const detailsHrefPattern = (projectId) =>
   new RegExp(
-    `/post-intervention-habitat-details\\?featureId=[^&]+&projectId=${projectId}$`
+    `/post-intervention-habitat-details\\?featureId=[^&]+&projectId=${projectId}` +
+      `&returnUrl=${encodeURIComponent(`/projects/${projectId}/watercourses-post-intervention`)}$`
   )
 
 /** Parse a numeric column, dropping cells the engine left blank. */
