@@ -148,7 +148,8 @@ const ENHANCED_CALCULATED_REF = 'HG018'
 
 const detailsHrefPattern = (projectId) =>
   new RegExp(
-    `/post-intervention-habitat-details\\?featureId=[^&]+&projectId=${projectId}$`
+    `/post-intervention-habitat-details\\?featureId=[^&]+&projectId=${projectId}` +
+      `&returnUrl=${encodeURIComponent(`/projects/${projectId}/hedgerows-post-intervention`)}$`
   )
 
 async function expectColumn(grid, label, heading, pattern) {

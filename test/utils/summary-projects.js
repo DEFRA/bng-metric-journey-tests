@@ -100,6 +100,17 @@ export const CREATED_LINEAR_BASELINE_FILE =
 export const CREATED_LINEAR_PI_FILE =
   'Post-intervention - created linear features.gpkg'
 
+// BMD-997's three-tab AREA pairing. The baseline carries refs H1-H3; its
+// partner keeps H1/H2-2 Retained, enhances H2-3 and H3 with a real condition
+// uplift (so their target/time cells are calculated), creates H2-7, and loses
+// the rest. A Lost AREA parcel is persisted as Created (BMD-534), so the Created
+// tab holds H2-7 plus seven Lost parcels. The only shipped area pairing with all
+// three tabs visible: the all-unit-types pair reaches Created only through its
+// Lost parcels, and has no real Created area habitat at all.
+export const AREA_REFS_BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
+export const CREATED_AREA_PI_FILE =
+  'Post-intervention - created area habitat.gpkg'
+
 // A baseline with 16 hedgerows and NO rivers, paired below with a
 // post-intervention file that has watercourses — the watercourse equivalent of
 // the hedgerow pairing above, and the only route to BMD-897's
@@ -332,6 +343,27 @@ export function getLinearInterventionTypesProject(browser) {
         browser,
         CREATED_LINEAR_BASELINE_FILE,
         CREATED_LINEAR_PI_FILE
+      )
+  )
+}
+
+/**
+ * A project whose area habitats cover all three intervention types — BMD-997's
+ * witness for the area post-intervention grids.
+ *
+ * `post-intervention-habitat-details.spec.js` builds the same pairing through
+ * its own file-local cache, so a worker running both files uploads it twice.
+ * Consolidating means unpicking that file's build-time harvesting, so it is
+ * deliberately left alone — the same call the linear pairings make.
+ */
+export function getAreaInterventionTypesProject(browser) {
+  return getOrBuildProject(
+    projectKey(AREA_REFS_BASELINE_FILE, CREATED_AREA_PI_FILE),
+    () =>
+      buildPostInterventionProject(
+        browser,
+        AREA_REFS_BASELINE_FILE,
+        CREATED_AREA_PI_FILE
       )
   )
 }
