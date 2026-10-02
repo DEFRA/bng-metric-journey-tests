@@ -82,6 +82,10 @@ const YEARS = /^\d+ years?$/
 // "{n} year(s) ({multiplier})" — the Final time to target shape.
 const YEARS_AND_SCORE = /^\d+ years? \(-?\d+(\.\d+)?\)$/
 const FIXED_STRATEGIC_SIGNIFICANCE = 'Low (1)'
+// BMD-1038: an Enhanced or Created hedgerow is priced at its Proposed Strategic
+// Significance. HG018's is "Formally identified in local strategy" in the
+// all-unit-types fixture, which the metric's G-3 table prices at High (×1.15).
+const HG018_STRATEGIC_SIGNIFICANCE = 'High (1.15)'
 
 // Column sets from `buildColumns` in
 // common/helpers/post-intervention-habitat-grid.js. Retained carries Condition;
@@ -696,8 +700,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           await expectColumn(grid, RETAINED, 'Distinctiveness', LABEL_AND_SCORE)
           await expectColumn(grid, RETAINED, 'Condition', LABEL_AND_SCORE)
 
-          // BMD-315 AC9 pins this to Low (1) for MVS regardless of what the
-          // GeoPackage carried — the engine hardcodes the multiplier to 1.
+          // A retained hedgerow carries its baseline strategic significance,
+          // which BMD-315 AC9 fixes at Low (1) under the LNRS guidance —
+          // whatever the GeoPackage carried. BMD-1038 left this side alone.
           expect(
             new Set(await grid.columnValues(RETAINED, 'Strategic significance'))
           ).toEqual(new Set([FIXED_STRATEGIC_SIGNIFICANCE]))
@@ -769,13 +774,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // HG018 in the all-unit-types fixture is the only Enhanced hedgerow in
       // any shipped fixture with a real uplift (Poor -> Moderate), so it is the
       // only row that can witness AC4b's column VALUES.
-      //
-      // FIXME(BMD-1038): parked 2026-10-02 so CI passes. Frontend PR#338 now
-      // shows the strategic significance an Enhanced/Created feature was priced
-      // at (HG018 renders "High (1.15)"), so FIXED_STRATEGIC_SIGNIFICANCE no
-      // longer holds for this row. Restore once the BMD-1038 expected values
-      // are confirmed.
-      test.fixme('the Enhanced grid carries the same columns, populated on a calculated row', async ({
+      test('the Enhanced grid carries the same columns, populated on a calculated row', async ({
         hedgerowsPostInterventionPage
       }) => {
         const grid = hedgerowsPostInterventionPage
@@ -796,7 +795,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         expect(row.Units).toMatch(GRID_UNITS_2DP)
         expect(row.Size).toMatch(KILOMETRES)
         expect(row.Distinctiveness).toMatch(LABEL_AND_SCORE)
-        expect(row['Strategic significance']).toBe(FIXED_STRATEGIC_SIGNIFICANCE)
+        expect(row['Strategic significance']).toBe(HG018_STRATEGIC_SIGNIFICANCE)
         expect(row['Target condition']).toMatch(LABEL_AND_SCORE)
         expect(row['Standard time to target']).toMatch(YEARS)
         expect(row.Advance).toMatch(YEARS)
