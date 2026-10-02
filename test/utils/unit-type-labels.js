@@ -39,6 +39,7 @@ export const VIEW_ON_SITE_HEDGEROWS_POST_INTERVENTION =
   'View on-site hedgerows post intervention'
 export const VIEW_ON_SITE_WATERCOURSES_POST_INTERVENTION =
   'View on-site watercourses post intervention'
-// The current-page item in the left nav's Hedgerows section. Note the hyphen:
-// BMD-860's ACs write "Post intervention", the app renders "Post-intervention".
-export const POST_INTERVENTION_NAV_CHILD = 'Post-intervention'
+// The post-intervention child in the left nav's unit-type sections. No hyphen:
+// the app rendered "Post-intervention" until BMD-1024 (frontend #351) aligned
+// it with the ACs, which the team confirmed are correct.
+export const POST_INTERVENTION_NAV_CHILD = 'Post intervention'

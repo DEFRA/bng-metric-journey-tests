@@ -121,11 +121,11 @@ Deliberately **not** covered here, each with its witness: invalid uuid → 400 (
 
 ## Deferred elements
 
-| Element                          | Current state                                            | Marker          |
-| -------------------------------- | -------------------------------------------------------- | --------------- |
-| "View trading rules"             | inert `<span>` in the Trading Rules tile — still no link | `[PLANNED]`     |
-| Trading rules status             | **`Met` / `Not met` tag** in the tile (BMD-1008, PR#317) | `[IMPLEMENTED]` |
-| "View on-site post intervention" | inert `<span>` once post-intervention exists             | `[PLANNED]`     |
+| Element                          | Current state                                                                                                                                           | Marker          |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| "View area trading rules"        | link to [`area-trading-summary`](area-trading-summary.flow.md) once post-intervention exists (BMD-1025, PR#326); inert "View trading rules" before then | `[IMPLEMENTED]` |
+| Trading rules status             | **`Met` / `Not met` tag** in the tile (BMD-1008, PR#317)                                                                                                | `[IMPLEMENTED]` |
+| "View on-site post intervention" | inert `<span>` once post-intervention exists                                                                                                            | `[PLANNED]`     |
 
 Two `Met` / `Not met` tags now sit in the Results section — the net-percentage one and the
 trading-rules one. They are different verdicts and disagree routinely, so scope a locator to
