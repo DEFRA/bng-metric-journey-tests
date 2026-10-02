@@ -44,7 +44,7 @@ export class HedgerowsSummaryPage extends UnitTypeSummaryPage {
    * (BMD-860 AC2b). Present only once the project HAS post-intervention data —
    * before that the tile offers `uploadPostInterventionLink()` instead, so the
    * two are the pair that tells the states apart. The nav route to the same
-   * page is `navLink('Post-intervention')`; they are separate view-model paths
+   * page is `navLink('Post intervention')`; they are separate view-model paths
    * that happen to share a target.
    */
   interventionLink() {

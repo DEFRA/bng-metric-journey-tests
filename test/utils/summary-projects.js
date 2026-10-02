@@ -129,6 +129,23 @@ export const WATERCOURSES_PI_FILE =
 // and render BMD-897's post-intervention-only variant instead.
 export const NO_LINEAR_PI_FILE = 'Post-intervention - complete.gpkg'
 
+// BMD-1024's area trading summary pairs (harness permutations/trading-rules and
+// valid/). TRADING_DEFICIT_*: a Medium grassland lost and two Low grasslands
+// enhanced, so the Medium band is Not met and the Low band Met; hedgerows, no
+// rivers. Between them its Medium and Low sections witness every figure the
+// page renders apart from the intertidal merge.
+export const TRADING_DEFICIT_BASELINE_FILE =
+  'trading-higher-deficit-not-covered-from-below-baseline.gpkg'
+export const TRADING_DEFICIT_PI_FILE =
+  'trading-higher-deficit-not-covered-from-below-post-intervention.gpkg'
+
+// IGGI is Medium in the engine's reference data (the file's own column says
+// V.Low, which the backend ignores) and sits in Intertidal hard structures —
+// the only shipped pair that reaches the merged intertidal grid. It also has
+// rivers, so the Watercourses nav item renders.
+export const IGGI_BASELINE_FILE = 'Baseline - IGGI habitat.gpkg'
+export const IGGI_PI_FILE = 'Post-intervention - IGGI habitat.gpkg'
+
 const UPLOAD_TIMEOUT = 120_000
 
 async function buildBaselineOnlyProject(browser, file) {
@@ -426,6 +443,32 @@ export function getNoWatercoursesPostInterventionProject(browser) {
         NO_WATERCOURSES_FILE,
         NO_LINEAR_PI_FILE
       )
+  )
+}
+
+/**
+ * A project whose area habitats break the Medium trading rule and satisfy the
+ * Low one. BMD-1024's main witness for the area trading summary.
+ */
+export function getAreaTradingDeficitProject(browser) {
+  return getOrBuildProject(
+    projectKey(TRADING_DEFICIT_BASELINE_FILE, TRADING_DEFICIT_PI_FILE),
+    () =>
+      buildPostInterventionProject(
+        browser,
+        TRADING_DEFICIT_BASELINE_FILE,
+        TRADING_DEFICIT_PI_FILE
+      )
+  )
+}
+
+/**
+ * A project with a Medium intertidal habitat (IGGI) — the area trading
+ * summary's merged intertidal grid, and a nav that lists Watercourses.
+ */
+export function getIntertidalTradingProject(browser) {
+  return getOrBuildProject(projectKey(IGGI_BASELINE_FILE, IGGI_PI_FILE), () =>
+    buildPostInterventionProject(browser, IGGI_BASELINE_FILE, IGGI_PI_FILE)
   )
 }
 
