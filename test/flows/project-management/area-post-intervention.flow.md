@@ -21,7 +21,19 @@ It runs on the same `createHabitatPostInterventionController` factory as its lin
 - **Auth required:** Yes — active session + an **approved (status 3)** `bng completer` role
 - **Backend endpoint:** `GET /projects/{id}` (via `fetchProjectOrThrow`)
 - **On error:** a project with no baseline redirects to `/projects/{id}/project-summary` (BMD-1043; it was the removed task list)
-- **Description:** `<h1>Post intervention for area habitats</h1>` under the project name caption, an "Upload file" button whose `returnUrl` points back here, `<h2>Area habitats results</h2>` with the five area summary tiles (no post-intervention self-link), a size section (`Site size`, `Area habitats size`, from `postIntervention.habitatSizes`), then `<h2>Area habitat details</h2>` and the GOV.UK Tabs component (title "Intervention type").
+- **Description:** `<h1>Post intervention for area habitats</h1>` under the project name caption, an "Upload file" button whose `returnUrl` points back here, `<h2>Area habitats results</h2>` with the five area summary tiles (no post-intervention self-link), an `<h2>Area habitats size</h2>` section, then `<h2>Area habitat details</h2>` and the GOV.UK Tabs component (title "Intervention type").
+
+  **Left navigation.** `buildUnitTypeNavigation` with this page as the current href: Summary, Area habitats (expanded — Baseline, **Post intervention** as `<strong aria-current="page">`, Trading rules), then Hedgerows / Watercourses each only when `projectHasHabitatData` finds that type in baseline OR post-intervention, then Reports. "Post intervention" and "Trading rules" date from frontend PR#351 (BMD-1024 PO ruling); before it they read "Post-intervention" and "Trading Rules".
+
+  **Size section** (BMD-858 AC6, frontend PR#350 — replaced the original two-value "Site size / Area habitats size" block). Three tiles, each `formatSummaryAreaSize` (2 dp + `ha`, no space) or `N/A` when the figure is missing:
+
+  | Tile label                                                                               | Source                                                         |
+  | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+  | Total baseline habitat area                                                              | `baseline.habitatSizes.areaHabitats.totalSquareMetres`         |
+  | Total post intervention habitat area                                                     | `postIntervention.habitatSizes.areaHabitats.totalSquareMetres` |
+  | Site Area (excluding areas of individual trees, green walls, intertidal hard structures) | `postIntervention.habitatSizes.site.totalSquareMetres`         |
+
+  **Entry points** (BMD-858 AC1/AC2, frontend PR#350). The Area habitats post-intervention tile on the [project summary](project-summary.flow.md), [area summary](area-summary.flow.md) and [area baseline](area-baseline.flow.md) pages is the link "View on-site area post intervention" → this page (`areaInterventionAction`); before #350 it was the inert text "View on-site post intervention". The "Post intervention" nav child reaches it from any area page.
 
   **Tabs.** Order is fixed by `INTERVENTION_TAB_ORDER`; a tab renders only when at least one feature's `interventionDisplay(retentionCategory)` matches it, and the first visible tab is selected on load. Each panel holds `<h3>{Tab} area habitats</h3>` and that intervention type's grid.
 
@@ -79,6 +91,22 @@ Added 2026-10-01 for BMD-997 — the "intervention type grids" describe of `test
 
 **Fixtures.** The three-tab project is `getAreaInterventionTypesProject` (`Baseline - complete with area refs` + `Post-intervention - created area habitat`: H1/H2-2 Retained, H2-3/H3 Enhanced with real uplifts, H2-7 Created plus seven Lost parcels imported as Created). `post-intervention-habitat-details.spec.js` builds the same pairing through its own file-local cache, so a worker running both files uploads it twice — the same call the hedgerow and watercourse pairings make. The many-row project is `getAllUnitTypesPostInterventionProject` (33 Retained + 25 Enhanced parcels, 62 Lost→Created, plus urban trees), already built by `project-summary.spec.js` in the same module-scope cache, so it costs no upload.
 
-**Not covered here (BMD-858).** The page furniture — left navigation, header and upload action, results tiles, size section, tab visibility rules and the entry links from the project summary and area summary — has **no journey coverage** yet. It was validated manually on 2026-10-01; run `/validate-ac-automated` against BMD-858 to close it.
+### Page furniture (BMD-858) `[IMPLEMENTED]`
+
+Added 2026-10-05 — the "page furniture" describe of the same spec, plus two entry-link tests. Every assertion below has a markup twin in `area-post-intervention/controller.test.js` (`:141` header, `:161` upload, `:174`/`:257` tiles, `:200`/`:230` size, `:268` nav) against a mocked `wreck`; these hold the half the unit suite cannot see — that this controller feeds them from a real project.
+
+| Test                                                                   | AC                                | Why it needs a browser and real data                                                                                                                      |
+| ---------------------------------------------------------------------- | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Header — project name, H1, Upload file                                 | 4                                 | the caption is the real project's name                                                                                                                    |
+| Left navigation — current item, children, conditional unit types       | 3a, 10                            | hrefs on THIS page; the click-throughs are witnessed from `area-trading-summary.spec.js` and `area-summary.spec.js` (same builder, no per-page parameter) |
+| Results tiles agree with the project summary, no self-link             | 5 — **`test.fixme`, open defect** | this controller's own choice of unit fields (`areaUnits` + `areaInterventionSummary`)                                                                     |
+| Size tiles — three labels, ha to 2 dp, agree with the habitat list     | 6                                 | the only page rendering `baseline.habitatSizes` beside the post-intervention figures                                                                      |
+| Tab set skips an empty intervention type and selects the first visible | 7b                                | `visibleInterventionTabs` runs on this page's own features — `getAreaGainProject` has no Retained area habitat, so Enhanced is the default                |
+| Upload file opens the file-type selection page                         | 9                                 | the `returnUrl` is built per page from `config.path`                                                                                                      |
+| Project summary / area summary tile links open this page               | 1, 2b                             | `project-summary.spec.js` and `area-summary.spec.js` — the link exists only once the project has post-intervention data                                   |
+
+**Open defect (BMD-858 AC5, found 2026-10-05).** The Trading Rules tile here renders no Met/Not met tag — `area-post-intervention/controller.js` passes no `tradingRulesStatus`, unlike `area-summary` and `area-baseline`. The results-tiles test above is parked with `test.fixme` until the frontend passes it.
+
+AC7a and AC8 (tab order, default selection, non-selected tabs as links, selection and focus on click) are asserted inside the BMD-997 Retained and Enhanced grid tests. AC2a (nav "Post intervention" from the area summary) and AC3b (Hedgerows suppressed) are not re-asserted here: the nav builder takes the project and the current href only, and `area-trading-summary.spec.js` (nav click to this page) and `project-summary.spec.js` ("hedgerows absent from both documents") already witness both with real data.
 
 **Sole witness, do not delete without a replacement.** These are the only tests in any suite where a real uploaded area habitat's display fields, a Lost→Created parcel, or a post-intervention urban tree reach a rendered grid.

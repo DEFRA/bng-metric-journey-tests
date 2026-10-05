@@ -37,6 +37,7 @@ const TARGET_UNIT_DEFICIT = 'Unit deficit'
 const NET_GAIN_TARGET = '10%'
 const ZERO_UNITS = '0.00 units'
 const UNITS_2DP = /^\d+\.\d{2} units$/
+const AREA_PI_PATH = 'area-post-intervention'
 
 // BMD-854 AC4: the Results section carries the same five tiles as the Area
 // habitats section of the project summary.
@@ -370,32 +371,25 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         project = await getAllUnitTypesPostInterventionProject(browser)
       })
 
-      // FIXME(BMD-858): parked 2026-10-02 so CI passes. Frontend PR#350 turned
-      // the Area habitats tile's inert "View on-site post intervention" into a
-      // "View on-site area post intervention" link, so
-      // viewOnSitePostInterventionText() no longer finds it. Restore with the
-      // BMD-858 test fix.
-      test.fixme('the five Results tiles agree with the project summary', async ({
+      test('the five Results tiles agree with the project summary', async ({
         areaSummaryPage,
         projectSummaryPage
       }) => {
         await areaSummaryPage.open(project.id)
 
         // The post-intervention tile is the one that changes shape once the
-        // second document exists: re-headed with a hyphen, its upload link
-        // replaced by inert text.
+        // second document exists: re-headed with a hyphen, and its upload link
+        // replaced by a link to the area post-intervention page (BMD-858,
+        // frontend PR#350 — inert text before it).
         expect(
           await areaSummaryPage.tileValue(TILE_POST_INTERVENTION_WITH_PI)
         ).toMatch(UNITS_2DP)
         await expect(areaSummaryPage.uploadPostInterventionLink()).toHaveCount(
           0
         )
-        // Asserting the inert text IS there as well as unlinked: a bare
-        // toHaveCount(0) passes just as happily when the action line has
-        // disappeared altogether.
         await expect(
-          areaSummaryPage.viewOnSitePostInterventionText()
-        ).toBeVisible()
+          areaSummaryPage.viewOnSiteAreaPostInterventionLink()
+        ).toHaveAttribute('href', `/projects/${project.id}/${AREA_PI_PATH}`)
 
         // Read all five here, then compare against the project summary's Area
         // habitats section: both pages source them from the same backend
@@ -411,6 +405,26 @@ test.describe('project-management', { tag: '@project-management' }, () => {
             fromDrillDown[tile]
           )
         }
+      })
+
+      // BMD-858 AC2b. `area-summary/controller.test.js:211` proves the link and
+      // its href against mocked data; only this proves it renders from a real
+      // project and resolves. The nav route to the same page (AC2a) is clicked
+      // through in area-trading-summary.spec.js — same builder, no per-page
+      // parameter.
+      test('the post-intervention tile opens the area post-intervention page', async ({
+        page,
+        areaSummaryPage,
+        areaPostInterventionPage
+      }) => {
+        await areaSummaryPage.open(project.id)
+
+        await areaSummaryPage.viewOnSiteAreaPostInterventionLink().click()
+
+        await expect(page).toHaveURL(
+          new RegExp(`/projects/${project.id}/${AREA_PI_PATH}$`)
+        )
+        await expect(areaPostInterventionPage.heading).toBeVisible()
       })
 
       test('the deficit is the shortfall between units required and post-intervention', async ({

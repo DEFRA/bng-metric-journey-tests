@@ -1,8 +1,12 @@
 import { readTileValue } from '@utils/tile-value.js'
+import { AREA_HABITATS } from '@utils/unit-type-labels.js'
 
 import { BasePage } from './base.page.js'
 
-// The "Area habitats size" tiles (frontend area-post-intervention controller).
+// The "Area habitats size" tiles (frontend area-post-intervention controller,
+// BMD-858 AC6).
+const AREA_SIZE_HEADING = 'Area habitats size'
+export const BASELINE_AREA_LABEL = 'Total baseline habitat area'
 export const POST_INTERVENTION_AREA_LABEL =
   'Total post intervention habitat area'
 export const SITE_AREA_LABEL =
@@ -27,6 +31,11 @@ export const SITE_AREA_LABEL =
  *    `display:none`, so it is out of the accessibility tree and every grid
  *    locator below resolves to nothing until that tab is selected. Click the
  *    tab first.
+ *  - **Two tile sections, both reached by name.** The results tiles sit in a
+ *    region labelled "Area habitats" (no `<h2>` of its own — the shared macro
+ *    is given no `headingHref`), and the size tiles in a `<section>` labelled
+ *    by its "Area habitats size" heading. Tiles have no role of their own, so
+ *    values are read as the line under each `<h3>` (`readTileValue`).
  */
 export class AreaPostInterventionPage extends BasePage {
   constructor(page) {
@@ -39,6 +48,12 @@ export class AreaPostInterventionPage extends BasePage {
       name: 'Area habitat details',
       level: 2
     })
+    this.resultsHeading = page.getByRole('heading', {
+      name: 'Area habitats results',
+      level: 2
+    })
+    this.navigation = page.getByRole('navigation', { name: 'Project summary' })
+    this.uploadFileButton = page.getByRole('button', { name: 'Upload file' })
     this.tabs = page.getByRole('tab')
   }
 
@@ -46,14 +61,49 @@ export class AreaPostInterventionPage extends BasePage {
     return super.open(`/projects/${id}/area-post-intervention`)
   }
 
+  caption(projectName) {
+    return this.page.getByText(projectName, { exact: true })
+  }
+
+  /** A nav entry by text, link or not — the current page is a `<strong>`. */
+  navItem(text) {
+    return this.navigation.getByText(text, { exact: true })
+  }
+
+  navLink(text) {
+    return this.navigation.getByRole('link', { name: text, exact: true })
+  }
+
+  /** The results tile section — labelled, not headed. See the class note. */
+  unitSection() {
+    return this.page.getByRole('region', { name: AREA_HABITATS, exact: true })
+  }
+
+  /** Every results tile heading, in rendered order. */
+  tileHeadings() {
+    return this.unitSection().getByRole('heading', { level: 3 })
+  }
+
+  tileValue(tileHeading) {
+    return readTileValue(this.unitSection(), tileHeading, AREA_HABITATS)
+  }
+
   /** The "Area habitats size" section — a labelled region of three tiles. */
   areaSizeSection() {
-    return this.page.getByRole('region', { name: 'Area habitats size' })
+    return this.page.getByRole('region', {
+      name: AREA_SIZE_HEADING,
+      exact: true
+    })
+  }
+
+  /** Every area-size tile label, in rendered order. */
+  areaSizeTileLabels() {
+    return this.areaSizeSection().getByRole('heading', { level: 3 })
   }
 
   /** One area-size tile's value, e.g. "0.13ha". */
   areaSizeTileValue(label) {
-    return readTileValue(this.areaSizeSection(), label, 'Area habitats size')
+    return readTileValue(this.areaSizeSection(), label, AREA_SIZE_HEADING)
   }
 
   /** An intervention-type tab by label — "Retained", "Enhanced" or "Created". */

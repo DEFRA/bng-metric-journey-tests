@@ -30,11 +30,12 @@ export const VIEW_ON_SITE_WATERCOURSES_BASELINE =
 // exists; once one does, the link is replaced by the inert text below.
 export const UPLOAD_POST_INTERVENTION = 'Upload on-site post intervention file'
 export const VIEW_ON_SITE_POST_INTERVENTION = 'View on-site post intervention'
-// BMD-860 (hedgerows) then BMD-862 (watercourses, frontend PR#285) gave the
-// linear types post-intervention pages, so their tiles carry their own linked
-// wording where AREA habitats alone keeps the inert default above. The area
-// equivalent is a separate, unshipped story — so unlike the baseline actions
-// there is no matching AREA_ constant yet.
+// Each unit type's post-intervention page gave its tile its own linked wording:
+// BMD-860 (hedgerows), BMD-862 (watercourses, frontend PR#285) and BMD-858
+// (area habitats, frontend PR#350). The inert default above survives only where
+// a page passes no `interventionAction`.
+export const VIEW_ON_SITE_AREA_POST_INTERVENTION =
+  'View on-site area post intervention'
 export const VIEW_ON_SITE_HEDGEROWS_POST_INTERVENTION =
   'View on-site hedgerows post intervention'
 export const VIEW_ON_SITE_WATERCOURSES_POST_INTERVENTION =

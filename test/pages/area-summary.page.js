@@ -2,6 +2,7 @@ import { UnitTypeSummaryPage } from './unit-type-summary.page.js'
 import {
   AREA_HABITATS,
   BASELINE_NAV_CHILD,
+  VIEW_ON_SITE_AREA_POST_INTERVENTION,
   VIEW_ON_SITE_AREA_BASELINE
 } from '@utils/unit-type-labels.js'
 
@@ -27,6 +28,17 @@ export class AreaSummaryPage extends UnitTypeSummaryPage {
   viewOnSiteAreaBaselineLink() {
     return this.unitSection().getByRole('link', {
       name: VIEW_ON_SITE_AREA_BASELINE
+    })
+  }
+
+  /**
+   * The post-intervention tile's link to the area post-intervention page
+   * (BMD-858, frontend PR#350). Present only once the project has a
+   * post-intervention document; before that the tile carries the upload link.
+   */
+  viewOnSiteAreaPostInterventionLink() {
+    return this.unitSection().getByRole('link', {
+      name: VIEW_ON_SITE_AREA_POST_INTERVENTION
     })
   }
 }
