@@ -329,16 +329,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // AC5. The tile values are compared with the project summary's, which
       // reads the same backend fields — a mismatch means this controller's
       // own choice (`areaUnits` + `areaInterventionSummary`) points elsewhere.
-      // FIXME(BMD-858 AC5): parked 2026-10-05. The Trading Rules tile on this
-      // page renders no Met/Not met tag, where the project summary, area summary
-      // and area baseline show one: frontend `area-post-intervention/
-      // controller.js` passes no `tradingRulesStatus` to
-      // `createHabitatPostInterventionController` (area-summary and
-      // area-baseline pass `areaTradingRulesStatus`). This test is correct and
-      // fails on that gap — restore it when the controller passes the status.
-      // Parked rather than left red because the file is serial: a failure here
-      // skips every test after it, including the BMD-997 grid witnesses.
-      test.fixme('the results tiles match the project summary, without a link back to this page', async ({
+      // AC5. Fixed by frontend PR#361 (2026-10-06), which passes the area
+      // trading-rules status to this page; until then its Trading Rules tile
+      // carried no Met/Not met tag, and this comparison is what caught it.
+      test('the results tiles match the project summary, without a link back to this page', async ({
         areaPostInterventionPage,
         projectSummaryPage
       }) => {
@@ -399,7 +393,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
         await areaBaselinePage.open(project.id)
         const [baselineGridTotal] = hectares([
-          (await areaBaselinePage.totalsCell('Size').innerText()).trim()
+          (await areaBaselinePage.totalsCell('size').innerText()).trim()
         ])
         const [baselineTile] = hectares([sizes[BASELINE_AREA_LABEL]])
         expect(Math.abs(baselineTile - baselineGridTotal)).toBeLessThan(

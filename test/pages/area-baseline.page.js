@@ -42,7 +42,7 @@ export class AreaBaselinePage extends BasePage {
     this.navigation = page.getByRole('navigation', { name: 'Project summary' })
     this.uploadFileButton = page.getByRole('button', { name: 'Upload file' })
     this.resultsHeading = page.getByRole('heading', {
-      name: 'Area habitats results',
+      name: 'Area habitat results',
       level: 2
     })
     this.detailsHeading = page.getByRole('heading', {
@@ -89,7 +89,7 @@ export class AreaBaselinePage extends BasePage {
   }
 
   /**
-   * The trading-rules status tag under "Area habitats results" (BMD-1008) —
+   * The trading-rules status tag under "Area habitat results" (BMD-1008) —
    * the third of the four surfaces AC5 enumerates.
    */
   tradingRulesTag() {

@@ -49,7 +49,7 @@ export class AreaPostInterventionPage extends BasePage {
       level: 2
     })
     this.resultsHeading = page.getByRole('heading', {
-      name: 'Area habitats results',
+      name: 'Area habitat results',
       level: 2
     })
     this.navigation = page.getByRole('navigation', { name: 'Project summary' })
