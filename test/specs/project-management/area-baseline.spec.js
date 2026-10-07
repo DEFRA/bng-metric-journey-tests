@@ -249,11 +249,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // specifically: `uploadFileHref` is parameterised per page, so a test of
       // the helper proves the encoding while only this assertion proves THIS
       // page hands it its own returnUrl.
-      // FIXME(BMD-858): parked 2026-10-07 so CI passes. Frontend #361 renamed
-      // the results heading to "Area habitat results"; AreaBaselinePage still
-      // looks for "Area habitats results". Restore during the BMD-858 AC
-      // validation.
-      test.fixme('renders the caption, results tiles and an upload action returning here', async ({
+      test('renders the caption, results tiles and an upload action returning here', async ({
         areaBaselinePage
       }) => {
         await areaBaselinePage.open(project.id)
@@ -371,11 +367,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // against, so the verdict is Not met rather than absent — which is also
       // what makes this page's default state assertable without a second
       // upload.
-      // FIXME(BMD-858): parked 2026-10-07 so CI passes. Frontend #361 renamed
-      // the results heading to "Area habitat results"; AreaBaselinePage still
-      // looks for "Area habitats results". Restore during the BMD-858 AC
-      // validation.
-      test.fixme('a baseline with no post-intervention file reads "Not met"', async ({
+      test('a baseline with no post-intervention file reads "Not met"', async ({
         areaBaselinePage,
         browser
       }) => {

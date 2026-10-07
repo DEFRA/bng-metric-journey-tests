@@ -258,12 +258,25 @@ async function expectPostInterventionOnlySuppressedTiles(
 // `buildPostInterventionSummary` at all. The hyphenated constant would fail
 // here as a missing element rather than a wrong value.
 //
-// The upload link is what distinguishes this variant from the standard
-// both-documents one, where the same tile renders inert text. "Upload entry
-// points" below asserts the same link on a BASELINE-ONLY project, which reaches
-// it through the absent-intervention branch instead; break the
-// `postInterventionOnly` half of `hasStandardIntervention` and that test stays
-// green while this state silently loses its only call to action.
+// The action link no longer sets this variant apart. Until BMD-919/921
+// (frontend PR#353, 2026-10-02) it carried the "Upload on-site post
+// intervention file" link; it now carries the unit type's own View link to its
+// post-intervention page, exactly as the standard both-documents tile does. The
+// unhyphenated heading, "Not applicable" and the missing tag are what still
+// distinguish it. The upload link is asserted ABSENT so a revert of #353 shows
+// up here, and the View link through each type's own locator, because each
+// names its unit type and a wrong label would otherwise find nothing quietly.
+const POST_INTERVENTION_ONLY_LINK = {
+  [HEDGEROWS]: (page) =>
+    page.viewOnSiteHedgerowsPostInterventionLink(HEDGEROWS),
+  [WATERCOURSES]: (page) =>
+    page.viewOnSiteWatercoursesPostInterventionLink(WATERCOURSES)
+}
+const POST_INTERVENTION_PATH = {
+  [HEDGEROWS]: 'hedgerows-post-intervention',
+  [WATERCOURSES]: 'watercourses-post-intervention'
+}
+
 async function expectPostInterventionOnlyGain(
   projectSummaryPage,
   label,
@@ -290,11 +303,14 @@ async function expectPostInterventionOnlyGain(
     await projectSummaryPage.tileUnits(label, TILE_POST_INTERVENTION)
   ).toBeGreaterThan(0)
 
-  const uploadLink = projectSummaryPage.uploadPostInterventionLink(label)
-  await expect(uploadLink).toBeVisible()
-  await expect(uploadLink).toHaveAttribute(
+  await expect(
+    projectSummaryPage.uploadPostInterventionLink(label)
+  ).toHaveCount(0)
+  await expect(
+    POST_INTERVENTION_ONLY_LINK[label](projectSummaryPage)
+  ).toHaveAttribute(
     'href',
-    uploadFileHref(projectId, `/projects/${projectId}/project-summary`)
+    `/projects/${projectId}/${POST_INTERVENTION_PATH[label]}`
   )
 }
 
@@ -711,11 +727,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         }
       })
 
-      // FIXME(BMD-858): parked 2026-10-02 so CI passes. Frontend PR#350 turned
-      // the Area habitats tile's inert "View on-site post intervention" into a
-      // "View on-site area post intervention" link, so the inert-text
-      // assertion below no longer holds. Restore with the BMD-858 test fix.
-      test.fixme('the post-intervention tile is re-headed and its upload link is replaced', async ({
+      test('the post-intervention tile is re-headed and its upload link is replaced', async ({
         projectSummaryPage
       }) => {
         await projectSummaryPage.open(project.id)
@@ -739,19 +751,13 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           ).toHaveCount(0)
         }
 
-        // BMD-860 split what used to be one shape, and BMD-862 (frontend
-        // PR#285) moved watercourses across the split too: both linear types
-        // now have a post-intervention page, so their tiles LINK there while
-        // area habitats keeps the inert default — it is the only type
-        // `buildProjectUnitTypes` still passes no `interventionAction`.
-        // Asserting the inert text for every type is what broke at BMD-860;
-        // asserting it for watercourses is what broke at BMD-862.
-        await expect(
-          projectSummaryPage
-            .unitSection(AREA_HABITATS)
-            .getByText(VIEW_ON_SITE_POST_INTERVENTION, { exact: true })
-        ).toBeVisible()
-        for (const label of [HEDGEROWS, WATERCOURSES]) {
+        // BMD-860, BMD-862 (frontend PR#285) and BMD-858 (frontend PR#350) each
+        // gave one unit type a post-intervention page, and each tile now LINKS
+        // there under its own wording — so the shared inert default is gone
+        // from every section. Asserting the inert text for one type is what
+        // broke at each of those three merges; the links themselves are
+        // asserted, and clicked, in the per-type tests below.
+        for (const label of UNIT_TYPES) {
           await expect(
             projectSummaryPage
               .unitSection(label)
@@ -759,6 +765,26 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           ).toHaveCount(0)
         }
       })
+
+      // BMD-858 AC1. `project-summary/controller.test.js:828` proves the link
+      // and its href against mocked data; only this proves it renders from a
+      // real project and resolves.
+      test(
+        'the area habitats post-intervention tile opens the area post-intervention page',
+        { tag: '@happy-path' },
+        async ({ page, projectSummaryPage, areaPostInterventionPage }) => {
+          const target = `/projects/${project.id}/area-post-intervention`
+          await projectSummaryPage.open(project.id)
+
+          const link =
+            projectSummaryPage.viewOnSiteAreaPostInterventionLink(AREA_HABITATS)
+          await expect(link).toHaveAttribute('href', target)
+
+          await link.click()
+          await expect(page).toHaveURL(new RegExp(target))
+          await expect(areaPostInterventionPage.heading).toBeVisible()
+        }
+      )
 
       // BMD-860 AC1. The hedgerow tile's text became a link to the new
       // post-intervention page. `project-summary/controller.test.js:353`
@@ -854,12 +880,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // percentage tile reads "Not applicable" and no "Met" tag appears. See
       // "Known deviations" in
       // test/flows/project-management/project-summary.flow.md.
-      // FIXME(BMD-919/BMD-921): parked 2026-10-07 so CI passes. Frontend
-      // PR#353 replaced this section's "Upload on-site post intervention file"
-      // link with a "View on-site … post intervention" link when the habitat
-      // exists only post-intervention. Restore during the BMD-919/921 AC
-      // validation.
-      test.fixme('the gain is still reported in the net unit change tile, above an upload link', async ({
+      test('the gain is still reported in the net unit change tile, above the post-intervention link', async ({
         projectSummaryPage
       }) => {
         await projectSummaryPage.open(project.id)
@@ -892,12 +913,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       //
       // Do not delete without moving these assertions onto another
       // project-summary test built on getWatercourseGainProject.
-      // FIXME(BMD-919/BMD-921): parked 2026-10-07 so CI passes. Frontend
-      // PR#353 replaced this section's "Upload on-site post intervention file"
-      // link with a "View on-site … post intervention" link when the habitat
-      // exists only post-intervention. Restore during the BMD-919/921 AC
-      // validation.
-      test.fixme('watercourses gained from a zero baseline render the same variant', async ({
+      test('watercourses gained from a zero baseline render the same variant', async ({
         projectSummaryPage,
         browser
       }) => {

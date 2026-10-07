@@ -2,22 +2,39 @@ import { test, expect } from '@fixtures'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import {
   getAllUnitTypesPostInterventionProject,
+  getAreaGainProject,
   getAreaInterventionTypesProject,
   getTreesPostInterventionProject
 } from '@utils/summary-projects.js'
 import { openPiTabFor } from '@utils/post-intervention-grid.js'
+import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
+  BASELINE_AREA_LABEL,
   POST_INTERVENTION_AREA_LABEL,
   SITE_AREA_LABEL
 } from '@pages/area-post-intervention.page.js'
+import {
+  AREA_HABITATS,
+  BASELINE_NAV_CHILD,
+  HEDGEROWS,
+  POST_INTERVENTION_NAV_CHILD,
+  REPORTS,
+  SUMMARY,
+  TILE_BASELINE,
+  TILE_NET_PERCENTAGE,
+  TILE_TRADING_RULES,
+  VIEW_ON_SITE_AREA_POST_INTERVENTION,
+  VIEW_ON_SITE_POST_INTERVENTION,
+  WATERCOURSES
+} from '@utils/unit-type-labels.js'
 
 // The area habitats post-intervention page (BMD-858 / BMD-997) —
 // `/projects/{id}/area-post-intervention`. See
 // test/flows/project-management/area-post-intervention.flow.md.
 //
-// This file covers BMD-997, the grids inside the intervention-type tabs. The
-// BMD-858 page furniture (nav, header, tiles, size section, tab shell) has no
-// journey coverage yet — see the flow doc.
+// Two describes: the BMD-858 page furniture (nav, header, tiles, size section,
+// tab visibility, upload action) and the BMD-997 grids inside the
+// intervention-type tabs.
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 // The shared-build upload budget. It sits on `describe.configure` because the
@@ -25,6 +42,29 @@ const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const SHARED_BUILD_TEST_TIMEOUT = 180_000
 
 const PAGE_PATH = 'area-post-intervention'
+
+// BMD-1024 PO ruling — lower-case "rules" in the nav, title case on the tile.
+const TRADING_RULES_NAV_CHILD = 'Trading rules'
+const TILE_POST_INTERVENTION_WITH_PI = 'On-site post-intervention'
+const TILE_NET_UNIT_CHANGE = 'Total on-site net unit change'
+// The area summary tile set, in rendered order (BMD-858 AC5).
+const RESULTS_TILES = [
+  TILE_NET_PERCENTAGE,
+  TILE_TRADING_RULES,
+  TILE_BASELINE,
+  TILE_POST_INTERVENTION_WITH_PI,
+  TILE_NET_UNIT_CHANGE
+]
+
+// BMD-858 AC6, in rendered order. The ticket's Site Area label omits the
+// closing bracket; the page closes it.
+const SIZE_TILES = [
+  BASELINE_AREA_LABEL,
+  POST_INTERVENTION_AREA_LABEL,
+  SITE_AREA_LABEL
+]
+// `formatSummaryAreaSize` — 2 dp, `ha` suffix, no space.
+const HECTARES_2DP = /^\d+\.\d{2}ha$/
 
 const RETAINED = 'Retained'
 const ENHANCED = 'Enhanced'
@@ -190,6 +230,202 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     timeout: SHARED_BUILD_TEST_TIMEOUT
   })
 
+  // ─── Page furniture (BMD-858) ────────────────────────────────────────────────
+  //
+  // `area-post-intervention/controller.test.js` asserts every element here in
+  // markup (`:141` header, `:161` upload, `:174`/`:257` tiles, `:200`/`:230`
+  // size, `:268` nav, `:295` tabs) against a mocked `wreck` and hand-built
+  // projects. What these hold is the half it cannot see: that this controller
+  // feeds them from a real project. AC7a/AC8 live in the BMD-997 grid tests
+  // below; AC2a, AC3b and the AC10 click-throughs are witnessed elsewhere —
+  // see the flow doc's Journey coverage.
+
+  test.describe(
+    'Area post-intervention — page furniture',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      // Hedgerows AND watercourses in both documents, so every conditional nav
+      // item renders. Already built in the module-scope cache by
+      // project-summary.spec.js and the BMD-997 describe below.
+      let project
+      test.beforeAll(async ({ browser }) => {
+        project = await getAllUnitTypesPostInterventionProject(browser)
+      })
+
+      // AC4.
+      test('the header shows the project name, the page heading and an Upload file button', async ({
+        areaPostInterventionPage
+      }) => {
+        await areaPostInterventionPage.open(project.id)
+
+        await expect(
+          areaPostInterventionPage.caption(project.name)
+        ).toBeVisible()
+        await expect(areaPostInterventionPage.heading).toBeVisible()
+        await expect(areaPostInterventionPage.uploadFileButton).toBeVisible()
+      })
+
+      // AC9. The `returnUrl` is built per page from the factory's `config.path`,
+      // so the hedgerow page's twin of this test does not cover it.
+      test(
+        'Upload file opens the file-type selection page',
+        { tag: '@happy-path' },
+        async ({ page, areaPostInterventionPage, uploadFilePage }) => {
+          await areaPostInterventionPage.open(project.id)
+          const target = uploadFileHref(
+            project.id,
+            `/projects/${project.id}/${PAGE_PATH}`
+          )
+
+          await expect(
+            areaPostInterventionPage.uploadFileButton
+          ).toHaveAttribute('href', target)
+          await areaPostInterventionPage.uploadFileButton.click()
+
+          await expect(page).toHaveURL(
+            new RegExp(`/projects/${project.id}/upload-file`)
+          )
+          await expect(uploadFilePage.heading).toBeVisible()
+        }
+      )
+
+      // AC3a, plus AC10's targets as hrefs on THIS page. Following them is
+      // left to area-trading-summary.spec.js and area-summary.spec.js: the
+      // builder takes only the project and the current href, so a click from a
+      // sibling area page exercises the same link.
+      test('the left navigation marks Post intervention as current and links everything else', async ({
+        areaPostInterventionPage
+      }) => {
+        const nav = areaPostInterventionPage
+        await nav.open(project.id)
+
+        // Current page: a <strong aria-current="page">, not a link.
+        await expect(nav.navItem(POST_INTERVENTION_NAV_CHILD)).toHaveAttribute(
+          'aria-current',
+          'page'
+        )
+        await expect(nav.navLink(POST_INTERVENTION_NAV_CHILD)).toHaveCount(0)
+
+        const projectPage = (path) => `/projects/${project.id}/${path}`
+        for (const [label, path] of [
+          [SUMMARY, 'project-summary'],
+          [AREA_HABITATS, 'area-summary'],
+          [BASELINE_NAV_CHILD, 'area-baseline'],
+          [TRADING_RULES_NAV_CHILD, 'area-trading-summary'],
+          [HEDGEROWS, 'hedgerows-summary'],
+          [WATERCOURSES, 'watercourses-summary'],
+          [REPORTS, 'reports']
+        ]) {
+          await expect(nav.navLink(label), label).toHaveAttribute(
+            'href',
+            projectPage(path)
+          )
+        }
+      })
+
+      // AC5. The tile values are compared with the project summary's, which
+      // reads the same backend fields — a mismatch means this controller's
+      // own choice (`areaUnits` + `areaInterventionSummary`) points elsewhere.
+      // That is how it caught the missing Trading Rules tag fixed by frontend
+      // PR#361 (2026-10-06): a heading-only check passed without it.
+      test('the results tiles match the project summary, without a link back to this page', async ({
+        areaPostInterventionPage,
+        projectSummaryPage
+      }) => {
+        await areaPostInterventionPage.open(project.id)
+
+        await expect(areaPostInterventionPage.resultsHeading).toBeVisible()
+        await expect(areaPostInterventionPage.tileHeadings()).toHaveText(
+          RESULTS_TILES
+        )
+        // No self-link, and no inert stand-in for one either: the action line
+        // under the post-intervention tile is dropped on this page only.
+        const section = areaPostInterventionPage.unitSection()
+        await expect(
+          section.getByRole('link', {
+            name: VIEW_ON_SITE_AREA_POST_INTERVENTION
+          })
+        ).toHaveCount(0)
+        await expect(
+          section.getByText(VIEW_ON_SITE_POST_INTERVENTION, { exact: true })
+        ).toHaveCount(0)
+
+        const values = {}
+        for (const tile of RESULTS_TILES) {
+          values[tile] = await areaPostInterventionPage.tileValue(tile)
+        }
+
+        await projectSummaryPage.open(project.id)
+        for (const tile of RESULTS_TILES) {
+          expect(
+            await projectSummaryPage.tileValue(AREA_HABITATS, tile),
+            tile
+          ).toBe(values[tile])
+        }
+      })
+
+      // AC6. Labels in order, and every value in hectares to 2 dp. The
+      // post-intervention and Site Area tiles are reconciled against the grid
+      // (trees in, trees out) by the "individual trees (BNG-587)" test below.
+      // What is left is the baseline tile — the only figure on this page drawn
+      // from `baseline.habitatSizes` — so it is compared with the area
+      // baseline page's grid total. A baseline tile wired to the
+      // post-intervention document fails here: this project's area differs
+      // between the two (53.66ha baseline, 53.14ha post-intervention).
+      test('the size section shows baseline, post-intervention and site area in hectares to 2 dp', async ({
+        areaPostInterventionPage,
+        areaBaselinePage
+      }) => {
+        await areaPostInterventionPage.open(project.id)
+
+        await expect(areaPostInterventionPage.areaSizeTileLabels()).toHaveText(
+          SIZE_TILES
+        )
+        const sizes = {}
+        for (const label of SIZE_TILES) {
+          sizes[label] = await areaPostInterventionPage.areaSizeTileValue(label)
+          expect(sizes[label], label).toMatch(HECTARES_2DP)
+        }
+
+        await areaBaselinePage.open(project.id)
+        const [baselineGridTotal] = hectares([
+          (await areaBaselinePage.totalsCell('size').innerText()).trim()
+        ])
+        const [baselineTile] = hectares([sizes[BASELINE_AREA_LABEL]])
+        expect(Math.abs(baselineTile - baselineGridTotal)).toBeLessThan(
+          AREA_TILE_TOLERANCE_HA
+        )
+      })
+
+      // AC7b. `visibleInterventionTabs` runs on this page's own area features,
+      // so the hedgerow and watercourse pages' tab tests witness none of it.
+      // `getAreaGainProject` has six Enhanced parcels and a Created tree but no
+      // Retained area habitat — the tab set skips Retained AND the default
+      // falls to the first VISIBLE tab, which a Retained-led project cannot
+      // show. Built in the module-scope cache by project-summary.spec.js and
+      // area-summary.spec.js.
+      test('a tab set with no Retained habitats skips that tab and selects the first visible one', async ({
+        browser,
+        areaPostInterventionPage
+      }) => {
+        const gainProject = await getAreaGainProject(browser)
+        const grid = areaPostInterventionPage
+        await grid.open(gainProject.id)
+
+        await expect(grid.tabs).toHaveText([ENHANCED, CREATED])
+        await expect(grid.tab(RETAINED)).toHaveCount(0)
+        await expect(grid.tab(ENHANCED)).toHaveAttribute(
+          'aria-selected',
+          'true'
+        )
+        await expect(grid.panelHeading(ENHANCED)).toBeVisible()
+      })
+    }
+  )
+
   // ─── Intervention type grids (BMD-997 AC1-AC10) ──────────────────────────────
   //
   // `area-post-intervention/controller.test.js:239-330` asserts the tabs,
@@ -236,12 +472,26 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         const grid = areaPostInterventionPage
         await grid.open(project.id)
 
-        // Retained is the first visible tab, so it is selected on load.
+        // BMD-858 AC7a: all three tabs in display order, Retained — the first
+        // visible — selected on load, and the other two still anchors to their
+        // panels. A GOV.UK tab's link role is replaced by `tab`, so "is a
+        // link" is asserted through `href` and the unselected state.
+        await expect(grid.tabs).toHaveText(ALL_TABS)
         await expect(grid.tab(RETAINED)).toHaveAttribute(
           'aria-selected',
           'true'
         )
         await expect(grid.panelHeading(RETAINED)).toBeVisible()
+        for (const label of [ENHANCED, CREATED]) {
+          await expect(grid.tab(label)).toHaveAttribute(
+            'aria-selected',
+            'false'
+          )
+          await expect(grid.tab(label)).toHaveAttribute(
+            'href',
+            `#${label.toLowerCase()}`
+          )
+        }
 
         expect(await grid.columnHeadings(RETAINED)).toEqual(RETAINED_COLUMNS)
         expect(await grid.columnValues(RETAINED, 'Ref')).toEqual(RETAINED_REFS)
@@ -285,6 +535,20 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await grid.open(project.id)
         await grid.tab(ENHANCED).click()
 
+        // BMD-858 AC8: the clicked tab takes selection and focus, and the
+        // other two drop back to unselected. GOV.UK Tabs is client-side JS, so
+        // no markup test can see this.
+        await expect(grid.tab(ENHANCED)).toHaveAttribute(
+          'aria-selected',
+          'true'
+        )
+        await expect(grid.tab(ENHANCED)).toBeFocused()
+        for (const label of [RETAINED, CREATED]) {
+          await expect(grid.tab(label)).toHaveAttribute(
+            'aria-selected',
+            'false'
+          )
+        }
         await expect(grid.panelHeading(ENHANCED)).toBeVisible()
         await expect(grid.panelHeading(RETAINED)).toBeHidden()
         expect(await grid.columnHeadings(ENHANCED)).toEqual(TARGET_COLUMNS)
