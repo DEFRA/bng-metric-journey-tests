@@ -329,9 +329,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // AC5. The tile values are compared with the project summary's, which
       // reads the same backend fields — a mismatch means this controller's
       // own choice (`areaUnits` + `areaInterventionSummary`) points elsewhere.
-      // AC5. Fixed by frontend PR#361 (2026-10-06), which passes the area
-      // trading-rules status to this page; until then its Trading Rules tile
-      // carried no Met/Not met tag, and this comparison is what caught it.
+      // That is how it caught the missing Trading Rules tag fixed by frontend
+      // PR#361 (2026-10-06): a heading-only check passed without it.
       test('the results tiles match the project summary, without a link back to this page', async ({
         areaPostInterventionPage,
         projectSummaryPage
