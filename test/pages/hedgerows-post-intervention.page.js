@@ -11,10 +11,9 @@ import { HEDGEROWS } from '@utils/unit-type-labels.js'
  *
  * Three things to know before writing a locator against it:
  *
- *  - **The tabs are NOT the post-intervention habitat list's tabs.**
- *    `PostInterventionHabitatListPage` splits by unit type (Areas / Hedgerows /
- *    Watercourses); these split by intervention type (Retained / Enhanced /
- *    Created) within hedgerows alone. The two pages share no tab locators.
+ *  - **The tabs split by intervention type** (Retained / Enhanced / Created)
+ *    within hedgerows alone — not by unit type, as the post-intervention
+ *    habitat list BMD-1043 removed did.
  *  - **A tab is not a link, in ARIA terms.** The GOV.UK Tabs component puts
  *    `role="tab"` on each `<a>`, which REPLACES the implicit link role — so
  *    `getByRole('link', { name: 'Enhanced' })` matches nothing. Reach a tab by

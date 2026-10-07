@@ -64,14 +64,14 @@ Added by **BMD-854** (frontend PR#237, 2026-08-25, "Area Habitats Redesign"), wh
 - **Validation:** `id` path param must be a valid uuidv4 (Joi); invalid → Hapi 400
 - **On success:** Renders `area-summary/index` with page title "Area habitats - {serviceName}"
 - **On error:**
-  - Project has **no baseline** → 302 to `/add-project-details/{id}` (Step 2)
+  - Project has **no baseline** → 302 to `/projects/{id}/project-summary` (Step 2)
   - Backend 404 → `Boom.notFound` → the global `error/index` page (404)
   - Backend unreachable or any non-2xx / non-404 status → `Boom.badGateway` ("Failed to fetch project") → `error/index` (502)
   - Dead, unrefreshable session → redirect to `/auth/session-expired`
 
 ---
 
-### Step 2 — Redirect a project with no baseline to the task list `[IMPLEMENTED]`
+### Step 2 — Redirect a project with no baseline to the project summary `[IMPLEMENTED]`
 
 - **Route:** `GET /projects/{id}/area-summary` (same route — the guard branch)
 - **Template:** None (302)
@@ -79,7 +79,7 @@ Added by **BMD-854** (frontend PR#237, 2026-08-25, "Area Habitats Redesign"), wh
 - **Backend endpoint:** `GET /projects/{id}`
 - **Description:** `hasBaselineData(project)` is `Boolean(project?.baseline)`. When false the handler redirects before rendering — the page has nothing to show without a baseline. Identical to the guard on the project summary and on every other unit-type page.
 - **Validation:** As Step 1
-- **On success:** 302 to `/add-project-details/{id}`
+- **On success:** 302 to `/projects/{id}/project-summary` (BMD-1043, frontend PR#352; it was the task list `/add-project-details/{id}`, now removed)
 - **On error:** As Step 1
 
 ---

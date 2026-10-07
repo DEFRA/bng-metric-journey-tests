@@ -2,8 +2,14 @@ import { test, expect } from '@fixtures'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import {
   getAllUnitTypesPostInterventionProject,
-  getAreaInterventionTypesProject
+  getAreaInterventionTypesProject,
+  getTreesPostInterventionProject
 } from '@utils/summary-projects.js'
+import { openPiTabFor } from '@utils/post-intervention-grid.js'
+import {
+  POST_INTERVENTION_AREA_LABEL,
+  SITE_AREA_LABEL
+} from '@pages/area-post-intervention.page.js'
 
 // The area habitats post-intervention page (BMD-858 / BMD-997) —
 // `/projects/{id}/area-post-intervention`. See
@@ -107,6 +113,16 @@ const naturalOrder = (refs) =>
 const hectares = (values) =>
   values.map((value) => Number(value.replace('ha', '')))
 const sum = (values) => values.reduce((total, value) => total + value, 0)
+// BNG-587 AC1: the fixed area of each individual-tree size band, in hectares.
+const TREE_SIZE_BANDS = [
+  ['T001', '0.0041'], // Small
+  ['T002', '0.0163'], // Medium
+  ['T003', '0.0366'], // Large
+  ['T004', '0.0765'] // Very large
+]
+// The area-size tiles round to 2dp, so a sum of 4dp grid sizes can differ from
+// them by up to one rounding step.
+const AREA_TILE_TOLERANCE_HA = 0.01
 
 async function expectColumn(grid, label, heading, pattern) {
   const values = await grid.columnValues(label, heading)
@@ -439,6 +455,83 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           }
         }
       )
+    }
+  )
+  // ─── Individual trees (BNG-587) ──────────────────────────────────────────────
+  //
+  // Moved from the post-intervention habitat list, which BMD-1043 (frontend
+  // PR#352) removed. The tree fixture is paired with a baseline, because a
+  // project without one is redirected off this page. The Lost-tree exclusion
+  // is covered by the many-row grid test above; per-tree size bands and the
+  // tree-inclusive / tree-exclusive area tiles had no other witness.
+
+  test.describe(
+    'Area post-intervention — individual trees (BNG-587)',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      let project
+      test.beforeAll(async ({ browser }) => {
+        project = await getTreesPostInterventionProject(browser)
+      })
+
+      test('AC1/AC3 — each individual tree shows the area for its size band and a calculated unit value', async ({
+        page
+      }) => {
+        for (const [ref, area] of TREE_SIZE_BANDS) {
+          const { unitPage, label } = await openPiTabFor(
+            page,
+            project.id,
+            'area',
+            ref
+          )
+          const row = await unitPage.rowByRef(label, ref)
+          expect(row.Size, `${ref} size`).toBe(`${area}ha`)
+          expect(row.Units, `${ref} units`).toMatch(GRID_UNITS_2DP)
+          expect(Number(row.Units), `${ref} units`).toBeGreaterThan(0)
+        }
+      })
+
+      test('AC5/AC6 — the post intervention area includes the trees and the Site Area excludes them', async ({
+        areaPostInterventionPage
+      }) => {
+        await areaPostInterventionPage.open(project.id)
+        const [postInterventionArea, siteArea] = hectares([
+          await areaPostInterventionPage.areaSizeTileValue(
+            POST_INTERVENTION_AREA_LABEL
+          ),
+          await areaPostInterventionPage.areaSizeTileValue(SITE_AREA_LABEL)
+        ])
+
+        // Sum every grid row, and the tree rows on their own, across the tabs.
+        const gridSizes = []
+        const treeSizes = []
+        for (const label of ALL_TABS) {
+          if ((await areaPostInterventionPage.tab(label).count()) === 0) {
+            continue
+          }
+          await areaPostInterventionPage.tab(label).click()
+          const refs = await areaPostInterventionPage.columnValues(label, 'Ref')
+          const sizes = hectares(
+            await areaPostInterventionPage.columnValues(label, 'Size')
+          )
+          gridSizes.push(...sizes)
+          treeSizes.push(...sizes.filter((_, i) => TREE_REF.test(refs[i])))
+        }
+        expect(treeSizes).toHaveLength(TREE_SIZE_BANDS.length)
+
+        // AC5: the area tile is the tree-inclusive grid total.
+        expect(Math.abs(postInterventionArea - sum(gridSizes))).toBeLessThan(
+          AREA_TILE_TOLERANCE_HA
+        )
+        // AC6: the Site Area drops exactly the tree hectares.
+        expect(siteArea).toBeLessThan(postInterventionArea)
+        expect(
+          Math.abs(postInterventionArea - siteArea - sum(treeSizes))
+        ).toBeLessThan(AREA_TILE_TOLERANCE_HA)
+      })
     }
   )
 })

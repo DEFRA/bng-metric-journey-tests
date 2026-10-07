@@ -178,7 +178,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     // A project with no baseline has nothing to report on. The guard is the same
     // rule as the project summary's but a SEPARATE copy of it in a separate
     // controller, so the summary's witness does not cover this one.
-    test('a project with no baseline is redirected to the task list', async ({
+    test('a project with no baseline is redirected to the project summary', async ({
       createProjectFlow,
       projectDashboardPage,
       projectReportsPage,
@@ -192,7 +192,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       await projectReportsPage.open(id)
 
-      await expect(page).toHaveURL(new RegExp(`/add-project-details/${id}`))
+      await expect(page).toHaveURL(
+        new RegExp(`/projects/${id}/project-summary`)
+      )
     })
   })
 

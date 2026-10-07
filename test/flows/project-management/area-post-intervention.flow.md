@@ -20,7 +20,7 @@ It runs on the same `createHabitatPostInterventionController` factory as its lin
 - **Template:** `src/server/common/templates/habitat-post-intervention-page.njk` (extends `common/templates/unit-type-page.njk`)
 - **Auth required:** Yes — active session + an **approved (status 3)** `bng completer` role
 - **Backend endpoint:** `GET /projects/{id}` (via `fetchProjectOrThrow`)
-- **On error:** a project with no baseline redirects to `/add-project-details/{id}`
+- **On error:** a project with no baseline redirects to `/projects/{id}/project-summary` (BMD-1043; it was the removed task list)
 - **Description:** `<h1>Post intervention for area habitats</h1>` under the project name caption, an "Upload file" button whose `returnUrl` points back here, `<h2>Area habitats results</h2>` with the five area summary tiles (no post-intervention self-link), a size section (`Site size`, `Area habitats size`, from `postIntervention.habitatSizes`), then `<h2>Area habitat details</h2>` and the GOV.UK Tabs component (title "Intervention type").
 
   **Tabs.** Order is fixed by `INTERVENTION_TAB_ORDER`; a tab renders only when at least one feature's `interventionDisplay(retentionCategory)` matches it, and the first visible tab is selected on load. Each panel holds `<h3>{Tab} area habitats</h3>` and that intervention type's grid.
@@ -75,7 +75,7 @@ Added 2026-10-01 for BMD-997 — the "intervention type grids" describe of `test
 | Many-row grids — ref order, no highlight, totals, tree rows  | 5, 7          | natural ref ordering over 50+ rows, totals reconciled against rendered rows, and that **urban trees** reach the area grid             |
 | Click a column heading → ascending, then descending          | 8, 9          | client-side MOJ sort — cheerio never runs it                                                                                          |
 | A 13-column grid's pane overflows and scrolls                | 6             | a layout fact no markup assertion can see                                                                                             |
-| Clicking a habitat reference opens the details page          | 10a, 10b, 10c | `post-intervention-habitat-details.spec.js` arrives from the deprecated habitat list, not from this grid                              |
+| Clicking a habitat reference opens the details page          | 10a, 10b, 10c | since BMD-1043 `post-intervention-habitat-details.spec.js` also arrives by clicking this grid (the habitat list it used was removed)  |
 
 **Fixtures.** The three-tab project is `getAreaInterventionTypesProject` (`Baseline - complete with area refs` + `Post-intervention - created area habitat`: H1/H2-2 Retained, H2-3/H3 Enhanced with real uplifts, H2-7 Created plus seven Lost parcels imported as Created). `post-intervention-habitat-details.spec.js` builds the same pairing through its own file-local cache, so a worker running both files uploads it twice — the same call the hedgerow and watercourse pairings make. The many-row project is `getAllUnitTypesPostInterventionProject` (33 Retained + 25 Enhanced parcels, 62 Lost→Created, plus urban trees), already built by `project-summary.spec.js` in the same module-scope cache, so it costs no upload.
 

@@ -4,7 +4,7 @@
 
 After uploading a baseline file — or by clicking the project name on the dashboard — the user lands on the project summary: a single page showing, for each habitat type the project actually has data for (area habitats, hedgerows, watercourses), the on-site baseline units, the post-intervention units, the net unit change and the net percentage change against target. It is the landing page for **any project that has a baseline**, with or without post-intervention data.
 
-Added by **BMD-870** (frontend PR#219, 2026-08-14), which built the baseline-only variant. **BMD-852** (PR#227, 2026-08-18) added the post-intervention variant and widened the guard so a project carrying both documents renders here instead of being redirected to the task list. BMD-870 states the page **replaces the project task list (`/add-project-details/{id}`, to be deprecated in due course) and the summary section of the baseline habitat list**.
+Added by **BMD-870** (frontend PR#219, 2026-08-14), which built the baseline-only variant. **BMD-852** (PR#227, 2026-08-18) added the post-intervention variant and widened the guard so a project carrying both documents renders here instead of being redirected to the task list. BMD-870 states the page **replaces the project task list (`/add-project-details/{id}`) and the summary section of the baseline habitat list**. **BMD-1043** (frontend PR#352, 2026-10-06) completed that: it removed the task list and both habitat lists, made the summary render for a project with **no** baseline (Step 2), and pointed every dashboard row and every successful upload — baseline and post-intervention — here.
 
 **Three further tickets have since changed this page** — check the [Deferred elements](#deferred-elements) and [Known deviations](#known-deviations-from-the-design) sections before trusting any older assertion about it:
 
@@ -134,28 +134,28 @@ the API response and are rendered **nowhere** — do not expect to assert them f
 - **Validation:** `id` path param must be a valid uuidv4 (Joi); invalid → Hapi 400
 - **On success:** Renders `project-summary/index` with page title "Summary - {serviceName}"
 - **On error:**
-  - Project has **no baseline** → 302 to `/add-project-details/{id}` (Step 2)
-  - Backend 404 → `Boom.notFound` → the global `error/index` page with heading `404` / "Page not found" and a 404 status. **Note this differs from the task list**, which catches the 404 and re-renders its own template with `error: true`
+  - Project has **no baseline** → renders the no-baseline variant (Step 2) — not an error since BMD-1043
+  - Backend 404 → `Boom.notFound` → the global `error/index` page with heading `404` / "Page not found" and a 404 status
   - Backend unreachable (`fetchProject` resolves `null`) or any non-2xx / non-404 status → `Boom.badGateway` ("Failed to fetch project") → `error/index` with a 502
   - Dead, unrefreshable session → redirect to `/auth/session-expired` (handled in `catchAll`)
 
 ---
 
-### Step 2 — Redirect a project with no baseline to the task list `[IMPLEMENTED]`
+### Step 2 — Render a project with no baseline `[IMPLEMENTED]`
 
-- **Route:** `GET /projects/{id}/project-summary` (same route — this is the guard branch)
-- **Template:** None (302)
+- **Route:** `GET /projects/{id}/project-summary` (same route)
+- **Template:** `src/server/project-summary/index.njk`
 - **Auth required:** Yes — as Step 1
 - **Backend endpoint:** `GET /projects/{id}`
-- **Description:** The page needs a baseline to render anything. `hasBaselineData(project)` (`src/server/common/helpers/project-state.js`) is `Boolean(project?.baseline)`. When it is false the handler redirects to the task list before rendering.
+- **Description:** `hasBaselineData(project)` (`src/server/common/helpers/project-state.js`) is `Boolean(project?.baseline)`. When it is false, `buildProjectSummary` sets `hasBaseline: false`, the navigation is a single current "Summary" item, and `unitSummaries` is empty. The page renders its caption, heading and "Upload file" button, then the line **"Upload an on-site baseline file to see your biodiversity net gain results."** in place of the unit-type sections.
 
-  **Changed by BMD-852.** The helper was `isBaselineOnlyProject` — `Boolean(project?.baseline) && !project?.postIntervention` — so a project carrying **both** documents was also redirected away. It now renders the post-intervention variant of Step 1 instead. A journey test asserting the old both-documents redirect is asserting deleted behaviour.
+  **Changed by BMD-1043 (frontend PR#352).** Until then this branch was a 302 to the project task list (`/add-project-details/{id}`), which PR#352 removed. Before BMD-852 the guard also redirected a project carrying both documents.
 
 - **Validation:** As Step 1
-- **On success:** 302 to `/add-project-details/{id}` — reached only when the project has **no baseline** yet (never uploaded)
+- **On success:** 200 — the no-baseline variant above
 - **On error:** As Step 1
 
-> **Reachability note.** Since BMD-852 this branch fires only for a project with no baseline at all, which in practice means one reached by direct URL before any upload — every successful baseline upload lands on the rendered page. (Backend BMD-850, commit `a2f2985`, additionally deletes `postIntervention` from the project JSONB whenever a baseline is replaced, so a replacement returns the project to the baseline-only variant of Step 1.)
+> **Reachability note.** Every dashboard row links here since BMD-1043, so this is what a newly created project shows. A project with a post-intervention upload but no baseline also renders this variant, and the unit-type post-intervention pages redirect it back here — its post-intervention features are listed on no page (open question raised with the team, 2026-10-07).
 
 ---
 
@@ -165,7 +165,7 @@ the API response and are rendered **nowhere** — do not expect to assert them f
 - **Template:** `src/server/upload-file/index.njk`
 - **Auth required:** Yes — as Step 1
 - **Backend endpoint:** None (selection page)
-- **Description:** Both live links on the summary — the header **"Upload file"** button and the **"Upload on-site post intervention file"** link inside every unit-type section — resolve to the _same_ href, built by `uploadFileHref(projectId, '/projects/{id}/project-summary')`. It is the shared file-type selection page from BMD-850, so the user picks baseline or post-intervention there; the summary does not link straight to a type-specific upload form despite the post-intervention wording on the in-section link. The `returnUrl` means Back/Cancel on the selection page and the upload form return **here**, not to the task list.
+- **Description:** Both live links on the summary — the header **"Upload file"** button and the **"Upload on-site post intervention file"** link inside every unit-type section — resolve to the _same_ href, built by `uploadFileHref(projectId, '/projects/{id}/project-summary')`. It is the shared file-type selection page from BMD-850, so the user picks baseline or post-intervention there; the summary does not link straight to a type-specific upload form despite the post-intervention wording on the in-section link. The `returnUrl` means Back/Cancel on the selection page and the upload form return **here** (which is also their default since BMD-1043).
 - **Validation:** See [`../upload-file/choose-upload-type.flow.md`](../upload-file/choose-upload-type.flow.md)
 - **On success:** Selection page behaviour is documented in [`../upload-file/choose-upload-type.flow.md`](../upload-file/choose-upload-type.flow.md)
 - **On error:** As above
@@ -174,16 +174,15 @@ the API response and are rendered **nowhere** — do not expect to assert them f
 
 ## Entry points
 
-| From                       | Href                             | When                                                                           |
-| -------------------------- | -------------------------------- | ------------------------------------------------------------------------------ |
-| Project dashboard row link | `/projects/{id}/project-summary` | project has a baseline; otherwise the row links to `/add-project-details/{id}` |
-| Successful baseline upload | `/projects/{id}/project-summary` | always — `successRoute` on the baseline upload type                            |
+| From                                | Href                             | When                                                                    |
+| ----------------------------------- | -------------------------------- | ----------------------------------------------------------------------- |
+| Project dashboard row link          | `/projects/{id}/project-summary` | always (BMD-1043; it was conditional on a baseline, else the task list) |
+| Successful baseline upload          | `/projects/{id}/project-summary` | always — `successRoute` on the baseline upload type                     |
+| Successful post-intervention upload | `/projects/{id}/project-summary` | always — `successRoute` on the post-intervention upload type (BMD-1043) |
 
-**Dashboard (`GET /manage-projects`).** `projectsListController` maps each row to an `href` and the template renders `{{ item.href }}` instead of a hardcoded task-list path.
+**Dashboard (`GET /manage-projects`).** Since BMD-1043 (frontend PR#352) `projectsListController` maps every row to `/projects/{id}/project-summary` unconditionally. The BMD-870 / BMD-852 / BMD-933 condition (`project.has_baseline ?? hasBaselineData(project.project)`, else the task list) is gone. See [`project-dashboard.flow.md`](project-dashboard.flow.md) Step 1.
 
-**Changed by BMD-933** (frontend PR#230, backend PR#262/#286, 2026-08-19/26). The test is now `project.has_baseline ?? hasBaselineData(project.project)` — a **flag on the list row**, with the old JSONB check kept only as a fallback for the window where the frontend deploys ahead of the backend that sets it. The backend list endpoint **no longer returns the whole project document**; it loads only the fields the list page needs. The earlier claim here — that the JSONB needed for the test is present on the list response — is **no longer true**, and a test or fixture relying on `project.project.baseline` coming back from `GET /users/{userId}/projects` is relying on data the endpoint has stopped sending. See [`project-dashboard.flow.md`](project-dashboard.flow.md) Step 1.
-
-**Baseline upload.** `HABITAT_UPLOAD_TYPES.baseline` gained `successRoute: 'project-summary'`, and `habitat-upload-received-controller.js` redirects to `successRoute ?? listRoute` on a `ready` upload that passes validation. The post-intervention upload type has **no** `successRoute`, so it still falls back to its `listRoute`. See [`../upload-baseline/upload-baseline-file.flow.md`](../upload-baseline/upload-baseline-file.flow.md) Step 5.
+**Uploads.** Both `HABITAT_UPLOAD_TYPES.baseline` and (since BMD-1043) `HABITAT_UPLOAD_TYPES.postIntervention` carry `successRoute: 'project-summary'`, and neither has a `listRoute` any more. See [`../upload-baseline/upload-baseline-file.flow.md`](../upload-baseline/upload-baseline-file.flow.md) Step 5 and [`../upload-post-intervention/upload-post-intervention-file.flow.md`](../upload-post-intervention/upload-post-intervention-file.flow.md).
 
 ---
 

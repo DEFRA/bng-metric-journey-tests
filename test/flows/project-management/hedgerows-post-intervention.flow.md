@@ -8,7 +8,7 @@ Added by **BMD-860** (frontend PR#278, merged 2026-09-11), which shipped the pag
 
 Two things separate it from every other unit-type page:
 
-- It is the first page in the service whose tabs are the **GOV.UK Tabs component**. The existing [post-intervention habitat list](../habitat-list/post-intervention-habitat-list.flow.md) also has tabs, but they split by **unit type** (Areas / Hedgerows / Watercourses); these split by **intervention type** within one unit type. Do not reuse one page's tab locators on the other.
+- It is the first page in the service whose tabs are the **GOV.UK Tabs component**. These split by **intervention type** within one unit type. (The post-intervention habitat list that BMD-1043 removed split its tabs by **unit type** instead.)
 - Its results tiles carry **no post-intervention action line at all** — the same self-link suppression the baseline page applies to its baseline tile, for the same reason: the link would point at the page the user is already on.
 
 Its area and watercourse equivalents are separate stories. **PI Watercourses has since shipped** — BMD-862, frontend PR#285 (2026-09-15) — on this page's own `createHabitatPostInterventionController`; see [watercourses-post-intervention.flow.md](watercourses-post-intervention.flow.md). **PI Areas has shipped too** — BMD-858/997, frontend PR#300 (2026-09-30) — on the same factory, with `unit-type-navigation.js` now giving the area unit type its own `postInterventionPath`; see [area-post-intervention.flow.md](area-post-intervention.flow.md).
@@ -80,7 +80,7 @@ A `<tfoot>` **totals row** closes every grid: the fixed text `Total` in the Ref 
 
 > **Copy note — `Final time to target` pluralises a one-year value.** The cell renders `"1 years (0.965)"` where the `Standard time to target` beside it correctly renders `"1 year"`. The frontend formats its own year columns with `formatYears`, which handles the singular, but takes `proposed.finalTimeToTargetCondition` **verbatim** from the backend, which hardcodes the plural (`bng-metric-backend` `proposed-time-difficulty-display.js`, `` `${finalYears} years (${timeMultiplier})` ``). It predates BMD-998 and is shared with area habitats and watercourses. Raised during the BMD-998 manual validation (2026-09-14) and **accepted by the ticket owner as out of scope** — not a defect against this page.
 
-> **An Incomplete hedgerow renders as blank cells.** When the backend could not calculate units — an Enhanced hedgerow whose proposed condition does not improve on its baseline is the common case — `Units`, `Distinctiveness` and the whole target/time block render empty. This grid has **no `Status` column**, unlike the [post-intervention habitat list](../habitat-list/post-intervention-habitat-list.flow.md) (BMD-531), so nothing on the page says why. AC4's column table does not ask for one; flagged to the PO rather than treated as a defect.
+> **An Incomplete hedgerow renders as blank cells.** When the backend could not calculate units — an Enhanced hedgerow whose proposed condition does not improve on its baseline is the common case — `Units`, `Distinctiveness` and the whole target/time block render empty. This grid has **no `Status` column**, unlike the post-intervention habitat list BMD-1043 removed (BMD-531), so nothing on the page says why. AC4's column table does not ask for one; flagged to the PO rather than treated as a defect.
 
 **Tab visibility depends on normalisation, not on the raw value.** `visibleInterventionTabs` filters through `interventionDisplay`, which strips a leading `"N. "` list prefix. The backend normalises the category to pick an engine calculation but **never writes the normalised value back** (see the header comment in `post-intervention-habitat-details/retention.js`), so the document keeps whatever the GeoPackage carried — `"Retained"`, `"1. Retained"` or `"  Retained  "` all have to land in the same tab. Nothing but a real upload exercises that.
 
@@ -92,7 +92,7 @@ A `<tfoot>` **totals row** closes every grid: the fixed text `Total` in the Ref 
 
 ---
 
-### Step 2 — Redirect a project with no baseline to the task list `[IMPLEMENTED]`
+### Step 2 — Redirect a project with no baseline to the project summary `[IMPLEMENTED]`
 
 - **Route:** `GET /projects/{id}/hedgerows-post-intervention` (the guard branch)
 - **Template:** None (302)
@@ -100,7 +100,7 @@ A `<tfoot>` **totals row** closes every grid: the fixed text `Total` in the Ref 
 - **Backend endpoint:** `GET /projects/{id}`
 - **Description:** `hasBaselineData(project)` false → redirect before rendering. As on the other unit-type pages the guard is on **any** baseline, not on hedgerow data specifically.
 - **Validation:** As Step 1
-- **On success:** 302 to `/add-project-details/{id}`
+- **On success:** 302 to `/projects/{id}/project-summary` (BMD-1043, frontend PR#352; it was the task list `/add-project-details/{id}`, now removed)
 - **On error:** As Step 1
 
 ---
@@ -129,7 +129,7 @@ A `<tfoot>` **totals row** closes every grid: the fixed text `Total` in the Ref 
 - **Template:** See [`../upload-file/choose-upload-type.flow.md`](../upload-file/choose-upload-type.flow.md)
 - **Auth required:** As Step 1
 - **Backend endpoint:** None on entry
-- **Description:** The header "Upload file" button. `uploadFileHref` encodes this page as the `returnUrl`, so the selection page's Back and Cancel both come back here rather than defaulting to the task list.
+- **Description:** The header "Upload file" button. `uploadFileHref` encodes this page as the `returnUrl`, so the selection page's Back and Cancel both come back here rather than defaulting to the project summary.
 - **Validation:** See the upload-file flow
 - **On success:** Renders the file-type selection page
 - **On error:** See the upload-file flow
@@ -181,7 +181,7 @@ Added 2026-09-14 for the BMD-860 AC sweep and extended the same day for BMD-998 
 | Enhanced grid — same columns, populated on HG018         | 4b, 5     | runs on the **other** fixture; see the calculated-row note below                                                                                       |
 | Click a column heading → ascending, then descending      | 8, 9      | the resulting ROW ORDER on this grid's own `data-sort-value`s, **and** that `createAll(SortableTable)` binds a table inside a `display:none` tab panel |
 | A twelve-column grid's pane overflows horizontally       | 6         | the pane's overflow is a layout fact no markup assertion can see                                                                                       |
-| Clicking a habitat reference opens the details page      | 10a, b, c | `post-intervention-habitat-details.spec.js` arrives from the **deprecated** habitat list's Hedgerows tab — a different page with different Ref cells   |
+| Clicking a habitat reference opens the details page      | 10a, b, c | since BMD-1043 `post-intervention-habitat-details.spec.js` also arrives by clicking this grid (the habitat list it used was removed)                   |
 | (tabs describe) selecting Created reveals its subheading | 3         | every other test sees that heading hidden or absent, neither of which proves it renders when the tab is chosen                                         |
 
 **Fixtures.** The BMD-860 pairing has exactly one hedgerow per tab, which cannot witness a totals row worth summing, a default ordering or a re-sort — so the grids use `getLinearInterventionTypesProject` (`created linear features`: 7 Retained, 2 Enhanced, 4 Created). Its Enhanced pair is the exception: **HG006 Good → Good and HG009 Moderate → Poor do not improve on their baseline condition**, so the engine calculates no units and their Units, Distinctiveness and target/time cells render empty. AC4b's column values therefore run on `getAllUnitTypesPostInterventionProject` instead, whose **HG018 (Poor → Moderate) is the only Enhanced hedgerow in any shipped fixture with a real uplift**.

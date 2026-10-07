@@ -2,7 +2,7 @@
 
 ## Overview
 
-The user navigates to the change-name form for an existing project, which is pre-populated with the current name, edits the name, and submits it. On success they are returned to the project task list.
+The user navigates to the change-name form for an existing project (since BMD-1043 removed the task list, the only page that linked here, it is reachable only by URL — open question raised with the team, 2026-10-07), which is pre-populated with the current name, edits the name, and submits it. On success they are returned to the project summary (BMD-1043, frontend PR#352; it was the project task list, now removed).
 
 ## Steps
 
@@ -29,6 +29,6 @@ The user navigates to the change-name form for an existing project, which is pre
   - Max 1,000 characters: "Project name must be 1000 characters or fewer"
   - No control characters (code points < U+0020), no DEL (U+007F), no Unicode surrogates (U+D800–U+DFFF): "Project name must only contain valid characters"
   - Trimmed before validation (leading/trailing whitespace stripped)
-- **On success:** Redirects to `/add-project-details/{id}`
+- **On success:** Redirects to `/projects/{id}/project-summary`
 - **On error (validation):** Re-renders form with GOV.UK error summary and inline field error on `#project-name`; page title prefixed with "Error:"
 - **On error (backend 4xx):** Throws Boom.badGateway — not shown inline

@@ -2,6 +2,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { test, expect } from '@fixtures'
+import { projectIdFromHref } from '@utils/project-helpers.js'
 import { STORAGE_STATE } from '@utils/env.js'
 
 /**
@@ -58,14 +59,14 @@ test.describe('happy-path-screenshots', { tag: '@screenshots' }, () => {
     test('captures every screen of the happy path in order', async ({
       projectDashboardPage,
       defineProjectNamePage,
-      projectTaskListPage,
+      projectSummaryPage,
       uploadBaselineFilePage,
       uploadBaselineFileFlow,
-      habitatListPage,
+      areaBaselinePage,
       baselineHabitatDetailsPage,
       uploadPostInterventionFilePage,
       uploadPostInterventionFileFlow,
-      postInterventionHabitatListPage,
+      areaPostInterventionPage,
       page
     }) => {
       const projectName = `${PROJECT_LABEL} ${Date.now()}`
@@ -89,12 +90,12 @@ test.describe('happy-path-screenshots', { tag: '@screenshots' }, () => {
       const href = await projectDashboardPage
         .projectLink(projectName)
         .getAttribute('href')
-      const id = href.split('/').pop()
+      const id = projectIdFromHref(href)
 
-      // ── Project task list (initial statuses) ────────────────────────────
+      // ── Project summary, before any upload (BMD-1043) ───────────────────
       await projectDashboardPage.projectLink(projectName).click()
-      await expect(projectTaskListPage.heading).toBeVisible()
-      await snap(page, 'add-project-details')
+      await expect(projectSummaryPage.noBaselinePrompt).toBeVisible()
+      await snap(page, 'project-summary-empty')
 
       // ── Upload baseline file ────────────────────────────────────────────
       await uploadBaselineFilePage.open(id)
@@ -110,24 +111,31 @@ test.describe('happy-path-screenshots', { tag: '@screenshots' }, () => {
       // interrupted by that redirect leaves a numbering gap instead of failing.
       await snap(page, 'checking-your-file').catch(() => {})
 
-      // ── Baseline habitat list ───────────────────────────────────────────
-      await page.waitForURL(
-        new RegExp(`/projects/${id}/baseline-habitat-list`),
-        { timeout: UPLOAD_TIMEOUT }
-      )
-      await expect(habitatListPage.heading).toBeVisible()
-      await expect(habitatListPage.firstAreaHabitatLink).toBeVisible()
-      await snap(page, 'baseline-habitat-list')
+      // ── Project summary with baseline results ───────────────────────────
+      await page.waitForURL(new RegExp(`/projects/${id}/project-summary`), {
+        timeout: UPLOAD_TIMEOUT
+      })
+      await expect(projectSummaryPage.heading).toBeVisible()
+      await snap(page, 'project-summary-baseline')
+
+      // ── Area habitats baseline ──────────────────────────────────────────
+      await areaBaselinePage.open(id)
+      const firstAreaHabitatLink = areaBaselinePage
+        .table()
+        .getByRole('link')
+        .first()
+      await expect(firstAreaHabitatLink).toBeVisible()
+      await snap(page, 'area-baseline')
 
       // ── Baseline habitat details ────────────────────────────────────────
-      await habitatListPage.firstAreaHabitatLink.click()
+      await firstAreaHabitatLink.click()
       await expect(baselineHabitatDetailsPage.heading).toBeVisible()
       await expect(
         baselineHabitatDetailsPage.baselineDetailsHeading
       ).toBeVisible()
       await snap(page, 'baseline-habitat-details')
       await baselineHabitatDetailsPage.saveButton.click()
-      await page.waitForURL(new RegExp(`/projects/${id}/baseline-habitat-list`))
+      await page.waitForURL(new RegExp(`/projects/${id}/area-baseline`))
 
       // ── Upload post-intervention file ───────────────────────────────────
       await uploadPostInterventionFilePage.open(id)
@@ -137,21 +145,17 @@ test.describe('happy-path-screenshots', { tag: '@screenshots' }, () => {
       await snap(page, 'upload-post-intervention-file')
       await uploadPostInterventionFilePage.continueButton.click()
 
-      // ── Post-intervention habitat list ──────────────────────────────────
-      await page.waitForURL(
-        new RegExp(`/projects/${id}/post-intervention-habitat-list`),
-        { timeout: UPLOAD_TIMEOUT }
-      )
-      await expect(postInterventionHabitatListPage.heading).toBeVisible()
-      await expect(postInterventionHabitatListPage.summaryHeading).toBeVisible()
-      await snap(page, 'post-intervention-habitat-list')
+      // ── Project summary with post-intervention results ──────────────────
+      await page.waitForURL(new RegExp(`/projects/${id}/project-summary`), {
+        timeout: UPLOAD_TIMEOUT
+      })
+      await expect(projectSummaryPage.heading).toBeVisible()
+      await snap(page, 'project-summary-complete')
 
-      // ── Project task list (Completed statuses) ──────────────────────────
-      await projectTaskListPage.open(id)
-      // Project Name + On-site baseline + On-site post intervention Completed;
-      // Project Details remains Not yet started.
-      await expect(projectTaskListPage.taskStatus('Completed')).toHaveCount(3)
-      await snap(page, 'add-project-details-complete')
+      // ── Area habitats post intervention ─────────────────────────────────
+      await areaPostInterventionPage.open(id)
+      await expect(areaPostInterventionPage.heading).toBeVisible()
+      await snap(page, 'area-post-intervention')
     })
   })
 })

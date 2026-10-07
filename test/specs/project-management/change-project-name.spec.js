@@ -1,4 +1,5 @@
 import { test, expect } from '@fixtures'
+import { projectIdFromHref } from '@utils/project-helpers.js'
 import { STORAGE_STATE, NO_ROLE_STORAGE_STATE, skipInE2e } from '@utils/env.js'
 
 const PROJECT_NAME_MAX_LENGTH = 1000
@@ -10,7 +11,7 @@ async function setupProject(createProjectFlow, projectDashboardPage) {
   const name = `Change name test ${Date.now()}`
   await createProjectFlow.createProject(name)
   const href = await projectDashboardPage.projectLink(name).getAttribute('href')
-  const id = href.split('/').pop()
+  const id = projectIdFromHref(href)
   return { id, name }
 }
 
@@ -158,7 +159,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      test('valid name updates project and redirects to task list', async ({
+      test('valid name updates project and redirects to the project summary', async ({
         createProjectFlow,
         projectDashboardPage,
         changeProjectNamePage,
@@ -174,7 +175,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await changeProjectNamePage.enterName(newName)
         await changeProjectNamePage.submit()
 
-        await expect(page).toHaveURL(new RegExp(`/add-project-details/${id}`))
+        await expect(page).toHaveURL(
+          new RegExp(`/projects/${id}/project-summary`)
+        )
         await expect(page.getByText(newName)).toBeVisible()
 
         await projectDashboardPage.open()
@@ -198,7 +201,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      test('clicking "Back" navigates to the project task list', async ({
+      test('clicking "Back" navigates to the project summary', async ({
         createProjectFlow,
         projectDashboardPage,
         changeProjectNamePage,
@@ -211,7 +214,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await changeProjectNamePage.open(id)
         await changeProjectNamePage.backLink.click()
 
-        await expect(page).toHaveURL(new RegExp(`/add-project-details/${id}`))
+        await expect(page).toHaveURL(
+          new RegExp(`/projects/${id}/project-summary`)
+        )
       })
     }
   )

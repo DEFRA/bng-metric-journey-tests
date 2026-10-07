@@ -4,8 +4,10 @@
 
 Before uploading a GeoPackage, a BNG Completer chooses **which kind** of file they are
 uploading — baseline or post-intervention — on a shared radio-button page. The page is the
-single entry point to both upload journeys (BMD-850, frontend PR#207): the project task list
-and both habitat lists now link here rather than straight to a type-specific upload form.
+single entry point to both upload journeys (BMD-850, frontend PR#207): the project summary and
+every unit-type page link here rather than straight to a type-specific upload form. (Until
+BMD-1043, frontend PR#352, the project task list and both habitat lists did; all three were
+removed.)
 
 It is also the first place the **baseline-before-post-intervention** ordering is enforced.
 Selecting post-intervention for a project with no stored baseline is rejected inline; the
@@ -13,17 +15,16 @@ post-intervention upload route itself is still ungated, so a direct URL bypasses
 
 ## Entry points
 
-| From                                                             | Link                                                                                 | Condition                             |
-| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------- |
-| Task list "On-site baseline habitats" (`projects/task-list.njk`) | `/projects/{id}/upload-file` (no `returnUrl`)                                        | `isBaselineUploaded` is false         |
-| Task list "On-site post intervention habitats"                   | `/projects/{id}/upload-file` (no `returnUrl`)                                        | `isPostInterventionUploaded` is false |
-| Baseline habitat list — "Upload a different file"                | `/projects/{id}/upload-file?returnUrl=/projects/{id}/baseline-habitat-list`          | always                                |
-| Post-intervention habitat list — "Upload a different file"       | `/projects/{id}/upload-file?returnUrl=/projects/{id}/post-intervention-habitat-list` | always                                |
-| Either upload form — Back link and Cancel link                   | `/projects/{id}/upload-file?returnUrl=<the returnUrl it was given>`                  | always                                |
+| From                                                                                  | Link                                                                  | Condition                         |
+| ------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | --------------------------------- |
+| Project summary — "Upload file" button                                                | `/projects/{id}/upload-file?returnUrl=/projects/{id}/project-summary` | always                            |
+| Project summary — "Upload on-site post intervention file" link in a unit-type section | the same href                                                         | `project.postIntervention` absent |
+| A unit-type page (summary, baseline, post intervention, trading) — "Upload file"      | `/projects/{id}/upload-file?returnUrl=/projects/{id}/<that page>`     | always                            |
+| Either upload form — Back link and Cancel link                                        | `/projects/{id}/upload-file?returnUrl=<the returnUrl it was given>`   | always                            |
 
-Because the task-list rows only link here while the corresponding upload is **absent**, the
-habitat-list "Upload a different file" button is the only route back to this page once both
-uploads exist.
+A bare `/projects/{id}/upload-file` (no `returnUrl`) is no longer linked from anywhere since
+BMD-1043; it is what a direct URL produces, and its Back and Cancel then default to the project
+summary.
 
 ## `returnUrl` and the navigation helper
 
@@ -32,7 +33,8 @@ All hrefs are built by `src/server/common/helpers/upload-file-navigation.js`:
 - `safeUploadReturnUrl(returnUrl, projectId)` — an **open-redirect guard**. Returns the
   supplied value only when it is a string starting with a single `/` and containing no `\`;
   a non-string, a value starting `//`, a backslash-bearing value, or an absent value all
-  fall back to `/add-project-details/{projectId}`.
+  fall back to `/projects/{projectId}/project-summary` (BMD-1043; it was the removed task list
+  `/add-project-details/{projectId}`).
 - `uploadFileHref(projectId, returnUrl)` → `/projects/{projectId}/upload-file?returnUrl=<safe>`
 - `selectedUploadHref(projectId, uploadRoute, returnUrl)` → `/projects/{projectId}/{uploadRoute}?returnUrl=<safe>`
 
@@ -118,9 +120,9 @@ Backend BMD-850 (PR#219) changed `setProjectBaseline`
 alongside the geometry cleanup in the same upload transaction.
 
 So choosing **baseline** here and completing that upload **silently discards any existing
-post-intervention data** for the project. The visible effect is on the task list: the
-"On-site post intervention habitats" row reverts from "Completed" to "Not yet started", and
-`/projects/{id}/post-intervention-habitat-list` renders with empty tabs. This is what the
+post-intervention data** for the project. The visible effect is on the project summary: each
+unit-type section offers the "Upload on-site post intervention file" link again, and the
+post-intervention pages have nothing to list. This is what the
 page's "Uploading a file will overwrite any previous files you have uploaded." line warns
 about, and it is the reason the post-intervention ordering rule exists in Step 2.
 

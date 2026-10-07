@@ -645,10 +645,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
   // nothing else — no Retained or Created watercourse, and none of the display
   // fields these columns read.
   //
-  // The neighbours do not stand in. The DEPRECATED post-intervention habitat
-  // list renders watercourse units and a totals row from real data
-  // (post-intervention-habitat-list.spec.js:826,845) but is built by
-  // `createHabitatListController`, a different builder. The hedgerow twin
+  // The neighbours do not stand in. The hedgerow twin
   // (hedgerows-post-intervention.spec.js:646) shares
   // `buildPostInterventionHabitatGrid`, but the factory takes
   // `buildExtraColumns` as per-page config and `buildWatercourseExtraColumns`
@@ -849,7 +846,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       // AC8 and AC9. The `aria-sort` toggle itself is MOJ's own component
       // behaviour, already witnessed by real clicks in
-      // habitat-list-upload.spec.js:342 and watercourses-baseline.spec.js. Two
+      // hedgerows-baseline.spec.js. Two
       // things here are not:
       //
       //  - the RESULTING ROW ORDER on THIS grid, which depends on the

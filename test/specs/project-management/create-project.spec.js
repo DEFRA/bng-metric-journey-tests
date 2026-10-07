@@ -28,7 +28,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         ).toBeVisible()
         await expect(
           projectDashboardPage.projectLink(projectName)
-        ).toHaveAttribute('href', /\/add-project-details\//)
+        ).toHaveAttribute('href', /^\/projects\/[0-9a-f-]+\/project-summary$/)
 
         const projectRow = page
           .getByTestId('projects-table')

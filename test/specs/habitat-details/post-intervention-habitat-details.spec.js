@@ -12,7 +12,11 @@ import { CreateProjectFlow } from '@flows/project-management/create-project.flow
 import { UploadBaselineFileFlow } from '@flows/upload-baseline/upload-baseline-file.flow.js'
 import { UploadPostInterventionFileFlow } from '@flows/upload-post-intervention/upload-post-intervention-file.flow.js'
 import { ProjectDashboardPage } from '@pages/project-dashboard.page.js'
-import { PostInterventionHabitatListPage } from '@pages/post-intervention-habitat-list.page.js'
+import {
+  openPiTabFor,
+  piPage,
+  piPageUrl
+} from '@utils/post-intervention-grid.js'
 import { UNITS_TWO_DP_PATTERN } from '@pages/post-intervention-habitat-details.page.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
@@ -21,7 +25,6 @@ const HTTP_NOT_FOUND = 404
 const HTTP_NOT_IMPLEMENTED = 501
 const STUB_UUID = '00000000-0000-0000-0000-000000000000'
 const VALID_UUID_V4 = 'aaaaaaaa-bbbb-4ccc-bddd-eeeeeeeeeeee'
-const UPLOAD_TIMEOUT = 120_000
 // Test-timeout cap for this file: the first test to need a shared project
 // pays its build (create + up to two uploads), which overruns the default
 // 60s timeout.
@@ -48,7 +51,7 @@ const BASELINE_DETAILS_URL_PATTERN = /\/baseline-habitat-details/
 // - MIXED_FILE: H1 Retained with blank proposed columns (proves the
 //   baseline-side value sourcing) plus H2/H3 Enhanced with blank proposed
 //   columns (Incomplete). Its hedgerows (H1/H2) and river (R1) are Lost, so
-//   the backend excludes them on import — asserted on the habitat list.
+//   the backend excludes them on import.
 // - TREES_FILE: T001-T004 individual trees (unsupported placeholder page).
 const COMPLETE_PI_FILE = 'Post-intervention - complete.gpkg'
 const BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
@@ -145,15 +148,14 @@ const LENGTH_KM_PATTERN = /^\s*[\d.]+km\s*$/
 // precision.
 const RETAINED_NO_BASELINE_SIZE_HECTARES = '0.1619213922'
 // UNITS_TWO_DP_PATTERN (imported above) pins BMD-608 AC1's 2-decimal-place
-// rule. It is asserted separately from the habitat-list cell comparison, which
+// rule. It is asserted separately from the grid Units cell comparison, which
 // shares formatHabitatUnits and so cannot catch a change to the formatter
 // itself. toHaveText normalises whitespace only for string matching, not
 // regex, so the surrounding template whitespace is matched explicitly.
 
-// Post-intervention habitat-list table column order (BMD-845 added the
-// "Intervention type" column at index 1): ref, intervention type, type, size,
-// distinctiveness, condition, units, status.
-const UNITS_COL = 6
+// BMD-1043 (frontend PR#352) removed the post-intervention habitat list; the
+// unit-type post-intervention pages (`@utils/post-intervention-grid.js`) are
+// where features are listed and where the details page's Back link leads.
 
 function detailsUrl({ projectId, featureId } = {}) {
   const params = new URLSearchParams()
@@ -219,25 +221,43 @@ async function expectReturnLinksToPiDetails(
   await expect(piHeading).toBeVisible()
 }
 
-function listAnchorPattern(projectId, anchor) {
-  return new RegExp(
-    `/projects/${projectId}/post-intervention-habitat-list#${anchor}`
-  )
+// Arrive at a feature's details page the way the user does: click its Ref
+// link in the post-intervention grid rather than deep-linking.
+async function openPiFeatureDetails(page, projectId, type, ref) {
+  const { unitPage, label } = await openPiTabFor(page, projectId, type, ref)
+  await unitPage.refLink(label, ref).click()
 }
 
-// Ref link → featureId, harvested from a habitat-list tab panel. The panel's
-// tab must be active first — GOV.UK Tabs hides inactive panels, and hidden
-// links expose no ARIA role for getByRole to match.
-async function featureIdByRef(page, panelId, ref) {
-  const href = await page
-    .locator(`#${panelId}`)
-    .getByRole('link', { name: ref, exact: true })
-    .getAttribute('href')
-  return new URL(href, baseUrl).searchParams.get('featureId')
+// Ref link → featureId and the row's Units cell, harvested from the grid.
+async function harvestPiFeature(page, projectId, type, ref) {
+  const { unitPage, label } = await openPiTabFor(page, projectId, type, ref)
+  const href = await unitPage.refLink(label, ref).getAttribute('href')
+  const unitsIndex = await unitPage.columnIndex(label, 'Units')
+  const units = await unitPage
+    .featureRows(label)
+    .filter({ has: page.getByRole('link', { name: ref, exact: true }) })
+    .locator('td')
+    .nth(unitsIndex)
+    .innerText()
+  return {
+    featureId: new URL(href, baseUrl).searchParams.get('featureId'),
+    units: units.trim()
+  }
 }
 
-async function rowUnitsText(row) {
-  return (await row.getByRole('cell').nth(UNITS_COL).innerText()).trim()
+async function featureIdByRef(page, projectId, type, ref) {
+  return (await harvestPiFeature(page, projectId, type, ref)).featureId
+}
+
+async function unitsByRef(page, projectId, type, ref) {
+  return (await harvestPiFeature(page, projectId, type, ref)).units
+}
+
+// Back from a details page lands on the feature type's post-intervention
+// page (BMD-1043; it was the habitat list's tab anchor).
+async function expectOnPiPage(page, projectId, type) {
+  await expect(page).toHaveURL(piPageUrl(projectId, type))
+  await expect(piPage(page, type).heading).toBeVisible()
 }
 
 // Create a project in its own context, upload the given fixture(s), and
@@ -262,12 +282,11 @@ async function buildProject(browser, { baselineFile, piFile }, harvest) {
         baselineFile
       )
     }
-    await new UploadPostInterventionFileFlow(page).uploadFile(id, piFile)
-    await page.waitForURL(
-      new RegExp(`/projects/${id}/post-intervention-habitat-list`),
-      { timeout: UPLOAD_TIMEOUT }
+    await new UploadPostInterventionFileFlow(page).uploadFileAndWaitForSummary(
+      id,
+      piFile
     )
-    const harvested = await harvest(page)
+    const harvested = await harvest(page, id)
     return { id, name, ...harvested }
   } finally {
     await context.close()
@@ -291,23 +310,30 @@ function getCompleteProject(browser) {
     browser,
     'complete',
     { baselineFile: BASELINE_FILE, piFile: COMPLETE_PI_FILE },
-    async (page) => {
-      const listPage = new PostInterventionHabitatListPage(page)
+    async (page, id) => {
+      const retainedNoBaseline = await harvestPiFeature(
+        page,
+        id,
+        'area',
+        'H2-2'
+      )
+      const enhancedWithBaseline = await harvestPiFeature(
+        page,
+        id,
+        'area',
+        'H3'
+      )
       return {
-        retainedWithBaseline: await featureIdByRef(page, 'area-habitats', 'H1'),
-        retainedNoBaseline: await featureIdByRef(page, 'area-habitats', 'H2-2'),
-        retainedNoBaselineUnits: await rowUnitsText(
-          listPage.areaRowByRef('H2-2')
-        ),
+        retainedWithBaseline: await featureIdByRef(page, id, 'area', 'H1'),
+        retainedNoBaseline: retainedNoBaseline.featureId,
+        retainedNoBaselineUnits: retainedNoBaseline.units,
         // Enhanced area parcels for the two-section read-only page (BMD-725):
         // H3 is Enhanced and shares its ref with a baseline feature (View
         // baseline link shown); H2-3 is Enhanced with no baseline match (link
         // hidden).
-        enhancedWithBaseline: await featureIdByRef(page, 'area-habitats', 'H3'),
-        enhancedWithBaselineUnits: await rowUnitsText(
-          listPage.areaRowByRef('H3')
-        ),
-        enhancedNoBaseline: await featureIdByRef(page, 'area-habitats', 'H2-3')
+        enhancedWithBaseline: enhancedWithBaseline.featureId,
+        enhancedWithBaselineUnits: enhancedWithBaseline.units,
+        enhancedNoBaseline: await featureIdByRef(page, id, 'area', 'H2-3')
       }
     }
   )
@@ -317,17 +343,15 @@ function getCompleteProject(browser) {
 // (BMD-736). The baseline file is the same one getCompleteProject uses, whose
 // area refs are H1/H2/H3 — so H2-7 has no ref-matching baseline feature and
 // the "View baseline details" link stays hidden, as the story requires. Only
-// the habitat-list Units cell is harvested: both tests arrive by clicking the
-// Ref link (the AC's own entry path), so neither needs a featureId.
+// the grid's Units cell is harvested: both tests arrive by clicking the Ref
+// link (the AC's own entry path), so neither needs a featureId.
 function getCreatedAreaProject(browser) {
   return getSharedProject(
     browser,
     'created-area',
     { baselineFile: BASELINE_FILE, piFile: CREATED_AREA_PI_FILE },
-    async (page) => ({
-      createdAreaUnits: await rowUnitsText(
-        new PostInterventionHabitatListPage(page).areaRowByRef(CREATED_AREA_REF)
-      )
+    async (page, id) => ({
+      createdAreaUnits: await unitsByRef(page, id, 'area', CREATED_AREA_REF)
     })
   )
 }
@@ -345,46 +369,37 @@ function getCreatedLinearProject(browser) {
       baselineFile: CREATED_LINEAR_BASELINE_FILE,
       piFile: CREATED_LINEAR_PI_FILE
     },
-    async (page) => {
-      const listPage = new PostInterventionHabitatListPage(page)
-      // Hedgerow and watercourse rows live in tab panels GOV.UK Tabs keeps
-      // hidden — and so role-less — until each tab is selected.
-      await listPage.hedgerowsTab.click()
-      const createdLinearHedgerowUnits = await rowUnitsText(
-        listPage.hedgerowRowByRef(CREATED_LINEAR_HEDGEROW_REF)
+    async (page, id) => ({
+      createdLinearHedgerowUnits: await unitsByRef(
+        page,
+        id,
+        'hedgerow',
+        CREATED_LINEAR_HEDGEROW_REF
+      ),
+      createdLinearWatercourseUnits: await unitsByRef(
+        page,
+        id,
+        'watercourse',
+        CREATED_LINEAR_WATERCOURSE_REF
       )
-      await listPage.watercoursesTab.click()
-      return {
-        createdLinearHedgerowUnits,
-        createdLinearWatercourseUnits: await rowUnitsText(
-          listPage.watercourseRowByRef(CREATED_LINEAR_WATERCOURSE_REF)
-        )
-      }
-    }
+    })
   )
 }
 
 // PI-only upload of the mixed fixture: an H1 area parcel Retained with blank
 // proposed columns (baseline-side value sourcing) alongside Enhanced parcels
 // with blank proposed columns. The hedgerows and river are Lost, so the
-// backend excludes them on import — that exclusion is asserted on the habitat
-// list, not here.
+// backend excludes them on import — that exclusion is not asserted here.
 function getMixedProject(browser) {
   return getSharedProject(
     browser,
     'mixed',
     { piFile: MIXED_FILE },
-    async (page) => {
-      const listPage = new PostInterventionHabitatListPage(page)
+    async (page, id) => {
+      const retained = await harvestPiFeature(page, id, 'area', 'H1')
       return {
-        retainedBlankProposed: await featureIdByRef(
-          page,
-          'area-habitats',
-          'H1'
-        ),
-        retainedBlankProposedUnits: await rowUnitsText(
-          listPage.areaRowByRef('H1')
-        )
+        retainedBlankProposed: retained.featureId,
+        retainedBlankProposedUnits: retained.units
       }
     }
   )
@@ -400,33 +415,34 @@ function getHedgerowsProject(browser) {
     browser,
     'hedgerows',
     { baselineFile: HEDGEROW_BASELINE_FILE, piFile: HEDGEROWS_FILE },
-    async (page) => {
-      const listPage = new PostInterventionHabitatListPage(page)
-      await listPage.hedgerowsTab.click()
+    async (page, id) => {
+      const retained = await harvestPiFeature(
+        page,
+        id,
+        'hedgerow',
+        RETAINED_HEDGEROW_REF
+      )
+      // HR2 — Enhanced hedgerow, ref-matched to a baseline hedgerow (View
+      // baseline link shown) — for the two-section Enhanced page (BMD-733).
+      const enhanced = await harvestPiFeature(
+        page,
+        id,
+        'hedgerow',
+        ENHANCED_HEDGEROW_REF
+      )
       return {
-        retainedHedgerow: await featureIdByRef(
+        retainedHedgerow: retained.featureId,
+        retainedHedgerowUnits: retained.units,
+        enhancedHedgerow: enhanced.featureId,
+        enhancedHedgerowUnits: enhanced.units,
+        // HR3 — Created hedgerow (BMD-737). Only its grid Units cell is
+        // harvested: its tests arrive by clicking the Ref link (the AC's own
+        // entry path), so they need no featureId.
+        createdHedgerowUnits: await unitsByRef(
           page,
-          'hedgerows',
-          RETAINED_HEDGEROW_REF
-        ),
-        retainedHedgerowUnits: await rowUnitsText(
-          listPage.hedgerowRowByRef(RETAINED_HEDGEROW_REF)
-        ),
-        // HR2 — Enhanced hedgerow, ref-matched to a baseline hedgerow (View
-        // baseline link shown) — for the two-section Enhanced page (BMD-733).
-        enhancedHedgerow: await featureIdByRef(
-          page,
-          'hedgerows',
-          ENHANCED_HEDGEROW_REF
-        ),
-        enhancedHedgerowUnits: await rowUnitsText(
-          listPage.hedgerowRowByRef(ENHANCED_HEDGEROW_REF)
-        ),
-        // HR3 — Created hedgerow (BMD-737). Only its habitat-list Units cell
-        // is harvested: its tests arrive by clicking the Ref link (the AC's
-        // own entry path), so they need no featureId.
-        createdHedgerowUnits: await rowUnitsText(
-          listPage.hedgerowRowByRef(CREATED_HEDGEROW_REF)
+          id,
+          'hedgerow',
+          CREATED_HEDGEROW_REF
         )
       }
     }
@@ -446,32 +462,24 @@ function getAllTypesProject(browser) {
     browser,
     'all-types',
     { baselineFile: ALL_TYPES_BASELINE_FILE, piFile: ALL_TYPES_PI_FILE },
-    async (page) => {
-      const listPage = new PostInterventionHabitatListPage(page)
-      await listPage.hedgerowsTab.click()
-      const hedgerow = {
-        enhancedUpliftHedgerow: await featureIdByRef(
-          page,
-          'hedgerows',
-          ENHANCED_UPLIFT_HEDGEROW_REF
-        ),
-        enhancedUpliftHedgerowUnits: await rowUnitsText(
-          listPage.hedgerowRowByRef(ENHANCED_UPLIFT_HEDGEROW_REF)
-        )
-      }
-      // Each tab panel is hidden until its tab is active, and hidden links
-      // expose no ARIA role — so switch tabs before harvesting the river.
-      await listPage.watercoursesTab.click()
+    async (page, id) => {
+      const hedgerow = await harvestPiFeature(
+        page,
+        id,
+        'hedgerow',
+        ENHANCED_UPLIFT_HEDGEROW_REF
+      )
+      const watercourse = await harvestPiFeature(
+        page,
+        id,
+        'watercourse',
+        ENHANCED_UPLIFT_WATERCOURSE_REF
+      )
       return {
-        ...hedgerow,
-        enhancedUpliftWatercourse: await featureIdByRef(
-          page,
-          'watercourses',
-          ENHANCED_UPLIFT_WATERCOURSE_REF
-        ),
-        enhancedUpliftWatercourseUnits: await rowUnitsText(
-          listPage.watercourseRowByRef(ENHANCED_UPLIFT_WATERCOURSE_REF)
-        )
+        enhancedUpliftHedgerow: hedgerow.featureId,
+        enhancedUpliftHedgerowUnits: hedgerow.units,
+        enhancedUpliftWatercourse: watercourse.featureId,
+        enhancedUpliftWatercourseUnits: watercourse.units
       }
     }
   )
@@ -485,23 +493,24 @@ function getWatercoursesProject(browser) {
     browser,
     'watercourses',
     { baselineFile: WATERCOURSE_BASELINE_FILE, piFile: WATERCOURSES_FILE },
-    async (page) => {
-      const listPage = new PostInterventionHabitatListPage(page)
-      await listPage.watercoursesTab.click()
+    async (page, id) => {
+      const retained = await harvestPiFeature(
+        page,
+        id,
+        'watercourse',
+        RETAINED_WATERCOURSE_REF
+      )
       return {
-        retainedWatercourse: await featureIdByRef(
+        retainedWatercourse: retained.featureId,
+        retainedWatercourseUnits: retained.units,
+        // WC3 — Created watercourse (BMD-739). Only its grid Units cell is
+        // harvested: its tests arrive by clicking the Ref link (the AC's own
+        // entry path), so they need no featureId.
+        createdWatercourseUnits: await unitsByRef(
           page,
-          'watercourses',
-          RETAINED_WATERCOURSE_REF
-        ),
-        retainedWatercourseUnits: await rowUnitsText(
-          listPage.watercourseRowByRef(RETAINED_WATERCOURSE_REF)
-        ),
-        // WC3 — Created watercourse (BMD-739). Only its habitat-list Units
-        // cell is harvested: its tests arrive by clicking the Ref link (the
-        // AC's own entry path), so they need no featureId.
-        createdWatercourseUnits: await rowUnitsText(
-          listPage.watercourseRowByRef(CREATED_WATERCOURSE_REF)
+          id,
+          'watercourse',
+          CREATED_WATERCOURSE_REF
         )
       }
     }
@@ -513,8 +522,8 @@ function getTreesProject(browser) {
     browser,
     'trees',
     { piFile: TREES_FILE },
-    async (page) => ({
-      tree: await featureIdByRef(page, 'area-habitats', 'T001')
+    async (page, id) => ({
+      tree: await featureIdByRef(page, id, 'area', 'T001')
     })
   )
 }
@@ -693,19 +702,11 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       test(
         'retained area habitat shows its saved values with multiplier formatting',
         { tag: '@regression' },
-        async ({
-          browser,
-          postInterventionHabitatDetailsPage,
-          postInterventionHabitatListPage,
-          page
-        }) => {
+        async ({ browser, postInterventionHabitatDetailsPage, page }) => {
           const shared = await getCompleteProject(browser)
           // Arrive the way the user does (BMD-608 AC1): click the parcel's
-          // ref link on the habitat-list Areas tab rather than deep-linking.
-          await postInterventionHabitatListPage.openAreaHabitatDetails(
-            shared.id,
-            'H2-2'
-          )
+          // ref link in the area habitats post-intervention grid rather than deep-linking.
+          await openPiFeatureDetails(page, shared.id, 'area', 'H2-2')
           await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
           // H2-2: Grassland / Modified grassland / Moderate (fixture values);
@@ -735,7 +736,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             postInterventionHabitatDetailsPage.strategicSignificanceValue
           ).toBeVisible()
           // "Habitat units delivered" renders to 2 decimal places and matches
-          // the Units cell of the same parcel's habitat-list row.
+          // the Units cell of the same parcel's grid row.
           const unitsValue =
             postInterventionHabitatDetailsPage.habitatUnitsValue
           await expect(unitsValue).toHaveText(UNITS_TWO_DP_PATTERN)
@@ -744,14 +745,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       )
 
       test(
-        'back link returns to the post-intervention habitat list Areas tab',
+        'back link returns to the area habitats post-intervention page',
         { tag: '@regression' },
-        async ({
-          browser,
-          postInterventionHabitatDetailsPage,
-          postInterventionHabitatListPage,
-          page
-        }) => {
+        async ({ browser, postInterventionHabitatDetailsPage, page }) => {
           const shared = await getCompleteProject(browser)
           await postInterventionHabitatDetailsPage.open(
             shared.id,
@@ -759,10 +755,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           )
           await postInterventionHabitatDetailsPage.backLink.click()
 
-          await expect(page).toHaveURL(
-            listAnchorPattern(shared.id, 'area-habitats')
-          )
-          await postInterventionHabitatListPage.assertTabPreselected('areas')
+          await expectOnPiPage(page, shared.id, 'area')
         }
       )
 
@@ -867,19 +860,11 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       test(
         'Enhanced area habitat renders the two-section read-only page with every row and no form controls',
         { tag: '@smoke' },
-        async ({
-          browser,
-          postInterventionHabitatListPage,
-          postInterventionHabitatDetailsPage,
-          page
-        }) => {
+        async ({ browser, postInterventionHabitatDetailsPage, page }) => {
           const shared = await getCompleteProject(browser)
           // Arrive the way the user does (BMD-725): click the parcel's Ref link
-          // on the Areas tab rather than deep-linking.
-          await postInterventionHabitatListPage.openAreaHabitatDetails(
-            shared.id,
-            'H3'
-          )
+          // in the area habitats post-intervention grid rather than deep-linking.
+          await openPiFeatureDetails(page, shared.id, 'area', 'H3')
           await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
           const detailsPage = postInterventionHabitatDetailsPage
@@ -924,7 +909,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             postInterventionHabitatDetailsPage.standardTimeToTargetValue
           ).not.toContainText(STALE_TIME_TO_TARGET_TEXT)
           // "Habitat units delivered" matches the Units cell of the same
-          // parcel's habitat-list row.
+          // parcel's grid row.
           await expect(
             postInterventionHabitatDetailsPage.habitatUnitsValue
           ).toHaveText(shared.enhancedWithBaselineUnits)
@@ -1006,14 +991,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       )
 
       test(
-        'back link returns to the post-intervention habitat list Areas tab',
+        'back link returns to the area habitats post-intervention page',
         { tag: '@regression' },
-        async ({
-          browser,
-          postInterventionHabitatDetailsPage,
-          postInterventionHabitatListPage,
-          page
-        }) => {
+        async ({ browser, postInterventionHabitatDetailsPage, page }) => {
           const shared = await getCompleteProject(browser)
           await postInterventionHabitatDetailsPage.open(
             shared.id,
@@ -1021,10 +1001,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           )
           await postInterventionHabitatDetailsPage.backLink.click()
 
-          await expect(page).toHaveURL(
-            listAnchorPattern(shared.id, 'area-habitats')
-          )
-          await postInterventionHabitatListPage.assertTabPreselected('areas')
+          await expectOnPiPage(page, shared.id, 'area')
         }
       )
     })
@@ -1047,20 +1024,17 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         // replaced, so the backend maps it to Created (BMD-531/534) — it still
         // appears, rendering the Created two-section page.
         // (Lost hedgerows, watercourses and trees are instead excluded
-        // entirely; that is covered in post-intervention-habitat-list.spec.js.)
+        // entirely; that is covered by the post-intervention grid specs in
+        // test/specs/project-management.)
         test('a Lost area habitat is imported as Created and renders the two-section read-only page', async ({
           browser,
-          postInterventionHabitatListPage,
           postInterventionHabitatDetailsPage,
           page
         }) => {
           const shared = await getCompleteProject(browser)
           // Arrive the way the user does (AC4c): click the parcel's Ref link
-          // on the Areas tab rather than deep-linking.
-          await postInterventionHabitatListPage.openAreaHabitatDetails(
-            shared.id,
-            'H2-1'
-          )
+          // in the area habitats post-intervention grid rather than deep-linking.
+          await openPiFeatureDetails(page, shared.id, 'area', 'H2-1')
           await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
           await postInterventionHabitatDetailsPage.assertTwoSectionLayout({
@@ -1083,15 +1057,11 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         // its Baseline* columns cleared — carries those assertions.
         test('a Created area habitat shows its section-2 values and units delivered', async ({
           browser,
-          postInterventionHabitatListPage,
           postInterventionHabitatDetailsPage,
           page
         }) => {
           const shared = await getCreatedAreaProject(browser)
-          await postInterventionHabitatListPage.openAreaHabitatDetails(
-            shared.id,
-            CREATED_AREA_REF
-          )
+          await openPiFeatureDetails(page, shared.id, 'area', CREATED_AREA_REF)
           await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
           const detailsPage = postInterventionHabitatDetailsPage
@@ -1120,27 +1090,21 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         // model, so the anchor it passes through is asserted from this page
         // too — as it already is for the Created hedgerow and watercourse.
         test(
-          'back link from a Created area habitat returns to the habitat list Areas tab',
+          'back link from a Created area habitat returns to the area habitats post-intervention page',
           { tag: '@happy-path' },
-          async ({
-            browser,
-            postInterventionHabitatListPage,
-            postInterventionHabitatDetailsPage,
-            page
-          }) => {
+          async ({ browser, postInterventionHabitatDetailsPage, page }) => {
             const shared = await getCreatedAreaProject(browser)
             // AC2's GIVEN is AC1, so arrive the way the user does rather than
-            // deep-linking: click H2-7's Ref link on the Areas tab.
-            await postInterventionHabitatListPage.openAreaHabitatDetails(
+            // deep-linking: click H2-7's Ref link in the area habitats post-intervention grid.
+            await openPiFeatureDetails(
+              page,
               shared.id,
+              'area',
               CREATED_AREA_REF
             )
             await postInterventionHabitatDetailsPage.backLink.click()
 
-            await expect(page).toHaveURL(
-              listAnchorPattern(shared.id, 'area-habitats')
-            )
-            await postInterventionHabitatListPage.assertTabPreselected('areas')
+            await expectOnPiPage(page, shared.id, 'area')
           }
         )
       }
@@ -1197,7 +1161,15 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      test('retained parcel with blank proposed columns shows baseline-side values', async ({
+      // FIXME(BMD-1043): parked 2026-10-07 pending a team
+      // ruling. This project has a post-intervention upload and no baseline.
+      // Frontend PR#352 removed the post-intervention habitat list, which was
+      // the only page that listed such a project's features — the unit-type
+      // post-intervention pages redirect a no-baseline project to the summary —
+      // so the featureId can no longer be harvested from the UI. Restore once
+      // the team confirms whether that is intended (add a baseline upload) or
+      // a regression (keep this setup).
+      test.fixme('retained parcel with blank proposed columns shows baseline-side values', async ({
         browser,
         postInterventionHabitatDetailsPage,
         page
@@ -1242,12 +1214,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     test(
       'retained hedgerow renders the read-only page without a Broad habitat row',
       { tag: '@smoke' },
-      async ({
-        browser,
-        postInterventionHabitatDetailsPage,
-        postInterventionHabitatListPage,
-        page
-      }) => {
+      async ({ browser, postInterventionHabitatDetailsPage, page }) => {
         const shared = await getHedgerowsProject(browser)
         await postInterventionHabitatDetailsPage.open(
           shared.id,
@@ -1269,25 +1236,21 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(detailsPage.habitatTypeSelect).toBeHidden()
 
         await detailsPage.backLink.click()
-        await expect(page).toHaveURL(listAnchorPattern(shared.id, 'hedgerows'))
-        await postInterventionHabitatListPage.assertTabPreselected('hedgerows')
+        await expectOnPiPage(page, shared.id, 'hedgerow')
       }
     )
 
     test(
       'retained hedgerow shows its saved values with multiplier formatting',
       { tag: '@regression' },
-      async ({
-        browser,
-        postInterventionHabitatDetailsPage,
-        postInterventionHabitatListPage,
-        page
-      }) => {
+      async ({ browser, postInterventionHabitatDetailsPage, page }) => {
         const shared = await getHedgerowsProject(browser)
-        // Arrive the way the user does (BMD-723 AC1): select the Hedgerows
+        // Arrive the way the user does (BMD-723 AC1): open the hedgerows grid
         // tab and click the hedgerow's ref link rather than deep-linking.
-        await postInterventionHabitatListPage.openHedgerowDetails(
+        await openPiFeatureDetails(
+          page,
           shared.id,
+          'hedgerow',
           RETAINED_HEDGEROW_REF
         )
         await expect(page).toHaveURL(DETAILS_URL_PATTERN)
@@ -1314,7 +1277,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           postInterventionHabitatDetailsPage.strategicSignificanceValue
         ).toBeVisible()
         // "Units in this habitat" matches the Units cell of the same
-        // hedgerow's habitat-list row.
+        // hedgerow's grid row.
         await expect(
           postInterventionHabitatDetailsPage.habitatUnitsValue
         ).toHaveText(shared.retainedHedgerowUnits)
@@ -1368,17 +1331,14 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     test(
       'Enhanced hedgerow renders the two-section read-only page with every row and no form controls',
       { tag: '@smoke' },
-      async ({
-        browser,
-        postInterventionHabitatListPage,
-        postInterventionHabitatDetailsPage,
-        page
-      }) => {
+      async ({ browser, postInterventionHabitatDetailsPage, page }) => {
         const shared = await getHedgerowsProject(browser)
-        // Arrive the way the user does (BMD-733 AC1): select the Hedgerows tab
+        // Arrive the way the user does (BMD-733 AC1): open the hedgerows grid
         // and click the hedgerow's Ref link rather than deep-linking.
-        await postInterventionHabitatListPage.openHedgerowDetails(
+        await openPiFeatureDetails(
+          page,
           shared.id,
+          'hedgerow',
           ENHANCED_HEDGEROW_REF
         )
         await expect(page).toHaveURL(DETAILS_URL_PATTERN)
@@ -1426,7 +1386,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           postInterventionHabitatDetailsPage.standardTimeToTargetValue
         ).not.toContainText(STALE_TIME_TO_TARGET_TEXT)
         // "Habitat units delivered" matches the Units cell of the same
-        // hedgerow's habitat-list row.
+        // hedgerow's grid row.
         await expect(
           postInterventionHabitatDetailsPage.habitatUnitsValue
         ).toHaveText(shared.enhancedUpliftHedgerowUnits)
@@ -1434,14 +1394,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     )
 
     test(
-      'back link returns to the post-intervention habitat list Hedgerows tab',
+      'back link returns to the hedgerows post-intervention page',
       { tag: '@regression' },
-      async ({
-        browser,
-        postInterventionHabitatDetailsPage,
-        postInterventionHabitatListPage,
-        page
-      }) => {
+      async ({ browser, postInterventionHabitatDetailsPage, page }) => {
         const shared = await getHedgerowsProject(browser)
         await postInterventionHabitatDetailsPage.open(
           shared.id,
@@ -1449,8 +1404,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         )
         await postInterventionHabitatDetailsPage.backLink.click()
 
-        await expect(page).toHaveURL(listAnchorPattern(shared.id, 'hedgerows'))
-        await postInterventionHabitatListPage.assertTabPreselected('hedgerows')
+        await expectOnPiPage(page, shared.id, 'hedgerow')
       }
     )
 
@@ -1493,7 +1447,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
   // (pi-hedgerow-details-enhanced.njk) but is built by its own view model,
   // which forces baselineFeatureId to null so the "View baseline details" link
   // is never offered — a created hedgerow has no baseline counterpart. Reached
-  // the way the user does: click the Ref link on the Hedgerows tab.
+  // the way the user does: click the Ref link in the hedgerows post-intervention grid.
 
   test.describe(
     'non-retained hedgerow habitats are read-only',
@@ -1504,13 +1458,14 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
       test('a Created hedgerow renders the two-section read-only page', async ({
         browser,
-        postInterventionHabitatListPage,
         postInterventionHabitatDetailsPage,
         page
       }) => {
         const shared = await getHedgerowsProject(browser)
-        await postInterventionHabitatListPage.openHedgerowDetails(
+        await openPiFeatureDetails(
+          page,
           shared.id,
+          'hedgerow',
           CREATED_HEDGEROW_REF
         )
         await expect(page).toHaveURL(DETAILS_URL_PATTERN)
@@ -1552,7 +1507,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           STALE_TIME_TO_TARGET_TEXT
         )
         // "Habitat units delivered" matches the Units cell of the same
-        // hedgerow's habitat-list row.
+        // hedgerow's grid row.
         await expect(detailsPage.habitatUnitsValue).toHaveText(
           shared.createdHedgerowUnits
         )
@@ -1565,13 +1520,14 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       // no baseline side — which is precisely what the re-work changed.
       test('a Created hedgerow with no baseline condition shows its section-2 values and units delivered', async ({
         browser,
-        postInterventionHabitatListPage,
         postInterventionHabitatDetailsPage,
         page
       }) => {
         const shared = await getCreatedLinearProject(browser)
-        await postInterventionHabitatListPage.openHedgerowDetails(
+        await openPiFeatureDetails(
+          page,
           shared.id,
+          'hedgerow',
           CREATED_LINEAR_HEDGEROW_REF
         )
         await expect(page).toHaveURL(DETAILS_URL_PATTERN)
@@ -1605,23 +1561,23 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       // BMD-737 AC2. The back link is shared with the Enhanced hedgerow page
       // (one template), but the Created page is built by its own view model,
       // so the anchor it passes through is asserted from this page too.
-      test('back link from a Created hedgerow returns to the habitat list Hedgerows tab', async ({
+      test('back link from a Created hedgerow returns to the hedgerows post-intervention page', async ({
         browser,
-        postInterventionHabitatListPage,
         postInterventionHabitatDetailsPage,
         page
       }) => {
         const shared = await getHedgerowsProject(browser)
         // AC2's GIVEN is AC1, so arrive the way the user does rather than
-        // deep-linking: click HR3's Ref link on the Hedgerows tab.
-        await postInterventionHabitatListPage.openHedgerowDetails(
+        // deep-linking: click HR3's Ref link in the hedgerows post-intervention grid.
+        await openPiFeatureDetails(
+          page,
           shared.id,
+          'hedgerow',
           CREATED_HEDGEROW_REF
         )
         await postInterventionHabitatDetailsPage.backLink.click()
 
-        await expect(page).toHaveURL(listAnchorPattern(shared.id, 'hedgerows'))
-        await postInterventionHabitatListPage.assertTabPreselected('hedgerows')
+        await expectOnPiPage(page, shared.id, 'hedgerow')
       })
     }
   )
@@ -1635,12 +1591,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     test(
       'retained watercourse renders the read-only page with both encroachment rows',
       { tag: '@smoke' },
-      async ({
-        browser,
-        postInterventionHabitatDetailsPage,
-        postInterventionHabitatListPage,
-        page
-      }) => {
+      async ({ browser, postInterventionHabitatDetailsPage, page }) => {
         const shared = await getWatercoursesProject(browser)
         await postInterventionHabitatDetailsPage.open(
           shared.id,
@@ -1682,30 +1633,22 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(detailsPage.viewBaselineLink).toBeVisible()
 
         await detailsPage.backLink.click()
-        await expect(page).toHaveURL(
-          listAnchorPattern(shared.id, 'watercourses')
-        )
-        await postInterventionHabitatListPage.assertTabPreselected(
-          'watercourses'
-        )
+        await expectOnPiPage(page, shared.id, 'watercourse')
       }
     )
 
     test(
       'retained watercourse shows its saved values with multiplier formatting',
       { tag: '@regression' },
-      async ({
-        browser,
-        postInterventionHabitatDetailsPage,
-        postInterventionHabitatListPage,
-        page
-      }) => {
+      async ({ browser, postInterventionHabitatDetailsPage, page }) => {
         const shared = await getWatercoursesProject(browser)
         // Arrive the way the user does (BMD-724 AC1): select the
         // Watercourses tab and click the watercourse's ref link rather than
         // deep-linking.
-        await postInterventionHabitatListPage.openWatercourseDetails(
+        await openPiFeatureDetails(
+          page,
           shared.id,
+          'watercourse',
           RETAINED_WATERCOURSE_REF
         )
         await expect(page).toHaveURL(DETAILS_URL_PATTERN)
@@ -1734,7 +1677,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           postInterventionHabitatDetailsPage.strategicSignificanceValue
         ).toBeVisible()
         // "Units in this habitat" matches the Units cell of the same
-        // watercourse's habitat-list row.
+        // watercourse's grid row.
         await expect(
           postInterventionHabitatDetailsPage.habitatUnitsValue
         ).toHaveText(shared.retainedWatercourseUnits)
@@ -1836,7 +1779,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           STALE_TIME_TO_TARGET_TEXT
         )
         // "Habitat units delivered" matches the Units cell of the same
-        // watercourse's habitat-list row.
+        // watercourse's grid row.
         await expect(detailsPage.habitatUnitsValue).toHaveText(
           shared.enhancedUpliftWatercourseUnits
         )
@@ -1844,14 +1787,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     )
 
     test(
-      'back link returns to the post-intervention habitat list Watercourses tab',
+      'back link returns to the watercourses post-intervention page',
       { tag: '@regression' },
-      async ({
-        browser,
-        postInterventionHabitatDetailsPage,
-        postInterventionHabitatListPage,
-        page
-      }) => {
+      async ({ browser, postInterventionHabitatDetailsPage, page }) => {
         const shared = await getAllTypesProject(browser)
         await postInterventionHabitatDetailsPage.open(
           shared.id,
@@ -1859,12 +1797,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         )
         await postInterventionHabitatDetailsPage.backLink.click()
 
-        await expect(page).toHaveURL(
-          listAnchorPattern(shared.id, 'watercourses')
-        )
-        await postInterventionHabitatListPage.assertTabPreselected(
-          'watercourses'
-        )
+        await expectOnPiPage(page, shared.id, 'watercourse')
       }
     )
 
@@ -1910,7 +1843,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
   // encroachment rows. Their encroachment values are read from `proposed`,
   // where the engine takes its inputs for a created/enhanced watercourse —
   // the retained page reads them baseline-first. Reached the way the user
-  // does: click the Ref link on the Watercourses tab.
+  // does: click the Ref link in the watercourses post-intervention grid.
 
   test.describe(
     'non-retained watercourse habitats are read-only',
@@ -1927,15 +1860,11 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
         test(`${label} watercourse renders the two-section read-only page`, async ({
           browser,
-          postInterventionHabitatListPage,
           postInterventionHabitatDetailsPage,
           page
         }) => {
           const shared = await getWatercoursesProject(browser)
-          await postInterventionHabitatListPage.openWatercourseDetails(
-            shared.id,
-            ref
-          )
+          await openPiFeatureDetails(page, shared.id, 'watercourse', ref)
           await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
           const detailsPage = postInterventionHabitatDetailsPage
@@ -1973,12 +1902,14 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       // changed is covered on R003 in the test below.
       test('a Created watercourse shows its section-2 values and units delivered', async ({
         browser,
-        postInterventionHabitatListPage,
-        postInterventionHabitatDetailsPage
+        postInterventionHabitatDetailsPage,
+        page
       }) => {
         const shared = await getWatercoursesProject(browser)
-        await postInterventionHabitatListPage.openWatercourseDetails(
+        await openPiFeatureDetails(
+          page,
           shared.id,
+          'watercourse',
           CREATED_WATERCOURSE_REF
         )
 
@@ -1994,7 +1925,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           STALE_TIME_TO_TARGET_TEXT
         )
         // "Habitat units delivered" renders to 2 decimal places and matches
-        // the Units cell of the same watercourse's habitat-list row.
+        // the Units cell of the same watercourse's grid row.
         await expect(detailsPage.habitatUnitsValue).toHaveText(
           UNITS_TWO_DP_PATTERN
         )
@@ -2010,13 +1941,14 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       // no baseline side — which is precisely what the re-work changed.
       test('a Created watercourse with no baseline condition shows its section-2 values and units delivered', async ({
         browser,
-        postInterventionHabitatListPage,
         postInterventionHabitatDetailsPage,
         page
       }) => {
         const shared = await getCreatedLinearProject(browser)
-        await postInterventionHabitatListPage.openWatercourseDetails(
+        await openPiFeatureDetails(
+          page,
           shared.id,
+          'watercourse',
           CREATED_LINEAR_WATERCOURSE_REF
         )
         await expect(page).toHaveURL(DETAILS_URL_PATTERN)
@@ -2054,27 +1986,23 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       // page, but the Created page is a distinct template built by its own
       // view model, so the anchor it passes through is asserted from this page
       // too.
-      test('back link from a Created watercourse returns to the habitat list Watercourses tab', async ({
+      test('back link from a Created watercourse returns to the watercourses post-intervention page', async ({
         browser,
-        postInterventionHabitatListPage,
         postInterventionHabitatDetailsPage,
         page
       }) => {
         const shared = await getWatercoursesProject(browser)
         // AC2's GIVEN is AC1, so arrive the way the user does rather than
-        // deep-linking: click WC3's Ref link on the Watercourses tab.
-        await postInterventionHabitatListPage.openWatercourseDetails(
+        // deep-linking: click WC3's Ref link in the watercourses post-intervention grid.
+        await openPiFeatureDetails(
+          page,
           shared.id,
+          'watercourse',
           CREATED_WATERCOURSE_REF
         )
         await postInterventionHabitatDetailsPage.backLink.click()
 
-        await expect(page).toHaveURL(
-          listAnchorPattern(shared.id, 'watercourses')
-        )
-        await postInterventionHabitatListPage.assertTabPreselected(
-          'watercourses'
-        )
+        await expectOnPiPage(page, shared.id, 'watercourse')
       })
     }
   )
@@ -2088,7 +2016,15 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      test('an individual tree renders the unsupported-feature placeholder', async ({
+      // FIXME(BMD-1043): parked 2026-10-07 pending a team
+      // ruling. This project has a post-intervention upload and no baseline.
+      // Frontend PR#352 removed the post-intervention habitat list, which was
+      // the only page that listed such a project's features — the unit-type
+      // post-intervention pages redirect a no-baseline project to the summary —
+      // so the featureId can no longer be harvested from the UI. Restore once
+      // the team confirms whether that is intended (add a baseline upload) or
+      // a regression (keep this setup).
+      test.fixme('an individual tree renders the unsupported-feature placeholder', async ({
         browser,
         postInterventionHabitatDetailsPage,
         page
@@ -2105,9 +2041,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(postInterventionHabitatDetailsPage.saveButton).toBeHidden()
 
         await postInterventionHabitatDetailsPage.backLink.click()
-        await expect(page).toHaveURL(
-          listAnchorPattern(shared.id, 'area-habitats')
-        )
+        await expectOnPiPage(page, shared.id, 'area')
       })
     }
   )

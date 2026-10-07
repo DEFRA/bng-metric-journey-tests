@@ -808,7 +808,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       // AC8 and AC9. The `aria-sort` toggle itself is MOJ's own component
       // behaviour, already witnessed by real clicks in
-      // habitat-list-upload.spec.js:342 and hedgerows-baseline.spec.js:217. Two
+      // hedgerows-baseline.spec.js:217. Two
       // things here are not:
       //
       //  - the RESULTING ROW ORDER on THIS grid, which depends on the

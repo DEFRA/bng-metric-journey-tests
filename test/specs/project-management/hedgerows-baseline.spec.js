@@ -206,11 +206,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     })
 
     // AC8 and AC9. The `aria-sort` toggling itself is MoJ's own component
-    // behaviour — the ACs say "default component behaviour" — and is already
-    // witnessed by real clicks in habitat-list-upload.spec.js:341-381, so it is
-    // used here only to wait on. What this test claims is the RESULTING ROW
-    // ORDER, which nothing else checks: the deprecated habitat list emits its
-    // own unpadded `data-sort-value`s and never asserts an order, and
+    // behaviour — the ACs say "default component behaviour" — so it is used
+    // here only to wait on. What this test claims is the RESULTING ROW ORDER,
+    // which nothing else checks on a baseline grid:
     // `baseline-habitat-grid.test.js:27` only simulates the comparison in Node.
     // Sole witness that this grid's sort values actually drive the component.
     // Do not delete without asserting row order wherever the clicks move to.
@@ -361,8 +359,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
       // 16 hedgerows and NO rivers — so the page itself still renders while the
-      // conditional nav item must not. project-summary.spec.js and
-      // habitat-list-upload.spec.js already build this project.
+      // conditional nav item must not. project-summary.spec.js already builds
+      // this project.
       let project
       test.beforeAll(async ({ browser }) => {
         project = await getNoWatercoursesProject(browser)

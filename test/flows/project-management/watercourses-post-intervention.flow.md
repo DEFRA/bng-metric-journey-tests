@@ -10,7 +10,7 @@ It is the second page built on `createHabitatPostInterventionController`, after 
 
 Two things separate it from the other watercourse pages:
 
-- Its tabs split by **intervention type** within watercourses. The [post-intervention habitat list](../habitat-list/post-intervention-habitat-list.flow.md) also has tabs, but they split by **unit type** (Areas / Hedgerows / Watercourses). Do not reuse one page's tab locators on the other.
+- Its tabs split by **intervention type** within watercourses. (The post-intervention habitat list that BMD-1043 removed split its tabs by **unit type** instead.)
 - Its results tiles carry **no post-intervention action line at all** — the same self-link suppression the baseline page applies to its baseline tile, for the same reason: the link would point at the page the user is already on.
 
 ## Steps
@@ -63,7 +63,7 @@ Two things separate it from the other watercourse pages:
 
 ---
 
-### Step 2 — Redirect a project with no baseline to the task list `[IMPLEMENTED]`
+### Step 2 — Redirect a project with no baseline to the project summary `[IMPLEMENTED]`
 
 - **Route:** `GET /projects/{id}/watercourses-post-intervention` (the guard branch)
 - **Template:** None (302)
@@ -71,7 +71,7 @@ Two things separate it from the other watercourse pages:
 - **Backend endpoint:** `GET /projects/{id}`
 - **Description:** `hasBaselineData(project)` false → redirect before rendering. As on the other unit-type pages the guard is on **any** baseline, not on watercourse data specifically.
 - **Validation:** As Step 1
-- **On success:** 302 to `/add-project-details/{id}`
+- **On success:** 302 to `/projects/{id}/project-summary` (BMD-1043, frontend PR#352; it was the task list `/add-project-details/{id}`, now removed)
 - **On error:** As Step 1
 
 ---
@@ -102,7 +102,7 @@ Two things separate it from the other watercourse pages:
 - **Template:** See [`../upload-file/choose-upload-type.flow.md`](../upload-file/choose-upload-type.flow.md)
 - **Auth required:** As Step 1
 - **Backend endpoint:** None on entry
-- **Description:** The header "Upload file" button. `uploadFileHref` encodes this page as the `returnUrl`, so the selection page's Back and Cancel both come back here rather than defaulting to the task list.
+- **Description:** The header "Upload file" button. `uploadFileHref` encodes this page as the `returnUrl`, so the selection page's Back and Cancel both come back here rather than defaulting to the project summary.
 - **Validation:** See the upload-file flow
 - **On success:** Renders the file-type selection page
 - **On error:** See the upload-file flow
@@ -143,7 +143,7 @@ Added 2026-09-16 for the BMD-862 AC sweep — `test/specs/project-management/wat
 | (project-summary.spec.js) the tile link       | 1        | `project-summary.spec.js:735` asserted only the **absence** of the inert default for watercourses — never that the link renders, carries the href, or resolves                                     |
 | Results tiles show the trading-rules status   | BMD-1002 | per-page config; the three-tab project's area verdict (Not met) differs from its watercourse verdict (Met)                                                                                         |
 
-**Fixtures.** The three-tab project comes from `getWatercourseInterventionTypesProject` in `@utils/summary-projects.js` — `Baseline - complete with watercourse refs.gpkg` (WC1, plus 2 hedgerows so the conditional Hedgerows nav item renders) paired with `Post-intervention - watercourses mixed retention.gpkg` (WC1 Retained, WC2 Enhanced, WC3 Created). It is the only shipped pairing that makes all three tabs visible at once, so it is a new build. The same pairing is already used by `post-intervention-habitat-list.spec.js` and `post-intervention-habitat-details.spec.js` through their own file-local caches.
+**Fixtures.** The three-tab project comes from `getWatercourseInterventionTypesProject` in `@utils/summary-projects.js` — `Baseline - complete with watercourse refs.gpkg` (WC1, plus 2 hedgerows so the conditional Hedgerows nav item renders) paired with `Post-intervention - watercourses mixed retention.gpkg` (WC1 Retained, WC2 Enhanced, WC3 Created). It is the only shipped pairing that makes all three tabs visible at once, so it is a new build. The same pairing is also built by `post-intervention-habitat-details.spec.js` through its own file-local cache.
 
 **Sole witness, do not delete without a replacement.** The tab tests are the only place in any suite where a real GeoPackage's **watercourse** retention values decide what renders — the backend integration suite asserts `retentionCategory === 'Enhanced'` persists with units (`post-intervention-persistence.test.js:172`) but never `Retained` or `Created`, and never renders. The hedgerow tab tests do not stand in: `visibleInterventionTabs` is called per unit type with that type's own features. See the Backend coverage proposals in the BMD-862 analysis.
 
@@ -159,19 +159,16 @@ mocked and hand-built watercourse literals (`:28-56`), so it proves the grid ren
 `riparianEncroachmentMultiplier` IF it arrives, never that a real import emits it. The
 journey tests cover only what that cannot reach:
 
-| Test                              | AC       | Why it needs a browser and real data                                                                                                                                      |
-| --------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Retained grid                     | 4a, 5, 7 | the 9-column shape, and the only proof a real import emits the `baseline.*` fields it reads                                                                               |
-| Enhanced grid                     | 4b, 5, 6 | the 14-column shape from real `proposed.*` fields, and whether the pane actually overflows — markup cannot show a layout fact                                             |
-| Created grid                      | 4c, 5    | the same column set reached through a different retention path                                                                                                            |
-| Re-sort ascending then descending | 8, 9     | the GOV.UK/MOJ sort is client-side JS; the unit tests parse markup with cheerio and cannot run it                                                                         |
-| Ref link opens the details page   | 10       | `post-intervention-habitat-details.spec.js` reaches those pages by harvesting a featureId from the DEPRECATED habitat list and opening the URL — nothing clicks THIS grid |
+| Test                              | AC       | Why it needs a browser and real data                                                                                                                                        |
+| --------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Retained grid                     | 4a, 5, 7 | the 9-column shape, and the only proof a real import emits the `baseline.*` fields it reads                                                                                 |
+| Enhanced grid                     | 4b, 5, 6 | the 14-column shape from real `proposed.*` fields, and whether the pane actually overflows — markup cannot show a layout fact                                               |
+| Created grid                      | 4c, 5    | the same column set reached through a different retention path                                                                                                              |
+| Re-sort ascending then descending | 8, 9     | the GOV.UK/MOJ sort is client-side JS; the unit tests parse markup with cheerio and cannot run it                                                                           |
+| Ref link opens the details page   | 10       | since BMD-1043 `post-intervention-habitat-details.spec.js` also clicks this grid's Ref links (the habitat list it used was removed); this row remains the grid-side witness |
 
 **Not covered by the neighbours**, both of which look like coverage at a glance:
 
-- The **deprecated post-intervention habitat list** asserts watercourse units and a totals row
-  from real data (`post-intervention-habitat-list.spec.js:826,845`), but that page is built by
-  `createHabitatListController` — a different builder. Nothing transfers.
 - The **hedgerow twin** (`hedgerows-post-intervention.spec.js:646`) exercises the same
   `buildPostInterventionHabitatGrid`, but the factory takes `buildExtraColumns` as per-page
   config, and `buildWatercourseExtraColumns` — the Watercourse and Riparian encroachment

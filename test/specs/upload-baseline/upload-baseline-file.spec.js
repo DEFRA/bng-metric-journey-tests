@@ -63,7 +63,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
 
       // BMD-850: Back and Cancel now return to the file-type selection page,
       // not the task list. Opening the form with no returnUrl makes the
-      // selection page's own Back/Cancel default to the task list, so the
+      // selection page's own Back/Cancel default to the project summary, so the
       // journey out is one step longer than it was.
       test('Back link returns to the upload type selection page', async ({
         createProjectFlow,
@@ -80,7 +80,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
         await uploadBaselineFilePage.backLink.click()
 
         await expect(page).toHaveURL(
-          uploadFileHref(id, `/add-project-details/${id}`)
+          uploadFileHref(id, `/projects/${id}/project-summary`)
         )
       })
 
@@ -99,7 +99,7 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
         await uploadBaselineFilePage.cancelLink.click()
 
         await expect(page).toHaveURL(
-          uploadFileHref(id, `/add-project-details/${id}`)
+          uploadFileHref(id, `/projects/${id}/project-summary`)
         )
       })
     }

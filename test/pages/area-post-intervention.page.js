@@ -1,4 +1,12 @@
+import { readTileValue } from '@utils/tile-value.js'
+
 import { BasePage } from './base.page.js'
+
+// The "Area habitats size" tiles (frontend area-post-intervention controller).
+export const POST_INTERVENTION_AREA_LABEL =
+  'Total post intervention habitat area'
+export const SITE_AREA_LABEL =
+  'Site Area (excluding areas of individual trees, green walls, intertidal hard structures)'
 
 /**
  * The area habitats post-intervention page
@@ -36,6 +44,16 @@ export class AreaPostInterventionPage extends BasePage {
 
   async open(id) {
     return super.open(`/projects/${id}/area-post-intervention`)
+  }
+
+  /** The "Area habitats size" section — a labelled region of three tiles. */
+  areaSizeSection() {
+    return this.page.getByRole('region', { name: 'Area habitats size' })
+  }
+
+  /** One area-size tile's value, e.g. "0.13ha". */
+  areaSizeTileValue(label) {
+    return readTileValue(this.areaSizeSection(), label, 'Area habitats size')
   }
 
   /** An intervention-type tab by label — "Retained", "Enhanced" or "Created". */

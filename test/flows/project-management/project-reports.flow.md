@@ -27,7 +27,7 @@ The **only** entry point is the `Reports` item in the unit-type navigation — a
 - **Validation:** `id` path param must be a valid **uuidv4** (`Joi.string().guid({ version: 'uuidv4' })`) — note this is stricter than the plain `.uuid()` used by some sibling routes; a well-formed non-v4 UUID is a 400 here
 - **On success:** Renders `project-reports/index` with `siteReportHref` and `navigationItems`
 - **On error:**
-  - **No baseline** (`hasBaselineData(project)` false) → **302 redirect to `/add-project-details/{id}`** — the same guard and the same destination as the project summary page. There is no "nothing to report yet" state; the user is sent to the journey that gets the project a baseline.
+  - **No baseline** (`hasBaselineData(project)` false) → **302 redirect to `/projects/{id}/project-summary`** (BMD-1043, frontend PR#352; it was the removed task list). The project summary itself no longer has this guard — it renders an upload prompt for a project with no baseline — so the summary is where the user is sent to get the project a baseline. There is no "nothing to report yet" state here.
   - Project missing or not visible to the user → `Boom.notFound` (404)
   - Backend unreachable or non-2xx → `Boom.badGateway` (502)
 

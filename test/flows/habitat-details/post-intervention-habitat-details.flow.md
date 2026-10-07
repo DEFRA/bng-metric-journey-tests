@@ -2,8 +2,10 @@
 
 ## Overview
 
-A BNG Completer opens a feature from the post-intervention habitat list and views its
-details. **Every post-intervention feature renders a read-only page** — area, hedgerow and
+A BNG Completer opens a feature from its unit-type post-intervention page —
+`area-post-intervention`, `hedgerows-post-intervention` or `watercourses-post-intervention`
+(BMD-1043, frontend PR#352; it was the post-intervention habitat list, now removed) — and
+views its details. **Every post-intervention feature renders a read-only page** — area, hedgerow and
 watercourse features each get a page specific to their type _and_ their intervention
 (retention) category; individual trees render an unsupported-feature placeholder. There is
 no editable form on this route: `POST /post-intervention-habitat-details` returns
@@ -15,6 +17,19 @@ next; no `govukSummaryList` rows; a bordered "Habitat units delivered" summary r
 bottom; the parcel **ref** as the H1). The **retained hedgerow** page is the only one still
 on the older `layouts/pi-view-only-page.njk` `govukSummaryList` design, with the generic
 "Post-intervention habitat details" H1 and a "Units in this habitat" row.
+
+### Back link (BMD-1043)
+
+Every page's Back link is `postInterventionBackHref(projectId, type, returnUrl)` in
+`post-intervention-habitat-details/controller.js`. The destination is the feature type's
+post-intervention page — `habitatDetailsDestination(projectId, type, 'postIntervention')`:
+`/projects/{projectId}/area-post-intervention` for habitats and trees,
+`/projects/{projectId}/hedgerows-post-intervention`, or
+`/projects/{projectId}/watercourses-post-intervention`. A `returnUrl` query param is honoured
+only when it is a safe relative path equal to that destination or starting with
+`{destination}#`; the grids' Ref links pass their own page as `returnUrl`, so a click-through
+returns there. Before BMD-1043 every Back link pointed at the post-intervention habitat list
+with a tab anchor (`#area-habitats`, `#hedgerows`, `#watercourses`).
 
 ### Page routing
 
@@ -112,7 +127,7 @@ Every GET step below shares this contract, so it is stated once rather than repe
   units summary row) and no trading-rules row. Size uses `formatAreaHectaresValue`
   (10 significant figures, **no `ha` suffix** — the label carries the unit). Broad habitat
   and habitat type read `proposed.broadType` / `proposed.type`. Back link to
-  `/projects/{projectId}/post-intervention-habitat-list#area-habitats`.
+  the area habitats post-intervention page (see Back link above).
 - **Validation:** shared GET contract
 - **On success:** Renders the read-only stacked area details page
 - **On error:** shared GET contract
@@ -131,7 +146,7 @@ Every GET step below shares this contract, so it is stated once rather than repe
   "View baseline details" link. There is no "Habitat units delivered" summary row and no
   Broad habitat row (hedgerows have no broad-habitat dimension). Length uses `formatLengthKm`
   (7 significant figures, **no `km` suffix** — the label carries the unit). All values
-  including habitat type come from `proposed`. Back link anchors to `#hedgerows`.
+  including habitat type come from `proposed`. Back link to the hedgerows post-intervention page.
 - **Validation:** shared GET contract
 - **On success:** Renders the read-only hedgerow summary-list page
 - **On error:** shared GET contract
@@ -152,7 +167,7 @@ Every GET step below shares this contract, so it is stated once rather than repe
   _Value sourcing_): habitat type, condition and both encroachment values read
   `baseline.* ?? proposed.* ?? ''`, paired with `proposed.conditionScore`,
   `proposed.waterEncroachmentMultiplier` and `proposed.riparianEncroachmentMultiplier`.
-  Back link anchors to `#watercourses`.
+  Back link to the watercourses post-intervention page.
 - **Validation:** shared GET contract
 - **On success:** Renders the read-only stacked watercourse details page
 - **On error:** shared GET contract
@@ -212,7 +227,7 @@ Every GET step below shares this contract, so it is stated once rather than repe
   - **Target condition and Condition render the identical string** — both are
     `withMultiplier(stripConditionPrefix(proposed.condition), proposed.conditionScore)`.
   - Every value on this page reads from `proposed`.
-  - Back link to `/projects/{projectId}/post-intervention-habitat-list#area-habitats`.
+  - Back link to the area habitats post-intervention page (see Back link above).
 - **Validation:** shared GET contract
 - **On success:** Renders the Created two-section read-only area details page
 - **On error:** shared GET contract
@@ -249,7 +264,7 @@ Every GET step below shares this contract, so it is stated once rather than repe
   - **"View baseline details"** link after the first section, resolved by ref.
   - **Section 2 — "Time to target / difficulty":** the same six rows as Step 4.
   - Then the bordered "Habitat units delivered" row. All values read from `proposed`.
-  - Back link anchors to `#hedgerows`.
+  - Back link to the hedgerows post-intervention page.
 - **Validation:** shared GET contract
 - **On success:** Renders the Enhanced two-section read-only hedgerow details page
 - **On error:** shared GET contract
@@ -297,7 +312,7 @@ Every GET step below shares this contract, so it is stated once rather than repe
   - **Encroachment values read from `proposed`**, not baseline-first — for a created or
     enhanced watercourse the engine takes its encroachment inputs from the proposed side.
     This is the opposite of the retained watercourse page (Step 3).
-  - Back link anchors to `#watercourses`.
+  - Back link to the watercourses post-intervention page.
 
   Fixture note: the `created linear features` pair supplies the `N/A`-sentinel
   time-to-target case for watercourses (see Step 4's coverage note) through **R003** —
@@ -336,7 +351,7 @@ Every GET step below shares this contract, so it is stated once rather than repe
   Renders the "Post-intervention habitat details" heading with the project name as caption
   and the message "Individual tree and IGGI features are not yet supported in this view."
   No rows, no baseline link, no units row. Back link to
-  `/projects/{projectId}/post-intervention-habitat-list#area-habitats`.
+  the area habitats post-intervention page (see Back link above).
 - **Validation:** shared GET contract
 - **On success:** Renders the placeholder page
 - **On error:** shared GET contract
@@ -369,7 +384,7 @@ Every GET step below shares this contract, so it is stated once rather than repe
   (`feature.retentionCategory`). A **Lost area habitat** is a baseline habitat that was
   removed and replaced, so the backend maps it to **Created** at import — it reaches Step 4
   with its Intervention row showing "Created". **Lost hedgerows, watercourses and trees are
-  excluded at import** and never reach this route or the habitat list.
+  excluded at import** and never reach this route or the post-intervention grids.
 - Both the frontend (`normaliseRetentionCategory` in
   `post-intervention-habitat-details/retention.js`) and the backend
   (`utilities/baseline/retention-category.js`) strip a `"N. "` list prefix. The project

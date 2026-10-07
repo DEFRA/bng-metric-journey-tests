@@ -36,7 +36,7 @@ Added by **BMD-1024** (frontend PR#332, 2026-09-28). The links into it came from
 
 - **On success:** Renders with page title "Area habitats trading summary - {serviceName}"
 - **On error:**
-  - No baseline → 302 to `/add-project-details/{id}`
+  - No baseline → 302 to `/projects/{id}/project-summary` (BMD-1043; it was the removed task list)
   - No post-intervention document → 302 to `/projects/{id}/area-summary` (nothing to trade against; the page is not linked before then)
   - Post-intervention document without figures (uploaded before BMD-993, or calculation failed) → inset text "Trading rules have not been calculated for this project…" and no tables
   - Backend 404 / unreachable → `error/index` (404 / 502), as every unit-type page

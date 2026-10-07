@@ -50,6 +50,12 @@ export class ProjectSummaryPage extends BasePage {
     this.projectDetailsLink = page.getByRole('link', {
       name: 'View project details'
     })
+    // BMD-1043 (frontend PR#352): a project with no baseline renders the
+    // summary with this prompt instead of being redirected to the task list.
+    this.noBaselinePrompt = page.getByText(
+      'Upload an on-site baseline file to see your biodiversity net gain results.',
+      { exact: true }
+    )
   }
 
   async open(id) {

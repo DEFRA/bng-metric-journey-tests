@@ -1,4 +1,5 @@
 import { test, expect } from '@fixtures'
+import { projectIdFromHref } from '@utils/project-helpers.js'
 import {
   STORAGE_STATE,
   NO_PROJECTS_STORAGE_STATE,
@@ -33,7 +34,7 @@ async function setupProject(createProjectFlow, projectDashboardPage) {
   const name = `Project details test ${Date.now()}`
   await createProjectFlow.createProject(name)
   const href = await projectDashboardPage.projectLink(name).getAttribute('href')
-  const id = href.split('/').pop()
+  const id = projectIdFromHref(href)
   return { id, name }
 }
 
@@ -41,7 +42,7 @@ async function fillAndSave(projectDetailsPage, page, id, values) {
   await projectDetailsPage.open(id)
   await projectDetailsPage.fill(values)
   await projectDetailsPage.submit()
-  await expect(page).toHaveURL(new RegExp(`/add-project-details/${id}`))
+  await expect(page).toHaveURL(new RegExp(`/projects/${id}/project-summary`))
 }
 
 async function assertDetailsMatch(
@@ -346,7 +347,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      test('submitting valid values redirects to the project task list', async ({
+      test('submitting valid values redirects to the project summary', async ({
         createProjectFlow,
         projectDashboardPage,
         projectDetailsPage,
@@ -482,7 +483,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      test('clicking "Back" navigates to the project task list', async ({
+      test('clicking "Back" navigates to the project summary', async ({
         createProjectFlow,
         projectDashboardPage,
         projectDetailsPage,
@@ -495,7 +496,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await projectDetailsPage.open(id)
         await projectDetailsPage.backLink.click()
 
-        await expect(page).toHaveURL(new RegExp(`/add-project-details/${id}`))
+        await expect(page).toHaveURL(
+          new RegExp(`/projects/${id}/project-summary`)
+        )
       })
     }
   )

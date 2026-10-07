@@ -10,6 +10,8 @@ import { CreateProjectFlow } from '@flows/project-management/create-project.flow
 import { UploadPostInterventionFileFlow } from '@flows/upload-post-intervention/upload-post-intervention-file.flow.js'
 import { ProjectDashboardPage } from '@pages/project-dashboard.page.js'
 import { ErrorFilePage } from '@pages/error-file.page.js'
+import { findPiRef, openPiTabFor } from '@utils/post-intervention-grid.js'
+import { AREA_HABITATS } from '@utils/unit-type-labels.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const PROJECT_LABEL = 'Upload post-intervention flow test'
@@ -20,14 +22,12 @@ const UPLOAD_TIMEOUT = 120_000
 const COMPLETE_FILE = 'Post-intervention - complete.gpkg'
 // BMD-850 AC6 replacement pair: HEDGEROWS_FILE adds a Hedgerows layer
 // (HR1-HR3) that COMPLETE_FILE does not have, and HEDGEROW_BASELINE_FILE is the
-// baseline carrying the matching refs (the same trio
-// test/specs/habitat-list/post-intervention-habitat-list.spec.js pairs).
+// baseline carrying the matching refs.
 const HEDGEROWS_FILE = 'Post-intervention - complete with hedgerows.gpkg'
 const HEDGEROW_BASELINE_FILE = 'Baseline - complete with hedgerow refs.gpkg'
 const REPLACED_HEDGEROW_REF = 'HR3'
 const BASELINE_HEDGEROW_REF = 'HR1'
-const NO_HEDGEROW_DATA_COPY = 'No hedgerow data uploaded.'
-const TASK_POST_INTERVENTION = 'On-site post intervention habitats'
+const COMPLETE_FILE_AREA_REF = 'H1'
 // REMOVED 2026-09-01: STRUCTURAL_ERROR_FILE / the 'structural validation
 // errors' describe. The fixture was
 // 'Post-intervention (missing data) - fails validation.gpkg', a rename of the
@@ -72,51 +72,56 @@ function describeHappyPath() {
     'Upload post-intervention — happy path',
     { tag: ['@smoke', '@happy-path'] },
     () => {
-      test('uploading a valid .gpkg file reaches the habitat list and marks the task list item as Completed', async ({
+      // BMD-1043 (frontend PR#352): a successful upload lands on the project
+      // summary, and the project task list and post-intervention habitat list
+      // are gone. The upload is made over a baseline because without one the
+      // summary renders only its upload prompt and the post-intervention pages
+      // redirect — nothing would show the upload was stored.
+      test('uploading a valid .gpkg file reaches the project summary and lists its habitats', async ({
         createProjectFlow,
         projectDashboardPage,
+        uploadBaselineFileFlow,
         uploadPostInterventionFileFlow,
-        postInterventionHabitatListPage,
-        projectTaskListPage,
+        projectSummaryPage,
         page
       }) => {
+        // Two real uploads back this test.
+        test.setTimeout(UPLOAD_TIMEOUT * 2)
+
         const { id } = await setupProject(
           createProjectFlow,
           projectDashboardPage,
           PROJECT_LABEL
         )
-
-        await uploadPostInterventionFileFlow.uploadFile(id, COMPLETE_FILE)
-
-        await page.waitForURL(
-          new RegExp(`/projects/${id}/post-intervention-habitat-list`),
-          { timeout: UPLOAD_TIMEOUT }
+        await uploadBaselineFileFlow.uploadFileAndWaitForSummary(
+          id,
+          HEDGEROW_BASELINE_FILE
         )
-
-        await expect(postInterventionHabitatListPage.heading).toBeVisible()
         await expect(
-          postInterventionHabitatListPage.summaryHeading
+          projectSummaryPage.uploadPostInterventionLink(AREA_HABITATS)
         ).toBeVisible()
 
-        await projectTaskListPage.open(id)
+        await uploadPostInterventionFileFlow.uploadFileAndWaitForSummary(
+          id,
+          COMPLETE_FILE
+        )
 
+        // The post-intervention document is stored: the summary stops offering
+        // its upload, and the file's parcels are listed on the area habitats
+        // post-intervention page.
+        await expect(projectSummaryPage.heading).toBeVisible()
         await expect(
-          projectTaskListPage.taskItem(TASK_POST_INTERVENTION)
-        ).toHaveAttribute(
-          'href',
-          `/projects/${id}/post-intervention-habitat-list`
+          projectSummaryPage.uploadPostInterventionLink(AREA_HABITATS)
+        ).toHaveCount(0)
+        const { unitPage, label } = await openPiTabFor(
+          page,
+          id,
+          'area',
+          COMPLETE_FILE_AREA_REF
         )
-        await projectTaskListPage.assertTaskStatus(
-          TASK_POST_INTERVENTION,
-          'Completed'
-        )
-        // After a post-intervention-only upload: Project Name + On-site
-        // post intervention are Completed; Project Details + On-site baseline
-        // remain Not yet started.
-        await expect(projectTaskListPage.taskStatus('Completed')).toHaveCount(2)
         await expect(
-          projectTaskListPage.taskStatus('Not yet started')
-        ).toHaveCount(2)
+          unitPage.refLink(label, COMPLETE_FILE_AREA_REF)
+        ).toBeVisible()
       })
     }
   )
@@ -132,8 +137,8 @@ function describeHappyPath() {
 // (../bng-metric-backend/integration-tests/post-intervention-persistence.test.js,
 // "AC6 replaces PI while leaving baseline unchanged") uploads the same fixture
 // twice, so it can only assert the uploadId changed and the row counts match;
-// it can neither show which file's features ended up stored nor that the list
-// re-renders from them. The two fixtures below differ by a whole layer, which
+// it can neither show which file's features ended up stored nor that the pages
+// re-render from them. The two fixtures below differ by a whole layer, which
 // is what makes a replace distinguishable from a merge or a no-op.
 function describePostInterventionReplacement() {
   test.describe(
@@ -145,8 +150,8 @@ function describePostInterventionReplacement() {
         projectDashboardPage,
         uploadBaselineFileFlow,
         uploadPostInterventionFileFlow,
-        habitatListPage,
-        postInterventionHabitatListPage,
+        areaBaselinePage,
+        hedgerowsBaselinePage,
         page
       }) => {
         // Three real uploads back this test.
@@ -164,65 +169,48 @@ function describePostInterventionReplacement() {
           id,
           HEDGEROW_BASELINE_FILE
         )
-        await habitatListPage.open(id)
-        const baselineSiteSize = await habitatListPage.siteSizeCell.innerText()
+        await areaBaselinePage.open(id)
+        const baselineAreaSize = await areaBaselinePage
+          .totalsCell('size')
+          .innerText()
 
-        await uploadPostInterventionFileFlow.uploadFile(id, HEDGEROWS_FILE)
-        await page.waitForURL(
-          new RegExp(`/projects/${id}/post-intervention-habitat-list`),
-          { timeout: UPLOAD_TIMEOUT }
+        await uploadPostInterventionFileFlow.uploadFileAndWaitForSummary(
+          id,
+          HEDGEROWS_FILE
         )
-        await postInterventionHabitatListPage.hedgerowsTab.click()
-        await expect(
-          postInterventionHabitatListPage.hedgerowRowByRef(
-            REPLACED_HEDGEROW_REF
-          )
-        ).toBeVisible()
+        expect(
+          await findPiRef(page, id, 'hedgerow', REPLACED_HEDGEROW_REF)
+        ).not.toBeNull()
 
         // COMPLETE_FILE carries no Hedgerows layer at all.
-        await uploadPostInterventionFileFlow.uploadFile(id, COMPLETE_FILE)
-        await page.waitForURL(
-          new RegExp(`/projects/${id}/post-intervention-habitat-list`),
-          { timeout: UPLOAD_TIMEOUT }
+        await uploadPostInterventionFileFlow.uploadFileAndWaitForSummary(
+          id,
+          COMPLETE_FILE
         )
 
         // The new file's area habitats render...
-        await expect(
-          postInterventionHabitatListPage.areaHabitatsTable
-            .getByRole('row')
-            .nth(1)
-        ).toBeVisible()
-        // ...and the previous file's hedgerows are gone rather than merged in,
-        // leaving the tab on its empty state.
-        await postInterventionHabitatListPage.hedgerowsTab.click()
-        await expect(
-          postInterventionHabitatListPage.hedgerowRowByRef(
-            REPLACED_HEDGEROW_REF
-          )
-        ).toBeHidden()
-        await expect(page.getByText(NO_HEDGEROW_DATA_COPY)).toBeVisible()
+        expect(
+          await findPiRef(page, id, 'area', COMPLETE_FILE_AREA_REF)
+        ).not.toBeNull()
+        // ...and the previous file's hedgerows are gone rather than merged in.
+        expect(
+          await findPiRef(page, id, 'hedgerow', REPLACED_HEDGEROW_REF)
+        ).toBeNull()
 
         // The baseline was not touched by either post-intervention upload.
-        await habitatListPage.open(id)
-        await expect(habitatListPage.siteSizeCell).toHaveText(baselineSiteSize)
-        await habitatListPage.openTab(id, 'hedgerows')
+        await areaBaselinePage.open(id)
+        await expect(areaBaselinePage.totalsCell('size')).toHaveText(
+          baselineAreaSize
+        )
+        await hedgerowsBaselinePage.open(id)
         await expect(
-          habitatListPage.hedgerowRowByRef(BASELINE_HEDGEROW_REF)
+          hedgerowsBaselinePage.refLink(BASELINE_HEDGEROW_REF)
         ).toBeVisible()
 
-        // BMD-852 widened the dashboard row link from "baseline only" to "has a
-        // baseline", so a project carrying both documents now links to its
-        // summary rather than the task list. Asserted here rather than in
-        // project-summary.spec.js because it needs a real baseline *and* a real
-        // post-intervention upload, which this test already paid for. The
-        // frontend unit test covers the same branch
-        // (projects/controller.test.js) but against a fabricated project
-        // payload — nothing else drives it from real uploads.
-        //
-        // This replaces a BMD-870 assertion that the same project was
-        // *redirected off* the summary to the task list; BMD-852 deleted that
-        // redirect. The summary's own rendering for a both-documents project is
-        // covered in test/specs/project-management/project-summary.spec.js.
+        // BMD-1043 made every dashboard row link to the summary. Asserted here
+        // for a project carrying both documents from real uploads; the
+        // summary's own rendering for such a project is covered in
+        // test/specs/project-management/project-summary.spec.js.
         await projectDashboardPage.open()
         await expect(projectDashboardPage.projectLink(name)).toHaveAttribute(
           'href',
