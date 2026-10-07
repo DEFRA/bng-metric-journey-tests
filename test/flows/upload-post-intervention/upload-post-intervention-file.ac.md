@@ -15,6 +15,12 @@ against the **live implementation** (this is a regression suite for shipped beha
   @ `ee38918`) — see §3 for the BMD-882 sliver-check split, PI-UV-8/PI-UV-9 for the two
   branches newly mirrored, and §5 for the codes still unexercised by this suite.
 
+> **Superseded in part by BMD-1043 (frontend PR#352, 2026-10-06).** PR#352 removed the project
+> task list and the post-intervention habitat list. The ACs below that name either page — §1
+> Trigger, PI-FS-2/3, PI-UV-7 and §6 Happy Path — describe behaviour that no longer exists and
+> are kept as the historical mirror; their current equivalents are noted in each section. The
+> task-list and habitat-list specs they cite were deleted on 2026-10-07.
+
 ---
 
 ## 1. Trigger
@@ -28,6 +34,12 @@ the post-intervention upload journey.
 
 **Precondition:** signed-in, approved BNG Completer, with ≥1 project, viewing that
 project's task list.
+
+> **BMD-1043:** no longer applicable — the task list is gone. The journey now starts from the
+> project summary's "Upload file" button or its "Upload on-site post intervention file" link,
+> both pointing at `/projects/{id}/upload-file`
+> (see [`choose-upload-type.flow.md`](../upload-file/choose-upload-type.flow.md)). The
+> PI-TRIG coverage below refers to the deleted `project-task-list.spec.js`.
 
 | Ref       | Acceptance criterion                                                                                                                                              | Coverage                                                                                                                          |
 | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
@@ -64,8 +76,8 @@ BMD-280 (3.03 filesize & extension), BMD-341 (3.04 Continue to upload).
 | Ref     | Acceptance criterion                                                                                                                                                                                                                               | Coverage                                                                                                                                                     |
 | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | PI-FS-1 | Form displays: Back link, caption = project name, heading "Upload a GeoPackage (.gpkg) file", post-intervention instruction text, file widget ("Upload a file" / "No file chosen" / "Choose file" / "or drop file"), Continue button, Cancel link. | ✅ [upload-post-intervention-file.spec.js](../../specs/upload-post-intervention/upload-post-intervention-file.spec.js) form-display (caption + Cancel added) |
-| PI-FS-2 | Clicking Back navigates to the project task list (`/add-project-details/{id}`).                                                                                                                                                                    | ✅ form navigation                                                                                                                                           |
-| PI-FS-3 | Clicking Cancel navigates to the project task list.                                                                                                                                                                                                | ✅ form navigation                                                                                                                                           |
+| PI-FS-2 | Clicking Back navigates to the project task list (`/add-project-details/{id}`). _BMD-1043: now the project summary, via the selection page._                                                                                                       | ✅ form navigation                                                                                                                                           |
+| PI-FS-3 | Clicking Cancel navigates to the project task list. _BMD-1043: now the project summary, via the selection page._                                                                                                                                   | ✅ form navigation                                                                                                                                           |
 | PI-FS-4 | Clicking Continue with no file selected shows the client-side error "Select a GeoPackage (.gpkg) file" and does not submit.                                                                                                                        | ✅ client-side validation                                                                                                                                    |
 | PI-FS-5 | Selecting a non-`.gpkg` file shows the client-side error "The selected file must be a GeoPackage (.gpkg)".                                                                                                                                         | ✅ client-side validation (`not-a-geopackage.txt`)                                                                                                           |
 
@@ -99,7 +111,7 @@ distinctiveness eligibility).
 | PI-UV-8  | A habitat setting **both** advance and delayed creation → **single-error** dropout, "A habitat has both advance and delayed creation set…" (BMD-883).                        | `Post-intervention - advance and delay both set.gpkg`             | ✅ content validation errors                                                                      |
 | PI-UV-9  | A habitat whose **proposed** type is High/Very High distinctiveness → **single-error** distinctiveness dropout with the statutory metric-tool link (BMD-352/BMD-405 AC6a–b). | `Post-intervention - habitat distinctiveness out of scope.gpkg`   | ✅ high distinctiveness habitat                                                                   |
 | PI-UV-6  | A file containing internal slivers. **Removed (BMD-882)** — the derived check is gone and the fixture is now accepted.                                                       | `Post-intervention - complete with slivers.gpkg`                  | ➖ removed (BMD-882)                                                                              |
-| PI-UV-7  | A valid file passing all validation lands on the post-intervention habitat list.                                                                                             | `Post-intervention - complete.gpkg`                               | ✅ happy path (full assert in Happy Path)                                                         |
+| PI-UV-7  | A valid file passing all validation lands on the post-intervention habitat list. _BMD-1043: now the project summary._                                                        | `Post-intervention - complete.gpkg`                               | ✅ happy path (full assert in Happy Path)                                                         |
 
 **Dropped after discovery:** PI-UV-4 (`Post-intervention - incorrect geom column name.gpkg`)
 is **accepted** by post-intervention validation — it passes and reaches the habitat list, so
@@ -168,7 +180,8 @@ individual + total).
 written to Postgres and the project JSONB. It lives in `bng-metric-backend` (a separate repo
 and PR) and is the remit of backend integration/unit tests, not this browser suite. In the
 journey suite it is only observable **indirectly**: the happy-path upload (PI-UV-1/7) lands on
-the post-intervention habitat list, which renders the persisted habitat data, sizes, and units.
+the project summary (BMD-1043; it was the post-intervention habitat list), and the persisted
+habitat data, sizes and units render on the unit-type post-intervention pages.
 The validation logic and persistence are **shared with baseline**.
 
 | Ticket  | Mirrored concern                                                           | Existing backend coverage                                                                                                                |
@@ -258,6 +271,12 @@ post-intervention habitat list → the project task list flips the post-interven
 "Completed".
 
 **Precondition:** signed-in, approved BNG Completer, with a project.
+
+> **BMD-1043:** the journey now uploads a baseline first, lands on the project summary, and
+> evidences the stored upload there (the "Upload on-site post intervention file" link is gone)
+> and on the area habitats post-intervention grid. Without a baseline nothing would show the
+> upload was stored — the post-intervention pages redirect a no-baseline project to the
+> summary. PI-HP-1/2 below are the pre-BMD-1043 mirror.
 
 | Ref     | Acceptance criterion                                                                                                                                              | Fixture                             | Coverage                                                        |
 | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | --------------------------------------------------------------- |

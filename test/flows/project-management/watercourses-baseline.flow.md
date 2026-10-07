@@ -66,7 +66,7 @@ and is skipped by `sumFinite`, so the totals row and the tile above still agree 
 
 ---
 
-### Step 2 — Redirect a project with no baseline to the task list `[IMPLEMENTED]`
+### Step 2 — Redirect a project with no baseline to the project summary `[IMPLEMENTED]`
 
 - **Route:** `GET /projects/{id}/watercourses-baseline` (the guard branch)
 - **Template:** None (302)
@@ -74,7 +74,7 @@ and is skipped by `sumFinite`, so the totals row and the tile above still agree 
 - **Backend endpoint:** `GET /projects/{id}`
 - **Description:** `hasBaselineData(project)` false → redirect before rendering. As on the watercourses summary, the guard is on **any** baseline, not on watercourse data specifically — a project with an area-only baseline renders this page with an empty grid rather than redirecting.
 - **Validation:** As Step 1
-- **On success:** 302 to `/add-project-details/{id}`
+- **On success:** 302 to `/projects/{id}/project-summary` (BMD-1043, frontend PR#352; it was the task list `/add-project-details/{id}`, now removed)
 - **On error:** As Step 1
 
 ---
@@ -126,7 +126,7 @@ Both projects come from `@utils/summary-projects.js` (`getAllUnitTypesProject`, 
 
 **Deliberately not covered.** Three things, each with a named witness elsewhere:
 
-- **`aria-sort` toggling and the resulting row order (AC8, AC9).** MoJ component behaviour — the ACs themselves say "default component behaviour" — witnessed by real clicks in `habitat-list-upload.spec.js:341-381`, and the row order this grid's sort keys produce is asserted in `hedgerows-baseline.spec.js:217`. That test drives the **same** builder, the same seven columns and the same unparameterised sort cells; only the rows differ.
+- **`aria-sort` toggling and the resulting row order (AC8, AC9).** MoJ component behaviour — the ACs themselves say "default component behaviour" — witnessed by real clicks in `hedgerows-baseline.spec.js` (the habitat-list witness was deleted with BMD-1043), and the row order this grid's sort keys produce is asserted in `hedgerows-baseline.spec.js:217`. That test drives the **same** builder, the same seven columns and the same unparameterised sort cells; only the rows differ.
 - **The details pane overflowing horizontally (AC6's last bullet).** `hedgerows-baseline.spec.js:195` measures it on the same pane with the same column widths.
 - **Following the four left-nav links (AC12).** `area-summary.spec.js:260` follows the same four destinations through the same shared macro; what this page needs to prove is that it **emits** them, which a fixture without hedgerows could not.
 

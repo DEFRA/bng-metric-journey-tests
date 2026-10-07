@@ -6,6 +6,9 @@ import {
   runMode
 } from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
+import { AreaBaselinePage } from '@pages/area-baseline.page.js'
+import { HedgerowsBaselinePage } from '@pages/hedgerows-baseline.page.js'
+import { WatercoursesBaselinePage } from '@pages/watercourses-baseline.page.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 // The edit/save describes each run their own real-CDP upload; under e2e load the
@@ -57,13 +60,70 @@ const IN_SCOPE_WATERCOURSE_TYPES = ['Canals', 'Culvert', 'Ditches']
 const COMPLETE_BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
 const PROJECT_LABEL = 'Habitat details test'
 
-// Habitat-list table column order (buildHabitatRow): ref, type, size,
-// distinctiveness, condition, units, status.
-const SIZE_COLUMN = 2
-const DISTINCTIVENESS_COLUMN = 3
-const CONDITION_COLUMN = 4
-const UNITS_COLUMN = 5
-const STATUS_COLUMN = 6
+// BMD-1043 (frontend PR#352) removed the baseline habitat list. Each feature
+// type's grid now lives on its own unit-type baseline page, and that page is
+// where the details page's Back, Cancel and Save all lead. Column indexes follow
+// buildBaselineHabitatGrid: ref, units, size, [broad habitat — area only],
+// habitat type, distinctiveness, condition, strategic significance. The grid
+// has no Status column, so Complete/Incomplete is not observable there.
+const BASELINE_PAGES = {
+  area: {
+    path: 'area-baseline',
+    Page: AreaBaselinePage,
+    columns: { units: 1, size: 2, distinctiveness: 5, condition: 6 }
+  },
+  hedgerow: {
+    path: 'hedgerows-baseline',
+    Page: HedgerowsBaselinePage,
+    columns: { units: 1, size: 2, distinctiveness: 4, condition: 5 }
+  },
+  watercourse: {
+    path: 'watercourses-baseline-summary',
+    Page: WatercoursesBaselinePage,
+    columns: { units: 1, size: 2, distinctiveness: 4, condition: 5 }
+  }
+}
+
+function baselinePagePath(projectId, type) {
+  return `/projects/${projectId}/${BASELINE_PAGES[type].path}`
+}
+
+// Anchored so `area-baseline` cannot match a longer path.
+function baselinePageUrl(projectId, type) {
+  return new RegExp(`${baselinePagePath(projectId, type)}(?:[?#]|$)`)
+}
+
+function baselineGridPage(page, type) {
+  return new BASELINE_PAGES[type].Page(page)
+}
+
+async function openBaselineGrid(page, projectId, type) {
+  await page.goto(baselinePagePath(projectId, type))
+  return baselineGridPage(page, type)
+}
+
+function gridRow(page, type, ref) {
+  return baselineGridPage(page, type)
+    .featureRows()
+    .filter({ has: page.getByRole('link', { name: ref, exact: true }) })
+}
+
+function gridCell(page, type, ref, column) {
+  return gridRow(page, type, ref)
+    .locator('td')
+    .nth(BASELINE_PAGES[type].columns[column])
+}
+
+// The grid renders condition as label and score — "Good (3)" — where the
+// details page's select holds the bare label.
+function gridConditionPattern(condition) {
+  const escaped = condition.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`^${escaped} \\([\\d.]+\\)$`)
+}
+
+function gridUnitsTotal(page, type) {
+  return baselineGridPage(page, type).totalsCell('units')
+}
 
 // Habitat units render to two decimal places (formatHabitatUnits); a saved
 // (Complete) habitat shows a non-empty value, an Incomplete habitat shows 0.00.
@@ -78,8 +138,7 @@ const DISTINCTIVENESS_PATTERN =
 async function uploadAndGetProject(
   createProjectFlow,
   projectDashboardPage,
-  uploadBaselineFileFlow,
-  page
+  uploadBaselineFileFlow
 ) {
   const project = await setupProject(
     createProjectFlow,
@@ -90,11 +149,6 @@ async function uploadAndGetProject(
     project.id,
     COMPLETE_BASELINE_FILE
   )
-  // BMD-870 re-pointed the upload's success redirect to the project summary.
-  // Callers of this helper expect to be left on the habitat list — that is
-  // where they click through to a detail page — so navigate on rather than
-  // making every caller do it.
-  await page.goto(`/projects/${project.id}/baseline-habitat-list`)
   return project
 }
 
@@ -111,9 +165,9 @@ async function refAndFeatureIdFromLink(link) {
   }
 }
 
-async function getRowRefAndFeatureId(page, panelId) {
-  const link = page.locator(`#${panelId}`).getByRole('link').first()
-  return refAndFeatureIdFromLink(link)
+async function firstGridFeature(page, projectId, type) {
+  const grid = await openBaselineGrid(page, projectId, type)
+  return refAndFeatureIdFromLink(grid.table().getByRole('link').first())
 }
 
 function conditionsProxyUrl(habitatType, featureType) {
@@ -164,79 +218,51 @@ async function expectDerivedValuesHidden(detailsPage) {
   await expect(detailsPage.tradingRuleDisplay).toHaveText('')
 }
 
+// Read every linked row of a baseline grid. A linear size cell carries a "km"
+// suffix ("0.123km") that the details page drops under its "Length (km)" label,
+// so strip it to compare like-for-like; area size reads "1.36ha" on both.
+async function readGridFeatures(page, projectId, type) {
+  const grid = await openBaselineGrid(page, projectId, type)
+  const { columns } = BASELINE_PAGES[type]
+  const features = []
+  for (const row of await grid.featureRows().all()) {
+    const link = row.getByRole('link').first()
+    if ((await link.count()) === 0) {
+      continue
+    }
+    const cells = row.locator('td')
+    const text = async (column) =>
+      (await cells.nth(columns[column]).textContent()).trim()
+    features.push({
+      ...(await refAndFeatureIdFromLink(link)),
+      size: (await text('size')).replace(/km$/, ''),
+      distinctiveness: await text('distinctiveness'),
+      condition: await text('condition')
+    })
+  }
+  return features
+}
+
 // Pick the first area habitat above V.Low distinctiveness so the content ACs
 // exercise a fully-populated habitat (real broad/type/condition data); fall
 // back to the first area habitat.
-async function pickRichAreaHabitat(page) {
-  const rows = page
-    .locator('#area-habitats')
-    .getByRole('table')
-    .getByRole('row')
-  const count = await rows.count()
-  let firstRow = null
-  for (let i = 0; i < count; i++) {
-    const row = rows.nth(i)
-    const link = row.getByRole('link').first()
-    if ((await link.count()) === 0) {
-      continue
-    }
-    const { ref, featureId } = await refAndFeatureIdFromLink(link)
-    const cells = row.getByRole('cell')
-    const size = (await cells.nth(SIZE_COLUMN).textContent()).trim()
-    const distinctiveness = (
-      await cells.nth(DISTINCTIVENESS_COLUMN).textContent()
-    ).trim()
-    const candidate = { ref, featureId, size }
-    if (!firstRow) {
-      firstRow = candidate
-    }
-    if (distinctiveness && !distinctiveness.startsWith('V.Low')) {
-      return candidate
-    }
-  }
-  return firstRow
+async function pickRichAreaHabitat(page, projectId) {
+  const features = await readGridFeatures(page, projectId, 'area')
+  const { ref, featureId, size } =
+    features.find(
+      (f) => f.distinctiveness && !f.distinctiveness.startsWith('V.Low')
+    ) ?? features[0]
+  return { ref, featureId, size }
 }
 
-// Pick a linear feature (hedgerow or watercourse) from its habitat-list panel
-// for the content ACs, preferring one with a saved condition so AC8a's
-// "selected" value can be verified; fall back to the first. Assumes the
-// feature's tab is already active (its panel is otherwise hidden).
-async function pickLinearFeature(page, panelId) {
-  const rows = page.locator(`#${panelId}`).getByRole('table').getByRole('row')
-  const count = await rows.count()
-  let firstRow = null
-  for (let i = 0; i < count; i++) {
-    const row = rows.nth(i)
-    const link = row.getByRole('link').first()
-    if ((await link.count()) === 0) {
-      continue
-    }
-    const { ref, featureId } = await refAndFeatureIdFromLink(link)
-    const cells = row.getByRole('cell')
-    // The list cell carries a "km" suffix (e.g. "0.123km"); the details page
-    // shows the bare number under the "Length (km)" label, so strip the unit
-    // to compare like-for-like.
-    const length = (await cells.nth(SIZE_COLUMN).textContent())
-      .trim()
-      .replace(/km$/, '')
-    const condition = (await cells.nth(CONDITION_COLUMN).textContent()).trim()
-    const candidate = { ref, featureId, length }
-    if (!firstRow) {
-      firstRow = candidate
-    }
-    if (condition) {
-      return candidate
-    }
-  }
-  return firstRow
-}
-
-async function pickHedgerow(page) {
-  return pickLinearFeature(page, 'hedgerows')
-}
-
-async function pickWatercourse(page) {
-  return pickLinearFeature(page, 'watercourses')
+// Pick a linear feature (hedgerow or watercourse) for the content ACs,
+// preferring one with a saved condition so AC8a's "selected" value can be
+// verified; fall back to the first.
+async function pickLinearFeature(page, projectId, type) {
+  const features = await readGridFeatures(page, projectId, type)
+  const { ref, featureId, size } =
+    features.find((f) => f.condition) ?? features[0]
+  return { ref, featureId, length: size }
 }
 
 // Some area habitats (e.g. the baseline's "N/A - Other" type) have a single
@@ -244,20 +270,15 @@ async function pickWatercourse(page) {
 // alternative to choose. Walk the area habitats and return the first one that
 // offers an alternative condition, so the edit-and-persist path can run. Hrefs
 // are collected up front because opening each detail page navigates away from
-// the list.
+// the grid.
 async function findEditableAreaHabitat(
   page,
   baselineHabitatDetailsPage,
   projectId
 ) {
-  const links = await page.locator('#area-habitats').getByRole('link').all()
-  const habitats = []
-  for (const link of links) {
-    const habitat = await refAndFeatureIdFromLink(link)
-    if (habitat.featureId) {
-      habitats.push(habitat)
-    }
-  }
+  const habitats = (await readGridFeatures(page, projectId, 'area')).filter(
+    (habitat) => habitat.featureId
+  )
 
   for (const habitat of habitats) {
     await baselineHabitatDetailsPage.open(projectId, habitat.featureId)
@@ -297,21 +318,30 @@ async function buildSharedBaseline({
   createProjectFlow,
   projectDashboardPage,
   uploadBaselineFileFlow,
-  habitatListPage,
   page
 }) {
   const project = await uploadAndGetProject(
     createProjectFlow,
     projectDashboardPage,
-    uploadBaselineFileFlow,
-    page
+    uploadBaselineFileFlow
   )
-  const area = await pickRichAreaHabitat(page)
-  await habitatListPage.hedgerowsTab.click()
-  const hedgerow = await pickHedgerow(page)
-  await habitatListPage.watercoursesTab.click()
-  const watercourse = await pickWatercourse(page)
+  const area = await pickRichAreaHabitat(page, project.id)
+  const hedgerow = await pickLinearFeature(page, project.id, 'hedgerow')
+  const watercourse = await pickLinearFeature(page, project.id, 'watercourse')
   return { id: project.id, name: project.name, area, hedgerow, watercourse }
+}
+
+async function expectBackAndCancelReturnToBaseline(
+  page,
+  detailsPage,
+  { projectId, featureId, type }
+) {
+  for (const link of [detailsPage.backLink, detailsPage.cancelLink]) {
+    await detailsPage.open(projectId, featureId)
+    await link.click()
+    await expect(page).toHaveURL(baselinePageUrl(projectId, type))
+    await expect(baselineGridPage(page, type).table()).toBeVisible()
+  }
 }
 
 test.describe('habitat-details', { tag: '@habitat-details' }, () => {
@@ -384,7 +414,6 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           createProjectFlow,
           projectDashboardPage,
           uploadBaselineFileFlow,
-          habitatListPage,
           baselineHabitatDetailsPage,
           page
         }) => {
@@ -392,7 +421,6 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             createProjectFlow,
             projectDashboardPage,
             uploadBaselineFileFlow,
-            habitatListPage,
             page
           })
 
@@ -560,7 +588,6 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         createProjectFlow,
         projectDashboardPage,
         uploadBaselineFileFlow,
-        habitatListPage,
         baselineHabitatDetailsPage,
         page
       }) => {
@@ -568,7 +595,6 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           createProjectFlow,
           projectDashboardPage,
           uploadBaselineFileFlow,
-          habitatListPage,
           page
         })
         projectId = shared.id
@@ -606,17 +632,13 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(baselineHabitatDetailsPage.habitatUnitsKey).toBeVisible()
       })
 
-      test('save area habitat selections redirects to habitat list with area anchor', async ({
+      test('save area habitat selections redirects to the area habitats baseline', async ({
         baselineHabitatDetailsPage,
         page
       }) => {
         await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
         await baselineHabitatDetailsPage.saveButton.click()
-        await expect(page).toHaveURL(
-          new RegExp(
-            `/projects/${projectId}/baseline-habitat-list#habitat-${areaFeatureId}`
-          )
-        )
+        await expect(page).toHaveURL(baselinePageUrl(projectId, 'area'))
       })
     }
   )
@@ -636,29 +658,22 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       let areaFeatureId
       let areaRef
 
-      function areaRow(habitatListPage) {
-        return habitatListPage.areaHabitatsTable
-          .getByRole('row')
-          .filter({ hasText: areaRef })
-      }
-
       // AC6 (Scenario A — all options selected): saving a changed selection
-      // persists it, recalculates the habitat units + sets status Complete, and
-      // returns to the Habitat List (Areas tab) with the row and the summary
-      // total reflecting the new calculation.
-      test('AC6 Scenario A — saving with all options selected recalculates units and sets Complete', async ({
+      // persists it, recalculates the habitat units, and returns to the area
+      // habitats baseline with the row and the grid total reflecting the new
+      // calculation. The grid has no Status column (BMD-1043), so "Complete" is
+      // evidenced by the recalculated units rather than a status cell.
+      test('AC6 Scenario A — saving with all options selected recalculates units', async ({
         createProjectFlow,
         projectDashboardPage,
         uploadBaselineFileFlow,
         baselineHabitatDetailsPage,
-        habitatListPage,
         page
       }) => {
         projectId = await uploadAndGetProjectId(
           createProjectFlow,
           projectDashboardPage,
-          uploadBaselineFileFlow,
-          page
+          uploadBaselineFileFlow
         )
         const area = await findEditableAreaHabitat(
           page,
@@ -672,22 +687,16 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         const newCondition =
           await baselineHabitatDetailsPage.selectDifferentCondition()
         await baselineHabitatDetailsPage.saveButton.click()
-        await page.waitForURL(
-          new RegExp(`/projects/${projectId}/baseline-habitat-list`)
-        )
+        await page.waitForURL(baselinePageUrl(projectId, 'area'))
 
-        const row = areaRow(habitatListPage)
-        await expect(row.getByRole('cell').nth(CONDITION_COLUMN)).toHaveText(
-          newCondition
+        await expect(gridCell(page, 'area', areaRef, 'condition')).toHaveText(
+          gridConditionPattern(newCondition)
         )
-        await expect(row.getByRole('cell').nth(STATUS_COLUMN)).toHaveText(
-          'Complete'
-        )
-        // Units recalculated for the row and reflected in the summary total.
-        await expect(row.getByRole('cell').nth(UNITS_COLUMN)).toHaveText(
+        // Units recalculated for the row and reflected in the grid total.
+        await expect(gridCell(page, 'area', areaRef, 'units')).toHaveText(
           HABITAT_UNITS_PATTERN
         )
-        await expect(habitatListPage.areaHabitatUnitsCell).toHaveText(
+        await expect(gridUnitsTotal(page, 'area')).toHaveText(
           HABITAT_UNITS_PATTERN
         )
       })
@@ -832,60 +841,48 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       })
 
       // AC7: changing a dropdown then clicking Cancel discards the change —
-      // the user returns to the Areas tab and the row's condition + units are
-      // unchanged from before the edit (no UI or DB update).
+      // the user returns to the area habitats baseline and the row's condition
+      // + units are unchanged from before the edit (no UI or DB update).
       test('AC7 — cancelling after a change discards it and leaves the row unchanged', async ({
         baselineHabitatDetailsPage,
-        habitatListPage,
         page
       }) => {
-        // Capture the currently-persisted row state fresh from the list.
-        await page.goto(`/projects/${projectId}/baseline-habitat-list`)
-        const rowBefore = areaRow(habitatListPage)
+        // Capture the currently-persisted row state fresh from the grid.
+        await openBaselineGrid(page, projectId, 'area')
         const conditionBefore = (
-          await rowBefore.getByRole('cell').nth(CONDITION_COLUMN).textContent()
+          await gridCell(page, 'area', areaRef, 'condition').textContent()
         ).trim()
         const unitsBefore = (
-          await rowBefore.getByRole('cell').nth(UNITS_COLUMN).textContent()
+          await gridCell(page, 'area', areaRef, 'units').textContent()
         ).trim()
 
         await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
         await baselineHabitatDetailsPage.selectDifferentCondition()
         await baselineHabitatDetailsPage.cancelLink.click()
-        await page.waitForURL(
-          new RegExp(`/projects/${projectId}/baseline-habitat-list`)
-        )
+        await page.waitForURL(baselinePageUrl(projectId, 'area'))
 
-        await expect(habitatListPage.areaHabitatsTable).toBeVisible()
-        const rowAfter = areaRow(habitatListPage)
-        await expect(
-          rowAfter.getByRole('cell').nth(CONDITION_COLUMN)
-        ).toHaveText(conditionBefore)
-        await expect(rowAfter.getByRole('cell').nth(UNITS_COLUMN)).toHaveText(
+        await expect(gridCell(page, 'area', areaRef, 'condition')).toHaveText(
+          conditionBefore
+        )
+        await expect(gridCell(page, 'area', areaRef, 'units')).toHaveText(
           unitsBefore
         )
       })
 
       // AC6 (Scenario B — not all options selected): saving with a dropdown
-      // deselected zeroes the units and sets status Incomplete. Runs last in
-      // the serial block because it leaves the shared habitat Incomplete.
-      test('AC6 Scenario B — saving with a deselected dropdown zeroes units and sets Incomplete', async ({
+      // deselected zeroes the units (the grid has no Status column to show
+      // Incomplete — BMD-1043). Runs last in the serial block because it leaves
+      // the shared habitat Incomplete.
+      test('AC6 Scenario B — saving with a deselected dropdown zeroes units', async ({
         baselineHabitatDetailsPage,
-        habitatListPage,
         page
       }) => {
         await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
         await baselineHabitatDetailsPage.conditionSelect.selectOption('')
         await baselineHabitatDetailsPage.saveButton.click()
-        await page.waitForURL(
-          new RegExp(`/projects/${projectId}/baseline-habitat-list`)
-        )
+        await page.waitForURL(baselinePageUrl(projectId, 'area'))
 
-        const row = areaRow(habitatListPage)
-        await expect(row.getByRole('cell').nth(STATUS_COLUMN)).toHaveText(
-          'Incomplete'
-        )
-        await expect(row.getByRole('cell').nth(UNITS_COLUMN)).toHaveText(
+        await expect(gridCell(page, 'area', areaRef, 'units')).toHaveText(
           ZERO_UNITS
         )
       })
@@ -908,11 +905,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       let areaRef
       let areaSize
 
-      test('AC1 — page pathname is /baseline-habitat-details after click-through, and Back returns to the list', async ({
+      test('AC1 — page pathname is /baseline-habitat-details after click-through, and Back returns to the area habitats baseline', async ({
         createProjectFlow,
         projectDashboardPage,
         uploadBaselineFileFlow,
-        habitatListPage,
         baselineHabitatDetailsPage,
         page
       }) => {
@@ -920,7 +916,6 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           createProjectFlow,
           projectDashboardPage,
           uploadBaselineFileFlow,
-          habitatListPage,
           page
         })
         projectId = shared.id
@@ -929,29 +924,25 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         areaRef = shared.area.ref
         areaSize = shared.area.size
 
-        await habitatListPage.open(projectId)
-        await page
-          .locator('#area-habitats')
-          .getByRole('link', { name: areaRef, exact: true })
-          .click()
+        const grid = await openBaselineGrid(page, projectId, 'area')
+        await grid.refLink(areaRef).click()
         await expect(page).toHaveURL(/\/baseline-habitat-details/)
 
-        // BMD-878 AC2, arrived-from-the-list route. The referrer here is the
-        // baseline habitat list: same-host, but not a post-intervention page,
-        // so the Back link still falls back to the list. This is a different
-        // branch from the no-referrer case the AC14 tests cover — a referrer
-        // that parses and then fails the path/projectId checks, rather than a
-        // missing one that throws. The hedgerow and watercourse click-throughs
-        // below share this back-link logic, so one feature type covers it.
+        // BMD-878 AC2, arrived-from-the-grid route. The referrer here is the
+        // area habitats baseline: same-host, but not a post-intervention page,
+        // so the Back link still falls back to the baseline grid. This is a
+        // different branch from the no-referrer case the AC14 tests cover — a
+        // referrer that parses and then fails the path/projectId checks, rather
+        // than a missing one that throws. The hedgerow and watercourse
+        // click-throughs below share this back-link logic, so one feature type
+        // covers it.
         await expect(baselineHabitatDetailsPage.backLink).toHaveAttribute(
           'href',
-          new RegExp(`^/projects/${projectId}/baseline-habitat-list`)
+          new RegExp(`^${baselinePagePath(projectId, 'area')}$`)
         )
         await baselineHabitatDetailsPage.backLink.click()
-        await expect(page).toHaveURL(
-          new RegExp(`/projects/${projectId}/baseline-habitat-list`)
-        )
-        await expect(habitatListPage.areaHabitatsTable).toBeVisible()
+        await expect(page).toHaveURL(baselinePageUrl(projectId, 'area'))
+        await expect(grid.table()).toBeVisible()
       })
 
       // AC2–AC11, consolidated. These were nine separate page loads asserting one
@@ -984,7 +975,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           .soft(page.getByText(areaRef, { exact: true }))
           .toBeVisible()
 
-        // AC4 — area label + value carried from the list
+        // AC4 — area label + value carried from the baseline grid
         await expect
           .soft(page.getByText('Area (hectares)', { exact: true }))
           .toBeVisible()
@@ -1094,31 +1085,22 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       })
 
       // BMD-878 AC2, bookmark route: open() deep-links via page.goto(), which
-      // sends no Referer, so the Back link falls back to the habitat list.
-      // Do not "improve" this to click through from a post-intervention
-      // habitat details page — that sends a Referer and the link would
-      // correctly point back there instead, which is AC1, not this test.
-      test('AC14/AC15 — Back and Cancel return to the habitat list Areas tab', async ({
+      // sends no Referer, so the Back link falls back to the area habitats
+      // baseline (BMD-1043; it was the habitat list). Do not "improve" this to
+      // click through from a post-intervention habitat details page — that
+      // sends a Referer and the link would correctly point back there instead,
+      // which is AC1, not this test.
+      test('AC14/AC15 — Back and Cancel return to the area habitats baseline', async ({
         baselineHabitatDetailsPage,
-        habitatListPage,
         page
       }) => {
-        await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
-        await baselineHabitatDetailsPage.backLink.click()
-        await expect(page).toHaveURL(
-          new RegExp(`/projects/${projectId}/baseline-habitat-list`)
+        // Since BMD-1043 Cancel and Back share one destination — the row
+        // anchor Cancel used to carry went with the habitat list.
+        await expectBackAndCancelReturnToBaseline(
+          page,
+          baselineHabitatDetailsPage,
+          { projectId, featureId: areaFeatureId, type: 'area' }
         )
-        await expect(habitatListPage.areaHabitatsTable).toBeVisible()
-
-        // Cancel anchors to the specific habitat row; Back does not.
-        await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
-        await baselineHabitatDetailsPage.cancelLink.click()
-        await expect(page).toHaveURL(
-          new RegExp(
-            `/projects/${projectId}/baseline-habitat-list#habitat-${areaFeatureId}`
-          )
-        )
-        await expect(habitatListPage.areaHabitatsTable).toBeVisible()
       })
     }
   )
@@ -1142,14 +1124,12 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         projectDashboardPage,
         uploadBaselineFileFlow,
         baselineHabitatDetailsPage,
-        habitatListPage,
         page
       }) => {
         const shared = await getSharedBaseline({
           createProjectFlow,
           projectDashboardPage,
           uploadBaselineFileFlow,
-          habitatListPage,
           page
         })
         projectId = shared.id
@@ -1172,15 +1152,13 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(page.getByText('Length (km)')).toBeVisible()
       })
 
-      test('save hedgerow selections redirects to habitat list with hedgerows anchor', async ({
+      test('save hedgerow selections redirects to the hedgerows baseline', async ({
         baselineHabitatDetailsPage,
         page
       }) => {
         await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
         await baselineHabitatDetailsPage.saveButton.click()
-        await expect(page).toHaveURL(
-          new RegExp(`/projects/${projectId}/baseline-habitat-list#hedgerows`)
-        )
+        await expect(page).toHaveURL(baselinePageUrl(projectId, 'hedgerow'))
       })
     }
   )
@@ -1200,34 +1178,23 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       let hedgerowFeatureId
       let hedgerowRef
 
-      function hedgerowRow(habitatListPage) {
-        return habitatListPage.hedgerowsTable
-          .getByRole('row')
-          .filter({ hasText: hedgerowRef })
-      }
-
       // AC6 (Scenario A — all options selected): saving a changed selection
-      // persists it, recalculates the hedgerow units + sets status Complete, and
-      // returns to the Habitat List (Hedgerows tab) with the row and the summary
-      // total reflecting the new calculation.
-      test('AC6 Scenario A — saving with all options selected recalculates units and sets Complete', async ({
+      // persists it, recalculates the hedgerow units, and returns to the
+      // hedgerows baseline with the row and the grid total reflecting the new
+      // calculation. The grid has no Status column (BMD-1043).
+      test('AC6 Scenario A — saving with all options selected recalculates units', async ({
         createProjectFlow,
         projectDashboardPage,
         uploadBaselineFileFlow,
         baselineHabitatDetailsPage,
-        habitatListPage,
         page
       }) => {
         projectId = await uploadAndGetProjectId(
           createProjectFlow,
           projectDashboardPage,
-          uploadBaselineFileFlow,
-          page
+          uploadBaselineFileFlow
         )
-        // The Hedgerows panel is hidden by GOV.UK Tabs JS until the tab is clicked;
-        // clicking first makes the links visible so getByRole can find them.
-        await habitatListPage.hedgerowsTab.click()
-        const hedgerow = await getRowRefAndFeatureId(page, 'hedgerows')
+        const hedgerow = await firstGridFeature(page, projectId, 'hedgerow')
         hedgerowFeatureId = hedgerow.featureId
         hedgerowRef = hedgerow.ref
 
@@ -1235,23 +1202,16 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         const newCondition =
           await baselineHabitatDetailsPage.selectDifferentCondition()
         await baselineHabitatDetailsPage.saveButton.click()
-        await page.waitForURL(
-          new RegExp(`/projects/${projectId}/baseline-habitat-list`)
-        )
+        await page.waitForURL(baselinePageUrl(projectId, 'hedgerow'))
 
-        await habitatListPage.hedgerowsTab.click()
-        const row = hedgerowRow(habitatListPage)
-        await expect(row.getByRole('cell').nth(CONDITION_COLUMN)).toHaveText(
-          newCondition
-        )
-        await expect(row.getByRole('cell').nth(STATUS_COLUMN)).toHaveText(
-          'Complete'
-        )
-        // Units recalculated for the row and reflected in the summary total.
-        await expect(row.getByRole('cell').nth(UNITS_COLUMN)).toHaveText(
-          HABITAT_UNITS_PATTERN
-        )
-        await expect(habitatListPage.hedgerowUnitsCell).toHaveText(
+        await expect(
+          gridCell(page, 'hedgerow', hedgerowRef, 'condition')
+        ).toHaveText(gridConditionPattern(newCondition))
+        // Units recalculated for the row and reflected in the grid total.
+        await expect(
+          gridCell(page, 'hedgerow', hedgerowRef, 'units')
+        ).toHaveText(HABITAT_UNITS_PATTERN)
+        await expect(gridUnitsTotal(page, 'hedgerow')).toHaveText(
           HABITAT_UNITS_PATTERN
         )
       })
@@ -1342,64 +1302,54 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       })
 
       // AC7: changing a dropdown then clicking Cancel discards the change — the
-      // user returns to the Hedgerows tab and the row's condition + units are
-      // unchanged from before the edit (no UI or DB update).
+      // user returns to the hedgerows baseline and the row's condition + units
+      // are unchanged from before the edit (no UI or DB update).
       test('AC7 — cancelling after a change discards it and leaves the row unchanged', async ({
         baselineHabitatDetailsPage,
-        habitatListPage,
         page
       }) => {
-        // Capture the currently-persisted row state fresh from the list.
-        await page.goto(`/projects/${projectId}/baseline-habitat-list`)
-        await habitatListPage.hedgerowsTab.click()
-        const rowBefore = hedgerowRow(habitatListPage)
+        // Capture the currently-persisted row state fresh from the grid.
+        await openBaselineGrid(page, projectId, 'hedgerow')
         const conditionBefore = (
-          await rowBefore.getByRole('cell').nth(CONDITION_COLUMN).textContent()
+          await gridCell(
+            page,
+            'hedgerow',
+            hedgerowRef,
+            'condition'
+          ).textContent()
         ).trim()
         const unitsBefore = (
-          await rowBefore.getByRole('cell').nth(UNITS_COLUMN).textContent()
+          await gridCell(page, 'hedgerow', hedgerowRef, 'units').textContent()
         ).trim()
 
         await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
         await baselineHabitatDetailsPage.selectDifferentCondition()
         await baselineHabitatDetailsPage.cancelLink.click()
-        await page.waitForURL(
-          new RegExp(`/projects/${projectId}/baseline-habitat-list#hedgerows`)
-        )
+        await page.waitForURL(baselinePageUrl(projectId, 'hedgerow'))
 
-        await habitatListPage.hedgerowsTab.click()
-        const rowAfter = hedgerowRow(habitatListPage)
         await expect(
-          rowAfter.getByRole('cell').nth(CONDITION_COLUMN)
+          gridCell(page, 'hedgerow', hedgerowRef, 'condition')
         ).toHaveText(conditionBefore)
-        await expect(rowAfter.getByRole('cell').nth(UNITS_COLUMN)).toHaveText(
-          unitsBefore
-        )
+        await expect(
+          gridCell(page, 'hedgerow', hedgerowRef, 'units')
+        ).toHaveText(unitsBefore)
       })
 
       // AC6 (Scenario B — not all options selected): saving with the condition
-      // deselected zeroes the units and sets status Incomplete. Runs last in the
-      // serial block because it leaves the shared hedgerow Incomplete.
-      test('AC6 Scenario B — saving with a deselected dropdown zeroes units and sets Incomplete', async ({
+      // deselected zeroes the units (no Status column — BMD-1043). Runs last in
+      // the serial block because it leaves the shared hedgerow Incomplete.
+      test('AC6 Scenario B — saving with a deselected dropdown zeroes units', async ({
         baselineHabitatDetailsPage,
-        habitatListPage,
         page
       }) => {
         await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
         await baselineHabitatDetailsPage.conditionSelect.selectOption('')
         await baselineHabitatDetailsPage.saveButton.click()
-        await page.waitForURL(
-          new RegExp(`/projects/${projectId}/baseline-habitat-list`)
-        )
+        await page.waitForURL(baselinePageUrl(projectId, 'hedgerow'))
 
-        await habitatListPage.hedgerowsTab.click()
-        const row = hedgerowRow(habitatListPage)
-        await expect(row.getByRole('cell').nth(STATUS_COLUMN)).toHaveText(
-          'Incomplete'
-        )
-        await expect(row.getByRole('cell').nth(UNITS_COLUMN)).toHaveText(
-          ZERO_UNITS
-        )
+        await expect(
+          gridCell(page, 'hedgerow', hedgerowRef, 'units')
+        ).toHaveText(ZERO_UNITS)
       })
     }
   )
@@ -1424,14 +1374,12 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         createProjectFlow,
         projectDashboardPage,
         uploadBaselineFileFlow,
-        habitatListPage,
         page
       }) => {
         const shared = await getSharedBaseline({
           createProjectFlow,
           projectDashboardPage,
           uploadBaselineFileFlow,
-          habitatListPage,
           page
         })
         projectId = shared.id
@@ -1440,12 +1388,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         hedgerowRef = shared.hedgerow.ref
         hedgerowLength = shared.hedgerow.length
 
-        await habitatListPage.open(projectId)
-        await habitatListPage.hedgerowsTab.click()
-        await page
-          .locator('#hedgerows')
-          .getByRole('link', { name: hedgerowRef, exact: true })
-          .click()
+        const grid = await openBaselineGrid(page, projectId, 'hedgerow')
+        await grid.refLink(hedgerowRef).click()
         await expect(page).toHaveURL(/\/baseline-habitat-details/)
       })
 
@@ -1479,7 +1423,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           .soft(page.getByText(hedgerowRef, { exact: true }))
           .toBeVisible()
 
-        // AC4 — length label + value carried from the list
+        // AC4 — length label + value carried from the baseline grid
         await expect
           .soft(page.getByText('Length (km)', { exact: true }))
           .toBeVisible()
@@ -1546,24 +1490,15 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
       // BMD-878 AC2, bookmark route — see the Areas-tab AC14 test for why these
       // must keep reaching the page via open()/page.goto() (no Referer).
-      test('AC14/AC15 — Back and Cancel return to the habitat list Hedgerows tab', async ({
+      test('AC14/AC15 — Back and Cancel return to the hedgerows baseline', async ({
         baselineHabitatDetailsPage,
-        habitatListPage,
         page
       }) => {
-        const hedgerowsAnchor = new RegExp(
-          `/projects/${projectId}/baseline-habitat-list#hedgerows`
+        await expectBackAndCancelReturnToBaseline(
+          page,
+          baselineHabitatDetailsPage,
+          { projectId, featureId: hedgerowFeatureId, type: 'hedgerow' }
         )
-
-        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
-        await baselineHabitatDetailsPage.backLink.click()
-        await expect(page).toHaveURL(hedgerowsAnchor)
-        await expect(habitatListPage.hedgerowsTable).toBeVisible()
-
-        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
-        await baselineHabitatDetailsPage.cancelLink.click()
-        await expect(page).toHaveURL(hedgerowsAnchor)
-        await expect(habitatListPage.hedgerowsTable).toBeVisible()
       })
     }
   )
@@ -1583,33 +1518,28 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       let watercourseFeatureId
       let watercourseRef
 
-      function watercourseRow(habitatListPage) {
-        return habitatListPage.watercoursesTable
-          .getByRole('row')
-          .filter({ hasText: watercourseRef })
-      }
-
       // AC8/AC8c (Scenario A — all options selected): saving with habitat type,
       // condition and both encroachments set persists them, recalculates the
-      // watercourse units + sets status Complete, and returns to the Habitat
-      // List (Watercourses tab) with the row and the summary total reflecting
-      // the new calculation.
-      test('Scenario A — saving with all options selected recalculates units and sets Complete', async ({
+      // watercourse units, and returns to the watercourses baseline with the
+      // row and the grid total reflecting the new calculation. The grid has no
+      // Status column (BMD-1043).
+      test('Scenario A — saving with all options selected recalculates units', async ({
         createProjectFlow,
         projectDashboardPage,
         uploadBaselineFileFlow,
         baselineHabitatDetailsPage,
-        habitatListPage,
         page
       }) => {
         projectId = await uploadAndGetProjectId(
           createProjectFlow,
           projectDashboardPage,
-          uploadBaselineFileFlow,
-          page
+          uploadBaselineFileFlow
         )
-        await habitatListPage.watercoursesTab.click()
-        const watercourse = await getRowRefAndFeatureId(page, 'watercourses')
+        const watercourse = await firstGridFeature(
+          page,
+          projectId,
+          'watercourse'
+        )
         watercourseFeatureId = watercourse.featureId
         watercourseRef = watercourse.ref
 
@@ -1643,25 +1573,16 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           'Minor/Minor'
         )
         await baselineHabitatDetailsPage.saveButton.click()
-        await page.waitForURL(
-          new RegExp(
-            `/projects/${projectId}/baseline-habitat-list#watercourses`
-          )
-        )
+        await page.waitForURL(baselinePageUrl(projectId, 'watercourse'))
 
-        await habitatListPage.watercoursesTab.click()
-        const row = watercourseRow(habitatListPage)
-        await expect(row.getByRole('cell').nth(CONDITION_COLUMN)).toHaveText(
-          newCondition
-        )
-        await expect(row.getByRole('cell').nth(STATUS_COLUMN)).toHaveText(
-          'Complete'
-        )
-        // Units recalculated for the row and reflected in the summary total.
-        await expect(row.getByRole('cell').nth(UNITS_COLUMN)).toHaveText(
-          HABITAT_UNITS_PATTERN
-        )
-        await expect(habitatListPage.watercourseUnitsCell).toHaveText(
+        await expect(
+          gridCell(page, 'watercourse', watercourseRef, 'condition')
+        ).toHaveText(gridConditionPattern(newCondition))
+        // Units recalculated for the row and reflected in the grid total.
+        await expect(
+          gridCell(page, 'watercourse', watercourseRef, 'units')
+        ).toHaveText(HABITAT_UNITS_PATTERN)
+        await expect(gridUnitsTotal(page, 'watercourse')).toHaveText(
           HABITAT_UNITS_PATTERN
         )
       })
@@ -1755,25 +1676,32 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       })
 
       // AC (cancel): changing dropdowns then clicking Cancel discards the
-      // changes — the user returns to the Watercourses tab with the row's
-      // condition, units and the watercourse summary total unchanged.
+      // changes — the user returns to the watercourses baseline with the row's
+      // condition, units and the grid total unchanged.
       test('cancelling after changes discards them and leaves the row and total unchanged', async ({
         baselineHabitatDetailsPage,
-        habitatListPage,
         page
       }) => {
-        // Capture the currently-persisted state fresh from the list.
-        await page.goto(`/projects/${projectId}/baseline-habitat-list`)
-        await habitatListPage.watercoursesTab.click()
-        const rowBefore = watercourseRow(habitatListPage)
+        // Capture the currently-persisted state fresh from the grid.
+        await openBaselineGrid(page, projectId, 'watercourse')
         const conditionBefore = (
-          await rowBefore.getByRole('cell').nth(CONDITION_COLUMN).textContent()
+          await gridCell(
+            page,
+            'watercourse',
+            watercourseRef,
+            'condition'
+          ).textContent()
         ).trim()
         const unitsBefore = (
-          await rowBefore.getByRole('cell').nth(UNITS_COLUMN).textContent()
+          await gridCell(
+            page,
+            'watercourse',
+            watercourseRef,
+            'units'
+          ).textContent()
         ).trim()
         const totalBefore = (
-          await habitatListPage.watercourseUnitsCell.textContent()
+          await gridUnitsTotal(page, 'watercourse').textContent()
         ).trim()
 
         await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
@@ -1782,50 +1710,34 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           'Major'
         )
         await baselineHabitatDetailsPage.cancelLink.click()
-        await page.waitForURL(
-          new RegExp(
-            `/projects/${projectId}/baseline-habitat-list#watercourses`
-          )
-        )
+        await page.waitForURL(baselinePageUrl(projectId, 'watercourse'))
 
-        await habitatListPage.watercoursesTab.click()
-        const rowAfter = watercourseRow(habitatListPage)
         await expect(
-          rowAfter.getByRole('cell').nth(CONDITION_COLUMN)
+          gridCell(page, 'watercourse', watercourseRef, 'condition')
         ).toHaveText(conditionBefore)
-        await expect(rowAfter.getByRole('cell').nth(UNITS_COLUMN)).toHaveText(
-          unitsBefore
-        )
-        await expect(habitatListPage.watercourseUnitsCell).toHaveText(
+        await expect(
+          gridCell(page, 'watercourse', watercourseRef, 'units')
+        ).toHaveText(unitsBefore)
+        await expect(gridUnitsTotal(page, 'watercourse')).toHaveText(
           totalBefore
         )
       })
 
       // AC8 (Scenario B — not all options selected): saving with the condition
-      // deselected zeroes the units and sets status Incomplete. Runs last in
+      // deselected zeroes the units (no Status column — BMD-1043). Runs last in
       // the serial block because it leaves the shared watercourse Incomplete.
-      test('Scenario B — saving with a deselected dropdown zeroes units and sets Incomplete', async ({
+      test('Scenario B — saving with a deselected dropdown zeroes units', async ({
         baselineHabitatDetailsPage,
-        habitatListPage,
         page
       }) => {
         await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
         await baselineHabitatDetailsPage.conditionSelect.selectOption('')
         await baselineHabitatDetailsPage.saveButton.click()
-        await page.waitForURL(
-          new RegExp(
-            `/projects/${projectId}/baseline-habitat-list#watercourses`
-          )
-        )
+        await page.waitForURL(baselinePageUrl(projectId, 'watercourse'))
 
-        await habitatListPage.watercoursesTab.click()
-        const row = watercourseRow(habitatListPage)
-        await expect(row.getByRole('cell').nth(STATUS_COLUMN)).toHaveText(
-          'Incomplete'
-        )
-        await expect(row.getByRole('cell').nth(UNITS_COLUMN)).toHaveText(
-          ZERO_UNITS
-        )
+        await expect(
+          gridCell(page, 'watercourse', watercourseRef, 'units')
+        ).toHaveText(ZERO_UNITS)
       })
     }
   )
@@ -1850,14 +1762,12 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         createProjectFlow,
         projectDashboardPage,
         uploadBaselineFileFlow,
-        habitatListPage,
         page
       }) => {
         const shared = await getSharedBaseline({
           createProjectFlow,
           projectDashboardPage,
           uploadBaselineFileFlow,
-          habitatListPage,
           page
         })
         projectId = shared.id
@@ -1866,12 +1776,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         watercourseRef = shared.watercourse.ref
         watercourseLength = shared.watercourse.length
 
-        await habitatListPage.open(projectId)
-        await habitatListPage.watercoursesTab.click()
-        await page
-          .locator('#watercourses')
-          .getByRole('link', { name: watercourseRef, exact: true })
-          .click()
+        const grid = await openBaselineGrid(page, projectId, 'watercourse')
+        await grid.refLink(watercourseRef).click()
         await expect(page).toHaveURL(/\/baseline-habitat-details/)
       })
 
@@ -1905,7 +1811,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           .soft(page.getByText(watercourseRef, { exact: true }))
           .toBeVisible()
 
-        // AC4 — length label + value carried from the list
+        // AC4 — length label + value carried from the baseline grid
         await expect
           .soft(page.getByText('Length (km)', { exact: true }))
           .toBeVisible()
@@ -2059,37 +1965,24 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       // must keep reaching the page via open()/page.goto() (no Referer). Each link
       // is clicked from its own page load, so they stay in one test only because
       // the second re-opens the page.
-      test('AC14/AC15 — Back and Cancel return to the habitat list Watercourses tab', async ({
+      test('AC14/AC15 — Back and Cancel return to the watercourses baseline', async ({
         baselineHabitatDetailsPage,
-        habitatListPage,
         page
       }) => {
-        const watercoursesAnchor = new RegExp(
-          `/projects/${projectId}/baseline-habitat-list#watercourses`
+        await expectBackAndCancelReturnToBaseline(
+          page,
+          baselineHabitatDetailsPage,
+          { projectId, featureId: watercourseFeatureId, type: 'watercourse' }
         )
-
-        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
-        await baselineHabitatDetailsPage.backLink.click()
-        await expect(page).toHaveURL(watercoursesAnchor)
-        await expect(habitatListPage.watercoursesTable).toBeVisible()
-
-        await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
-        await baselineHabitatDetailsPage.cancelLink.click()
-        await expect(page).toHaveURL(watercoursesAnchor)
-        await expect(habitatListPage.watercoursesTable).toBeVisible()
       })
 
-      test('save watercourse selections redirects to habitat list with watercourses anchor', async ({
+      test('save watercourse selections redirects to the watercourses baseline', async ({
         baselineHabitatDetailsPage,
         page
       }) => {
         await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
         await baselineHabitatDetailsPage.saveButton.click()
-        await expect(page).toHaveURL(
-          new RegExp(
-            `/projects/${projectId}/baseline-habitat-list#watercourses`
-          )
-        )
+        await expect(page).toHaveURL(baselinePageUrl(projectId, 'watercourse'))
       })
     }
   )

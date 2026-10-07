@@ -5,7 +5,8 @@
 A BNG Completer uploads a GeoPackage (.gpkg) file containing the on-site post-intervention
 habitat data for a project. The file is submitted directly to the CDP Uploader service; the
 app then polls for upload status, validates the file via the backend, and routes the user to
-the post-intervention habitat list on success, or a structured error dropout page on failure.
+the project summary on success (BMD-1043, frontend PR#352 — it was the post-intervention
+habitat list, now removed), or a structured error dropout page on failure.
 
 This flow shares its controllers and templates with the baseline upload flow via the
 `HABITAT_UPLOAD_TYPES.postIntervention` configuration; only the routes, session keys, backend
@@ -18,14 +19,13 @@ workshop title and reconciled against the live implementation — lives alongsid
 
 ## Entry point
 
-**BMD-850 (frontend PR#207) put a file-type selection page in front of this flow.** The flow
-is entered from the project task list (`GET /add-project-details/{id}`,
-`projects/task-list.njk`). The "On-site post intervention habitats" row links to
-`GET /projects/{id}/upload-file` with a blue "Not yet started" tag while
-`project.postIntervention` is absent, and flips to `GET /projects/{id}/post-intervention-habitat-list`
-with "Completed" once it exists — so **the task list stops offering a re-upload after the first
-successful upload**. Once uploaded, the post-intervention habitat list's "Upload a different
-file" button (also pointing at `/projects/{id}/upload-file`) is the only UI route back here.
+**BMD-850 (frontend PR#207) put a file-type selection page in front of this flow.** Since
+BMD-1043 (frontend PR#352) the flow is entered from the project summary or a unit-type page:
+every "Upload file" button, and the summary's "Upload on-site post intervention file" link
+(shown in each unit-type section while `project.postIntervention` is absent), links to
+`GET /projects/{id}/upload-file`. Before BMD-1043 the entry was the project task list's
+"On-site post intervention habitats" row and, once uploaded, the post-intervention habitat
+list's "Upload a different file" button — both pages were removed.
 
 On the selection page the user picks "Post-intervention Biodiversity Net Gain GeoPackage
 (.gpkg) file" and is redirected into Step 1 with a `returnUrl` query param. See
@@ -52,8 +52,8 @@ is a UI guard, not a service-level one.
 - **Description:** Renders the shared GOV.UK file-upload form whose `action` points directly to the CDP Uploader URL (not the app). The handler reads and immediately clears any `postInterventionUploadError` flash from the session and stores the new `uploadId` as `postInterventionPendingUploadId`. The response sets `Cache-Control: no-store`. Page title is "Upload Post-intervention File"; the instruction text references post-intervention habitat parcels. Upload metadata sent to the CDP Uploader includes `uploadType: 'postIntervention'`. Backend calls forward the user's Defra ID bearer via `backendRequest`. **Back link and Cancel link both navigate to the file-type selection page** — `uploadFileHref(projectId, safeUploadReturnUrl(request.query.returnUrl, projectId))`, i.e. `/projects/{projectId}/upload-file?returnUrl=<safe>` (BMD-850, frontend PR#207). They pointed at `/add-project-details/{projectId}` before that change; that path is now only what the sanitised `returnUrl` **defaults** to when none is supplied.
 - **Validation:** Server-side, none (display-only). If `uploadUrl` is absent the template renders a fallback message ("Unable to start file upload") instead of the form.
 - **Client-side validation (progressive enhancement):** `src/client/javascripts/file-upload-validation.js` wires the pure rules in `file-validation-rules.js` into the form. It fires on **form submit — i.e. when Continue is pressed — not when the file is selected** (**changed by BMD-958**, frontend PR#290; it previously validated on the input's `change` event and cleared the selection). Choosing a file now only _clears_ any existing errors. The rules check extension (`.gpkg`), size (100 MB) and filename (≤ 255 chars, `SAFE_FILENAME_RE`), and on failure the handler calls `preventDefault()` and renders a GOV.UK error summary whose entries are links naming each message — which is why the journey tests match the error by link role. Degrades gracefully: with JS off, the server and the filename rule in Step 3 still apply.
-- **Route parameters:** `{id}` is **not** validated (no Joi `params` schema on this route, unlike `/projects/{id}/post-intervention-habitat-list` and `/projects/{id}/upload-file`, which require a uuidv4). A non-UUID id does not 400 — `GET /projects/{id}` fails, the caption falls back to "Project", and the form still renders. The same applies to `post-intervention-upload-received`.
-- **Query parameters:** `returnUrl` is read from `request.query` but is **not** Joi-validated; it is sanitised by `safeUploadReturnUrl` (must start with a single `/`, no `\`), falling back to `/add-project-details/{projectId}`.
+- **Route parameters:** `{id}` is **not** validated (no Joi `params` schema on this route, unlike `/projects/{id}/upload-file`, which requires a uuidv4). A non-UUID id does not 400 — `GET /projects/{id}` fails, the caption falls back to "Project", and the form still renders. The same applies to `post-intervention-upload-received`.
+- **Query parameters:** `returnUrl` is read from `request.query` but is **not** Joi-validated; it is sanitised by `safeUploadReturnUrl` (must start with a single `/`, no `\`), falling back to `/projects/{projectId}/project-summary` (BMD-1043; it was the removed task list).
 - **On success:** Renders the file-upload form
 - **On error:** Renders the form with the session flash error message in a GOV.UK error summary (then cleared)
 
@@ -92,11 +92,11 @@ is a UI guard, not a service-level one.
   - Status `rejected` → clear session keys, set empty `postInterventionValidationErrors`, `postInterventionValidationErrorsProjectId`, and `validationUploadType = 'postIntervention'` in session, redirect to `GET /error-file`
   - Status `ready` + validation invalid + error code is `GPKG_INVALID_FILE` or `GPKG_NOT_A_GEOPACKAGE` → set `postInterventionUploadError` flash "The selected file must be a GeoPackage (.gpkg)" → redirect to upload form
   - Status `ready` + validation invalid + other error codes → store structured `postInterventionValidationErrors`, `postInterventionValidationErrorsProjectId`, and `validationUploadType = 'postIntervention'` in session → redirect to `GET /error-file`
-  - Status `ready` + validation passes → redirect to `GET /projects/{id}/post-intervention-habitat-list`
+  - Status `ready` + validation passes → redirect to `GET /projects/{id}/project-summary` (**changed by BMD-1043** — it was `/projects/{id}/post-intervention-habitat-list`)
   - Elapsed > 120 seconds → clear session keys, set `postInterventionUploadError` flash "The file check timed out. Please try again." → redirect to upload form
   - Any other status (e.g. `pending`, `unknown`, `error`) → re-render the polling page
 - **Page furniture:** the "Checking your file" page renders a Back link to `GET /projects/{id}/upload-post-intervention-file`.
-- **On success:** Redirects to `GET /projects/{id}/post-intervention-habitat-list`
+- **On success:** Redirects to `GET /projects/{id}/project-summary`
 - **On error:** Redirects to `GET /error-file` (structured errors) or `GET /projects/{id}/upload-post-intervention-file` (format / timeout flash errors)
 
 ---
@@ -170,10 +170,9 @@ rows, so features present in the old file and absent from the new one disappear 
 along with their units, net-change figures and any trading-rule warnings derived from them.
 The stored `baseline` is untouched by this path.
 
-Visible effects: the post-intervention habitat list renders only the new file's rows, and a
-tab whose features the new file omits falls back to its empty state (e.g. "No hedgerow data
-uploaded.", rendered from the shared `habitat-list/habitat-list.njk`). Because both uploads
-land on the same page, a replacement test needs **two files that differ in a visible way** —
+Visible effects: the unit-type post-intervention pages list only the new file's features, so a
+feature type the new file omits has nothing left to list. Because both uploads land on the same
+page, a replacement test needs **two files that differ in a visible way** —
 re-uploading the same fixture cannot distinguish a replace from a no-op.
 
 Backend counterpart: `../bng-metric-backend/integration-tests/post-intervention-persistence.test.js`
@@ -190,20 +189,21 @@ matching geometry cleanup in the upload transaction. The previous behaviour — 
 the stored post-intervention document against the new baseline
 (`re-enrich-stored-post-intervention.js`) — has been removed.
 
-So **re-uploading a baseline wipes a completed post-intervention upload**: the task-list row
-reverts to "Not yet started", the post-intervention habitat list renders empty, and the user
-must come back through this flow. Any test that uploads a baseline after a post-intervention
+So **re-uploading a baseline wipes a completed post-intervention upload**: the project summary
+offers the "Upload on-site post intervention file" link again, the post-intervention pages have
+nothing to list, and the user must come back through this flow. Any test that uploads a baseline after a post-intervention
 upload — in the same project — must expect the post-intervention side to be gone. See
 [`upload-baseline-file.flow.md`](../upload-baseline/upload-baseline-file.flow.md).
 
 ---
 
-### Landing — post-intervention habitat list (separate flow)
+### Landing — project summary (separate flow)
 
-On a successful upload the user lands on `GET /projects/{id}/post-intervention-habitat-list`. That page and the post-intervention habitat-detail edit journey are documented separately and are **out of scope** for this flow:
+On a successful upload the user lands on `GET /projects/{id}/project-summary` (BMD-1043; it was `GET /projects/{id}/post-intervention-habitat-list`, now removed). That page, the unit-type post-intervention pages that list the features, and the post-intervention habitat-detail journey are documented separately and are **out of scope** for this flow:
 
-- [`test/flows/habitat-list/post-intervention-habitat-list.flow.md`](../habitat-list/post-intervention-habitat-list.flow.md) — post-intervention habitat list page
-- [`test/flows/habitat-details/post-intervention-habitat-details.flow.md`](../habitat-details/post-intervention-habitat-details.flow.md) — the read-only per-feature details pages reached from the list (`GET /post-intervention-habitat-details?featureId=…&projectId=…`; the `POST` returns 501)
+- [`test/flows/project-management/project-summary.flow.md`](../project-management/project-summary.flow.md) — the landing page
+- [`area-post-intervention.flow.md`](../project-management/area-post-intervention.flow.md), [`hedgerows-post-intervention.flow.md`](../project-management/hedgerows-post-intervention.flow.md), [`watercourses-post-intervention.flow.md`](../project-management/watercourses-post-intervention.flow.md) — the post-intervention grids. They redirect a project with **no baseline** to the summary, so a post-intervention-only upload has no page listing its features (open question raised with the team, 2026-10-07)
+- [`test/flows/habitat-details/post-intervention-habitat-details.flow.md`](../habitat-details/post-intervention-habitat-details.flow.md) — the read-only per-feature details pages reached from the grids (`GET /post-intervention-habitat-details?featureId=…&projectId=…`; the `POST` returns 501)
 
 ---
 

@@ -5,7 +5,9 @@
 A BNG Completer views and edits the dropdown fields for a single baseline feature
 (area habitat, hedgerow, or watercourse). On save the backend recomputes derived
 values (distinctiveness, condition score, habitat units, status) and the user is
-returned to the habitat list anchored to the edited row or tab. Watercourse
+returned to the feature type's unit-type baseline page — `area-baseline`,
+`hedgerows-baseline` or `watercourses-baseline-summary` (BMD-1043, frontend PR#352; it was
+the baseline habitat list, anchored to the edited row or tab, now removed). Watercourse
 features are fully editable: saves persist the encroachment selections and
 recompute units from the engine's encroachment multipliers (BMD-597).
 
@@ -35,7 +37,7 @@ recompute units from the engine's encroachment multipliers (BMD-597).
 - **Description:** Feature type is resolved by the backend; the page renders via a strategy (area, hedgerow, or watercourse). Read-only rows: Reference, Size (Area (ha) for habitats / Length (km) for hedgerows / watercourses), Distinctiveness (updated by client JS), Strategic Significance (fixed "Low (1)"), Required action to meet trading rules (updated by client JS), Units in this habitat. Editable rows: Broad habitat (select; area habitats only), Habitat type (select), Condition (select). Watercourse features additionally render editable Watercourse and Riparian encroachment dropdowns, filtered by habitat type (culverts show only "N/A - Culvert"; other types exclude it) (BMD-597). A JSON script tag (`#bhd-reference-data`) embeds static reference data for client-side JS. Both the Back and the Cancel link are conditional — see below.
 - **Back and Cancel link targets (BMD-878, frontend PR#199; BMD-935, frontend PR#226) `[IMPLEMENTED]`:** both links are chosen from the request's `Referer` header by `postInterventionBackHref` in `src/server/common/helpers/habitat-details-controller.js`. BMD-878 introduced the rule for Back; BMD-935 applied the identical rule to Cancel, which until then always went to the baseline habitat list.
   - If the referrer is **same-host**, has pathname **`/post-intervention-habitat-details`**, carries the **same `projectId`**, and a **valid UUID `featureId`** — both links point at `/post-intervention-habitat-details?featureId={refererFeatureId}&projectId={projectId}`, returning the user to the post-intervention habitat details page they clicked "View baseline details" on. They resolve to one shared value (`piBackHref`), so in this case Back and Cancel are byte-identical hrefs.
-  - Otherwise (no referrer, malformed referrer, cross-host, a different path such as the baseline habitat list, or a mismatched `projectId`) each falls back to its own habitat-list href, which differ for area habitats: **Cancel** is anchored to the row (`#habitat-{featureId}`), **Back** is not. For hedgerows and watercourses both carry the tab anchor (`#hedgerows` / `#watercourses`).
+  - Otherwise (no referrer, malformed referrer, cross-host, a different path such as the feature's own baseline grid, or a mismatched `projectId`) both fall back to the feature type's baseline page, with no anchor: `/projects/{projectId}/area-baseline`, `/projects/{projectId}/hedgerows-baseline` or `/projects/{projectId}/watercourses-baseline-summary` (set by each strategy's `backHref` / `cancelHref`). **Changed by BMD-1043 (frontend PR#352):** the fallback was the baseline habitat list, where Cancel carried the area row anchor (`#habitat-{featureId}`) and Back did not, and linear features used the tab anchors `#hedgerows` / `#watercourses`.
   - **Testing note:** because the target is derived from `Referer`, a test that reaches this page with `page.goto()` sends no referrer and will always exercise the fallback. Exercising the post-intervention branch requires a real **click** on the "View baseline details" link from `/post-intervention-habitat-details`.
   - **Testing note (BMD-935):** in the matched-referrer case the two links render the same href twice on one page, so an assertion that merely looks for that string in the markup is satisfied by whichever link still carries it. Assert Back and Cancel separately — the frontend's own unit test for the Cancel case does not, and cannot fail if `cancelHref` regresses.
 - **Where each strategy is tested `[IMPORTANT]`:** the frontend controller unit tests
@@ -89,10 +91,10 @@ recompute units from the engine's encroachment multipliers (BMD-597).
   - `watercourseEncroachment` optional string, allow empty string (watercourse form only)
   - `riparianEncroachment` optional string, allow empty string (watercourse form only)
   - `crumb` optional (CSRF token injected by `appForm` macro)
-- **On success:**
-  - Area habitat: Redirects to `/projects/{projectId}/baseline-habitat-list#habitat-{featureId}`
-  - Hedgerow: Redirects to `/projects/{projectId}/baseline-habitat-list#hedgerows`
-  - Watercourse: Redirects to `/projects/{projectId}/baseline-habitat-list#watercourses`
+- **On success** (`habitatDetailsDestination(projectId, payload.type, 'baseline')`, `src/server/common/helpers/habitat-details-destination.js`; BMD-1043 — these were anchors on the removed baseline habitat list):
+  - Area habitat or tree: Redirects to `/projects/{projectId}/area-baseline`
+  - Hedgerow: Redirects to `/projects/{projectId}/hedgerows-baseline`
+  - Watercourse: Redirects to `/projects/{projectId}/watercourses-baseline-summary`
 - **On error:** Backend 4xx/5xx → 502 Bad Gateway; backend 409 (lock timeout on concurrent edit) → 409 Conflict
 
 ---

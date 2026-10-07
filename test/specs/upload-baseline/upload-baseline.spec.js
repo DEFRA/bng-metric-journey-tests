@@ -10,10 +10,14 @@ import { CreateProjectFlow } from '@flows/project-management/create-project.flow
 import { UploadBaselineFileFlow } from '@flows/upload-baseline/upload-baseline-file.flow.js'
 import { ProjectDashboardPage } from '@pages/project-dashboard.page.js'
 import { ErrorFilePage } from '@pages/error-file.page.js'
+import { AREA_HABITATS } from '@utils/unit-type-labels.js'
 
-const TASK_BASELINE_HABITATS = 'On-site baseline habitats'
-const TASK_POST_INTERVENTION = 'On-site post intervention habitats'
-
+// BMD-1043 (frontend PR#352) removed the project task list and the baseline
+// habitat list. What the task list's statuses used to show is now read off the
+// project summary — its unit-type sections render only once a baseline exists,
+// and each section offers the post-intervention upload link only while no
+// post-intervention document does — and the stored habitats off the unit-type
+// baseline grids.
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const PROJECT_LABEL = 'Upload baseline flow test'
 
@@ -43,7 +47,6 @@ const NATURAL_ENGLAND_MISMATCH_COPY =
 
 // BMD-870 re-pointed the baseline upload's success redirect from the habitat
 // list to the project summary (`successRoute` on HABITAT_UPLOAD_TYPES.baseline).
-// A caller that wants the habitat list now has to navigate on from there.
 async function uploadToProjectSummary(fixtures, fixture) {
   const { createProjectFlow, projectDashboardPage, uploadBaselineFileFlow } =
     fixtures
@@ -61,13 +64,12 @@ function describeHappyPath() {
     'Upload baseline — happy path',
     { tag: ['@smoke', '@happy-path'] },
     () => {
-      test('uploading a valid .gpkg file reaches the project summary and marks task list item as Completed', async ({
+      test('uploading a valid .gpkg file reaches the project summary with its baseline results', async ({
         createProjectFlow,
         projectDashboardPage,
         uploadBaselineFileFlow,
         projectSummaryPage,
-        habitatListPage,
-        projectTaskListPage,
+        areaBaselinePage,
         page
       }) => {
         const { id, name } = await uploadToProjectSummary(
@@ -75,32 +77,25 @@ function describeHappyPath() {
           COMPLETE_BASELINE_FILE
         )
 
-        // BMD-870: a successful baseline upload now lands on the project
-        // summary, not the habitat list.
+        // BMD-870: a successful baseline upload lands on the project summary.
+        // The baseline is stored, so the no-baseline prompt has gone and the
+        // unit-type sections render; no post-intervention document exists yet,
+        // so each section still offers that upload.
         await expect(projectSummaryPage.heading).toBeVisible()
-
-        await habitatListPage.open(id)
-        await expect(habitatListPage.heading).toBeVisible()
-        await expect(habitatListPage.firstAreaHabitatLink).toBeVisible()
-        await expect(habitatListPage.firstCompleteStatus).toBeVisible()
-
-        await projectTaskListPage.open(id)
-
+        await expect(projectSummaryPage.noBaselinePrompt).toHaveCount(0)
         await expect(
-          projectTaskListPage.taskItem(TASK_BASELINE_HABITATS)
-        ).toHaveAttribute('href', `/projects/${id}/baseline-habitat-list`)
-        // After baseline upload: Project Name + On-site baseline are Completed;
-        // Project Details + On-site post intervention remain Not yet started.
-        await expect(projectTaskListPage.taskStatus('Completed')).toHaveCount(2)
-        await expect(
-          projectTaskListPage.taskStatus('Not yet started')
-        ).toHaveCount(2)
+          projectSummaryPage.uploadPostInterventionLink(AREA_HABITATS)
+        ).toBeVisible()
 
-        // BMD-870: the dashboard row link is conditional on project state. This
-        // project is now baseline-only, so its row points at the summary rather
-        // than the task list. The frontend unit tests cover both branches, but
-        // against a fabricated project payload — this is the only place the
-        // branch is driven by a real uploaded baseline.
+        await areaBaselinePage.open(id)
+        await expect(areaBaselinePage.heading).toBeVisible()
+        await expect(
+          areaBaselinePage.table().getByRole('link').first()
+        ).toBeVisible()
+
+        // BMD-1043: every dashboard row links to the summary, whatever the
+        // project's state. This is the only place that link is followed for a
+        // project with a real uploaded baseline.
         await projectDashboardPage.open()
         await expect(projectDashboardPage.projectLink(name)).toHaveAttribute(
           'href',
@@ -110,9 +105,7 @@ function describeHappyPath() {
         // ...and following it lands on the summary. Asserted here rather than
         // in project-summary.spec.js, whose tests reach the page by URL: this
         // is the only journey that arrives the way the ticket describes, by
-        // selecting a baseline-only project from the dashboard. The dashboard's
-        // own click-through test uses a project with no baseline, so it lands
-        // on the task list instead.
+        // selecting a project with a baseline from the dashboard.
         await projectDashboardPage.projectLink(name).click()
 
         await expect(page).toHaveURL(
@@ -166,7 +159,7 @@ function describeFilenameAcceptance() {
 // Backend BMD-850 (PR#219) made setProjectBaseline delete the postIntervention
 // key in the same JSONB update that writes the new baseline, replacing the old
 // re-enrichment behaviour. That is silent data loss from the user's point of
-// view, and the task list is where it surfaces — so it is worth pinning.
+// view, and the project summary is where it surfaces — so it is worth pinning.
 //
 // The replacement uses a *different* baseline fixture on purpose. The backend
 // counterpart (../bng-metric-backend/integration-tests/baseline-persistence.test.js,
@@ -180,14 +173,13 @@ function describeBaselineReplacement() {
     'Upload baseline — replacing an existing baseline',
     { tag: '@regression' },
     () => {
-      test('re-uploading a baseline replaces its habitats, discards the post-intervention data and resets its task list row', async ({
+      test('re-uploading a baseline replaces its habitats and discards the post-intervention data', async ({
         createProjectFlow,
         projectDashboardPage,
         uploadBaselineFileFlow,
         uploadPostInterventionFileFlow,
-        habitatListPage,
-        projectTaskListPage,
-        page
+        projectSummaryPage,
+        hedgerowsBaselinePage
       }) => {
         // Three real uploads back this test.
         test.setTimeout(UPLOAD_TIMEOUT * 3)
@@ -197,63 +189,44 @@ function describeBaselineReplacement() {
           COMPLETE_BASELINE_FILE
         )
 
-        await uploadPostInterventionFileFlow.uploadFile(
+        await uploadPostInterventionFileFlow.uploadFileAndWaitForSummary(
           id,
           COMPLETE_POST_INTERVENTION_FILE
         )
-        await page.waitForURL(
-          new RegExp(`/projects/${id}/post-intervention-habitat-list`),
-          { timeout: UPLOAD_TIMEOUT }
-        )
 
-        // Both habitat tasks are Completed before the replacement.
-        await projectTaskListPage.open(id)
-        await expect(projectTaskListPage.taskStatus('Completed')).toHaveCount(3)
-        await projectTaskListPage.assertTaskStatus(
-          TASK_POST_INTERVENTION,
-          'Completed'
-        )
+        // Post-intervention data is stored before the replacement, so the
+        // summary no longer offers its upload.
+        await expect(
+          projectSummaryPage.uploadPostInterventionLink(AREA_HABITATS)
+        ).toHaveCount(0)
 
         // The first file's hedgerows are what is stored right now.
-        await habitatListPage.openTab(id, 'hedgerows')
+        await hedgerowsBaselinePage.open(id)
         await expect(
-          habitatListPage.hedgerowRowByRef(COMPLETE_BASELINE_HEDGEROW_REF)
+          hedgerowsBaselinePage.refLink(COMPLETE_BASELINE_HEDGEROW_REF)
         ).toBeVisible()
 
-        // The replacement drops the post-intervention data, so the project is
-        // baseline-only again and the upload lands on the summary rather than
-        // being bounced on to the task list by its guard.
         await uploadBaselineFileFlow.uploadFileAndWaitForSummary(
           id,
           ALTERNATE_BASELINE_FILE
         )
 
+        // The replacement dropped the post-intervention document, so the
+        // summary offers that upload again, while the baseline results stay.
+        await expect(
+          projectSummaryPage.uploadPostInterventionLink(AREA_HABITATS)
+        ).toBeVisible()
+        await expect(projectSummaryPage.noBaselinePrompt).toHaveCount(0)
+
         // The stored baseline is the new file, not a merge of the two: the
         // replacement's refs are present and the original's are gone.
-        await habitatListPage.openTab(id, 'hedgerows')
+        await hedgerowsBaselinePage.open(id)
         for (const ref of ALTERNATE_HEDGEROW_REFS) {
-          await expect(habitatListPage.hedgerowRowByRef(ref)).toBeVisible()
+          await expect(hedgerowsBaselinePage.refLink(ref)).toBeVisible()
         }
         await expect(
-          habitatListPage.hedgerowRowByRef(COMPLETE_BASELINE_HEDGEROW_REF)
-        ).toBeHidden()
-
-        // The replacement dropped the post-intervention document: its row is
-        // back to Not yet started and points at the file-type selection page,
-        // while the baseline itself stays Completed.
-        await projectTaskListPage.open(id)
-        await projectTaskListPage.assertTaskStatus(
-          TASK_POST_INTERVENTION,
-          'Not yet started'
-        )
-        await expect(
-          projectTaskListPage.taskItem(TASK_POST_INTERVENTION)
-        ).toHaveAttribute('href', `/projects/${id}/upload-file`)
-        await projectTaskListPage.assertTaskStatus(
-          TASK_BASELINE_HABITATS,
-          'Completed'
-        )
-        await expect(projectTaskListPage.taskStatus('Completed')).toHaveCount(2)
+          hedgerowsBaselinePage.refLink(COMPLETE_BASELINE_HEDGEROW_REF)
+        ).toHaveCount(0)
       })
     }
   )
@@ -278,12 +251,12 @@ function describeFailedReplacement() {
     'Upload baseline — failed replacement',
     { tag: '@regression' },
     () => {
-      test('a rejected re-upload leaves the existing baseline and its task list status intact', async ({
+      test('a rejected re-upload leaves the existing baseline intact', async ({
         createProjectFlow,
         projectDashboardPage,
         uploadBaselineFileFlow,
-        habitatListPage,
-        projectTaskListPage,
+        hedgerowsBaselinePage,
+        projectSummaryPage,
         errorFilePage,
         page
       }) => {
@@ -302,19 +275,18 @@ function describeFailedReplacement() {
         await expect(errorFilePage.baselineRejectedHeading).toBeVisible()
 
         // The original upload is still the stored baseline, unchanged.
-        await habitatListPage.openTab(id, 'hedgerows')
+        await hedgerowsBaselinePage.open(id)
         for (const ref of ALTERNATE_HEDGEROW_REFS) {
-          await expect(habitatListPage.hedgerowRowByRef(ref)).toBeVisible()
+          await expect(hedgerowsBaselinePage.refLink(ref)).toBeVisible()
         }
 
-        await projectTaskListPage.open(id)
-        await projectTaskListPage.assertTaskStatus(
-          TASK_BASELINE_HABITATS,
-          'Completed'
-        )
+        // ...and the summary still renders its results rather than the
+        // no-baseline prompt.
+        await projectSummaryPage.open(id)
+        await expect(projectSummaryPage.noBaselinePrompt).toHaveCount(0)
         await expect(
-          projectTaskListPage.taskItem(TASK_BASELINE_HABITATS)
-        ).toHaveAttribute('href', `/projects/${id}/baseline-habitat-list`)
+          projectSummaryPage.sectionHeading(AREA_HABITATS)
+        ).toBeVisible()
       })
     }
   )
@@ -512,7 +484,7 @@ function describeStructuralErrors() {
         await expect(errorFilePage.backToProjectLink).toBeVisible()
         await expect(errorFilePage.backToProjectLink).toHaveAttribute(
           'href',
-          `/add-project-details/${id}`
+          `/projects/${id}/project-summary`
         )
       })
     }

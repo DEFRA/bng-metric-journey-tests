@@ -49,7 +49,7 @@ Added by **BMD-857** (frontend PR#244, 2026-08-27). It is the deepest page in th
 
 ---
 
-### Step 2 — Redirect a project with no baseline to the task list `[IMPLEMENTED]`
+### Step 2 — Redirect a project with no baseline to the project summary `[IMPLEMENTED]`
 
 - **Route:** `GET /projects/{id}/area-baseline` (the guard branch)
 - **Template:** None (302)
@@ -57,7 +57,7 @@ Added by **BMD-857** (frontend PR#244, 2026-08-27). It is the deepest page in th
 - **Backend endpoint:** `GET /projects/{id}`
 - **Description:** `hasBaselineData(project)` false → redirect before rendering, identical to every other unit-type page.
 - **Validation:** As Step 1
-- **On success:** 302 to `/add-project-details/{id}`
+- **On success:** 302 to `/projects/{id}/project-summary` (BMD-1043, frontend PR#352; it was the task list `/add-project-details/{id}`, now removed)
 - **On error:** As Step 1
 
 ---
@@ -106,7 +106,7 @@ Added 2026-09-01, extended 2026-09-03 for the BMD-857 AC sweep — `test/specs/p
 
 **Deliberately not covered, with reasons.** The zero-padded Ref sort key (`refSortValue`) is **unreachable by journey test**: every valid fixture in this repo and the harness uses fixed-width refs (`H001`, `T001`), where naive string sorting gives the identical order. The only variable-width fixture is `Baseline - duplicate habitat ref.gpkg` (`DUP-1`, `H003`), which fails validation and never reaches this page. Covering it end-to-end would need a new fixture built for the purpose; `controller.test.js:188` covers the attribute value meanwhile.
 
-`aria-sort` toggling (**AC8/AC9**) is the MoJ component's own behaviour — the ACs say so themselves — and is already witnessed by real clicks against our `data-sort-value` attributes in `habitat-list-upload.spec.js:342-380`. The attributes this page emits are asserted in `baseline-habitat-grid.test.js:27,55`. A second real-click witness here would test MoJ's library rather than our wiring. Manual evidence for both directions on this page was captured under BMD-857's `/validate-ac-manual` run.
+`aria-sort` toggling (**AC8/AC9**) is the MoJ component's own behaviour — the ACs say so themselves — and is witnessed by real clicks in `hedgerows-baseline.spec.js` (the habitat-list witness was deleted with BMD-1043). The attributes this page emits are asserted in `baseline-habitat-grid.test.js:27,55`. A second real-click witness here would test MoJ's library rather than our wiring. Manual evidence for both directions on this page was captured under BMD-857's `/validate-ac-manual` run.
 
 ---
 

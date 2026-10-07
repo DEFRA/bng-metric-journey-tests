@@ -54,7 +54,7 @@ Structurally this is the [area habitats baseline](area-baseline.flow.md) with a 
 
 ---
 
-### Step 2 — Redirect a project with no baseline to the task list `[IMPLEMENTED]`
+### Step 2 — Redirect a project with no baseline to the project summary `[IMPLEMENTED]`
 
 - **Route:** `GET /projects/{id}/hedgerows-baseline` (the guard branch)
 - **Template:** None (302)
@@ -62,7 +62,7 @@ Structurally this is the [area habitats baseline](area-baseline.flow.md) with a 
 - **Backend endpoint:** `GET /projects/{id}`
 - **Description:** `hasBaselineData(project)` false → redirect before rendering. As on the hedgerows summary, the guard is on **any** baseline, not on hedgerow data specifically — a project with an area-only baseline renders this page with an empty grid rather than redirecting.
 - **Validation:** As Step 1
-- **On success:** 302 to `/add-project-details/{id}`
+- **On success:** 302 to `/projects/{id}/project-summary` (BMD-1043, frontend PR#352; it was the task list `/add-project-details/{id}`, now removed)
 - **On error:** As Step 1
 
 ---
@@ -112,7 +112,7 @@ Added 2026-09-07 for the BMD-859 AC sweep — `test/specs/project-management/hed
 
 Both projects come from `@utils/summary-projects.js` (`getAllUnitTypesProject`, `getNoWatercoursesProject`) and are already built by other specs in the same module-scope cache, so this file costs **no upload of its own** in CI.
 
-**Deliberately not covered.** The `aria-sort` attribute toggling itself is MoJ's component behaviour — the ACs say "default component behaviour" — and is already witnessed by real clicks in `habitat-list-upload.spec.js:341-381`. What the sort test here asserts instead is the **resulting row order**, which nothing else in any suite checks: the deprecated habitat list emits its own unpadded `data-sort-value`s and never asserts an order, and `baseline-habitat-grid.test.js:27` only simulates the comparison in Node. The zero-padded Ref sort key stays unreachable end-to-end for the reason given in [`area-baseline.flow.md`](area-baseline.flow.md) — every valid fixture uses fixed-width refs.
+**Deliberately not covered.** The `aria-sort` attribute toggling itself is MoJ's component behaviour — the ACs say "default component behaviour" — so the sort test here uses it only to wait on. What it asserts is the **resulting row order**, which nothing else checks on a baseline grid: `baseline-habitat-grid.test.js:27` only simulates the comparison in Node. The zero-padded Ref sort key stays unreachable end-to-end for the reason given in [`area-baseline.flow.md`](area-baseline.flow.md) — every valid fixture uses fixed-width refs.
 
 ---
 

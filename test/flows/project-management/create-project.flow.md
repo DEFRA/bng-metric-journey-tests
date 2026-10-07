@@ -2,7 +2,7 @@
 
 ## Overview
 
-The user creates a new Biodiversity Net Gain project by entering a project name on the project dashboard, and is then directed to the project task list to begin filling in project details.
+The user creates a new Biodiversity Net Gain project by entering a project name on the project dashboard, and then opens it from the dashboard, landing on its project summary (BMD-1043, frontend PR#352; it was the project task list, now removed).
 
 ## Steps
 
@@ -50,16 +50,16 @@ The user creates a new Biodiversity Net Gain project by entering a project name 
 
 ---
 
-### Step 4 — View project task list `[IMPLEMENTED]`
+### Step 4 — Open the project summary `[IMPLEMENTED]`
 
-- **Route:** `GET /add-project-details/{id}`
-- **Template:** `src/server/projects/task-list.njk`
+- **Route:** `GET /projects/{id}/project-summary`
+- **Template:** `src/server/project-summary/index.njk`
 - **Auth required:** Yes (session + BNG Completer role)
 - **Backend endpoint:** `GET /projects/{id}`
-- **Description:** The user clicks the project name link on the dashboard and sees a GOV.UK task list with four items: "Project Name" (Completed — links to `/change-project-name/{id}`), "Project Details" (Not yet started — links to `/project-details/{id}`), "On-site baseline habitats" (dynamic — see below), and "On-site post intervention habitats" (dynamic — see below). The project name appears as a caption.
+- **Description:** The user clicks the project name link on the dashboard. A newly created project has no baseline, so the summary renders its no-baseline variant: the project name as caption, the "Summary" heading, an "Upload file" button and the line "Upload an on-site baseline file to see your biodiversity net gain results."
 
-  **BMD-870 (frontend PR#219), widened by BMD-852 (PR#227):** the dashboard row link is now conditional — a project **with a baseline** links to `/projects/{id}/project-summary` instead, so the task list is no longer the universal landing page. A project that has just been created has no baseline, so **this step is unchanged for the create-project journey**. BMD-870 also records the task list as "to be deprecated in due course". See [`project-summary.flow.md`](project-summary.flow.md) and [`project-dashboard.flow.md`](project-dashboard.flow.md) Step 1.
+  **BMD-1043 (frontend PR#352):** this step was the project task list (`GET /add-project-details/{id}`), which PR#352 removed along with the conditional dashboard link. See [`project-summary.flow.md`](project-summary.flow.md) Step 2 and [`project-dashboard.flow.md`](project-dashboard.flow.md).
 
 - **Validation:** `id` path parameter must be a valid UUID
-- **On success:** Renders the task list with the project name as caption. `isBaselineUploaded = Boolean(data?.project?.baseline)` — if true, "On-site baseline habitats" shows "Completed" (links to `/projects/{id}/baseline-habitat-list`); if false, shows "Not yet started" (links to **`/projects/{id}/upload-file`**, the shared file-type selection page — BMD-850, frontend PR#207). `isPostInterventionUploaded = Boolean(data?.project?.postIntervention)` behaves the same way, linking to `/projects/{id}/post-intervention-habitat-list` or **`/projects/{id}/upload-file`**. Full detail in [`project-dashboard.flow.md`](project-dashboard.flow.md) Step 2 and [`../upload-file/choose-upload-type.flow.md`](../upload-file/choose-upload-type.flow.md)
-- **On error:** If the backend returns a 404, the Boom error is caught and the page re-renders with `error: true` — the task list body is hidden via `{% if not error %}`; only the heading/caption are shown
+- **On success:** Renders the no-baseline project summary
+- **On error:** A backend 404 → the global 404 error page

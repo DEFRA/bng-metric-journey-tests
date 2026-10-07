@@ -41,7 +41,7 @@ That PR also lifted `buildTargetsSummary` out of the area and hedgerow controlle
 
 ---
 
-### Step 2 — Redirect a project with no baseline to the task list `[IMPLEMENTED]`
+### Step 2 — Redirect a project with no baseline to the project summary `[IMPLEMENTED]`
 
 - **Route:** `GET /projects/{id}/watercourses-summary` (the guard branch)
 - **Template:** None (302)
@@ -49,7 +49,7 @@ That PR also lifted `buildTargetsSummary` out of the area and hedgerow controlle
 - **Backend endpoint:** `GET /projects/{id}`
 - **Description:** `hasBaselineData(project)` false → redirect. Guards on **any** baseline, not on watercourse data specifically.
 - **Validation:** As Step 1
-- **On success:** 302 to `/add-project-details/{id}`
+- **On success:** 302 to `/projects/{id}/project-summary` (BMD-1043, frontend PR#352; it was the task list `/add-project-details/{id}`, now removed)
 - **On error:** As Step 1
 
 ---

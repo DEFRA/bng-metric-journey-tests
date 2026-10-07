@@ -14,10 +14,11 @@ its own flow doc.
 
 ## Entry point
 
-**BMD-850 (frontend PR#207) put a file-type selection page in front of this flow.** The
-project task list's "On-site baseline habitats" row (while `project.baseline` is absent) and
-the baseline habitat list's "Upload a different file" button both now link to
-`GET /projects/{id}/upload-file` — **not** straight to the upload form. The user picks
+**BMD-850 (frontend PR#207) put a file-type selection page in front of this flow.** Every
+"Upload file" button — on the project summary and on each unit-type page — links to
+`GET /projects/{id}/upload-file` — **not** straight to the upload form. (Until BMD-1043,
+frontend PR#352, the project task list and the baseline habitat list did too; both were
+removed.) The user picks
 "Baseline Biodiversity Net Gain GeoPackage (.gpkg) file" there and is redirected into Step 1
 below with a `returnUrl` query param. See
 [`test/flows/upload-file/choose-upload-type.flow.md`](../upload-file/choose-upload-type.flow.md).
@@ -39,7 +40,7 @@ but a test that navigates the **UI** now passes through the selection page first
 - **Validation:** Server-side, none (display-only). If `uploadUrl` is absent the template renders a fallback message ("Unable to start file upload") instead of the form.
 - **Client-side validation (progressive enhancement):** `src/client/javascripts/file-upload-validation.js` wires the pure rules in `file-validation-rules.js` into the form. It fires on **form submit — i.e. when Continue is pressed — not when the file is selected** (**changed by BMD-958**, frontend PR#290; it previously validated on the input's `change` event and cleared the selection). Choosing a file now only _clears_ any existing errors. The rules check extension (`.gpkg`), size (100 MB) and filename (≤ 255 chars, `SAFE_FILENAME_RE`), and on failure the handler calls `preventDefault()` and renders a GOV.UK error summary whose entries are links naming each message — which is why the journey tests match the error by link role. Degrades gracefully: with JS off, the server and the filename rule in Step 3 still apply.
 - **Route parameters:** `{id}` is **not** validated (no Joi `params` schema on this route). A non-UUID id does not 400 — `GET /projects/{id}` fails, the caption falls back to "Project", and the form still renders. The same applies to `upload-received`. (Contrast `/projects/{id}/upload-file`, which **does** require a uuidv4.)
-- **Query parameters:** `returnUrl` is read from `request.query` but is **not** Joi-validated; it is sanitised by `safeUploadReturnUrl` (must start with a single `/`, no `\`), falling back to `/add-project-details/{projectId}`.
+- **Query parameters:** `returnUrl` is read from `request.query` but is **not** Joi-validated; it is sanitised by `safeUploadReturnUrl` (must start with a single `/`, no `\`), falling back to `/projects/{projectId}/project-summary` (BMD-1043; it was the removed task list).
 - **On success:** Renders the file-upload form
 - **On error:** Renders the form with the session flash error message in a GOV.UK error summary (then cleared)
 
@@ -92,7 +93,7 @@ but a test that navigates the **UI** now passes through the selection page first
   - Any other status (e.g. `pending`, `unknown`, `error`) → re-render the polling page
 - **On success:** Redirects to `GET /projects/{id}/project-summary`
 
-  **BMD-870 (frontend PR#219, 2026-08-14).** This was `GET /projects/{id}/baseline-habitat-list` until BMD-870. `HABITAT_UPLOAD_TYPES.baseline` gained `successRoute: 'project-summary'`, and the shared received-controller now redirects to `` `/projects/${projectId}/${uploadType.successRoute ?? uploadType.listRoute}` ``. The post-intervention upload type has **no** `successRoute`, so it is unaffected and still lands on its habitat list.
+  **BMD-870 (frontend PR#219, 2026-08-14).** This was `GET /projects/{id}/baseline-habitat-list` until BMD-870. `HABITAT_UPLOAD_TYPES.baseline` gained `successRoute: 'project-summary'`, and the shared received-controller now redirects to `` `/projects/${projectId}/${uploadType.successRoute ?? uploadType.listRoute}` ``. BMD-1043 (frontend PR#352) gave the post-intervention upload type the same `successRoute` and removed both `listRoute`s, so both uploads now land on the summary.
 
   The summary renders for any project with a baseline (BMD-852 widened its guard from baseline-only), so this redirect always lands on a rendered page. Backend BMD-850 (`a2f2985`) additionally deletes `postIntervention` from the project JSONB on baseline replacement, so a replacement returns the project to the summary's baseline-only variant. See [`../project-management/project-summary.flow.md`](../project-management/project-summary.flow.md).
 
@@ -241,10 +242,9 @@ post-intervention document was re-enriched against the new baseline
 So a **second successful baseline upload wipes any post-intervention data already imported**
 for that project. Visible effects:
 
-- Task list "On-site post intervention habitats" reverts from "Completed" to "Not yet
-  started", and its link flips back to `/projects/{id}/upload-file`.
-- `/projects/{id}/post-intervention-habitat-list` renders with empty tabs and no summary
-  figures.
+- The project summary's unit-type sections offer the "Upload on-site post intervention
+  file" link again in place of their post-intervention links.
+- The post-intervention nav children and pages have no data to list.
 - The post-intervention selection on `/projects/{id}/upload-file` becomes available again
   (its baseline precondition is satisfied by the new baseline).
 
@@ -266,8 +266,8 @@ file's data renders.
 Validation runs **before** any write: `POST /baseline/validate/{uploadId}` only reaches
 `setProjectBaseline` once the GeoPackage passes, so a file that drops out to `/error-file`
 never touches the project. For a project that already holds a baseline this means the
-previous data survives the failed attempt untouched — same habitats, same units, task list
-still "Completed" — and the post-intervention document (if any) survives with it, because the
+previous data survives the failed attempt untouched — same habitats, same units, summary
+results still rendered — and the post-intervention document (if any) survives with it, because the
 `- 'postIntervention'` deletion is part of the same skipped write.
 
 Worth pinning in a browser test rather than trusting by inspection: the destructive write and
@@ -308,8 +308,8 @@ Two consequences for tests:
 
 ### Landing — project summary (separate flow)
 
-On a successful upload the user lands on `GET /projects/{id}/project-summary` (BMD-870; it was `GET /projects/{id}/baseline-habitat-list` before). That page, the habitat list and the habitat-detail edit journey are documented in their own flow docs and are **out of scope** for this flow:
+On a successful upload the user lands on `GET /projects/{id}/project-summary` (BMD-870; it was `GET /projects/{id}/baseline-habitat-list` before, a page BMD-1043 removed). That page, the unit-type baseline pages that list the habitats, and the habitat-detail edit journey are documented in their own flow docs and are **out of scope** for this flow:
 
-- `test/flows/project-management/project-summary.flow.md` — the landing page for any project with a baseline
-- `test/flows/habitat-list/habitat-list.flow.md` — baseline habitat list page, now reached from the task list rather than straight off an upload
+- `test/flows/project-management/project-summary.flow.md` — the landing page for every project
+- `test/flows/project-management/area-baseline.flow.md`, `hedgerows-baseline.flow.md`, `watercourses-baseline.flow.md` — the baseline grids
 - `test/flows/habitat-details/habitat-details.flow.md` — edit a baseline habitat detail

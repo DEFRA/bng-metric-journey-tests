@@ -143,10 +143,15 @@ export const TRADING_DEFICIT_PI_FILE =
 // V.Low, which the backend ignores) and sits in Intertidal hard structures —
 // the only shipped pair that reaches the merged intertidal grid. It also has
 // rivers, so the Watercourses nav item renders.
+// BNG-587: one individual tree per size band (T001 Small … T004 Very large).
+// Moved here from the removed post-intervention habitat list (BMD-1043), and
+// paired with a baseline because a project without one has no page listing its
+// post-intervention features.
+export const TREES_ALL_SIZES_PI_FILE =
+  'Post-intervention - urban trees all sizes.gpkg'
+
 export const IGGI_BASELINE_FILE = 'Baseline - IGGI habitat.gpkg'
 export const IGGI_PI_FILE = 'Post-intervention - IGGI habitat.gpkg'
-
-const UPLOAD_TIMEOUT = 120_000
 
 async function buildBaselineOnlyProject(browser, file) {
   const context = await browser.newContext({
@@ -185,10 +190,9 @@ async function buildPostInterventionProject(browser, baselineFile, piFile) {
       id,
       baselineFile
     )
-    await new UploadPostInterventionFileFlow(page).uploadFile(id, piFile)
-    await page.waitForURL(
-      new RegExp(`/projects/${id}/post-intervention-habitat-list`),
-      { timeout: UPLOAD_TIMEOUT }
+    await new UploadPostInterventionFileFlow(page).uploadFileAndWaitForSummary(
+      id,
+      piFile
     )
     return { id, name }
   } finally {
@@ -320,10 +324,9 @@ export function getHedgerowInterventionTypesProject(browser) {
  * the "Baseline" nav child and the conditional "Hedgerows" nav item all need
  * this one shape.
  *
- * `post-intervention-habitat-list.spec.js` and
- * `post-intervention-habitat-details.spec.js` build the same pairing through
- * their own file-local caches, so a worker running those files as well pays for
- * it more than once. Consolidating means unpicking their build-time harvesting,
+ * `post-intervention-habitat-details.spec.js` builds the same pairing through
+ * its own file-local cache, so a worker running that file as well pays for it
+ * twice. Consolidating means unpicking their build-time harvesting,
  * so it is deliberately left alone — the same call the hedgerow pairing makes.
  */
 export function getWatercourseInterventionTypesProject(browser) {
@@ -469,6 +472,19 @@ export function getAreaTradingDeficitProject(browser) {
 export function getIntertidalTradingProject(browser) {
   return getOrBuildProject(projectKey(IGGI_BASELINE_FILE, IGGI_PI_FILE), () =>
     buildPostInterventionProject(browser, IGGI_BASELINE_FILE, IGGI_PI_FILE)
+  )
+}
+
+/** A project whose post-intervention file holds one tree per size band. */
+export function getTreesPostInterventionProject(browser) {
+  return getOrBuildProject(
+    projectKey(AREA_REFS_BASELINE_FILE, TREES_ALL_SIZES_PI_FILE),
+    () =>
+      buildPostInterventionProject(
+        browser,
+        AREA_REFS_BASELINE_FILE,
+        TREES_ALL_SIZES_PI_FILE
+      )
   )
 }
 

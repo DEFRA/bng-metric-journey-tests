@@ -53,7 +53,7 @@ Added by **BMD-855 / BMD-919** (frontend PR#249, 2026-08-28). Before it, `/proje
 
 ---
 
-### Step 2 — Redirect a project with no baseline to the task list `[IMPLEMENTED]`
+### Step 2 — Redirect a project with no baseline to the project summary `[IMPLEMENTED]`
 
 - **Route:** `GET /projects/{id}/hedgerows-summary` (the guard branch)
 - **Template:** None (302)
@@ -61,7 +61,7 @@ Added by **BMD-855 / BMD-919** (frontend PR#249, 2026-08-28). Before it, `/proje
 - **Backend endpoint:** `GET /projects/{id}`
 - **Description:** `hasBaselineData(project)` false → redirect. Note this guards on **any** baseline, not on hedgerow data specifically — a project with an area-only baseline renders this page rather than redirecting.
 - **Validation:** As Step 1
-- **On success:** 302 to `/add-project-details/{id}`
+- **On success:** 302 to `/projects/{id}/project-summary` (BMD-1043, frontend PR#352; it was the task list `/add-project-details/{id}`, now removed)
 - **On error:** As Step 1
 
 ---

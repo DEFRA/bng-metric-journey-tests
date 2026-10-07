@@ -83,12 +83,13 @@ test.describe('upload-file', { tag: '@upload-file' }, () => {
 
       // BMD-850 AC11/AC12: both links must return the user to the page that
       // triggered the journey. The href is only half of that — this clicks each
-      // one and asserts the task list actually renders, so a link that points
-      // correctly but is intercepted (or a task list that 404s) still fails.
-      test('Back and Cancel navigate to the project task list when no returnUrl is supplied', async ({
+      // one and asserts the project summary actually renders, so a link that
+      // points correctly but is intercepted (or a summary that 404s) still
+      // fails. BMD-1043 moved the default from the removed task list.
+      test('Back and Cancel navigate to the project summary when no returnUrl is supplied', async ({
         createProjectFlow,
         projectDashboardPage,
-        projectTaskListPage,
+        projectSummaryPage,
         uploadFilePage,
         page
       }) => {
@@ -97,22 +98,22 @@ test.describe('upload-file', { tag: '@upload-file' }, () => {
           projectDashboardPage,
           PROJECT_LABEL
         )
-        const taskList = `/add-project-details/${id}`
+        const summary = `/projects/${id}/project-summary`
         await uploadFilePage.open(id)
 
-        await uploadFilePage.assertReturnLinks(taskList)
+        await uploadFilePage.assertReturnLinks(summary)
 
         await uploadFilePage.backLink.click()
-        await expect(page).toHaveURL(taskList)
-        await expect(projectTaskListPage.heading).toBeVisible()
+        await expect(page).toHaveURL(summary)
+        await expect(projectSummaryPage.heading).toBeVisible()
 
         await uploadFilePage.open(id)
         await uploadFilePage.cancelLink.click()
-        await expect(page).toHaveURL(taskList)
-        await expect(projectTaskListPage.heading).toBeVisible()
+        await expect(page).toHaveURL(summary)
+        await expect(projectSummaryPage.heading).toBeVisible()
       })
 
-      test('Back and Cancel return to the habitat list the user arrived from', async ({
+      test('Back and Cancel return to the page the user arrived from', async ({
         createProjectFlow,
         projectDashboardPage,
         uploadFilePage
@@ -122,21 +123,22 @@ test.describe('upload-file', { tag: '@upload-file' }, () => {
           projectDashboardPage,
           PROJECT_LABEL
         )
-        // The href a habitat list's "Upload a different file" button carries.
-        const listRoute = `/projects/${id}/baseline-habitat-list`
-        await uploadFilePage.open(id, listRoute)
+        // The href a unit-type page's "Upload file" button carries.
+        const pageRoute = `/projects/${id}/area-baseline`
+        await uploadFilePage.open(id, pageRoute)
 
-        await uploadFilePage.assertReturnLinks(listRoute)
+        await uploadFilePage.assertReturnLinks(pageRoute)
       })
 
       // safeUploadReturnUrl is an open-redirect guard: anything that is not a
-      // single-slash-prefixed relative path is discarded for the task list.
+      // single-slash-prefixed relative path is discarded for the project
+      // summary.
       for (const { label, returnUrl } of [
         { label: 'a protocol-relative URL', returnUrl: '//evil.example/steal' },
         { label: 'an absolute URL', returnUrl: 'https://evil.example/steal' },
         { label: 'a backslash-bearing path', returnUrl: '/\\evil.example' }
       ]) {
-        test(`${label} as returnUrl falls back to the project task list`, async ({
+        test(`${label} as returnUrl falls back to the project summary`, async ({
           createProjectFlow,
           projectDashboardPage,
           uploadFilePage
@@ -148,7 +150,9 @@ test.describe('upload-file', { tag: '@upload-file' }, () => {
           )
           await uploadFilePage.open(id, returnUrl)
 
-          await uploadFilePage.assertReturnLinks(`/add-project-details/${id}`)
+          await uploadFilePage.assertReturnLinks(
+            `/projects/${id}/project-summary`
+          )
         })
       }
     }
@@ -180,7 +184,7 @@ test.describe('upload-file', { tag: '@upload-file' }, () => {
         await uploadFilePage.submit()
 
         await expect(page).toHaveURL(
-          `/projects/${id}/upload-baseline-file?returnUrl=%2Fadd-project-details%2F${id}`
+          `/projects/${id}/upload-baseline-file?returnUrl=%2Fprojects%2F${id}%2Fproject-summary`
         )
         await expect(uploadBaselineFilePage.heading).toBeVisible()
       })
@@ -197,19 +201,19 @@ test.describe('upload-file', { tag: '@upload-file' }, () => {
           projectDashboardPage,
           PROJECT_LABEL
         )
-        const listRoute = `/projects/${id}/baseline-habitat-list`
-        await uploadFilePage.open(id, listRoute)
+        const pageRoute = `/projects/${id}/area-baseline`
+        await uploadFilePage.open(id, pageRoute)
         await uploadFilePage.selectBaseline()
         await uploadFilePage.submit()
 
         await expect(page).toHaveURL(
-          `/projects/${id}/upload-baseline-file?${new URLSearchParams({ returnUrl: listRoute })}`
+          `/projects/${id}/upload-baseline-file?${new URLSearchParams({ returnUrl: pageRoute })}`
         )
         // Back on the upload form returns to the selection page still carrying
-        // the original list as its own return target.
+        // the original page as its own return target.
         await expect(uploadBaselineFilePage.backLink).toHaveAttribute(
           'href',
-          uploadFileHref(id, listRoute)
+          uploadFileHref(id, pageRoute)
         )
       })
     }
@@ -257,7 +261,7 @@ test.describe('upload-file', { tag: '@upload-file' }, () => {
         await uploadFilePage.submit()
 
         await expect(page).toHaveURL(
-          `/projects/${id}/upload-post-intervention-file?returnUrl=%2Fadd-project-details%2F${id}`
+          `/projects/${id}/upload-post-intervention-file?returnUrl=%2Fprojects%2F${id}%2Fproject-summary`
         )
         await expect(uploadPostInterventionFilePage.heading).toBeVisible()
       })

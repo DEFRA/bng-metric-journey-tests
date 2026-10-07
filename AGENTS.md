@@ -422,7 +422,6 @@ PROFILE=@project-management npm run test:github
 | `PROFILE=@smoke npm run test:e2e`                 | Run only `@smoke`-tagged tests on the CDP portal                                                                              |
 | `PROFILE=@happy-path npm run test:e2e`            | Run only happy-path journeys on the CDP portal — avoids tripping its monitoring alerts (see **@happy-path**)                  |
 | `PROFILE=@regression npm run test:github`         | Run only `@regression`-tagged (non-smoke) tests                                                                               |
-| `PROFILE=@habitat-list npm run test:github`       | Run tests for the `habitat-list` domain                                                                                       |
 | `PROFILE=@project-management npm run test:github` | Run tests for the `project-management` domain                                                                                 |
 | `npm run test:evidence`                           | Run the `/validate-ac-manual` evidence spec (screenshots + per-AC demo videos) — never part of the normal suite               |
 
