@@ -10,6 +10,7 @@ import { ProjectReportsPage } from '@pages/project-reports.page.js'
 import { AreaSummaryPage } from '@pages/area-summary.page.js'
 import { AreaBaselinePage } from '@pages/area-baseline.page.js'
 import { AreaTradingSummaryPage } from '@pages/area-trading-summary.page.js'
+import { HedgerowsTradingSummaryPage } from '@pages/hedgerows-trading-summary.page.js'
 import { HedgerowsSummaryPage } from '@pages/hedgerows-summary.page.js'
 import { HedgerowsBaselinePage } from '@pages/hedgerows-baseline.page.js'
 import { HedgerowsPostInterventionPage } from '@pages/hedgerows-post-intervention.page.js'
@@ -76,6 +77,9 @@ export const test = base.extend({
   },
   hedgerowsPostInterventionPage: async ({ page }, use) => {
     await use(new HedgerowsPostInterventionPage(page))
+  },
+  hedgerowsTradingSummaryPage: async ({ page }, use) => {
+    await use(new HedgerowsTradingSummaryPage(page))
   },
   watercoursesSummaryPage: async ({ page }, use) => {
     await use(new WatercoursesSummaryPage(page))

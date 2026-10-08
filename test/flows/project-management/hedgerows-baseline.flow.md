@@ -116,9 +116,10 @@ Both projects come from `@utils/summary-projects.js` (`getAllUnitTypesProject`, 
 
 ---
 
-## Deferred elements
+## Trading rules and deferred elements
 
-| Element                          | Current state                                | Marker      |
-| -------------------------------- | -------------------------------------------- | ----------- |
-| "View trading rules"             | inert `<span>` in the Trading Rules tile     | `[PLANNED]` |
-| "View on-site post intervention" | inert `<span>` once post-intervention exists | `[PLANNED]` |
+| Element                          | Current state                                                                                                                                                                                                            | Marker          |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------- |
+| "View hedgerows trading rules"   | **"View hedgerows trading rules" link** to `/projects/{id}/hedgerows-trading-summary` once a post-intervention file exists and the project has hedgerows; inert "View trading rules" text before that (BMD-1027, PR#335) | `[IMPLEMENTED]` |
+| Trading rules status             | **`Met` / `Not met` tag** in the Trading Rules tile (BMD-1003, PR#362) — `[COVERED]`                                                                                                                                     | `[IMPLEMENTED]` |
+| "View on-site post intervention" | inert `<span>` once post-intervention exists                                                                                                                                                                             | `[PLANNED]`     |

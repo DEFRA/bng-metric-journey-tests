@@ -50,3 +50,4 @@ export const POST_INTERVENTION_NAV_CHILD = 'Post intervention'
 // (frontend PR#351); the tile heading above keeps "Trading Rules".
 export const TRADING_RULES_NAV_CHILD = 'Trading rules'
 export const VIEW_AREA_TRADING_RULES = 'View area trading rules'
+export const VIEW_HEDGEROWS_TRADING_RULES = 'View hedgerows trading rules'

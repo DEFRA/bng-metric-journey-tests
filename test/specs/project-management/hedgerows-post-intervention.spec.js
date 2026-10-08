@@ -3,9 +3,11 @@ import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
   getAllUnitTypesPostInterventionProject,
+  getAreaGainProject,
   getHedgerowInterventionTypesProject,
   getLinearInterventionTypesProject
 } from '@utils/summary-projects.js'
+import { expectStatusTag, STATUS_NOT_MET } from '@utils/unit-type-tiles.js'
 import {
   AREA_HABITATS,
   BASELINE_NAV_CHILD,
@@ -911,6 +913,36 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           }
         }
       )
+    }
+  )
+
+  // ─── Trading rules status (BMD-1003) ─────────────────────────────────────────
+  //
+  // Sole real-data witness for this page's wiring: `tradingRulesStatus` is
+  // per-page config to the controller factory, and the mocked
+  // controller.test.js hands it a fabricated verdict. On this project the
+  // AREA verdict is Met and the hedgerow one Not met — the only shared pairing
+  // that separates them — so a mis-wiring to the area function fails here.
+
+  test.describe(
+    'Hedgerows post-intervention — trading rules status',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      test('hedgerows that break the trading rules show a red "Not met" tag', async ({
+        hedgerowsPostInterventionPage,
+        browser
+      }) => {
+        const project = await getAreaGainProject(browser)
+        await hedgerowsPostInterventionPage.open(project.id)
+
+        await expectStatusTag(
+          hedgerowsPostInterventionPage.tradingRulesTag(),
+          STATUS_NOT_MET
+        )
+      })
     }
   )
 })

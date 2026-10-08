@@ -139,6 +139,16 @@ export const TRADING_DEFICIT_BASELINE_FILE =
 export const TRADING_DEFICIT_PI_FILE =
   'trading-higher-deficit-not-covered-from-below-post-intervention.gpkg'
 
+// BMD-1003's hedgerow "Met" pair (harness permutations/trading-rules). Its
+// Medium hedgerow gains 4.88 units and its Low hedgerow loses 1.55, which the
+// Medium surplus covers — so every hedgerow band, and the overall hedgerow
+// verdict, is Met. Every other shipped hedgerow pairing reads Not met overall,
+// and this is also the only one where a Low LOSS still reads Met.
+export const HEDGEROW_TRADING_MET_BASELINE_FILE =
+  'trading-lower-deficit-covered-from-above-baseline.gpkg'
+export const HEDGEROW_TRADING_MET_PI_FILE =
+  'trading-lower-deficit-covered-from-above-post-intervention.gpkg'
+
 // IGGI is Medium in the engine's reference data (the file's own column says
 // V.Low, which the backend ignores) and sits in Intertidal hard structures —
 // the only shipped pair that reaches the merged intertidal grid. It also has
@@ -484,6 +494,26 @@ export function getTreesPostInterventionProject(browser) {
         browser,
         AREA_REFS_BASELINE_FILE,
         TREES_ALL_SIZES_PI_FILE
+      )
+  )
+}
+
+/**
+ * A project whose hedgerows satisfy the trading rules in every band — the
+ * hedgerow "Met" witness for BMD-1003, where every other shared pairing reads
+ * Not met.
+ */
+export function getHedgerowTradingMetProject(browser) {
+  return getOrBuildProject(
+    projectKey(
+      HEDGEROW_TRADING_MET_BASELINE_FILE,
+      HEDGEROW_TRADING_MET_PI_FILE
+    ),
+    () =>
+      buildPostInterventionProject(
+        browser,
+        HEDGEROW_TRADING_MET_BASELINE_FILE,
+        HEDGEROW_TRADING_MET_PI_FILE
       )
   )
 }

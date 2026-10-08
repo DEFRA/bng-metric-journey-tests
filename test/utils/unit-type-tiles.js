@@ -61,10 +61,11 @@ export function tile(section, heading) {
 /**
  * The trading-rules status tag — "Met" (green) or "Not met" (red).
  *
- * Renders only for area habitats, and only once the backend has a verdict to
- * give: a post-intervention document whose figures were never calculated yields
- * `null` and no tag at all, because unknown is not failed. `toHaveCount(0)`
- * therefore reads naturally for both the out-of-scope unit types and that state.
+ * Renders for every unit type (area habitats BMD-1008, watercourses BMD-1002,
+ * hedgerows BMD-1003), but only once the backend has a verdict to give: figures
+ * that were never calculated, or a linear type found only post-intervention,
+ * yield `null` and no tag at all, because unknown is not failed.
+ * `toHaveCount(0)` therefore reads naturally for that state.
  */
 export function tradingRulesTag(section) {
   return tile(section, TILE_TRADING_RULES).locator(TAG)

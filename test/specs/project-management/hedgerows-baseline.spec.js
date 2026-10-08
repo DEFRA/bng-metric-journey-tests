@@ -3,8 +3,10 @@ import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
   getAllUnitTypesProject,
+  getHedgerowTradingMetProject,
   getNoWatercoursesProject
 } from '@utils/summary-projects.js'
+import { expectStatusTag, STATUS_MET } from '@utils/unit-type-tiles.js'
 import {
   AREA_HABITATS,
   BASELINE_NAV_CHILD,
@@ -453,6 +455,35 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expect(baselineHabitatDetailsPage.heading).toContainText(firstRef)
         expect(page.url()).toContain(`projectId=${project.id}`)
         expect(page.url()).toContain('featureId=')
+      })
+    }
+  )
+
+  // ─── Trading rules status (BMD-1003) ─────────────────────────────────────────
+  //
+  // Sole real-data witness for this page's wiring: `tradingRulesStatus` is
+  // per-page config to the controller factory, and the mocked
+  // controller.test.js hands it a fabricated verdict. Every hedgerow band is
+  // Met on this project (hedgerows-trading-summary.spec.js).
+
+  test.describe(
+    'Hedgerows baseline — trading rules status',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      test('hedgerows that satisfy the trading rules show a green "Met" tag', async ({
+        hedgerowsBaselinePage,
+        browser
+      }) => {
+        const project = await getHedgerowTradingMetProject(browser)
+        await hedgerowsBaselinePage.open(project.id)
+
+        await expectStatusTag(
+          hedgerowsBaselinePage.tradingRulesTag(),
+          STATUS_MET
+        )
       })
     }
   )

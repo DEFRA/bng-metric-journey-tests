@@ -1,8 +1,11 @@
+import { tile } from '@utils/unit-type-tiles.js'
 import { UnitTypeSummaryPage } from './unit-type-summary.page.js'
 import {
   HEDGEROWS,
   VIEW_ON_SITE_BASELINE,
   VIEW_ON_SITE_HEDGEROWS_BASELINE,
+  TILE_TRADING_RULES,
+  VIEW_HEDGEROWS_TRADING_RULES,
   VIEW_ON_SITE_HEDGEROWS_POST_INTERVENTION
 } from '@utils/unit-type-labels.js'
 
@@ -50,6 +53,13 @@ export class HedgerowsSummaryPage extends UnitTypeSummaryPage {
   interventionLink() {
     return this.unitSection().getByRole('link', {
       name: VIEW_ON_SITE_HEDGEROWS_POST_INTERVENTION
+    })
+  }
+
+  /** The Trading Rules tile's link to the hedgerows trading summary. */
+  tradingRulesLink() {
+    return tile(this.unitSection(), TILE_TRADING_RULES).getByRole('link', {
+      name: VIEW_HEDGEROWS_TRADING_RULES
     })
   }
 }

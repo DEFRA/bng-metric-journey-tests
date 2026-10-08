@@ -18,6 +18,8 @@ import {
   getAreaGainProject,
   getBaselineOnlyProject,
   getHedgerowGainProject,
+  getHedgerowTradingMetProject,
+  getLinearInterventionTypesProject,
   getNoHedgerowsPostInterventionProject,
   getNoWatercoursesPostInterventionProject,
   getNoWatercoursesProject,
@@ -1046,9 +1048,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
   // Do not delete these without first adding an integration test asserting
   // `tradingRuleStatuses.areaHabitats` on the `GET /projects/{id}` payload.
   //
-  // Area habitats only. Watercourses gained their own tag in BMD-1002; the
-  // hedgerow trading rules are a separate ticket, so that tile holds the
-  // "View trading rules" text alone.
+  // Area habitats only. Watercourses (BMD-1002) and hedgerows (BMD-1003) have
+  // their own describes below.
 
   test.describe(
     'Project summary — area habitats trading rules status',
@@ -1057,11 +1058,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      // FIXME(BMD-1003): parked 2026-10-07 so CI passes. Frontend PR#362 gave
-      // the Hedgerows Trading Rules tile its own status tag, so the "no tag on
-      // Hedgerows" assertion here no longer holds. Restore during the BMD-1003
-      // AC validation.
-      test.fixme('a project that breaks the trading rules shows a red "Not met" tag', async ({
+      test('a project that breaks the trading rules shows a red "Not met" tag', async ({
         projectSummaryPage,
         browser
       }) => {
@@ -1071,15 +1068,6 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expectStatusTag(
           projectSummaryPage.tradingRulesTag(AREA_HABITATS),
           STATUS_NOT_MET
-        )
-
-        // Scope. Hedgerow trading rules are not calculated yet, so that tile
-        // carries no tag at all — asserted as an absence because there is no
-        // other text that would distinguish "not yet implemented" from
-        // "implemented and Met". Watercourses left this check when BMD-1002
-        // gave them a status of their own.
-        await expect(projectSummaryPage.tradingRulesTag(HEDGEROWS)).toHaveCount(
-          0
         )
       })
 
@@ -1199,6 +1187,79 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
         await expectStatusTag(
           projectSummaryPage.tradingRulesTag(WATERCOURSES),
+          STATUS_NOT_MET
+        )
+        await expectStatusTag(
+          projectSummaryPage.tradingRulesTag(AREA_HABITATS),
+          STATUS_MET
+        )
+      })
+    }
+  )
+
+  // ─── Hedgerows trading rules status (BMD-1003) ───────────────────────────────
+  //
+  // SOLE WITNESS for `tradingRuleStatuses.hedgerows.overall` on the GET
+  // /projects/{id} response envelope, as the blocks above are for area habitats
+  // and watercourses. The backend unit tests derive the verdict from figures
+  // (hedgerow-trading-rule-statuses.test.js, AC4) and every frontend test is
+  // handed a fabricated `tradingRuleStatuses`; no integration test asserts the
+  // hedgerows key. Do not delete without one.
+
+  test.describe(
+    'Project summary — hedgerows trading rules status',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      // Every hedgerow band Met (see hedgerows-trading-summary.spec.js).
+      test('hedgerows that satisfy the trading rules in every band show a green "Met" tag', async ({
+        projectSummaryPage,
+        browser
+      }) => {
+        const project = await getHedgerowTradingMetProject(browser)
+        await projectSummaryPage.open(project.id)
+
+        await expectStatusTag(
+          projectSummaryPage.tradingRulesTag(HEDGEROWS),
+          STATUS_MET
+        )
+      })
+
+      // AC4's OR: the Medium band is Met here and only Low and Very low fail,
+      // so a verdict built from the Medium band alone would read Met. The
+      // watercourse verdict on this project is Met, so a tile mis-wired to the
+      // watercourse function fails too.
+      test('one failing hedgerow band is enough to show a red "Not met" tag', async ({
+        projectSummaryPage,
+        browser
+      }) => {
+        const project = await getLinearInterventionTypesProject(browser)
+        await projectSummaryPage.open(project.id)
+
+        await expectStatusTag(
+          projectSummaryPage.tradingRulesTag(HEDGEROWS),
+          STATUS_NOT_MET
+        )
+        await expectStatusTag(
+          projectSummaryPage.tradingRulesTag(WATERCOURSES),
+          STATUS_MET
+        )
+      })
+
+      // The area-function mis-wiring guard: area habitats Met, hedgerows Not
+      // met. No shipped pairing gives the reverse (hedgerows Met, area Not
+      // met), so the Met test above cannot tell the two functions apart.
+      test('hedgerows show "Not met" while area habitats show "Met"', async ({
+        projectSummaryPage,
+        browser
+      }) => {
+        const project = await getAreaGainProject(browser)
+        await projectSummaryPage.open(project.id)
+
+        await expectStatusTag(
+          projectSummaryPage.tradingRulesTag(HEDGEROWS),
           STATUS_NOT_MET
         )
         await expectStatusTag(
