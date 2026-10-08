@@ -118,7 +118,8 @@ Both projects come from `@utils/summary-projects.js` (`getAllUnitTypesProject`, 
 
 ## Deferred elements
 
-| Element                          | Current state                                | Marker      |
-| -------------------------------- | -------------------------------------------- | ----------- |
-| "View trading rules"             | inert `<span>` in the Trading Rules tile     | `[PLANNED]` |
-| "View on-site post intervention" | inert `<span>` once post-intervention exists | `[PLANNED]` |
+| Element                          | Current state                                                                        | Marker          |
+| -------------------------------- | ------------------------------------------------------------------------------------ | --------------- |
+| "View trading rules"             | inert `<span>` in the Trading Rules tile                                             | `[PLANNED]`     |
+| Trading rules status             | **`Met` / `Not met` tag** in the Trading Rules tile (BMD-1003, PR#362) — `[COVERED]` | `[IMPLEMENTED]` |
+| "View on-site post intervention" | inert `<span>` once post-intervention exists                                         | `[PLANNED]`     |

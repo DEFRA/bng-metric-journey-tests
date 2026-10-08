@@ -91,9 +91,9 @@ export class UnitTypeSummaryPage extends BasePage {
   }
 
   /**
-   * The trading-rules status tag (BMD-1008). Area habitats only: the hedgerow
-   * and watercourse rules are separate tickets, so on those pages this is a
-   * `toHaveCount(0)` assertion rather than a status.
+   * The trading-rules status tag: area habitats (BMD-1008), watercourses
+   * (BMD-1002) and hedgerows (BMD-1003). Absent — `toHaveCount(0)` — when the
+   * backend has no verdict to give.
    */
   tradingRulesTag() {
     return tradingRulesTag(this.unitSection())

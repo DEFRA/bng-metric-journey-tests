@@ -16,6 +16,7 @@ import {
   TILE_BASELINE,
   WATERCOURSES
 } from '@utils/unit-type-labels.js'
+import { expectStatusTag, STATUS_NOT_MET } from '@utils/unit-type-tiles.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 
@@ -112,6 +113,30 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           (await hedgerowsSummaryPage.tileUnits(TILE_BASELINE)) *
             NET_GAIN_TARGET_MULTIPLIER,
           1
+        )
+      }
+    )
+
+    // BMD-1003 AC6. A baseline with hedgerows and no post-intervention file is
+    // a verdict, not an unknown: nothing has been delivered to trade against,
+    // so the backend returns Not met rather than null. Sole real-data witness
+    // for that branch of `tradingRuleStatuses.hedgerows` — the backend unit
+    // test (hedgerow-trading-rule-statuses.test.js, AC6) derives it from a
+    // synthetic document and the frontend test is handed it. The upload link
+    // proves the precondition: it is replaced the moment a post-intervention
+    // document exists.
+    test(
+      'a hedgerow baseline with no post-intervention file reads "Not met"',
+      { tag: '@regression' },
+      async ({ hedgerowsSummaryPage }) => {
+        await hedgerowsSummaryPage.open(project.id)
+
+        await expect(
+          hedgerowsSummaryPage.uploadPostInterventionLink()
+        ).toBeVisible()
+        await expectStatusTag(
+          hedgerowsSummaryPage.tradingRulesTag(),
+          STATUS_NOT_MET
         )
       }
     )
@@ -429,10 +454,18 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           POST_INTERVENTION_ONLY_PERCENTAGE
         )
 
-        // No baseline to compare against, so no Met/Not met tag is rendered.
+        // No baseline to compare against, so no Met/Not met tag is rendered —
+        // neither the net-gain one nor, since BMD-1003, the trading-rules one.
         await expect(
           hedgerowsSummaryPage.unitSection().getByText(/^(Met|Not met)$/)
         ).toHaveCount(0)
+
+        // BMD-1003 AC5: the trading-rules verdict is null — trading rules do
+        // not apply without baseline hedgerows — so its tile carries no tag.
+        // The link is asserted too, so the absence is of the tag and not of
+        // the whole tile.
+        await expect(hedgerowsSummaryPage.tradingRulesTag()).toHaveCount(0)
+        await expect(hedgerowsSummaryPage.tradingRulesLink()).toBeVisible()
 
         // BMD-897 nulls the baseline action entirely for this state — the inert
         // line is not rendered at all, rather than rendered without a link.
