@@ -30,17 +30,19 @@ Added by **BMD-855 / BMD-919** (frontend PR#249, 2026-08-28). Before it, `/proje
 
 - **Post-intervention-only hedgerows (BMD-897, BMD-919) `[IMPLEMENTED]`:** when the project has hedgerows in `postIntervention` but **none** in `baseline`, `hasPostInterventionOnlyHabitat(project, 'hedgerows')` is true and the summary changes shape:
 
-  | Element                     | Normal                                          | Post-intervention-only                           |
-  | --------------------------- | ----------------------------------------------- | ------------------------------------------------ |
-  | Net percentage change       | formatted percentage + `Met`/`Not met` tag      | **`Not applicable`**, **no tag**                 |
-  | Baseline tile action        | link "View on-site hedgerows baseline"          | **`null` — no action paragraph rendered at all** |
-  | Post-intervention heading   | "On-site post-**intervention**" (hyphenated)    | "On-site post intervention" (unhyphenated)       |
-  | Post-intervention action    | link "View on-site hedgerows post intervention" | **link** "Upload on-site post intervention file" |
-  | Targets — target % (Tile 1) | `10%`                                           | **`Not applicable`**                             |
-  | Targets — units required    | `baselineUnits × 1.1`                           | `0.00 units` (the baseline is zero)              |
-  | Targets — unit deficit      | `max(0, unitsRequired − postInterventionUnits)` | `0.00 units` (nothing was required)              |
+  | Element                     | Normal                                          | Post-intervention-only                                                        |
+  | --------------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------- |
+  | Net percentage change       | formatted percentage + `Met`/`Not met` tag      | **`Not applicable`**, **no tag**                                              |
+  | Baseline tile action        | link "View on-site hedgerows baseline"          | **`null` — no action paragraph rendered at all**                              |
+  | Post-intervention heading   | "On-site post-**intervention**" (hyphenated)    | "On-site post intervention" (unhyphenated)                                    |
+  | Post-intervention action    | link "View on-site hedgerows post intervention" | link "View on-site hedgerows post intervention" — same as normal since PR#353 |
+  | Targets — target % (Tile 1) | `10%`                                           | **`Not applicable`**                                                          |
+  | Targets — units required    | `baselineUnits × 1.1`                           | `0.00 units` (the baseline is zero)                                           |
+  | Targets — unit deficit      | `max(0, unitsRequired − postInterventionUnits)` | `0.00 units` (nothing was required)                                           |
 
   The heading spelling flips because `buildPostInterventionSummary` treats post-intervention-only as _not_ a standard intervention. A locator keyed to the hyphenated heading will not find this variant.
+
+  The post-intervention action no longer flips with it. Until **frontend PR#353** (2026-10-02) the same "not a standard intervention" flag also chose the action, so this state showed "Upload on-site post intervention file" even though the file had been uploaded and the tile showed its units — the PO flagged it on BMD-919 on 2026-09-29. `resolveInterventionAction` now keys on whether post-intervention data exists at all, so the tile carries this page's own View link.
 
   The last three rows are **BMD-919**, added by frontend PR#275 (2026-09-11). Before it, `buildTargetsSummary` hard-coded `targetPercentage` to `10%` for every data shape, which is the AC1 failure manual validation caught on 2026-09-04. The fix gave the function an options-object signature with a `postInterventionOnly` flag.
 
@@ -80,18 +82,18 @@ There is **no back link**; the left navigation is the only way back.
 
 ## Journey coverage
 
-Added 2026-09-01, extended 2026-09-02 for BMD-855 and 2026-09-11 for BMD-919 — `test/specs/project-management/hedgerows-summary.spec.js` (12 tests, domain tag `@project-management`).
+Added 2026-09-01, extended 2026-09-02 for BMD-855, 2026-09-11 for BMD-919 and 2026-10-08 for the BMD-919 PO comment — `test/specs/project-management/hedgerows-summary.spec.js` (12 tests, domain tag `@project-management`).
 
 This page is structurally identical to the area summary, so the tests deliberately do **not** re-assert the shared layout, the targets arithmetic or the nav mechanics — `area-summary.spec.js` witnesses all of that against real data, and repeating it would test the shared macro rather than this page's wiring. Covered here is only what differs:
 
-| Test                                      | Why it is not covered by the area summary                                                                                                                                                                                                                 |
-| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Hedgerow figures and targets              | reads `baseline.units.hedgerowsTotal`, a different backend field                                                                                                                                                                                          |
-| Linked baseline tile (BMD-859 AC1)        | the wording names this unit type — "View on-site hedgerows baseline" — and the href is built by **this** controller, so the area page's identical assertion is not shared coverage                                                                        |
-| Hedgerows current, area section collapsed | the collapse case — area-summary witnesses the expansion                                                                                                                                                                                                  |
-| Post-intervention-only variant (BMD-897)  | `hasPostInterventionOnlyHabitat` is called by each controller with its own habitat-type argument. A shared helper is not shared coverage when the caller picks the parameter — point this page's call at the wrong type and every other test still passes |
-| Post-intervention-only targets (BMD-919)  | the same flag reaches `buildTargetsSummary` as a **second, separate** argument. The BMD-897 test above proves the flag is computed from real data, not that it is forwarded to the targets tiles                                                          |
-| Direct URL with no hedgerow data          | the nav entry is conditional, the route is not; nothing is marked current                                                                                                                                                                                 |
+| Test                                      | Why it is not covered by the area summary                                                                                                                                                                                                                                                                                                         |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Hedgerow figures and targets              | reads `baseline.units.hedgerowsTotal`, a different backend field                                                                                                                                                                                                                                                                                  |
+| Linked baseline tile (BMD-859 AC1)        | the wording names this unit type — "View on-site hedgerows baseline" — and the href is built by **this** controller, so the area page's identical assertion is not shared coverage                                                                                                                                                                |
+| Hedgerows current, area section collapsed | the collapse case — area-summary witnesses the expansion                                                                                                                                                                                                                                                                                          |
+| Post-intervention-only variant (BMD-897)  | `hasPostInterventionOnlyHabitat` is called by each controller with its own habitat-type argument. A shared helper is not shared coverage when the caller picks the parameter — point this page's call at the wrong type and every other test still passes. Also asserts the View link (and no upload link) in the post-intervention tile — PR#353 |
+| Post-intervention-only targets (BMD-919)  | the same flag reaches `buildTargetsSummary` as a **second, separate** argument. The BMD-897 test above proves the flag is computed from real data, not that it is forwarded to the targets tiles                                                                                                                                                  |
+| Direct URL with no hedgerow data          | the nav entry is conditional, the route is not; nothing is marked current                                                                                                                                                                                                                                                                         |
 
 Both post-intervention-only tests need a baseline with no hedgerows plus a post-intervention file that has them — `getHedgerowGainProject` in `@utils/summary-projects.js`. They share the one build.
 
@@ -120,6 +122,10 @@ The two post-intervention projects come from `getTargetMetProject` and `getAllUn
 | Targets on a post-intervention-only project | AC1 | The frontend unit suite covers the rule twice — `unit-summary.test.js:230` against a fabricated options object, and `hedgerows-summary/controller.test.js:264` against a `wreck`-mocked project — so neither can show a real upload produces the shape. No journey test read the Targets tiles in this state |
 
 The single new test costs no extra upload: it joins the BMD-897 describe, which already builds `getHedgerowGainProject`. It is kept as a **separate test** rather than folded into the BMD-897 one so a failure names the right ticket — BMD-897 owns the Results rows, BMD-919 the Targets rows.
+
+### BMD-919 re-validation after the PO comment (2026-10-08)
+
+The PO flagged on 2026-09-29 that the post-intervention tile read "Upload …" instead of "View …" in this state; frontend PR#353 fixed it on 2026-10-02. `/validate-ac-manual` re-ran AC1 plus the link check on the project summary, this page and the post-intervention page — all passed. `/validate-ac-automated` found the project summary witnessed (`project-summary.spec.js`, `expectPostInterventionOnlyGain`) but nothing asserting the link on **this** page, so the BMD-897 test above now asserts the View link's href and the upload link's absence. No extra upload — same describe, same project.
 
 **Regression guard, already in place:** PR#275 changed `buildTargetsSummary`'s signature as well as its behaviour, and "renders hedgerow figures and targets from real backend data" already asserts `10%` on a hedgerow-bearing baseline. That test is what proves the fix did not move the normal case; it needed no change.
 

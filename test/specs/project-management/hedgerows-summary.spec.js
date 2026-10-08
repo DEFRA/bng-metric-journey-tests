@@ -473,6 +473,22 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           0
         )
 
+        // BMD-919 PO comment (frontend PR#353, 2026-10-02): the post-intervention
+        // tile links to its own page, as on a standard project, instead of the
+        // "Upload on-site post intervention file" it carried while this state
+        // was treated as having no post-intervention file. project-summary.spec.js
+        // witnesses the same fix on the project summary; this is the only
+        // real-data witness on this page, the one the PO flagged — revert #353
+        // or let this controller drop its `interventionAction` here and these
+        // fail. hedgerows-summary/controller.test.js:296 covers it on a mock.
+        await expect(hedgerowsSummaryPage.interventionLink()).toHaveAttribute(
+          'href',
+          `/projects/${project.id}/hedgerows-post-intervention`
+        )
+        await expect(
+          hedgerowsSummaryPage.uploadPostInterventionLink()
+        ).toHaveCount(0)
+
         // And the tile keeps the UNHYPHENATED heading, because the variant is
         // treated as "not a standard intervention".
         expect(
