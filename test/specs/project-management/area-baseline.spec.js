@@ -10,8 +10,10 @@ import {
   AREA_HABITATS,
   BASELINE_NAV_CHILD,
   HEDGEROWS,
+  POST_INTERVENTION_NAV_CHILD,
   SUMMARY,
   TILE_BASELINE,
+  TRADING_RULES_NAV_CHILD,
   VIEW_ON_SITE_AREA_BASELINE,
   WATERCOURSES
 } from '@utils/unit-type-labels.js'
@@ -289,6 +291,16 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           0
         )
 
+        // BMD-1025 AC2: a baseline-only project, so Baseline is the area
+        // section's only child. The 2026-10-01 manual validation caught Post
+        // intervention rendering here while every journey test stayed green.
+        await expect(
+          areaBaselinePage.navItem(POST_INTERVENTION_NAV_CHILD)
+        ).toHaveCount(0)
+        await expect(
+          areaBaselinePage.navItem(TRADING_RULES_NAV_CHILD)
+        ).toHaveCount(0)
+
         const destinations = [
           [SUMMARY, 'project-summary'],
           [AREA_HABITATS, 'area-summary'],
@@ -379,6 +391,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           areaBaselinePage.tradingRulesTag(),
           STATUS_NOT_MET
         )
+        // BMD-1025 AC4: and no link to the area trading summary.
+        await expect(areaBaselinePage.areaTradingRulesLink()).toHaveCount(0)
       })
 
       test('a project that satisfies the trading rules reads "Met"', async ({
@@ -389,6 +403,19 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await areaBaselinePage.open(project.id)
 
         await expectStatusTag(areaBaselinePage.tradingRulesTag(), STATUS_MET)
+
+        // BMD-1025 AC1 and AC3, folded in: with a post-intervention document
+        // both routes to the area trading summary appear. The tile link is
+        // built by this page's own controller (`tradingRulesHref`), so the
+        // area summary's witness does not cover it.
+        const tradingSummary = `/projects/${project.id}/area-trading-summary`
+        await expect(
+          areaBaselinePage.navLink(TRADING_RULES_NAV_CHILD)
+        ).toHaveAttribute('href', tradingSummary)
+        await expect(areaBaselinePage.areaTradingRulesLink()).toHaveAttribute(
+          'href',
+          tradingSummary
+        )
       })
     }
   )

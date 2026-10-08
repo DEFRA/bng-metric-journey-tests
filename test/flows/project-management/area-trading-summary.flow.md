@@ -70,6 +70,29 @@ The frontend unit suite covers every AC (`area-trading-summary/controller.test.j
 
 Deliberately **not** duplicated (the rule is covered elsewhere and the rendering shape already has a real-data witness here): Medium "Met", Low "Not met" and the 0.00 "Met" tile — variants of the families above.
 
+### Entry points (BMD-1025)
+
+Added 2026-10-08 by `/validate-ac-automated` against the BMD-1025 ACs. The nav child comes from one builder (`buildUnitTypeNavigation`, which takes only the project and the current href), but the tile link is built **per controller** (`tradingRulesHref`), so each page needs its own tile witness. All but one are assertions folded into tests that already load the right shared project; the project-summary one is a separate test on an already-shared project. No extra uploads.
+
+| AC   | Page                   | Witness                                                                                                                       |
+| ---- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| AC1  | Area summary           | ✅ `area-summary.spec.js` — "the five Results tiles agree with the project summary"                                           |
+| AC1  | Area baseline          | ✅ `area-baseline.spec.js` — "a project that satisfies the trading rules reads "Met""                                         |
+| AC1  | Area post intervention | ✅ `area-post-intervention.spec.js` — "the left navigation marks Post intervention as current…"                               |
+| AC2  | Area summary           | ✅ `area-summary.spec.js` — "Area habitats is current and expands to show its Baseline child"                                 |
+| AC2  | Area baseline          | ✅ `area-baseline.spec.js` — "renders the full left navigation with Baseline as the current child"                            |
+| AC3  | Project summary        | ✅ `project-summary.spec.js` — "the area habitats Trading Rules tile links to the area trading summary"                       |
+| AC3  | Area summary           | ✅ `area-trading-summary.spec.js` — "opens from "View area trading rules"…"                                                   |
+| AC3  | Area baseline          | ✅ `area-baseline.spec.js` — "a project that satisfies the trading rules reads "Met""                                         |
+| AC3  | Area post intervention | ✅ `area-post-intervention.spec.js` — "the results tiles match the project summary…"                                          |
+| AC4  | Project summary        | ✅ `project-summary.spec.js` — "elements still deferred to later tickets render as text rather than links"                    |
+| AC4  | Area summary           | ✅ `area-summary.spec.js` — the page-content test on the baseline-only project                                                |
+| AC4  | Area baseline          | ✅ `area-baseline.spec.js` — "a baseline with no post-intervention file reads "Not met""                                      |
+| AC5a | Nav click              | ✅ `area-trading-summary.spec.js` — "the left navigation expands Area habitats with Trading rules current" (arrives by click) |
+| AC5b | Tile click             | ✅ `area-trading-summary.spec.js` — "opens from "View area trading rules"…"                                                   |
+
+AC2 is worth its assertions: the 2026-10-01 manual run caught the area "Post intervention" child rendering on a baseline-only project, and no journey test noticed.
+
 ---
 
 ## Fixtures

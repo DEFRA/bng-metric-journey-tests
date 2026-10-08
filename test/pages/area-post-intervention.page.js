@@ -1,5 +1,6 @@
 import { readTileValue } from '@utils/tile-value.js'
 import { AREA_HABITATS } from '@utils/unit-type-labels.js'
+import { areaTradingRulesLink } from '@utils/unit-type-tiles.js'
 
 import { BasePage } from './base.page.js'
 
@@ -77,6 +78,14 @@ export class AreaPostInterventionPage extends BasePage {
   /** The results tile section — labelled, not headed. See the class note. */
   unitSection() {
     return this.page.getByRole('region', { name: AREA_HABITATS, exact: true })
+  }
+
+  /**
+   * The Trading Rules tile's link to the area trading summary (BMD-1025).
+   * Only once a post-intervention document exists.
+   */
+  areaTradingRulesLink() {
+    return areaTradingRulesLink(this.unitSection())
   }
 
   /** Every results tile heading, in rendered order. */

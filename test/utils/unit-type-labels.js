@@ -44,3 +44,9 @@ export const VIEW_ON_SITE_WATERCOURSES_POST_INTERVENTION =
 // the app rendered "Post-intervention" until BMD-1024 (frontend #351) aligned
 // it with the ACs, which the team confirmed are correct.
 export const POST_INTERVENTION_NAV_CHILD = 'Post intervention'
+// The trading-summary child under a unit type's nav section, and the area
+// Trading Rules tile's link to the same page (BMD-1025). Both render only once
+// a post-intervention document exists. Lower-case r per the BMD-1024 ruling
+// (frontend PR#351); the tile heading above keeps "Trading Rules".
+export const TRADING_RULES_NAV_CHILD = 'Trading rules'
+export const VIEW_AREA_TRADING_RULES = 'View area trading rules'

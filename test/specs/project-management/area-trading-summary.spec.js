@@ -11,6 +11,7 @@ import {
   HEDGEROWS,
   POST_INTERVENTION_NAV_CHILD,
   SUMMARY,
+  TRADING_RULES_NAV_CHILD,
   WATERCOURSES
 } from '@utils/unit-type-labels.js'
 import {
@@ -22,9 +23,6 @@ import { LOW_TILES } from '@pages/area-trading-summary.page.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 
-const VIEW_AREA_TRADING_RULES = 'View area trading rules'
-// Team ruling on BMD-1024 AC1, delivered by frontend PR#351.
-const TRADING_RULES_NAV_CHILD = 'Trading rules'
 const INTERTIDAL_HEADING = 'Intertidal sediment and Intertidal hard structures'
 const TOTAL_BROAD_HABITAT_CHANGE = 'Total broad habitat change'
 const TOTAL_ON_SITE_UNIT_CHANGE = 'Total on-site unit change'
@@ -74,7 +72,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       { tag: '@smoke' },
       async ({ page, areaSummaryPage, areaTradingSummaryPage }) => {
         await areaSummaryPage.open(project.id)
-        await page.getByRole('link', { name: VIEW_AREA_TRADING_RULES }).click()
+        await areaSummaryPage.areaTradingRulesLink().click()
 
         await expect(page).toHaveURL(
           new RegExp(`/projects/${project.id}/area-trading-summary$`)
@@ -96,11 +94,19 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     // BMD-1024 AC1, as ruled by the team: "Post intervention" without a hyphen
     // and "Trading rules" with a lower-case r. "Reports" is deliberately not
     // asserted — it came from a spike and has no story.
+    //
+    // Arrives by clicking the area summary's Trading rules child (BMD-1025
+    // AC5) rather than by URL: every other page only asserts that child's
+    // href, so this is the one place it is followed.
     test(
       'the left navigation expands Area habitats with Trading rules current',
       { tag: '@regression' },
-      async ({ areaTradingSummaryPage }) => {
-        await areaTradingSummaryPage.open(project.id)
+      async ({ page, areaSummaryPage, areaTradingSummaryPage }) => {
+        await areaSummaryPage.open(project.id)
+        await areaSummaryPage.navLink(TRADING_RULES_NAV_CHILD).click()
+        await expect(page).toHaveURL(
+          new RegExp(`/projects/${project.id}/area-trading-summary$`)
+        )
 
         await expect(areaTradingSummaryPage.navLink(SUMMARY)).toBeVisible()
         await expect(

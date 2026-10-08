@@ -1,10 +1,12 @@
 import { readTileUnits, readTileValue } from '@utils/tile-value.js'
 import {
+  areaTradingRulesLink,
   netPercentageTag,
   tile,
   tradingRulesTag
 } from '@utils/unit-type-tiles.js'
 import {
+  AREA_HABITATS,
   TILE_TRADING_RULES,
   UPLOAD_POST_INTERVENTION,
   VIEW_ON_SITE_AREA_POST_INTERVENTION,
@@ -107,6 +109,14 @@ export class ProjectSummaryPage extends BasePage {
    */
   tradingRulesTag(label) {
     return tradingRulesTag(this.unitSection(label))
+  }
+
+  /**
+   * The area Trading Rules tile's link to the area trading summary (BMD-1025).
+   * Area habitats only, and only once a post-intervention document exists.
+   */
+  areaTradingRulesLink() {
+    return areaTradingRulesLink(this.unitSection(AREA_HABITATS))
   }
 
   /**

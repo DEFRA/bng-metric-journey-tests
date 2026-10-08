@@ -23,6 +23,7 @@ import {
   TILE_BASELINE,
   TILE_NET_PERCENTAGE,
   TILE_TRADING_RULES,
+  TRADING_RULES_NAV_CHILD,
   VIEW_ON_SITE_AREA_POST_INTERVENTION,
   VIEW_ON_SITE_POST_INTERVENTION,
   WATERCOURSES
@@ -43,8 +44,6 @@ const SHARED_BUILD_TEST_TIMEOUT = 180_000
 
 const PAGE_PATH = 'area-post-intervention'
 
-// BMD-1024 PO ruling — lower-case "rules" in the nav, title case on the tile.
-const TRADING_RULES_NAV_CHILD = 'Trading rules'
 const TILE_POST_INTERVENTION_WITH_PI = 'On-site post-intervention'
 const TILE_NET_UNIT_CHANGE = 'Total on-site net unit change'
 // The area summary tile set, in rendered order (BMD-858 AC5).
@@ -293,9 +292,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       )
 
       // AC3a, plus AC10's targets as hrefs on THIS page. Following them is
-      // left to area-trading-summary.spec.js and area-summary.spec.js: the
-      // builder takes only the project and the current href, so a click from a
-      // sibling area page exercises the same link.
+      // left to area-trading-summary.spec.js (Trading rules, clicked from the
+      // area summary) and area-summary.spec.js (the rest): the builder takes
+      // only the project and the current href, so a click from a sibling area
+      // page exercises the same link.
       test('the left navigation marks Post intervention as current and links everything else', async ({
         areaPostInterventionPage
       }) => {
@@ -352,6 +352,15 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expect(
           section.getByText(VIEW_ON_SITE_POST_INTERVENTION, { exact: true })
         ).toHaveCount(0)
+        // BMD-1025 AC3: the Trading Rules tile DOES link out, to the area
+        // trading summary. Built by this page's own controller, so no sibling
+        // page's witness covers it.
+        await expect(
+          areaPostInterventionPage.areaTradingRulesLink()
+        ).toHaveAttribute(
+          'href',
+          `/projects/${project.id}/area-trading-summary`
+        )
 
         const values = {}
         for (const tile of RESULTS_TILES) {
