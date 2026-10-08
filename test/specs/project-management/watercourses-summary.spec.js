@@ -356,6 +356,24 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           watercoursesSummaryPage.viewOnSiteBaselineText()
         ).toHaveCount(0)
 
+        // BMD-921 PO comment (frontend PR#353, 2026-10-02): the post-intervention
+        // tile links to its own page, as on a standard project, instead of the
+        // "Upload on-site post intervention file" it carried while this state
+        // was treated as having no post-intervention file. project-summary.spec.js
+        // witnesses the same fix on the project summary; this is the only
+        // real-data witness on this page, the one the PO flagged — revert #353
+        // or let this controller drop its `interventionAction` here and these
+        // fail. watercourses-summary/controller.test.js:278 covers it on a mock.
+        await expect(
+          watercoursesSummaryPage.interventionLink()
+        ).toHaveAttribute(
+          'href',
+          `/projects/${project.id}/watercourses-post-intervention`
+        )
+        await expect(
+          watercoursesSummaryPage.uploadPostInterventionLink()
+        ).toHaveCount(0)
+
         // And the tile keeps the UNHYPHENATED heading, because the variant is
         // treated as "not a standard intervention".
         expect(
