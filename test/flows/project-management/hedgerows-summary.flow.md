@@ -125,11 +125,11 @@ The single new test costs no extra upload: it joins the BMD-897 describe, which 
 
 ---
 
-## Deferred elements
+## Trading rules and deferred elements
 
-| Element              | Current state                                                                                                                                                                       | Marker          |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
-| "View trading rules" | inert `<span>` in the Trading Rules tile                                                                                                                                            | `[PLANNED]`     |
-| Trading rules status | **`Met` / `Not met` tag** in the Trading Rules tile from `tradingRuleStatuses.hedgerows.overall` (BMD-1003, PR#362); none when hedgerows exist only post-intervention — `[COVERED]` | `[IMPLEMENTED]` |
+| Element                        | Current state                                                                                                                                                                                                            | Marker          |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------- |
+| "View hedgerows trading rules" | **"View hedgerows trading rules" link** to `/projects/{id}/hedgerows-trading-summary` once a post-intervention file exists and the project has hedgerows; inert "View trading rules" text before that (BMD-1027, PR#335) | `[IMPLEMENTED]` |
+| Trading rules status           | **`Met` / `Not met` tag** in the Trading Rules tile from `tradingRuleStatuses.hedgerows.overall` (BMD-1003, PR#362); none when hedgerows exist only post-intervention — `[COVERED]`                                      | `[IMPLEMENTED]` |
 
 "View on-site hedgerows post intervention" is no longer deferred: **BMD-860** (frontend PR#278, 2026-09-11) turned it into a link to [`/hedgerows-post-intervention`](hedgerows-post-intervention.flow.md), and gave the left nav a `Post-intervention` child alongside `Baseline`. Both are `[IMPLEMENTED]`.
