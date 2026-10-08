@@ -4,7 +4,11 @@
 // close that loop.
 import { expect } from '@playwright/test'
 
-import { TILE_NET_PERCENTAGE, TILE_TRADING_RULES } from './unit-type-labels.js'
+import {
+  TILE_NET_PERCENTAGE,
+  TILE_TRADING_RULES,
+  VIEW_AREA_TRADING_RULES
+} from './unit-type-labels.js'
 
 /**
  * Locators for the two status tags inside an `appUnitTypeSummary` section.
@@ -64,6 +68,18 @@ export function tile(section, heading) {
  */
 export function tradingRulesTag(section) {
   return tile(section, TILE_TRADING_RULES).locator(TAG)
+}
+
+/**
+ * The area Trading Rules tile's "View area trading rules" link (BMD-1025).
+ * Present only once the project has a post-intervention document; before that
+ * the tile holds the inert "View trading rules" text, so `toHaveCount(0)` is
+ * the baseline-only assertion.
+ */
+export function areaTradingRulesLink(section) {
+  return tile(section, TILE_TRADING_RULES).getByRole('link', {
+    name: VIEW_AREA_TRADING_RULES
+  })
 }
 
 /** The net-percentage status tag — the 10% net-gain verdict, not this one. */

@@ -1,3 +1,5 @@
+import { areaTradingRulesLink } from '@utils/unit-type-tiles.js'
+
 import { UnitTypeSummaryPage } from './unit-type-summary.page.js'
 import {
   AREA_HABITATS,
@@ -23,6 +25,14 @@ export class AreaSummaryPage extends UnitTypeSummaryPage {
    */
   baselineNavChild() {
     return this.navigation.getByRole('link', { name: BASELINE_NAV_CHILD })
+  }
+
+  /**
+   * The Trading Rules tile's link to the area trading summary (BMD-1025).
+   * Only once a post-intervention document exists.
+   */
+  areaTradingRulesLink() {
+    return areaTradingRulesLink(this.unitSection())
   }
 
   viewOnSiteAreaBaselineLink() {

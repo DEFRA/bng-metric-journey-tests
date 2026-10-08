@@ -11,8 +11,10 @@ import {
   AREA_HABITATS,
   BASELINE_NAV_CHILD,
   HEDGEROWS,
+  POST_INTERVENTION_NAV_CHILD,
   SUMMARY,
   TILE_BASELINE,
+  TRADING_RULES_NAV_CHILD,
   WATERCOURSES
 } from '@utils/unit-type-labels.js'
 import {
@@ -101,6 +103,11 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           'href',
           uploadFileHref(project.id, `/projects/${project.id}/area-summary`)
         )
+
+        // BMD-1025 AC4: no post-intervention document, so the Trading Rules
+        // tile carries no link to the area trading summary.
+        await expect(areaSummaryPage.tradingRulesTag()).toBeVisible()
+        await expect(areaSummaryPage.areaTradingRulesLink()).toHaveCount(0)
       }
     )
 
@@ -198,6 +205,17 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         'href',
         `/projects/${project.id}/area-baseline`
       )
+
+      // BMD-1025 AC2: Baseline is the ONLY child without a post-intervention
+      // document. `navItem` matches a link or the current-page text alike, so
+      // a count of zero rules out both. The 2026-10-01 manual validation caught
+      // Post intervention rendering here while every journey test stayed green.
+      await expect(
+        areaSummaryPage.navItem(POST_INTERVENTION_NAV_CHILD)
+      ).toHaveCount(0)
+      await expect(
+        areaSummaryPage.navItem(TRADING_RULES_NAV_CHILD)
+      ).toHaveCount(0)
 
       // The fixture's Hedgerows layer is empty, so that unit type earns no nav
       // entry; its rivers do. Same conditional the project summary applies to
@@ -376,6 +394,15 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         projectSummaryPage
       }) => {
         await areaSummaryPage.open(project.id)
+
+        // BMD-1025 AC1, folded in: with a post-intervention document the Area
+        // habitats nav section gains its Trading rules child.
+        await expect(
+          areaSummaryPage.navLink(TRADING_RULES_NAV_CHILD)
+        ).toHaveAttribute(
+          'href',
+          `/projects/${project.id}/area-trading-summary`
+        )
 
         // The post-intervention tile is the one that changes shape once the
         // second document exists: re-headed with a hyphen, and its upload link

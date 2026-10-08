@@ -766,6 +766,23 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         }
       })
 
+      // BMD-1025 AC3. `project-summary/controller.test.js:285` proves the link
+      // against mocked data; this is the real-data witness on THIS page — the
+      // href is built per controller (`tradingRulesHref`), so the area summary
+      // clicking its own tile link in area-trading-summary.spec.js says nothing
+      // about this one. Its absence without a post-intervention document is
+      // the deferred-elements test below.
+      test('the area habitats Trading Rules tile links to the area trading summary', async ({
+        projectSummaryPage
+      }) => {
+        await projectSummaryPage.open(project.id)
+
+        await expect(projectSummaryPage.areaTradingRulesLink()).toHaveAttribute(
+          'href',
+          `/projects/${project.id}/area-trading-summary`
+        )
+      })
+
       // BMD-858 AC1. `project-summary/controller.test.js:828` proves the link
       // and its href against mocked data; only this proves it renders from a
       // real project and resolves.
