@@ -12,12 +12,18 @@ import {
 } from '@utils/unit-type-tiles.js'
 import {
   CUMULATIVE_SURPLUS_TILE,
+  HEDGEROWS_TRADING_SUMMARY_PATH,
   LOW,
   LOW_NET_CHANGE_TILE,
   MEDIUM,
   MEDIUM_DEFICIT_TILE,
   VERY_LOW
 } from '@pages/hedgerows-trading-summary.page.js'
+import {
+  BASELINE_NAV_CHILD,
+  POST_INTERVENTION_NAV_CHILD,
+  TRADING_RULES_NAV_CHILD
+} from '@utils/unit-type-labels.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 
@@ -161,6 +167,73 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           hedgerowsTradingSummaryPage.statusTag(LOW),
           STATUS_MET
         )
+      })
+    }
+  )
+
+  // ─── Entry points (BMD-1027 AC5) ─────────────────────────────────────────────
+  //
+  // SOLE WITNESS that either hedgerow link is followable. The other hedgerow
+  // specs assert only the two links' hrefs, and no frontend unit test can
+  // follow a link — `unit-type-navigation.test.js:339` builds the nav child
+  // from a fabricated project, and the tile link has no hedgerow-specific
+  // controller test at all. Same project as the "Met" band test above, so no
+  // extra upload.
+  test.describe(
+    'Hedgerows trading summary — entry points',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      const tradingSummaryUrl = (id) =>
+        new RegExp(`/projects/${id}/${HEDGEROWS_TRADING_SUMMARY_PATH}$`)
+
+      // Arrives by clicking rather than by URL, so the nav shape asserted is
+      // the one a user reaches: Hedgerows expanded, Trading rules current.
+      test('the Hedgerows "Trading rules" nav child opens this page with Trading rules current', async ({
+        browser,
+        page,
+        hedgerowsSummaryPage,
+        hedgerowsTradingSummaryPage
+      }) => {
+        const project = await getHedgerowTradingMetProject(browser)
+        await hedgerowsSummaryPage.open(project.id)
+
+        // Nav-wide, but only the current section expands, so on the hedgerows
+        // summary this can only be the Hedgerows child.
+        await hedgerowsSummaryPage.navLink(TRADING_RULES_NAV_CHILD).click()
+
+        await expect(page).toHaveURL(tradingSummaryUrl(project.id))
+        await expect(hedgerowsTradingSummaryPage.heading).toBeVisible()
+        await expect(
+          hedgerowsTradingSummaryPage.hedgerowsNavChildren()
+        ).toHaveText([
+          BASELINE_NAV_CHILD,
+          POST_INTERVENTION_NAV_CHILD,
+          TRADING_RULES_NAV_CHILD
+        ])
+        await expect(
+          hedgerowsTradingSummaryPage.navItem(TRADING_RULES_NAV_CHILD)
+        ).toHaveAttribute('aria-current', 'page')
+        await expect(
+          hedgerowsTradingSummaryPage.navLink(TRADING_RULES_NAV_CHILD)
+        ).toHaveCount(0)
+      })
+
+      test('the project summary "View hedgerows trading rules" link opens this page', async ({
+        browser,
+        page,
+        projectSummaryPage,
+        hedgerowsTradingSummaryPage
+      }) => {
+        const project = await getHedgerowTradingMetProject(browser)
+        await projectSummaryPage.open(project.id)
+
+        await projectSummaryPage.hedgerowsTradingRulesLink().click()
+
+        await expect(page).toHaveURL(tradingSummaryUrl(project.id))
+        await expect(hedgerowsTradingSummaryPage.heading).toBeVisible()
       })
     }
   )

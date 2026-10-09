@@ -2,7 +2,9 @@ import { readTileValue } from '@utils/tile-value.js'
 import { tagIn } from '@utils/unit-type-tiles.js'
 
 import { BasePage } from './base.page.js'
+import { HEDGEROWS } from '@utils/unit-type-labels.js'
 
+export const HEDGEROWS_TRADING_SUMMARY_PATH = 'hedgerows-trading-summary'
 export const MEDIUM = 'Medium'
 export const LOW = 'Low'
 export const VERY_LOW = 'Very low'
@@ -33,11 +35,32 @@ export class HedgerowsTradingSummaryPage extends BasePage {
       name: 'Hedgerows trading summary',
       level: 1
     })
+    this.navigation = page.getByRole('navigation', { name: 'Project summary' })
     this.statusSection = page.getByRole('region', { name: 'Trading summary' })
   }
 
   async open(id) {
-    return super.open(`/projects/${id}/hedgerows-trading-summary`)
+    return super.open(`/projects/${id}/${HEDGEROWS_TRADING_SUMMARY_PATH}`)
+  }
+
+  navItem(text) {
+    return this.navigation.getByText(text, { exact: true })
+  }
+
+  navLink(text) {
+    return this.navigation.getByRole('link', { name: text, exact: true })
+  }
+
+  /** The children listed under "Hedgerows", in rendered order. */
+  hedgerowsNavChildren() {
+    // The `has` locator resolves relative to each list item, so it is rooted
+    // at the page rather than chained off `this.navigation`.
+    return this.navigation
+      .getByRole('listitem')
+      .filter({
+        has: this.page.getByRole('link', { name: HEDGEROWS, exact: true })
+      })
+      .getByRole('listitem')
   }
 
   /** The band names in the Trading summary table, in rendered order. */

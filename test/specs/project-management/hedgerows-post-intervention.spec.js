@@ -1,4 +1,5 @@
 import { test, expect } from '@fixtures'
+import { HEDGEROWS_TRADING_SUMMARY_PATH } from '@pages/hedgerows-trading-summary.page.js'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
@@ -14,6 +15,7 @@ import {
   HEDGEROWS,
   POST_INTERVENTION_NAV_CHILD,
   SUMMARY,
+  TRADING_RULES_NAV_CHILD,
   VIEW_ON_SITE_HEDGEROWS_BASELINE,
   VIEW_ON_SITE_POST_INTERVENTION,
   WATERCOURSES
@@ -321,6 +323,16 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       await expect(
         section.getByRole('link', { name: VIEW_ON_SITE_HEDGEROWS_BASELINE })
       ).toBeVisible()
+
+      // BMD-1027 AC3: the Trading Rules tile links to the hedgerows trading
+      // summary. The shared controller factory is unit-tested with area
+      // settings only, so this is what proves the hedgerow wiring.
+      await expect(
+        hedgerowsPostInterventionPage.tradingRulesLink()
+      ).toHaveAttribute(
+        'href',
+        `/projects/${project.id}/${HEDGEROWS_TRADING_SUMMARY_PATH}`
+      )
     })
 
     // AC5: "the same set of tiles as shown on the Project Summary page and the
@@ -369,6 +381,13 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       await expect(
         hedgerowsPostInterventionPage.navLink(BASELINE_NAV_CHILD)
       ).toHaveAttribute('href', `/projects/${project.id}/hedgerows-baseline`)
+      // BMD-1027 AC1: and the Trading rules sibling follows it.
+      await expect(
+        hedgerowsPostInterventionPage.navLink(TRADING_RULES_NAV_CHILD)
+      ).toHaveAttribute(
+        'href',
+        `/projects/${project.id}/${HEDGEROWS_TRADING_SUMMARY_PATH}`
+      )
 
       // Hedgerows keeps its own link while its child is current — asserting
       // the href rather than counting, because the locator is nav-wide and

@@ -1,4 +1,5 @@
 import { test, expect } from '@fixtures'
+import { HEDGEROWS_TRADING_SUMMARY_PATH } from '@pages/hedgerows-trading-summary.page.js'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import {
   getAllUnitTypesPostInterventionProject,
@@ -12,8 +13,11 @@ import {
   AREA_HABITATS,
   BASELINE_NAV_CHILD,
   HEDGEROWS,
+  POST_INTERVENTION_NAV_CHILD,
   SUMMARY,
   TILE_BASELINE,
+  TRADING_RULES_NAV_CHILD,
+  VIEW_TRADING_RULES,
   WATERCOURSES
 } from '@utils/unit-type-labels.js'
 import { expectStatusTag, STATUS_NOT_MET } from '@utils/unit-type-tiles.js'
@@ -138,6 +142,15 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           hedgerowsSummaryPage.tradingRulesTag(),
           STATUS_NOT_MET
         )
+
+        // BMD-1027 AC4: no post-intervention document, so the tile carries the
+        // inert text and no link to the hedgerows trading summary.
+        await expect(hedgerowsSummaryPage.tradingRulesLink()).toHaveCount(0)
+        await expect(
+          hedgerowsSummaryPage
+            .unitSection()
+            .getByText(VIEW_TRADING_RULES, { exact: true })
+        ).toBeVisible()
       }
     )
 
@@ -226,6 +239,15 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       await expect(
         hedgerowsSummaryPage.navLink(BASELINE_NAV_CHILD)
       ).toHaveAttribute('href', `/projects/${project.id}/hedgerows-baseline`)
+      // BMD-1027 AC2: Baseline is the ONLY child without a post-intervention
+      // document. `navItem` matches a link or the current-page text alike, so
+      // a count of zero rules out both.
+      await expect(
+        hedgerowsSummaryPage.navItem(POST_INTERVENTION_NAV_CHILD)
+      ).toHaveCount(0)
+      await expect(
+        hedgerowsSummaryPage.navItem(TRADING_RULES_NAV_CHILD)
+      ).toHaveCount(0)
       await expect(hedgerowsSummaryPage.navLink(SUMMARY)).toBeVisible()
 
       // This fixture has rivers, so the conditional Watercourses item renders.
@@ -418,6 +440,24 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         expect(
           await hedgerowsSummaryPage.targetUnits(TARGET_UNIT_DEFICIT)
         ).toBeCloseTo(unitsRequired - postIntervention, 1)
+      })
+
+      // BMD-1027 AC1 and AC3 on this page: with a post-intervention document,
+      // both routes to the hedgerows trading summary appear. Following them is
+      // hedgerows-trading-summary.spec.js's job (AC5).
+      test('the nav and the Trading Rules tile link to the hedgerows trading summary', async ({
+        hedgerowsSummaryPage
+      }) => {
+        await hedgerowsSummaryPage.open(project.id)
+
+        const tradingSummaryHref = `/projects/${project.id}/${HEDGEROWS_TRADING_SUMMARY_PATH}`
+        await expect(
+          hedgerowsSummaryPage.navLink(TRADING_RULES_NAV_CHILD)
+        ).toHaveAttribute('href', tradingSummaryHref)
+        await expect(hedgerowsSummaryPage.tradingRulesLink()).toHaveAttribute(
+          'href',
+          tradingSummaryHref
+        )
       })
     }
   )
