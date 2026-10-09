@@ -80,6 +80,12 @@ const RETAINED_WATERCOURSE_REF = 'WC1'
 const ENHANCED_HEDGEROW_REF = 'HR2'
 const ENHANCED_UPLIFT_HEDGEROW_REF = 'HG018'
 const ENHANCED_UPLIFT_HEDGEROW_TIME = 'Poor to Moderate - 20 years'
+// BMD-1051: the same file's HG031 carries a Medium Proposed Strategic
+// Significance, which the backend rejects and prices at zero.
+const ENHANCED_REJECTED_HEDGEROW_REF = 'HG031'
+// Any "{label} ({multiplier})" strategic significance — what the page showed
+// for a nulled value ("Low (1)") before frontend PR #370.
+const STRATEGIC_SIGNIFICANCE_WITH_MULTIPLIER = /^(Low|Medium|High) \([\d.]+\)$/
 const CREATED_HEDGEROW_REF = 'HR3'
 // HR3 and WC3 are both created to Moderate condition over 5 years, so unlike
 // their Enhanced siblings (HR2 Good→Good, WC2 Moderate→Moderate, neither of
@@ -1390,6 +1396,37 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(
           postInterventionHabitatDetailsPage.habitatUnitsValue
         ).toHaveText(shared.enhancedUpliftHedgerowUnits)
+      }
+    )
+
+    // BMD-1051, frontend PR #370: a strategic significance nulled on import
+    // shows nothing. Before #370 the page fell back to "Low (1)", so the
+    // witness is that no "{label} ({multiplier})" value renders at all, with
+    // the label still present and the zero the backend priced it at.
+    test(
+      'Enhanced hedgerow with a rejected strategic significance shows no value and zero units delivered',
+      { tag: '@regression' },
+      async ({ browser, postInterventionHabitatDetailsPage, page }) => {
+        const shared = await getAllTypesProject(browser)
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'hedgerow',
+          ENHANCED_REJECTED_HEDGEROW_REF
+        )
+        await expect(page).toHaveURL(DETAILS_URL_PATTERN)
+
+        await expect(
+          postInterventionHabitatDetailsPage.stackedStrategicSignificanceKey
+        ).toBeVisible()
+        await expect(
+          page
+            .getByRole('main')
+            .getByText(STRATEGIC_SIGNIFICANCE_WITH_MULTIPLIER)
+        ).toHaveCount(0)
+        await expect(
+          postInterventionHabitatDetailsPage.habitatUnitsValue
+        ).toHaveText('0.00')
       }
     )
 

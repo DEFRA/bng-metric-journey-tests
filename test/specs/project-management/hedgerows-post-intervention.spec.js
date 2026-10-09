@@ -151,6 +151,13 @@ const ENHANCED_REFS = [
   'HG040'
 ]
 const ENHANCED_CALCULATED_REF = 'HG018'
+// BMD-1051: HG031 and HG032 carry a Medium Proposed Strategic Significance,
+// which the backend rejects and prices at zero. HG012 carries a valid Low but
+// does not improve on its baseline condition, so it is uncalculated instead —
+// the row a rejected one must be told apart from.
+const ENHANCED_REJECTED_REFS = ['HG031', 'HG032']
+const ENHANCED_UNCALCULATED_REF = 'HG012'
+const LABEL_ONLY = /^[^()]+$/
 
 const detailsHrefPattern = (projectId) =>
   new RegExp(
@@ -806,6 +813,44 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         expect(row['Standard difficulty']).toMatch(LABEL_AND_SCORE)
 
         await expectTotalsRow(grid, ENHANCED)
+      })
+
+      // BMD-1051 AC4, backend PR #465: a Medium Proposed Strategic Significance
+      // is nulled on import, every engine-derived field with it, and the
+      // feature priced at zero. Blank derived cells alone prove nothing — an
+      // uncalculated row renders them too — so the witness is the Units cell:
+      // an explicit 0.00 on a rejected row, blank on an uncalculated one.
+      test('an Enhanced hedgerow with a rejected strategic significance is priced at zero', async ({
+        hedgerowsPostInterventionPage
+      }) => {
+        const grid = hedgerowsPostInterventionPage
+        await grid.open(enhancedProject.id)
+        await grid.tab(ENHANCED).click()
+
+        for (const ref of ENHANCED_REJECTED_REFS) {
+          const cells = await grid.rowValues(ENHANCED, ref)
+          const row = Object.fromEntries(
+            TARGET_COLUMNS.map((column, index) => [column, cells[index]])
+          )
+          expect(row.Units, `${ref} Units`).toBe('0.00')
+          expect(row.Distinctiveness, `${ref} Distinctiveness`).toBe('')
+          expect(
+            row['Strategic significance'],
+            `${ref} Strategic significance`
+          ).toBe('')
+          expect(row['Target condition'], `${ref} Target condition`).toMatch(
+            LABEL_ONLY
+          )
+          expect(row['Standard difficulty'], `${ref} Standard difficulty`).toBe(
+            ''
+          )
+        }
+
+        const uncalculated = await grid.rowValues(
+          ENHANCED,
+          ENHANCED_UNCALCULATED_REF
+        )
+        expect(uncalculated[TARGET_COLUMNS.indexOf('Units')]).toBe('')
       })
 
       // AC8 and AC9. The `aria-sort` toggle itself is MOJ's own component
