@@ -92,7 +92,7 @@ because the remedy (delete the redundant variants) is the same.
 | 22  | High distinctiveness → distinctiveness single-error page             | C       | **single-error standard-variant representative** (@smoke); asserts PR#175 furniture removal                                                                                               |
 | 23  | habitats layer with incorrect geometry → "Zero area habitat parcels" | C       | GeoPackage **parse** path — no postgis counterpart (synthetic geometry)                                                                                                                   |
 | 24  | habitats layer with missing column → "baseline mismatch"             | C       | parse path — no counterpart                                                                                                                                                               |
-| 25  | duplicate habitat refs → catch-all single-error                      | C       | parse path; `DUPLICATE_HABITAT_REF` absent from postgis suite                                                                                                                             |
+| 25  | duplicate habitat refs → accepted (BMD-1058)                         | C       | parse path; `DUPLICATE_HABITAT_REF` removed in BMD-1058, the fixture is now accepted                                                                                                      |
 
 #### Delete — B (redundant variants of one rule/shape)
 
@@ -377,7 +377,7 @@ matters.
 | single-error distinctiveness variant               | high distinctiveness habitat                 |
 | GeoPackage parse — bad geometry column             | habitats layer with incorrect geometry       |
 | GeoPackage parse — missing column                  | habitats layer with a missing column         |
-| GeoPackage parse — duplicate refs                  | duplicate habitat references                 |
+| GeoPackage parse — duplicate refs (now accepted)   | duplicate habitat references                 |
 | GeoPackage parse — multiple RLB polygons           | **restored** multiple redline boundaries     |
 | non-GeoPackage → flash + redirect to form          | format error                                 |
 | empty errors array → generic page                  | error-file page display                      |

@@ -748,34 +748,24 @@ function describeFieldValidation() {
         )
       })
 
-      test('rejects a file with duplicate habitat references with the catch-all single-error page', async ({
+      // BMD-1058 AC4: habitats may share a reference, so the duplicate-ref
+      // fixture (two parcels both "DUP-1") is accepted and both are listed.
+      test('accepts a file with duplicate habitat references and lists both habitats', async ({
         createProjectFlow,
         projectDashboardPage,
         uploadBaselineFileFlow,
-        errorFilePage,
-        page
+        projectSummaryPage,
+        areaBaselinePage
       }) => {
-        const id = await uploadToErrorFile(
-          {
-            createProjectFlow,
-            projectDashboardPage,
-            uploadBaselineFileFlow,
-            page
-          },
+        const { id } = await uploadToProjectSummary(
+          { createProjectFlow, projectDashboardPage, uploadBaselineFileFlow },
           'Baseline - duplicate habitat ref.gpkg'
         )
+        await expect(projectSummaryPage.heading).toBeVisible()
 
-        // BMD-405: DUPLICATE_HABITAT_REF is a single error with no dedicated
-        // AC copy — falls back to the AC1 Natural England catch-all.
-        await expect(errorFilePage.geopackageErrorHeading).toBeVisible()
-        await expect(errorFilePage.errorSummary).not.toBeVisible()
-        await expect(
-          page.getByText(NATURAL_ENGLAND_MISMATCH_COPY)
-        ).toBeVisible()
-        await expect(errorFilePage.uploadNewFileLink).toHaveAttribute(
-          'href',
-          `/projects/${id}/upload-baseline-file`
-        )
+        await areaBaselinePage.open(id)
+        await expect(areaBaselinePage.refLink('DUP-1')).toHaveCount(2)
+        await expect(areaBaselinePage.refLink('H003')).toBeVisible()
       })
     }
   )
@@ -861,6 +851,26 @@ const GEOPACKAGE_ERROR_H1 = 'Your Geopackage (.gpkg) file contains an error'
 // real GeoPackage reaches it. Adding a fixture per code re-ran the upload to
 // re-assert a string the unit test already owns.
 const SINGLE_ERROR_CASES = [
+  {
+    // BMD-1058 AC1: a habitat whose Parcel Ref is blank. The fixture is
+    // "Baseline - complete with area refs.gpkg" with fid 1's ref set to three
+    // spaces, which only counts as blank once it is trimmed. One file-level
+    // error, as a habitat with no ref has none to name in the title.
+    title:
+      'a habitat with a blank reference shows the "must have a reference" page',
+    fixture: 'Baseline - missing habitat ref.gpkg',
+    heading: GEOPACKAGE_ERROR_H1,
+    body: 'All habitats must have a reference. Add a reference to every habitat and'
+  },
+  {
+    // BMD-1058 AC2: the same fixture with fid 1's ref set to the bytes
+    // 48 FF 30 31 ("H", an invalid UTF-8 byte, "01"), stored as TEXT.
+    title:
+      'a habitat reference that is not valid UTF-8 shows the "characters that are not allowed" page',
+    fixture: 'Baseline - habitat ref invalid characters.gpkg',
+    heading: GEOPACKAGE_ERROR_H1,
+    body: 'One or more habitat references contain characters that are not allowed. Change the references to use only letters, numbers and standard punctuation and'
+  },
   {
     // Standard variant. BMD-405 AC13: this case also asserts the inline
     // "upload a new file" link navigates (not just carries the href), folding
