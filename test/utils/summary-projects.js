@@ -94,7 +94,10 @@ export const WATERCOURSES_MIXED_RETENTION_PI_FILE =
 // the grids inside it: a single-row table cannot witness a totals row worth
 // summing, a default ordering, or a re-sort. This pairing carries 7 Retained,
 // 2 Enhanced and 4 Created hedgerows (plus 5 Lost the backend drops at import)
-// — the only shipped pairing with SEVERAL rows in all three tabs.
+// — the only shipped pairing with SEVERAL rows in all three tabs. The PI file
+// is NOT the harness copy: HG005 and HG010 carry a Low Proposed Strategic
+// Significance in place of the harness's Medium, which BMD-1051 rejects and
+// prices at zero. Do not re-copy it from the harness.
 export const CREATED_LINEAR_BASELINE_FILE =
   'Baseline - created linear features.gpkg'
 export const CREATED_LINEAR_PI_FILE =
