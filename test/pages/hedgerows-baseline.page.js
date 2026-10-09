@@ -1,5 +1,8 @@
 import { readTileUnits, readTileValue } from '@utils/tile-value.js'
-import { tradingRulesTag } from '@utils/unit-type-tiles.js'
+import {
+  hedgerowsTradingRulesLink,
+  tradingRulesTag
+} from '@utils/unit-type-tiles.js'
 
 import { BasePage } from './base.page.js'
 import { HEDGEROWS } from '@utils/unit-type-labels.js'
@@ -91,6 +94,14 @@ export class HedgerowsBaselinePage extends BasePage {
   /** The hedgerow trading-rules status tag in the results tiles (BMD-1003). */
   tradingRulesTag() {
     return tradingRulesTag(this.unitSection())
+  }
+
+  /**
+   * The Trading Rules tile's link to the hedgerows trading summary (BMD-1027).
+   * Only once a post-intervention document exists.
+   */
+  tradingRulesLink() {
+    return hedgerowsTradingRulesLink(this.unitSection())
   }
 
   table() {

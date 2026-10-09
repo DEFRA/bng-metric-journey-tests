@@ -84,13 +84,13 @@ The frontend unit suite renders this page against a **mocked** backend (`hedgero
 
 The overall status (`tradingRuleStatuses.hedgerows.overall`) shown in the Trading Rules tile is covered on the four pages that display it — see [project-summary](project-summary.flow.md), [hedgerows-summary](hedgerows-summary.flow.md), [hedgerows-baseline](hedgerows-baseline.flow.md) and [hedgerows-post-intervention](hedgerows-post-intervention.flow.md).
 
+**Entry points (BMD-1027)** — added 2026-10-09 by `/validate-ac-automated`. Both click-throughs are followed in `hedgerows-trading-summary.spec.js` (describe "Hedgerows trading summary — entry points"); the nav child arrives on this page with Hedgerows expanded to Baseline → Post intervention → Trading rules, Trading rules current. The links' presence once a post-intervention file exists (AC1, AC3), and their absence before one (AC2, AC4), are asserted on each source page in `project-summary.spec.js`, `hedgerows-summary.spec.js`, `hedgerows-baseline.spec.js` and `hedgerows-post-intervention.spec.js`.
+
 **Not covered yet** (BMD-1028's own ACs were never run through `/validate-ac-automated`):
 
 | Element                                                               | Coverage                                                                                                            |
 | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | Page furniture — caption, heading, upload button `returnUrl`          | No journey test                                                                                                     |
-| Left nav — Hedgerows expanded with Trading rules current              | No journey test                                                                                                     |
-| Entry by the nav child or the tile link (click-through)               | No journey test — the BMD-1003 manual run clicked the tile link, but no committed test does                         |
 | Per-hedgerow-type grids and totals rows                               | No journey test                                                                                                     |
 | Redirects (no PI → hedgerows summary; no hedgerows → project summary) | No journey test                                                                                                     |
 | "Trading rules have not been calculated" inset                        | `[BLOCKED: needs a post-intervention document saved without hedgerow figures — not producible by a current upload]` |

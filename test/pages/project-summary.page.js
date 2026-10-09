@@ -1,19 +1,22 @@
 import { readTileUnits, readTileValue } from '@utils/tile-value.js'
 import {
   areaTradingRulesLink,
+  hedgerowsTradingRulesLink,
   netPercentageTag,
   tile,
   tradingRulesTag
 } from '@utils/unit-type-tiles.js'
 import {
   AREA_HABITATS,
+  HEDGEROWS,
   TILE_TRADING_RULES,
   UPLOAD_POST_INTERVENTION,
   VIEW_ON_SITE_AREA_POST_INTERVENTION,
   VIEW_ON_SITE_HEDGEROWS_BASELINE,
   VIEW_ON_SITE_HEDGEROWS_POST_INTERVENTION,
   VIEW_ON_SITE_WATERCOURSES_POST_INTERVENTION,
-  VIEW_ON_SITE_WATERCOURSES_BASELINE
+  VIEW_ON_SITE_WATERCOURSES_BASELINE,
+  VIEW_TRADING_RULES
 } from '@utils/unit-type-labels.js'
 
 import { BasePage } from './base.page.js'
@@ -22,9 +25,6 @@ const VIEW_ON_SITE_BASELINE_TEXT = 'View on-site baseline'
 // BMD-857: the area-habitats baseline tile is the only one that links, and the
 // only one whose wording says "area". Its href is the area baseline page.
 const VIEW_ON_SITE_AREA_BASELINE_TEXT = 'View on-site area baseline'
-// BMD-870 deferred the trading-rules clickthrough; the tile still renders this
-// as inert text rather than a link.
-const VIEW_TRADING_RULES_TEXT = 'View trading rules'
 
 /**
  * The project summary (`/projects/{id}/project-summary`, BMD-870) — the landing
@@ -102,10 +102,9 @@ export class ProjectSummaryPage extends BasePage {
   }
 
   /**
-   * The area-habitat trading-rules status tag (BMD-1008) — a different verdict
-   * from `statusTag` above, and the one that can disagree with it. Renders for
-   * area habitats only; the hedgerow and watercourse rules are separate
-   * tickets, so their tiles hold the "View trading rules" text alone.
+   * A unit type's trading-rules status tag — area habitats (BMD-1008),
+   * watercourses (BMD-1002) and hedgerows (BMD-1003). A different verdict from
+   * `statusTag` above, and the one that can disagree with it.
    */
   tradingRulesTag(label) {
     return tradingRulesTag(this.unitSection(label))
@@ -120,7 +119,17 @@ export class ProjectSummaryPage extends BasePage {
   }
 
   /**
-   * The inert "View trading rules" text inside a section's Trading Rules tile.
+   * The hedgerows Trading Rules tile's link to the hedgerows trading summary
+   * (BMD-1027). Only once a post-intervention document exists.
+   */
+  hedgerowsTradingRulesLink() {
+    return hedgerowsTradingRulesLink(this.unitSection(HEDGEROWS))
+  }
+
+  /**
+   * The inert "View trading rules" text inside a section's Trading Rules tile —
+   * what the tile holds in place of its link before a post-intervention
+   * document exists.
    *
    * Scoped to the tile rather than read off the line under its heading: until
    * BMD-1008 that line WAS this text, and the status tag now sits between the
@@ -128,7 +137,7 @@ export class ProjectSummaryPage extends BasePage {
    */
   viewTradingRulesText(label) {
     return tile(this.unitSection(label), TILE_TRADING_RULES).getByText(
-      VIEW_TRADING_RULES_TEXT,
+      VIEW_TRADING_RULES,
       { exact: true }
     )
   }

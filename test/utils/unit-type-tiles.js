@@ -7,7 +7,8 @@ import { expect } from '@playwright/test'
 import {
   TILE_NET_PERCENTAGE,
   TILE_TRADING_RULES,
-  VIEW_AREA_TRADING_RULES
+  VIEW_AREA_TRADING_RULES,
+  VIEW_HEDGEROWS_TRADING_RULES
 } from './unit-type-labels.js'
 
 /**
@@ -80,6 +81,16 @@ export function tradingRulesTag(section) {
 export function areaTradingRulesLink(section) {
   return tile(section, TILE_TRADING_RULES).getByRole('link', {
     name: VIEW_AREA_TRADING_RULES
+  })
+}
+
+/**
+ * The hedgerows Trading Rules tile's "View hedgerows trading rules" link
+ * (BMD-1027) — the same post-intervention-only rule as the area link above.
+ */
+export function hedgerowsTradingRulesLink(section) {
+  return tile(section, TILE_TRADING_RULES).getByRole('link', {
+    name: VIEW_HEDGEROWS_TRADING_RULES
   })
 }
 

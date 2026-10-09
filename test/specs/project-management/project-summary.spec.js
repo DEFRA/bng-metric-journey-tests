@@ -1,4 +1,5 @@
 import { test, expect } from '@fixtures'
+import { HEDGEROWS_TRADING_SUMMARY_PATH } from '@pages/hedgerows-trading-summary.page.js'
 import {
   STORAGE_STATE,
   NO_PROJECTS_STORAGE_STATE,
@@ -27,6 +28,7 @@ import {
   getWatercourseGainProject
 } from '@utils/summary-projects.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
+import { VIEW_TRADING_RULES } from '@utils/unit-type-labels.js'
 import { reportPdfPath } from '@utils/report-navigation.js'
 import {
   expectStatusTag,
@@ -72,7 +74,6 @@ const TILE_POST_INTERVENTION_WITH_PI = 'On-site post-intervention'
 const TILE_NET_UNIT_CHANGE = 'Total on-site net unit change'
 const TILE_NET_PERCENTAGE = 'Total on-site net percentage change'
 
-const VIEW_TRADING_RULES = 'View trading rules'
 const VIEW_ON_SITE_POST_INTERVENTION = 'View on-site post intervention'
 // BMD-897 (frontend PR#238, 2026-08-25): a unit type present ONLY in the
 // post-intervention document has no baseline to divide by, so its percentage
@@ -648,6 +649,16 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         expect(
           await projectSummaryPage.tileValue(HEDGEROWS, TILE_NET_UNIT_CHANGE)
         ).toBe(`-${baseline.toFixed(2)} units`)
+
+        // BMD-1027 AC4: no post-intervention document, so the hedgerows
+        // Trading Rules tile keeps the inert text and has no link to the
+        // hedgerows trading summary.
+        await expect(
+          projectSummaryPage.viewTradingRulesText(HEDGEROWS)
+        ).toBeVisible()
+        await expect(
+          projectSummaryPage.hedgerowsTradingRulesLink()
+        ).toHaveCount(0)
       })
     }
   )
@@ -1224,6 +1235,16 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expectStatusTag(
           projectSummaryPage.tradingRulesTag(HEDGEROWS),
           STATUS_MET
+        )
+
+        // BMD-1027 AC3: with a post-intervention document the tile links to
+        // the hedgerows trading summary. Following it is
+        // hedgerows-trading-summary.spec.js's job (AC5).
+        await expect(
+          projectSummaryPage.hedgerowsTradingRulesLink()
+        ).toHaveAttribute(
+          'href',
+          `/projects/${project.id}/${HEDGEROWS_TRADING_SUMMARY_PATH}`
         )
       })
 
