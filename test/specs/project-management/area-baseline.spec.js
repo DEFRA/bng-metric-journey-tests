@@ -1,5 +1,5 @@
 import { test, expect } from '@fixtures'
-import { UNITS_ROUNDING, score } from '@utils/grid-values.js'
+import { score, unitsTolerance } from '@utils/grid-values.js'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
@@ -239,7 +239,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         expect(
           Math.abs(Number(value) - product),
           `row ${row}: ${value} vs ${sizes[row]} × ${distinctiveness[row]} × ${condition[row]}`
-        ).toBeLessThanOrEqual(UNITS_ROUNDING)
+        ).toBeLessThanOrEqual(unitsTolerance(product))
       })
     })
 

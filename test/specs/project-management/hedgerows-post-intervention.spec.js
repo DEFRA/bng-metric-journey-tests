@@ -1,5 +1,5 @@
 import { test, expect } from '@fixtures'
-import { UNITS_ROUNDING, score } from '@utils/grid-values.js'
+import { score, unitsTolerance } from '@utils/grid-values.js'
 import { HEDGEROWS_TRADING_SUMMARY_PATH } from '@pages/hedgerows-trading-summary.page.js'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
@@ -830,7 +830,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         expect(
           Math.abs(Number(high.Units) - product),
           `${CREATED_HIGH_REF}: ${high.Units} vs ${JSON.stringify(high)}`
-        ).toBeLessThanOrEqual(UNITS_ROUNDING)
+        ).toBeLessThanOrEqual(unitsTolerance(product))
 
         await expectTotalsRow(grid, CREATED)
       })

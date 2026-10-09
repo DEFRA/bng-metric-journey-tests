@@ -1,5 +1,5 @@
 import { test, expect } from '@fixtures'
-import { UNITS_ROUNDING, score } from '@utils/grid-values.js'
+import { score, unitsTolerance } from '@utils/grid-values.js'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import {
   getAllUnitTypesPostInterventionProject,
@@ -636,7 +636,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           expect(
             Math.abs(Number(row.Units) - product),
             `${reference}: ${row.Units} vs ${row.Size} × ${row.Distinctiveness} × ${row.Condition}`
-          ).toBeLessThanOrEqual(UNITS_ROUNDING)
+          ).toBeLessThanOrEqual(unitsTolerance(product))
         }
       })
 
