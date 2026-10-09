@@ -90,6 +90,13 @@ const FIXED_STRATEGIC_SIGNIFICANCE = 'Low (1)'
 // Significance. HG018's is "Formally identified in local strategy" in the
 // all-unit-types fixture, which the metric's G-3 table prices at High (×1.15).
 const HG018_STRATEGIC_SIGNIFICANCE = 'High (1.15)'
+// BMD-1051 AC3, `created linear features` (journey-tests copy): the Created
+// hedgerows are priced at their file's Low or High. HG013 is the only Created
+// feature in any shipped fixture carrying High.
+const CREATED_PRICED_STRATEGIC_SIGNIFICANCE = {
+  HG013: 'High (1.15)',
+  HG018: 'Low (1)'
+}
 
 // Column sets from `buildColumns` in
 // common/helpers/post-intervention-habitat-grid.js. Retained carries Condition;
@@ -788,6 +795,21 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           'Final time to target',
           YEARS_AND_SCORE
         )
+
+        // BMD-1051 AC3: a valid value is priced, not just shaped — the sweep
+        // above would pass on any "{label} ({score})". Sole real-data witness
+        // that a CREATED feature is priced at High (the backend proves it on
+        // built test data only).
+        for (const [ref, significance] of Object.entries(
+          CREATED_PRICED_STRATEGIC_SIGNIFICANCE
+        )) {
+          const cells = await grid.rowValues(CREATED, ref)
+          const row = Object.fromEntries(
+            TARGET_COLUMNS.map((column, index) => [column, cells[index]])
+          )
+          expect(row['Strategic significance'], ref).toBe(significance)
+          expect(Number(row.Units), `${ref} Units`).toBeGreaterThan(0)
+        }
 
         await expectTotalsRow(grid, CREATED)
       })

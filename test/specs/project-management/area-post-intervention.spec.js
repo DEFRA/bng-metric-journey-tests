@@ -1,4 +1,5 @@
 import { test, expect } from '@fixtures'
+import { UNITS_ROUNDING, score } from '@utils/grid-values.js'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import {
   getAllUnitTypesPostInterventionProject,
@@ -83,6 +84,11 @@ const YEARS_AND_SCORE = /^\d+ years? \(-?\d+(\.\d+)?\)$/
 // Retained features carry their baseline strategic significance, fixed at
 // Low (1) for MVS (BMD-315 AC9).
 const FIXED_STRATEGIC_SIGNIFICANCE = 'Low (1)'
+// BMD-1051, all-unit-types PI file. On-site Retained parcels whose file value
+// is High (H046) and Medium (H002); an Enhanced parcel whose value is Medium
+// (H086, Fairly Good → Fairly Good).
+const RETAINED_ON_SITE_NON_LOW_REFS = ['H046', 'H002']
+const ENHANCED_REJECTED_REF = 'H086'
 
 // Column sets from `buildColumns` in post-intervention-habitat-grid.js, with
 // the area page's Broad habitat column inserted after Size. Headings render in
@@ -601,6 +607,57 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         expect(lost['Habitat type']).not.toBe('')
 
         await expectTotalsRow(grid, CREATED)
+      })
+
+      // BMD-1051 AC2: a Retained feature's strategic significance in the file
+      // is ignored and it is priced at Low (×1). The column's "Low (1)" is a
+      // frontend constant for Retained rows, so the witness is the arithmetic
+      // on two ON-SITE parcels (off-site rows add a spatial-risk multiplier):
+      // H046 carries High and H002 Medium in the all-unit-types file, which
+      // would put their units 15% / 10% above size × distinctiveness ×
+      // condition.
+      //
+      // Sole real-data witness: the backend proves it only on built test data
+      // (enrich-post-intervention-strategic-significance.test.js:249).
+      test('a Retained parcel is priced at Low (×1) whatever strategic significance the file carried', async ({
+        areaPostInterventionPage
+      }) => {
+        const grid = areaPostInterventionPage
+        await grid.open(manyRowProject.id)
+
+        for (const reference of RETAINED_ON_SITE_NON_LOW_REFS) {
+          const row = await grid.rowByRef(RETAINED, reference)
+          const product =
+            Number.parseFloat(row.Size) *
+            score(row.Distinctiveness) *
+            score(row.Condition)
+          expect(Number(row.Units), `${reference} Units`).toBeGreaterThan(0)
+          expect(
+            Math.abs(Number(row.Units) - product),
+            `${reference}: ${row.Units} vs ${row.Size} × ${row.Distinctiveness} × ${row.Condition}`
+          ).toBeLessThanOrEqual(UNITS_ROUNDING)
+        }
+      })
+
+      // BMD-1051 AC4, backend PR #465: an Enhanced parcel whose Proposed
+      // Strategic Significance is Medium is nulled on import and priced at
+      // zero. The hedgerow grid has its own witness; this is the area
+      // pricing path's. Units `0.00` is what tells it from an uncalculated
+      // row, whose Units cell is blank. H086 has no condition uplift, so an
+      // accepted Medium would leave it uncalculated (blank) rather than priced;
+      // no Medium Enhanced parcel in this fixture has one.
+      test('an Enhanced parcel with a rejected strategic significance is priced at zero', async ({
+        areaPostInterventionPage
+      }) => {
+        const grid = areaPostInterventionPage
+        await grid.open(manyRowProject.id)
+        await grid.tab(ENHANCED).click()
+
+        const row = await grid.rowByRef(ENHANCED, ENHANCED_REJECTED_REF)
+        expect(row.Units).toBe('0.00')
+        expect(row.Distinctiveness).toBe('')
+        expect(row['Strategic significance']).toBe('')
+        expect(row['Standard difficulty']).toBe('')
       })
 
       // AC5, AC7 over 50+ rows per tab, and the area-only rule that urban trees
