@@ -1,4 +1,5 @@
 import { test, expect } from '@fixtures'
+import { score, unitsTolerance } from '@utils/grid-values.js'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
@@ -204,6 +205,42 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       expect(new Set(significance)).toEqual(
         new Set([FIXED_STRATEGIC_SIGNIFICANCE])
       )
+    })
+
+    // BMD-1051 AC1: the GeoPackage's Baseline Strategic Significance is ignored
+    // and every baseline feature is priced at Low (×1). The "Low (1)" column
+    // above cannot witness that — the frontend prints it as a constant — so
+    // the witness is the arithmetic: units = size × distinctiveness ×
+    // condition, with no other multiplier on a baseline feature. This fixture
+    // gives 28 habitats and 20 trees a Medium or High value, which would put
+    // their units 10–15% above the product.
+    //
+    // Sole real-data witness: the backend's enrich-baseline-units.test.js
+    // proves the ×1 sum only for features carrying NO strategic significance,
+    // so nothing else shows an imported High or Medium is dropped.
+    test('every row is priced at Low (×1) whatever strategic significance the file carried', async ({
+      areaBaselinePage
+    }) => {
+      await areaBaselinePage.open(project.id)
+
+      const [units, sizes, distinctiveness, condition] = await Promise.all([
+        areaBaselinePage.columnValues('units'),
+        areaBaselinePage.columnValues('size'),
+        areaBaselinePage.columnValues('distinctiveness'),
+        areaBaselinePage.columnValues('condition')
+      ])
+      expect(units).toHaveLength(EXPECTED_ROWS)
+
+      units.forEach((value, row) => {
+        const product =
+          Number.parseFloat(sizes[row]) *
+          score(distinctiveness[row]) *
+          score(condition[row])
+        expect(
+          Math.abs(Number(value) - product),
+          `row ${row}: ${value} vs ${sizes[row]} × ${distinctiveness[row]} × ${condition[row]}`
+        ).toBeLessThanOrEqual(unitsTolerance(product))
+      })
     })
 
     // BMD-857 AC6's last bullet. `controller.test.js:434` asserts the pane is

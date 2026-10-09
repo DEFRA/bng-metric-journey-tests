@@ -1,4 +1,5 @@
 import { test, expect } from '@fixtures'
+import { score, unitsTolerance } from '@utils/grid-values.js'
 import { HEDGEROWS_TRADING_SUMMARY_PATH } from '@pages/hedgerows-trading-summary.page.js'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
@@ -90,6 +91,14 @@ const FIXED_STRATEGIC_SIGNIFICANCE = 'Low (1)'
 // Significance. HG018's is "Formally identified in local strategy" in the
 // all-unit-types fixture, which the metric's G-3 table prices at High (×1.15).
 const HG018_STRATEGIC_SIGNIFICANCE = 'High (1.15)'
+// BMD-1051 AC3, `created linear features` (journey-tests copy): the Created
+// hedgerows show their file's Low or High. HG013 is the only Created feature in
+// any shipped fixture carrying High, and is on-site.
+const CREATED_PRICED_STRATEGIC_SIGNIFICANCE = {
+  HG013: 'High (1.15)',
+  HG018: 'Low (1)'
+}
+const CREATED_HIGH_REF = 'HG013'
 
 // Column sets from `buildColumns` in
 // common/helpers/post-intervention-habitat-grid.js. Retained carries Condition;
@@ -788,6 +797,40 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           'Final time to target',
           YEARS_AND_SCORE
         )
+
+        // BMD-1051 AC3: the sweep above would pass on any "{label} ({score})",
+        // so pin the values. HG013's units are also checked against the
+        // product of every multiplier the row shows — size × distinctiveness ×
+        // target condition × strategic significance × final time to target ×
+        // difficulty — which a backend showing High but pricing ×1 would miss
+        // by 15% (1.03 vs 1.19). Sole real-data witness that a CREATED feature
+        // is priced at High (the backend proves it on built test data only).
+        // HG013 is on-site, so this holds once spatial risk (stored on import,
+        // not yet priced) is applied.
+        const rows = {}
+        for (const [ref, significance] of Object.entries(
+          CREATED_PRICED_STRATEGIC_SIGNIFICANCE
+        )) {
+          const cells = await grid.rowValues(CREATED, ref)
+          rows[ref] = Object.fromEntries(
+            TARGET_COLUMNS.map((column, index) => [column, cells[index]])
+          )
+          expect(rows[ref]['Strategic significance'], ref).toBe(significance)
+          expect(Number(rows[ref].Units), `${ref} Units`).toBeGreaterThan(0)
+        }
+
+        const high = rows[CREATED_HIGH_REF]
+        const product =
+          Number.parseFloat(high.Size) *
+          score(high.Distinctiveness) *
+          score(high['Target condition']) *
+          score(high['Strategic significance']) *
+          score(high['Final time to target']) *
+          score(high['Standard difficulty'])
+        expect(
+          Math.abs(Number(high.Units) - product),
+          `${CREATED_HIGH_REF}: ${high.Units} vs ${JSON.stringify(high)}`
+        ).toBeLessThanOrEqual(unitsTolerance(product))
 
         await expectTotalsRow(grid, CREATED)
       })
