@@ -612,7 +612,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // BMD-1051 AC2: a Retained feature's strategic significance in the file
       // is ignored and it is priced at Low (×1). The column's "Low (1)" is a
       // frontend constant for Retained rows, so the witness is the arithmetic
-      // on two ON-SITE parcels (off-site rows add a spatial-risk multiplier):
+      // on two ON-SITE parcels (so it holds once spatial risk — stored on
+      // import, not yet priced — is applied to off-site ones):
       // H046 carries High and H002 Medium in the all-unit-types file, which
       // would put their units 15% / 10% above size × distinctiveness ×
       // condition.
