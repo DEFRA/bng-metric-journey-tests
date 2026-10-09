@@ -99,10 +99,12 @@ The overall status (`tradingRuleStatuses.hedgerows.overall`) shown in the Tradin
 
 ## Fixtures
 
-| Pair                                                                              | Hedgerow shape                                                               |
-| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `trading-higher-deficit-not-covered-from-below-{baseline,post-intervention}.gpkg` | Medium −2.56 (Not met), Low +2.45 (Met), no Very low                         |
-| `trading-lower-deficit-covered-from-above-{baseline,post-intervention}.gpkg`      | Medium +4.88 (Met), Low −1.55 covered → cumulative +3.33 (Met); overall Met  |
-| `{Baseline,Post-intervention} - created linear features.gpkg`                     | Medium +2.67 (Met), Low cumulative −1.53 (Not met), Very low −1.04 (Not met) |
-| `trading-lost-to-development-{baseline,post-intervention}.gpkg` (not shared)      | Medium / Low Met, Very low −0.33 (Not met) — the single-band aggregate case  |
-| `trading-all-met-{baseline,post-intervention}.gpkg` (not shared)                  | all three bands Met, Very low covered from above (+1.26)                     |
+| Pair                                                                              | Hedgerow shape                                                                                                                                                                     |
+| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `trading-higher-deficit-not-covered-from-below-{baseline,post-intervention}.gpkg` | Medium −2.56 (Not met), Low +2.45 (Met), no Very low                                                                                                                               |
+| `trading-lower-deficit-covered-from-above-{baseline,post-intervention}.gpkg`      | Medium +4.88 (Met), Low −1.55 covered → cumulative +3.33 (Met); overall Met                                                                                                        |
+| `{Baseline,Post-intervention} - created linear features.gpkg`                     | Medium +2.22 (Met), Low −4.20 → cumulative −1.98 (Not met), Very low −1.04 (Not met) — HG005/HG010 changed from Medium to Low strategic significance for BMD-1051 (see note below) |
+| `trading-lost-to-development-{baseline,post-intervention}.gpkg` (not shared)      | Medium / Low Met, Very low −0.33 (Not met) — the single-band aggregate case                                                                                                        |
+| `trading-all-met-{baseline,post-intervention}.gpkg` (not shared)                  | all three bands Met, Very low covered from above (+1.26)                                                                                                                           |
+
+**`created linear features` differs from its harness copy.** Since backend PR #465 (BMD-1051), the service accepts only Low or High as the Proposed Strategic Significance of a created or enhanced feature. A Medium value (`Location ecologically desirable but not in local strategy`) is nulled and the feature priced at **0 units**. The harness file gives Created hedgerows HG005 and HG010 Medium, which turned the Medium band into a deficit and every band Not met. The journey-tests copy sets both to Low (`Area/compensation not in local strategy/ no local strategy`), which restores the Met / Not met / Not met pattern the band-status test needs. The pair's other rejected features (area H008/H012/H043/H051, tree T018) are left as shipped.

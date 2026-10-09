@@ -75,7 +75,7 @@ row showing the raw normalised value.
   when reasoning about a blank row.
 - Distinctiveness and Condition render as `"Value (score)"` via `withMultiplier`; a missing
   score yields the bare value, a missing value yields an empty cell.
-- Strategic significance is the fixed string `"Low (1)"` on every page (MVS).
+- Strategic significance is the fixed string `"Low (1)"` on the **retained** pages. Created and Enhanced pages show the priced value with its multiplier (`"Low (1)"` / `"High (1.15)"`, BMD-1038) via `proposedStrategicSignificanceDisplay`, and **nothing** when the feature has no `strategicSignificanceCategory` (frontend PR #370, BMD-1051 — it used to fall back to `"Low (1)"`). That covers a value rejected on import (Medium, blank or unrecognised, which the backend also prices at `0.00` units delivered) **and** an uncalculated feature carrying a valid value: all-unit-types HG012 (valid Low, Good → Good) shows blank too, with blank units delivered.
 - "Habitat units delivered" / "Units in this habitat" is `formatHabitatUnits(feature.units)`
   — 2 decimal places, capped at 7 significant figures.
 

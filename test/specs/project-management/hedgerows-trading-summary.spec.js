@@ -80,9 +80,12 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         ])
       })
 
-      // The "created linear features" pair: the Medium hedgerows gain 2.67
+      // The "created linear features" pair: the Medium hedgerows gain 2.22
       // units, which falls short of the Low loss of 4.20, and the Very low
-      // hedgerows lose 1.04 with nothing left to carry down.
+      // hedgerows lose 1.04 with nothing left to carry down. The Medium gain
+      // relies on HG005 and HG010 carrying a Low Proposed Strategic
+      // Significance: the harness file gives them Medium, which BMD-1051
+      // rejects and prices at zero, leaving every band Not met.
       test('Low and Very low running totals below zero read "Not met" under a Met Medium band', async ({
         browser,
         hedgerowsTradingSummaryPage
@@ -101,7 +104,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
             LOW,
             CUMULATIVE_SURPLUS_TILE
           )
-        ).toBe('-1.53 units')
+        ).toBe('-1.98 units')
         await expectStatusTag(
           hedgerowsTradingSummaryPage.statusTag(LOW),
           STATUS_NOT_MET
