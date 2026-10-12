@@ -40,6 +40,13 @@ const INVALID_BASELINE_FILE = 'Baseline - overlapping parcels.gpkg'
 // name is the strict case for the widened rule: it both STARTS with punctuation
 // and contains round brackets.
 const PUNCTUATED_BASELINE_FILE = '(Baseline) - complete with area refs.gpkg'
+// BMD-1058. Interim copy from frontend single-error-copy.js, pending UCD.
+const HABITAT_REF_MISSING_COPY = 'All habitats must have a reference'
+const HABITAT_REF_INVALID_CHARACTERS_COPY =
+  'One or more habitat references contain characters that are not allowed'
+// Two parcels share the ref DUP-1. Accepted since BMD-1058.
+const DUPLICATE_REF_FILE = 'Baseline - duplicate habitat ref.gpkg'
+const DUPLICATE_REF = 'DUP-1'
 const NATURAL_ENGLAND_MISMATCH_COPY =
   'The layer names and column names do not match what is required by Natural England'
 
@@ -748,39 +755,93 @@ function describeFieldValidation() {
         )
       })
 
-      // FIXME(BMD-1058): parked 2026-10-12 pending a team ruling. Backend
-      // PR#475 (400fc7a, "duplicates allowed") deleted duplicate-ref-check.js
-      // and the DUPLICATE_HABITAT_REF code, so this fixture is now accepted
-      // and lands on project-summary instead of /error-file. Revisit when
-      // BMD-1058 is picked up: retire or invert this test, and cover the new
-      // HABITAT_REF_* rules instead.
-      test.fixme('rejects a file with duplicate habitat references with the catch-all single-error page', async ({
+      // BMD-1058 AC4: habitats may share a ref. Backend PR#475 deleted the
+      // DUPLICATE_HABITAT_REF check, so this fixture, which used to land on the
+      // catch-all dropout page, now uploads. Both DUP-1 parcels are listed.
+      test('accepts a file with duplicate habitat references', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        areaBaselinePage
+      }) => {
+        const { id } = await uploadToProjectSummary(
+          { createProjectFlow, projectDashboardPage, uploadBaselineFileFlow },
+          DUPLICATE_REF_FILE
+        )
+
+        await areaBaselinePage.open(id)
+        await expect(areaBaselinePage.refLink(DUPLICATE_REF)).toHaveCount(2)
+      })
+
+      // BMD-1058 AC1/AC2: one collated error for every habitat it applies to,
+      // on the single-error page. The copy is the frontend's interim wording,
+      // pending UCD. Nothing from the file is saved.
+      async function expectHabitatRefDropout(fixtures, fixture, copy) {
+        const { errorFilePage, projectSummaryPage, page } = fixtures
+        const id = await uploadToErrorFile(fixtures, fixture)
+
+        await expect(errorFilePage.geopackageErrorHeading).toBeVisible()
+        await expect(errorFilePage.errorSummary).not.toBeVisible()
+        await expect(page.getByText(copy)).toHaveCount(1)
+        await expect(errorFilePage.uploadNewFileLink).toHaveAttribute(
+          'href',
+          `/projects/${id}/upload-baseline-file`
+        )
+
+        await projectSummaryPage.open(id)
+        await expect(projectSummaryPage.noBaselinePrompt).toBeVisible()
+      }
+
+      // The only check that a real upload reaches HABITAT_REF_INVALID_CHARACTERS
+      // and its page. Backend habitat-ref-check.test.js:124 reads a real
+      // GeoPackage, but calls the check directly, not through the upload route.
+      // No integration fixture carries the code. Do not delete without one.
+      test('rejects a file whose habitat ref is not valid UTF-8', async ({
         createProjectFlow,
         projectDashboardPage,
         uploadBaselineFileFlow,
         errorFilePage,
+        projectSummaryPage,
         page
       }) => {
-        const id = await uploadToErrorFile(
+        await expectHabitatRefDropout(
           {
             createProjectFlow,
             projectDashboardPage,
             uploadBaselineFileFlow,
+            errorFilePage,
+            projectSummaryPage,
             page
           },
-          'Baseline - duplicate habitat ref.gpkg'
+          'Baseline - habitat ref invalid UTF-8 bytes.gpkg',
+          HABITAT_REF_INVALID_CHARACTERS_COPY
         )
+      })
 
-        // BMD-405: DUPLICATE_HABITAT_REF is a single error with no dedicated
-        // AC copy — falls back to the AC1 Natural England catch-all.
-        await expect(errorFilePage.geopackageErrorHeading).toBeVisible()
-        await expect(errorFilePage.errorSummary).not.toBeVisible()
-        await expect(
-          page.getByText(NATURAL_ENGLAND_MISMATCH_COPY)
-        ).toBeVisible()
-        await expect(errorFilePage.uploadNewFileLink).toHaveAttribute(
-          'href',
-          `/projects/${id}/upload-baseline-file`
+      // The only check that a real upload reaches HABITAT_REF_MISSING. Two
+      // habitats (NULL and empty), a hedgerow (spaces) and a watercourse (NULL)
+      // have no ref, and the page shows ONE error for all four. The collation
+      // is covered by backend habitat-ref-check.test.js:68 against made-up
+      // layers only. Do not delete without an integration fixture for the code.
+      test('rejects a file with missing habitat refs on every layer as one error', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        projectSummaryPage,
+        page
+      }) => {
+        await expectHabitatRefDropout(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            errorFilePage,
+            projectSummaryPage,
+            page
+          },
+          'Baseline - missing habitat refs on every layer.gpkg',
+          HABITAT_REF_MISSING_COPY
         )
       })
     }

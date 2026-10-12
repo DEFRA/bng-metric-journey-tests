@@ -166,6 +166,25 @@ export const TREES_ALL_SIZES_PI_FILE =
 export const IGGI_BASELINE_FILE = 'Baseline - IGGI habitat.gpkg'
 export const IGGI_PI_FILE = 'Post-intervention - IGGI habitat.gpkg'
 
+// BMD-1058's pair (harness PR#156). Refs on all three ref layers carry padding,
+// a 115-character ref, non-ASCII text, and refs of exactly 10 and of 16
+// characters. The PI half spells each ref differently (other padding, other
+// characters past the 100th), so each matches its baseline only once cleaned.
+export const LONG_PADDED_REFS_BASELINE_FILE =
+  'Baseline - long and padded habitat refs.gpkg'
+export const LONG_PADDED_REFS_PI_FILE =
+  'Post-intervention - long and padded habitat refs.gpkg'
+
+/** Refs in the long-and-padded pair, as the backend should store them. */
+export const LONG_PADDED_REFS = {
+  // '  H001  ' in the baseline file, 'H001' in the PI file.
+  padded: 'H001',
+  // 115 characters in the file, ending 'VWXYZ'; stored as the first 100.
+  long: `H002-${'ABCDEFGHIJ'.repeat(9)}ABCDE`,
+  // 11 characters, so the grids cut it; ' Café–Ω H003' in the PI file.
+  nonAscii: 'Café–Ω H003'
+}
+
 async function buildBaselineOnlyProject(browser, file) {
   const context = await browser.newContext({
     storageState: STORAGE_STATE,
@@ -517,6 +536,19 @@ export function getHedgerowTradingMetProject(browser) {
         browser,
         HEDGEROW_TRADING_MET_BASELINE_FILE,
         HEDGEROW_TRADING_MET_PI_FILE
+      )
+  )
+}
+
+/** BMD-1058: refs that are padded, too long, or longer than a grid shows. */
+export function getLongPaddedRefsProject(browser) {
+  return getOrBuildProject(
+    projectKey(LONG_PADDED_REFS_BASELINE_FILE, LONG_PADDED_REFS_PI_FILE),
+    () =>
+      buildPostInterventionProject(
+        browser,
+        LONG_PADDED_REFS_BASELINE_FILE,
+        LONG_PADDED_REFS_PI_FILE
       )
   )
 }

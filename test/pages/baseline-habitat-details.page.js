@@ -7,6 +7,9 @@ export class BaselineHabitatDetailsPage extends BasePage {
     this.heading = page.getByRole('heading', {
       name: /^(Habitat|Hedgerow|Watercourse)/
     })
+    // The appHeading macro's <h1>, on this page and on the post-intervention
+    // view-only pages. Its text is the ref as stored, with no trimming of its own.
+    this.headingTitle = page.getByTestId('app-heading-title')
     this.baselineDetailsHeading = page.getByRole('heading', {
       name: 'Baseline Details'
     })
@@ -70,6 +73,15 @@ export class BaselineHabitatDetailsPage extends BasePage {
 
   async habitatUnitsText() {
     return (await this.habitatUnitsValue.textContent()).trim()
+  }
+
+  /**
+   * The <h1>'s text exactly as rendered, untrimmed. `toHaveText` normalises
+   * whitespace, so it would pass a ref saved with its padding (BMD-1058).
+   */
+  async rawHeadingText() {
+    await this.headingTitle.waitFor()
+    return this.headingTitle.textContent()
   }
 
   // Selects an option whose value differs from the current selection and
