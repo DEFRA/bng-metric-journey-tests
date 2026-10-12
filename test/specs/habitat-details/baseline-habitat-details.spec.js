@@ -9,6 +9,11 @@ import { setupProject } from '@utils/project-helpers.js'
 import { AreaBaselinePage } from '@pages/area-baseline.page.js'
 import { HedgerowsBaselinePage } from '@pages/hedgerows-baseline.page.js'
 import { WatercoursesBaselinePage } from '@pages/watercourses-baseline.page.js'
+import {
+  LONG_PADDED_REFS,
+  getLongPaddedRefsProject
+} from '@utils/summary-projects.js'
+import { gridRefName } from '@utils/habitat-ref-display.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 // The edit/save describes each run their own real-CDP upload; under e2e load the
@@ -17,6 +22,8 @@ const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 // runs in github (stub uploader); skip these in e2e to keep the daily run green.
 const E2E_UPLOAD_SKIP_REASON =
   'Real CDP upload exceeds the frontend 120s budget under e2e load — covered in github (stub uploader)'
+// Create + baseline upload + post-intervention upload, run in beforeAll.
+const SHARED_PAIR_BUILD_TIMEOUT = 180_000
 const HTTP_OK = 200
 const HTTP_BAD_REQUEST = 400
 const HTTP_NOT_FOUND = 404
@@ -1983,6 +1990,66 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await baselineHabitatDetailsPage.open(projectId, watercourseFeatureId)
         await baselineHabitatDetailsPage.saveButton.click()
         await expect(page).toHaveURL(baselinePageUrl(projectId, 'watercourse'))
+      })
+    }
+  )
+
+  // BMD-1058 AC3/AC5. The backend cleans a ref before it is saved: it trims the
+  // padding and cuts the ref to 100 characters. The grids trim refs when they
+  // display them, so they cannot show what was saved; this page's <h1> can,
+  // because it prints the stored ref as it is.
+  //
+  // The only check that a real upload is cleaned on save. The rule is covered by
+  // backend extract-habitat-data.test.js:1339, but only against made-up features,
+  // and no integration test reads back a stored ref. Do not delete without a
+  // backend integration test that uploads a padded, over-long ref and asserts
+  // the stored value.
+  test.describe(
+    'Baseline habitat details — habitat reference cleaning',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+      test.skip(runMode === 'e2e', E2E_UPLOAD_SKIP_REASON)
+      // The budget sits here because the pair is built in beforeAll, where a
+      // per-test setTimeout() comes too late.
+      test.describe.configure({
+        mode: 'serial',
+        timeout: SHARED_PAIR_BUILD_TIMEOUT
+      })
+
+      let projectId
+
+      test.beforeAll(async ({ browser }) => {
+        ;({ id: projectId } = await getLongPaddedRefsProject(browser))
+      })
+
+      test('saves a padded ref without its leading and trailing spaces', async ({
+        areaBaselinePage,
+        baselineHabitatDetailsPage
+      }) => {
+        // '  H001  ' in the uploaded file.
+        await areaBaselinePage.open(projectId)
+        await areaBaselinePage.refLink(LONG_PADDED_REFS.padded).click()
+
+        expect(await baselineHabitatDetailsPage.rawHeadingText()).toBe(
+          `Habitat ${LONG_PADDED_REFS.padded}`
+        )
+      })
+
+      test('saves a ref longer than 100 characters as its first 100', async ({
+        areaBaselinePage,
+        baselineHabitatDetailsPage
+      }) => {
+        // 115 characters in the uploaded file, ending 'VWXYZ'.
+        await areaBaselinePage.open(projectId)
+        await areaBaselinePage
+          .refLink(gridRefName(LONG_PADDED_REFS.long))
+          .click()
+
+        expect(await baselineHabitatDetailsPage.rawHeadingText()).toBe(
+          `Habitat ${LONG_PADDED_REFS.long}`
+        )
       })
     }
   )

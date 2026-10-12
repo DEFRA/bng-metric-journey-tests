@@ -18,6 +18,11 @@ import {
   piPageUrl
 } from '@utils/post-intervention-grid.js'
 import { UNITS_TWO_DP_PATTERN } from '@pages/post-intervention-habitat-details.page.js'
+import {
+  LONG_PADDED_REFS,
+  getLongPaddedRefsProject
+} from '@utils/summary-projects.js'
+import { gridRefName } from '@utils/habitat-ref-display.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const HTTP_BAD_REQUEST = 400
@@ -2113,6 +2118,38 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           { data: { crumb: crumbCookie.value } }
         )
         expect(response.status()).toBe(HTTP_NOT_IMPLEMENTED)
+      })
+    }
+  )
+
+  // BMD-1058 AC3. The PI file spells the ref ' Café–Ω H003' and the baseline
+  // spells it 'Café–Ω H003'. The heading shows the PI ref as saved, so it proves
+  // the trim. The "View baseline details" link proves the two halves matched on
+  // the cleaned ref. The trim is covered by backend
+  // extract-post-intervention.test.js:1188 against made-up features only.
+  test.describe(
+    'Post-intervention habitat details — habitat reference cleaning',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      test('saves a padded ref trimmed, and links it to its baseline', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage
+      }) => {
+        const { id } = await getLongPaddedRefsProject(browser)
+        const name = gridRefName(LONG_PADDED_REFS.nonAscii)
+        const { unitPage, label } = await openPiTabFor(page, id, 'area', name)
+        await unitPage.refLink(label, name).click()
+
+        expect(await postInterventionHabitatDetailsPage.rawHeadingText()).toBe(
+          LONG_PADDED_REFS.nonAscii
+        )
+        await expect(
+          postInterventionHabitatDetailsPage.viewBaselineLink
+        ).toBeVisible()
       })
     }
   )

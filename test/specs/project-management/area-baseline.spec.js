@@ -5,8 +5,15 @@ import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
   getAllUnitTypesProject,
   getAreaGainProject,
-  getBaselineOnlyProject
+  getBaselineOnlyProject,
+  getLongPaddedRefsProject,
+  LONG_PADDED_REFS
 } from '@utils/summary-projects.js'
+import {
+  expectRefCut,
+  expectRefWhole,
+  gridRefName
+} from '@utils/habitat-ref-display.js'
 import {
   AREA_HABITATS,
   BASELINE_NAV_CHILD,
@@ -25,6 +32,8 @@ import {
 } from '@utils/unit-type-tiles.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
+// Create + baseline upload + post-intervention upload, run in beforeAll.
+const SHARED_PAIR_BUILD_TIMEOUT = 180_000
 
 const UNITS_2DP = /^\d+\.\d{2}$/
 const HECTARES = /^\d+(\.\d+)?ha$/
@@ -452,6 +461,40 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expect(areaBaselinePage.areaTradingRulesLink()).toHaveAttribute(
           'href',
           tradingSummary
+        )
+      })
+    }
+  )
+
+  // BMD-1058 AC6. A ref longer than 10 characters is shown as its first 10 and
+  // an ellipsis; the rest stays in the link's accessible name. The split is
+  // covered by frontend baseline-habitat-grid.test.js:74, against made-up
+  // features. This checks it on a real saved ref. The hedgerow and watercourse
+  // grids call the same buildRefCell, so they are not repeated.
+  test.describe(
+    'Area baseline — long references',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+      test.describe.configure({ timeout: SHARED_PAIR_BUILD_TIMEOUT })
+
+      let project
+      test.beforeAll(async ({ browser }) => {
+        project = await getLongPaddedRefsProject(browser)
+      })
+
+      test('shows only the first 10 characters of a longer ref', async ({
+        areaBaselinePage
+      }) => {
+        await areaBaselinePage.open(project.id)
+
+        for (const ref of [LONG_PADDED_REFS.long, LONG_PADDED_REFS.nonAscii]) {
+          await expectRefCut(areaBaselinePage.refLink(gridRefName(ref)), ref)
+        }
+        await expectRefWhole(
+          areaBaselinePage.refLink(LONG_PADDED_REFS.padded),
+          LONG_PADDED_REFS.padded
         )
       })
     }

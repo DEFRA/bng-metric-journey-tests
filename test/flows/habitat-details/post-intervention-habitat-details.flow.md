@@ -92,6 +92,14 @@ feature shares the ref (e.g. no baseline uploaded). On a sections page the link 
 unconditionally** (`buildCreatedHedgerowViewOnlyViewModel` forces `baselineFeatureId: null`)
 — Created areas and Created watercourses do **not**, and still resolve it by ref.
 
+**Matched on the cleaned ref (BMD-1058) `[IMPLEMENTED]`.** `comparableRef` in
+`post-intervention-habitat-details/controller.js` trims both refs and cuts them to 100
+characters before comparing them. That way a baseline saved before BMD-1058, which may still
+hold `' H001'`, matches too. The heading is the PI ref as saved, untrimmed by the frontend. The
+journey check is in `post-intervention-habitat-details.spec.js` › _habitat reference cleaning_.
+The long-and-padded PI file's `"␣Café–Ω H003"` is headed exactly `"Café–Ω H003"` and shows the
+link, matching the baseline's unpadded ref.
+
 ### Shared route contract
 
 Every GET step below shares this contract, so it is stated once rather than repeated:

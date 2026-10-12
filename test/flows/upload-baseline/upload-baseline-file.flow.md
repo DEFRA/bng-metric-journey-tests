@@ -304,6 +304,38 @@ Two consequences for tests:
   grouped rendering — including the per-parcel `Feature Ref X — ~0.7 sq m` detail list —
   is covered at journey level; the rule itself is covered in the backend.
 
+### Habitat reference rules — BMD-1058 `[IMPLEMENTED]`
+
+Backend PR#475 and frontend PR#375 (2026-10-09) changed how the Parcel Ref is handled on
+the area habitat, hedgerow and watercourse layers. Urban trees keep their own Tree Ref and
+are not checked. The rules are the same for a post-intervention file.
+
+| Rule                             | Outcome                                                                                                                                                                                                                                            |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `HABITAT_REF_MISSING`            | Dropout. A ref that is NULL, empty or only spaces. **One** collated error for every such habitat, on every layer. Single-error page, generic H1, body "All habitats must have a reference. Add a reference to every habitat and upload a new file" |
+| `HABITAT_REF_INVALID_CHARACTERS` | Dropout. A ref that is not valid UTF-8, or holds U+FFFD. One collated error. Body "One or more habitat references contain characters that are not allowed. Change the references…"                                                                 |
+| Trim                             | Leading and trailing spaces are removed before the ref is saved (`cleanHabitatRef`)                                                                                                                                                                |
+| Truncate                         | A ref over 100 characters is saved as its first 100                                                                                                                                                                                                |
+| Duplicates                       | **Allowed.** `DUPLICATE_HABITAT_REF` was deleted, so habitats may share a ref                                                                                                                                                                      |
+
+The copy for both dropouts is interim, pending UCD (Jack / Kyle).
+
+**Where this is tested.**
+
+- The rules themselves are covered by backend unit tests: `habitat-ref-check.test.js`, and
+  the trim/truncate cases in `extract-habitat-data.test.js` and
+  `extract-post-intervention.test.js`.
+- The journey suite carries one real-file upload per dropout code. These are the only
+  tests that show a real file reaching the page:
+  - `HABITAT_REF_INVALID_CHARACTERS` → `Baseline - habitat ref invalid UTF-8 bytes.gpkg`
+  - `HABITAT_REF_MISSING` → `Baseline - missing habitat refs on every layer.gpkg`, which
+    also proves the collation: four habitats on three layers give one error
+  - duplicates allowed → `Baseline - duplicate habitat ref.gpkg`, which now uploads
+- Trim and truncate are checked on the details pages, in
+  `test/specs/habitat-details/baseline-habitat-details.spec.js`.
+- The grid display (first 10 characters, then "…") is checked in
+  `test/flows/project-management/area-baseline.flow.md`.
+
 ---
 
 ### Landing — project summary (separate flow)

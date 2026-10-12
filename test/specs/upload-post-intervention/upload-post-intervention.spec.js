@@ -59,6 +59,9 @@ const DISTINCTIVENESS_FILE =
   'Post-intervention - habitat distinctiveness out of scope.gpkg'
 const NATURAL_ENGLAND_MISMATCH_COPY =
   'The layer names and column names do not match what is required by Natural England'
+// BMD-1058. One habitat's Parcel Ref is SQL NULL. Interim copy, pending UCD.
+const MISSING_HABITAT_REF_FILE = 'Post-intervention - missing habitat ref.gpkg'
+const HABITAT_REF_MISSING_COPY = 'All habitats must have a reference'
 const ADVANCE_AND_DELAY_COPY =
   'A habitat has both advance and delayed creation set'
 const METRIC_TOOL_URL =
@@ -386,6 +389,16 @@ function describeContentValidationErrors() {
       file: ADVANCE_AND_DELAY_FILE,
       layout: 'single',
       expected: ADVANCE_AND_DELAY_COPY
+    },
+    {
+      // BMD-1058 AC2. The post-intervention case of HABITAT_REF_MISSING: the
+      // check is the same as for a baseline, so this proves the code reaches
+      // the post-intervention page and its upload link. The invalid-characters
+      // code runs through the same check and page, so it is not repeated.
+      name: 'a habitat with no reference',
+      file: MISSING_HABITAT_REF_FILE,
+      layout: 'single',
+      expected: HABITAT_REF_MISSING_COPY
     }
   ]
 

@@ -5,9 +5,16 @@ import {
   getAllUnitTypesPostInterventionProject,
   getAreaGainProject,
   getAreaInterventionTypesProject,
-  getTreesPostInterventionProject
+  getTreesPostInterventionProject,
+  getLongPaddedRefsProject,
+  LONG_PADDED_REFS
 } from '@utils/summary-projects.js'
 import { openPiTabFor } from '@utils/post-intervention-grid.js'
+import {
+  expectRefCut,
+  expectRefWhole,
+  gridRefName
+} from '@utils/habitat-ref-display.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
   BASELINE_AREA_LABEL,
@@ -862,6 +869,43 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         expect(
           Math.abs(postInterventionArea - siteArea - sum(treeSizes))
         ).toBeLessThan(AREA_TILE_TOLERANCE_HA)
+      })
+    }
+  )
+
+  // BMD-1058 AC6. Post-intervention refs reach this grid from their own backend
+  // path (extract-post-intervention.js), and no frontend unit test covers the
+  // cut on the post-intervention grids. ' Café–Ω H003' in the file is 11
+  // characters once trimmed, so the grid shows 'Café–Ω H00…'.
+  test.describe(
+    'Area post-intervention — long references',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      let project
+      test.beforeAll(async ({ browser }) => {
+        project = await getLongPaddedRefsProject(browser)
+      })
+
+      test('shows only the first 10 characters of a longer ref', async ({
+        areaPostInterventionPage
+      }) => {
+        await areaPostInterventionPage.open(project.id)
+        await areaPostInterventionPage.tab(RETAINED).click()
+
+        await expectRefCut(
+          areaPostInterventionPage.refLink(
+            RETAINED,
+            gridRefName(LONG_PADDED_REFS.nonAscii)
+          ),
+          LONG_PADDED_REFS.nonAscii
+        )
+        await expectRefWhole(
+          areaPostInterventionPage.refLink(RETAINED, LONG_PADDED_REFS.padded),
+          LONG_PADDED_REFS.padded
+        )
       })
     }
   )
