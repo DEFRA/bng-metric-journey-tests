@@ -748,7 +748,13 @@ function describeFieldValidation() {
         )
       })
 
-      test('rejects a file with duplicate habitat references with the catch-all single-error page', async ({
+      // FIXME(BMD-1058): parked 2026-10-12 pending a team ruling. Backend
+      // PR#475 (400fc7a, "duplicates allowed") deleted duplicate-ref-check.js
+      // and the DUPLICATE_HABITAT_REF code, so this fixture is now accepted
+      // and lands on project-summary instead of /error-file. Revisit when
+      // BMD-1058 is picked up: retire or invert this test, and cover the new
+      // HABITAT_REF_* rules instead.
+      test.fixme('rejects a file with duplicate habitat references with the catch-all single-error page', async ({
         createProjectFlow,
         projectDashboardPage,
         uploadBaselineFileFlow,
