@@ -8,7 +8,8 @@ import {
   TILE_NET_PERCENTAGE,
   TILE_TRADING_RULES,
   VIEW_AREA_TRADING_RULES,
-  VIEW_HEDGEROWS_TRADING_RULES
+  VIEW_HEDGEROWS_TRADING_RULES,
+  VIEW_WATERCOURSES_TRADING_RULES
 } from './unit-type-labels.js'
 
 /**
@@ -91,6 +92,16 @@ export function areaTradingRulesLink(section) {
 export function hedgerowsTradingRulesLink(section) {
   return tile(section, TILE_TRADING_RULES).getByRole('link', {
     name: VIEW_HEDGEROWS_TRADING_RULES
+  })
+}
+
+/**
+ * The watercourses Trading Rules tile's "View watercourses trading rules" link
+ * (BMD-1031, frontend PR#340) — the same post-intervention-only rule again.
+ */
+export function watercoursesTradingRulesLink(section) {
+  return tile(section, TILE_TRADING_RULES).getByRole('link', {
+    name: VIEW_WATERCOURSES_TRADING_RULES
   })
 }
 

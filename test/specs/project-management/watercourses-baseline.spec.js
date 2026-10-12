@@ -1,4 +1,5 @@
 import { test, expect } from '@fixtures'
+import { WATERCOURSES_TRADING_SUMMARY_PATH } from '@pages/watercourses-trading-summary.page.js'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
@@ -11,9 +12,12 @@ import {
   AREA_HABITATS,
   BASELINE_NAV_CHILD,
   HEDGEROWS,
+  POST_INTERVENTION_NAV_CHILD,
   SUMMARY,
   TILE_BASELINE,
+  TRADING_RULES_NAV_CHILD,
   VIEW_ON_SITE_WATERCOURSES_BASELINE,
+  VIEW_TRADING_RULES,
   WATERCOURSES
 } from '@utils/unit-type-labels.js'
 
@@ -282,6 +286,15 @@ test.describe('project-management', { tag: '@project-management' }, () => {
             .getByText(/^View on-site (watercourses )?baseline$/)
         ).toHaveCount(0)
 
+        // BMD-1031 AC4: no post-intervention document, so the Trading Rules
+        // tile carries the inert text and no link to the trading summary.
+        await expect(watercoursesBaselinePage.tradingRulesLink()).toHaveCount(0)
+        await expect(
+          watercoursesBaselinePage
+            .unitSection()
+            .getByText(VIEW_TRADING_RULES, { exact: true })
+        ).toBeVisible()
+
         await expect(watercoursesBaselinePage.uploadFileButton).toHaveAttribute(
           'href',
           uploadFileHref(project.id, `/projects/${project.id}/${BASELINE_PATH}`)
@@ -310,6 +323,15 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         ).toHaveAttribute('aria-current', 'page')
         await expect(
           watercoursesBaselinePage.navLink(BASELINE_NAV_CHILD)
+        ).toHaveCount(0)
+
+        // BMD-1031 AC2: Baseline is the ONLY child without a post-intervention
+        // document — neither a link nor current-page text for the other two.
+        await expect(
+          watercoursesBaselinePage.navItem(POST_INTERVENTION_NAV_CHILD)
+        ).toHaveCount(0)
+        await expect(
+          watercoursesBaselinePage.navItem(TRADING_RULES_NAV_CHILD)
         ).toHaveCount(0)
 
         const destinations = [
@@ -428,6 +450,25 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           watercoursesBaselinePage.tradingRulesTag(),
           STATUS_MET
         )
+      })
+
+      // BMD-1031 AC1 and AC3 on this page: with a post-intervention document,
+      // the nav gains its Trading rules child and the tile its link. Following
+      // them is watercourses-trading-summary.spec.js's job (AC5).
+      test('the nav and the Trading Rules tile link to the watercourses trading summary', async ({
+        watercoursesBaselinePage,
+        browser
+      }) => {
+        const project = await getTargetMetProject(browser)
+        await watercoursesBaselinePage.open(project.id)
+
+        const tradingSummaryHref = `/projects/${project.id}/${WATERCOURSES_TRADING_SUMMARY_PATH}`
+        await expect(
+          watercoursesBaselinePage.navLink(TRADING_RULES_NAV_CHILD)
+        ).toHaveAttribute('href', tradingSummaryHref)
+        await expect(
+          watercoursesBaselinePage.tradingRulesLink()
+        ).toHaveAttribute('href', tradingSummaryHref)
       })
     }
   )

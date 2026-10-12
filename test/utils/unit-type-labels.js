@@ -51,5 +51,6 @@ export const POST_INTERVENTION_NAV_CHILD = 'Post intervention'
 export const TRADING_RULES_NAV_CHILD = 'Trading rules'
 export const VIEW_AREA_TRADING_RULES = 'View area trading rules'
 export const VIEW_HEDGEROWS_TRADING_RULES = 'View hedgerows trading rules'
+export const VIEW_WATERCOURSES_TRADING_RULES = 'View watercourses trading rules'
 // The tile's inert text before a post-intervention document exists.
 export const VIEW_TRADING_RULES = 'View trading rules'

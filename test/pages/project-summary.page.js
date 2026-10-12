@@ -4,7 +4,8 @@ import {
   hedgerowsTradingRulesLink,
   netPercentageTag,
   tile,
-  tradingRulesTag
+  tradingRulesTag,
+  watercoursesTradingRulesLink
 } from '@utils/unit-type-tiles.js'
 import {
   AREA_HABITATS,
@@ -16,7 +17,8 @@ import {
   VIEW_ON_SITE_HEDGEROWS_POST_INTERVENTION,
   VIEW_ON_SITE_WATERCOURSES_POST_INTERVENTION,
   VIEW_ON_SITE_WATERCOURSES_BASELINE,
-  VIEW_TRADING_RULES
+  VIEW_TRADING_RULES,
+  WATERCOURSES
 } from '@utils/unit-type-labels.js'
 
 import { BasePage } from './base.page.js'
@@ -124,6 +126,14 @@ export class ProjectSummaryPage extends BasePage {
    */
   hedgerowsTradingRulesLink() {
     return hedgerowsTradingRulesLink(this.unitSection(HEDGEROWS))
+  }
+
+  /**
+   * The watercourses Trading Rules tile's link to the watercourses trading
+   * summary (BMD-1031). Only once a post-intervention document exists.
+   */
+  watercoursesTradingRulesLink() {
+    return watercoursesTradingRulesLink(this.unitSection(WATERCOURSES))
   }
 
   /**
