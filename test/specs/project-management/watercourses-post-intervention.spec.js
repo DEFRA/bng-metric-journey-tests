@@ -1,4 +1,5 @@
 import { test, expect } from '@fixtures'
+import { WATERCOURSES_TRADING_SUMMARY_PATH } from '@pages/watercourses-trading-summary.page.js'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
@@ -12,6 +13,7 @@ import {
   POST_INTERVENTION_NAV_CHILD,
   SUMMARY,
   TILE_BASELINE,
+  TRADING_RULES_NAV_CHILD,
   VIEW_ON_SITE_POST_INTERVENTION,
   VIEW_ON_SITE_WATERCOURSES_BASELINE,
   WATERCOURSES
@@ -351,6 +353,16 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       await expect(
         section.getByRole('link', { name: VIEW_ON_SITE_WATERCOURSES_BASELINE })
       ).toBeVisible()
+
+      // BMD-1031 AC3: the Trading Rules tile links to the watercourses trading
+      // summary. `tradingSummaryPath` is per-page config to the shared
+      // controller factory, so this is what proves the watercourse wiring.
+      await expect(
+        watercoursesPostInterventionPage.tradingRulesLink()
+      ).toHaveAttribute(
+        'href',
+        `/projects/${project.id}/${WATERCOURSES_TRADING_SUMMARY_PATH}`
+      )
     })
 
     // AC5: "the same set of tiles as shown on the Project Summary page and the
@@ -402,6 +414,13 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       ).toHaveAttribute(
         'href',
         `/projects/${project.id}/watercourses-baseline-summary`
+      )
+      // BMD-1031 AC1: and the Trading rules sibling follows it.
+      await expect(
+        watercoursesPostInterventionPage.navLink(TRADING_RULES_NAV_CHILD)
+      ).toHaveAttribute(
+        'href',
+        `/projects/${project.id}/${WATERCOURSES_TRADING_SUMMARY_PATH}`
       )
 
       // "In bold, to indicate it is the current page" is a <strong

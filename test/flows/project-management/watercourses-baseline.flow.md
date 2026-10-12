@@ -18,7 +18,7 @@ Each page still passes its **own** habitat key (`watercourses`) and unit field (
 - **Backend endpoint:** `GET /projects/{id}` (via `fetchProjectOrThrow`)
 - **Description:** Renders the full baseline feature table for watercourses.
 
-  **Left navigation** — as [`hedgerows-baseline.flow.md`](hedgerows-baseline.flow.md) Step 1, except the current item is the **Baseline** child nested under **Watercourses**. `withBaselineChild` expands whichever section owns the current href, so Area habitats and Hedgerows render collapsed here while Watercourses keeps its link to `/projects/{id}/watercourses-summary` and its child renders as `<strong aria-current="page">Baseline</strong>`.
+  **Left navigation** — as [`hedgerows-baseline.flow.md`](hedgerows-baseline.flow.md) Step 1, except the current item is the **Baseline** child nested under **Watercourses**. `withBaselineChild` expands whichever section owns the current href, so Area habitats and Hedgerows render collapsed here while Watercourses keeps its link to `/projects/{id}/watercourses-summary` and its child renders as `<strong aria-current="page">Baseline</strong>`. Once a post-intervention file exists, "Post intervention" and "Trading rules" (BMD-1031, → `/watercourses-trading-summary`) follow it; before that Baseline is the only child.
 
   **Both linear nav items are conditional**, on `projectHasHabitatData(project, '<key>')` — an OR across baseline and post-intervention. BMD-861's AC3 lists **Hedgerows** unconditionally, but the implementation gates it exactly as it gates Watercourses (BMD-898's rule): on a project with no hedgerows in either document, this page renders with a three-item nav. The conditional on **Watercourses** cannot be witnessed negatively here — a project with no watercourses has no meaningful watercourses baseline to open.
 
@@ -120,6 +120,7 @@ Added 2026-09-07 for the BMD-861 AC sweep — `test/specs/project-management/wat
 | Ref clickthrough                          | 10       | `baseline.watercourses` is a third backend collection, resolved by its own branch of the features endpoint and its own details-page strategy                                             |
 | Entry from the watercourses summary       | 1        | both hrefs were asserted but neither was ever followed; the results-section link did not exist before PR#266                                                                             |
 | Entry from the project summary            | 2        | `project-summary.spec.js:986` asserts the href and stops there                                                                                                                           |
+| Trading summary links (BMD-1031)          | —        | per-page config (`tradingSummaryPath` for `createLinearHabitatBaselineController`); asserted unlinked on the baseline-only project and linked on the target-met project                  |
 | Trading rules status (BMD-1002)           | —        | per-page config; asserted on a project whose area verdict differs (area Not met, watercourses Met)                                                                                       |
 
 Both projects come from `@utils/summary-projects.js` (`getAllUnitTypesProject`, `getBaselineOnlyProject`) and are already built by other specs in the same module-scope cache, so this file costs **no upload of its own** in CI.
@@ -136,5 +137,6 @@ Both projects come from `@utils/summary-projects.js` (`getAllUnitTypesProject`, 
 
 | Element                          | Current state                                | Marker      |
 | -------------------------------- | -------------------------------------------- | ----------- |
-| "View trading rules"             | inert `<span>` in the Trading Rules tile     | `[PLANNED]` |
 | "View on-site post intervention" | inert `<span>` once post-intervention exists | `[PLANNED]` |
+
+"View watercourses trading rules" is no longer deferred: **BMD-1031** (frontend PR#340, titled BMD-1026, merged 2026-09-30) made the Trading Rules tile link to [`/projects/{id}/watercourses-trading-summary`](watercourses-summary.flow.md) once a post-intervention file exists, and added a "Trading rules" child under Watercourses in the left navigation on the same condition. Before that upload the tile keeps the inert "View trading rules" text and the nav child does not render. `[IMPLEMENTED]`

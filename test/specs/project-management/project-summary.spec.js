@@ -1,5 +1,6 @@
 import { test, expect } from '@fixtures'
 import { HEDGEROWS_TRADING_SUMMARY_PATH } from '@pages/hedgerows-trading-summary.page.js'
+import { WATERCOURSES_TRADING_SUMMARY_PATH } from '@pages/watercourses-trading-summary.page.js'
 import {
   STORAGE_STATE,
   NO_PROJECTS_STORAGE_STATE,
@@ -1187,6 +1188,16 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           projectSummaryPage.tradingRulesTag(AREA_HABITATS),
           STATUS_NOT_MET
         )
+
+        // BMD-1031 AC3: with a post-intervention document the tile links to
+        // the watercourses trading summary. Following it is
+        // watercourses-trading-summary.spec.js's job (AC5).
+        await expect(
+          projectSummaryPage.watercoursesTradingRulesLink()
+        ).toHaveAttribute(
+          'href',
+          `/projects/${project.id}/${WATERCOURSES_TRADING_SUMMARY_PATH}`
+        )
       })
 
       test('watercourses that break the trading rules show "Not met" while area habitats show "Met"', async ({
@@ -1334,6 +1345,12 @@ test.describe('project-management', { tag: '@project-management' }, () => {
               .getByRole('link', { name: VIEW_TRADING_RULES })
           ).toHaveCount(0)
         }
+        // BMD-1031 AC4. The loop's link locator is a substring match on "View
+        // trading rules", which "View watercourses trading rules" does not
+        // contain, so it could never catch the watercourses link appearing.
+        await expect(
+          projectSummaryPage.watercoursesTradingRulesLink()
+        ).toHaveCount(0)
 
         await expect(projectSummaryPage.projectDetailsHeading).toBeVisible()
         await expect(projectSummaryPage.projectDetailsBody).toBeVisible()

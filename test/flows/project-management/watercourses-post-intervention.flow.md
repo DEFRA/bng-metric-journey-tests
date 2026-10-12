@@ -29,6 +29,7 @@ Two things separate it from the other watercourse pages:
   | ------------------- | -------------------------------------------------------- | ----------------------------------------------- |
   | `Baseline`          | link to `/projects/{id}/watercourses-baseline-summary`   | only when the **baseline** has watercourse data |
   | `Post-intervention` | `<strong aria-current="page">Post-intervention</strong>` | always (this page)                              |
+  | `Trading rules`     | link to `/projects/{id}/watercourses-trading-summary`    | always here — BMD-1031, needs a PI file         |
 
   **Hedgerows** appears only when `projectHasHabitatData(project, 'hedgerows')` — an OR across baseline and post-intervention.
 
@@ -141,6 +142,7 @@ Added 2026-09-16 for the BMD-862 AC sweep — `test/specs/project-management/wat
 | Every left-navigation link resolves           | 9        | five hrefs asserted in the unit test as attributes; only a browser proves they resolve, including the conditional Hedgerows item                                                                   |
 | Both watercourses summary triggers open it    | 2a, 2b   | the nav child and the results link are separate view-model paths that happen to share a target; before this, `watercourses-summary.spec.js:251` proved only that the link is **visible**           |
 | (project-summary.spec.js) the tile link       | 1        | `project-summary.spec.js:735` asserted only the **absence** of the inert default for watercourses — never that the link renders, carries the href, or resolves                                     |
+| Trading summary links                         | BMD-1031 | per-page config (`tradingSummaryPath` for `createHabitatPostInterventionController`); asserts the nav child's and the tile link's hrefs                                                            |
 | Results tiles show the trading-rules status   | BMD-1002 | per-page config; the three-tab project's area verdict (Not met) differs from its watercourse verdict (Met)                                                                                         |
 
 **Fixtures.** The three-tab project comes from `getWatercourseInterventionTypesProject` in `@utils/summary-projects.js` — `Baseline - complete with watercourse refs.gpkg` (WC1, plus 2 hedgerows so the conditional Hedgerows nav item renders) paired with `Post-intervention - watercourses mixed retention.gpkg` (WC1 Retained, WC2 Enhanced, WC3 Created). It is the only shipped pairing that makes all three tabs visible at once, so it is a new build. The same pairing is also built by `post-intervention-habitat-details.spec.js` through its own file-local cache.
@@ -185,7 +187,8 @@ Backend coverage proposals in the BMD-999 analysis.
 
 ## Deferred elements
 
-| Element              | Current state                                                                            | Marker      |
-| -------------------- | ---------------------------------------------------------------------------------------- | ----------- |
-| "View trading rules" | inert `<span>` in the Trading Rules tile                                                 | `[PLANNED]` |
-| PI Areas             | no `postInterventionPath` for area habitats in `OPTIONAL_UNIT_TYPES` — BMD-858 unshipped | `[PLANNED]` |
+| Element  | Current state                                                                            | Marker      |
+| -------- | ---------------------------------------------------------------------------------------- | ----------- |
+| PI Areas | no `postInterventionPath` for area habitats in `OPTIONAL_UNIT_TYPES` — BMD-858 unshipped | `[PLANNED]` |
+
+"View watercourses trading rules" is no longer deferred: **BMD-1031** (frontend PR#340, titled BMD-1026, merged 2026-09-30) made the Trading Rules tile link to [`/projects/{id}/watercourses-trading-summary`](watercourses-summary.flow.md) once a post-intervention file exists, and added a "Trading rules" child under Watercourses in the left navigation on the same condition. Before that upload the tile keeps the inert "View trading rules" text and the nav child does not render. `[IMPLEMENTED]`

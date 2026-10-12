@@ -1,11 +1,15 @@
 import { test, expect } from '@fixtures'
+import { WATERCOURSES_TRADING_SUMMARY_PATH } from '@pages/watercourses-trading-summary.page.js'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import {
   AREA_HABITATS,
   BASELINE_NAV_CHILD,
   HEDGEROWS,
+  POST_INTERVENTION_NAV_CHILD,
   SUMMARY,
   TILE_BASELINE,
+  TRADING_RULES_NAV_CHILD,
+  VIEW_TRADING_RULES,
   WATERCOURSES
 } from '@utils/unit-type-labels.js'
 import {
@@ -108,6 +112,15 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         expect(
           await watercoursesSummaryPage.targetValue(TARGET_UNIT_DEFICIT)
         ).toBe(await watercoursesSummaryPage.targetValue(TARGET_UNITS_REQUIRED))
+
+        // BMD-1031 AC4: no post-intervention document, so the tile carries the
+        // inert text and no link to the watercourses trading summary.
+        await expect(watercoursesSummaryPage.tradingRulesLink()).toHaveCount(0)
+        await expect(
+          watercoursesSummaryPage
+            .unitSection()
+            .getByText(VIEW_TRADING_RULES, { exact: true })
+        ).toBeVisible()
       }
     )
 
@@ -168,6 +181,15 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         'href',
         `/projects/${project.id}/watercourses-baseline-summary`
       )
+      // BMD-1031 AC2: Baseline is the ONLY child without a post-intervention
+      // document. `navItem` matches a link or the current-page text alike, so
+      // a count of zero rules out both.
+      await expect(
+        watercoursesSummaryPage.navItem(POST_INTERVENTION_NAV_CHILD)
+      ).toHaveCount(0)
+      await expect(
+        watercoursesSummaryPage.navItem(TRADING_RULES_NAV_CHILD)
+      ).toHaveCount(0)
     })
 
     // BMD-856 AC1. Sole witness that either route INTO this page from the
@@ -270,6 +292,23 @@ test.describe('project-management', { tag: '@project-management' }, () => {
             tile
           ).toBe(fromDrillDown[tile])
         }
+      })
+
+      // BMD-1031 AC1 and AC3 on this page: with a post-intervention document,
+      // both routes to the watercourses trading summary appear. Following them
+      // is watercourses-trading-summary.spec.js's job (AC5).
+      test('the nav and the Trading Rules tile link to the watercourses trading summary', async ({
+        watercoursesSummaryPage
+      }) => {
+        await watercoursesSummaryPage.open(project.id)
+
+        const tradingSummaryHref = `/projects/${project.id}/${WATERCOURSES_TRADING_SUMMARY_PATH}`
+        await expect(
+          watercoursesSummaryPage.navLink(TRADING_RULES_NAV_CHILD)
+        ).toHaveAttribute('href', tradingSummaryHref)
+        await expect(
+          watercoursesSummaryPage.tradingRulesLink()
+        ).toHaveAttribute('href', tradingSummaryHref)
       })
 
       test('the deficit is the shortfall between units required and post-intervention', async ({

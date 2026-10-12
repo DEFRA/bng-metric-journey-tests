@@ -1,3 +1,4 @@
+import { watercoursesTradingRulesLink } from '@utils/unit-type-tiles.js'
 import {
   VIEW_ON_SITE_BASELINE,
   VIEW_ON_SITE_WATERCOURSES_BASELINE,
@@ -63,5 +64,10 @@ export class WatercoursesSummaryPage extends UnitTypeSummaryPage {
     return this.unitSection().getByRole('link', {
       name: VIEW_ON_SITE_WATERCOURSES_POST_INTERVENTION
     })
+  }
+
+  /** The Trading Rules tile's link to the watercourses trading summary (BMD-1031). */
+  tradingRulesLink() {
+    return watercoursesTradingRulesLink(this.unitSection())
   }
 }

@@ -1,5 +1,8 @@
 import { readTileUnits, readTileValue } from '@utils/tile-value.js'
-import { tradingRulesTag } from '@utils/unit-type-tiles.js'
+import {
+  tradingRulesTag,
+  watercoursesTradingRulesLink
+} from '@utils/unit-type-tiles.js'
 
 import { BasePage } from './base.page.js'
 import { WATERCOURSES } from '@utils/unit-type-labels.js'
@@ -279,5 +282,10 @@ export class WatercoursesPostInterventionPage extends BasePage {
         scrollLeft: element.scrollLeft
       }
     })
+  }
+
+  /** The Trading Rules tile's link to the watercourses trading summary (BMD-1031). */
+  tradingRulesLink() {
+    return watercoursesTradingRulesLink(this.unitSection())
   }
 }
