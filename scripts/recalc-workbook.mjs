@@ -28,8 +28,8 @@ import {
 const HELP = `Usage: npm run recalc:workbook -- [options] <file> [<file> ...]
 
 Each <file> is either:
-  *.xlsx  a metric workbook, recalculated as it stands (a copy; the original
-          is never changed)
+  *.xlsx  a metric workbook, recalculated as it stands (a copy,
+          <name>.recalculated.xlsx; the original is never changed)
   *.gpkg  a post-intervention GeoPackage, written into the published Defra
           metric template the way the harness scenario generator does, then
           recalculated
@@ -56,6 +56,8 @@ const TEMPLATE_PATH = path.join(
 
 const HABITAT_KINDS = ['area', 'hedgerow', 'watercourse']
 
+const INPUT_EXTENSIONS = ['.xlsx', '.gpkg']
+
 function parseCli() {
   const { values, positionals } = parseArgs({
     allowPositionals: true,
@@ -72,6 +74,12 @@ function parseCli() {
   }
   if (values.published && values.compare) {
     throw new Error('--published and --compare cannot be used together')
+  }
+  const unsupported = positionals.filter(
+    (file) => !INPUT_EXTENSIONS.includes(path.extname(file).toLowerCase())
+  )
+  if (unsupported.length > 0) {
+    throw new Error(`${unsupported.join(', ')}: expected a .xlsx or .gpkg file`)
   }
   const missing = positionals.filter((file) => !existsSync(file))
   if (missing.length > 0) {
@@ -98,6 +106,22 @@ function parseCli() {
       `--out ${values.out} is outside the journey-tests root, so nothing written there would survive the container; use a folder inside it, e.g. docs/<ticket>-evidence`
     )
   }
+  // A target that is also an input (an .xlsx already in --out) would be
+  // recalculated, and so changed, in place.
+  const outDir = path.resolve(values.out)
+  const targets = new Set(
+    positionals.flatMap((file) =>
+      targetsFor(file, values, outDir).map(({ target }) => target)
+    )
+  )
+  const overwritten = positionals.filter((file) =>
+    targets.has(path.resolve(file))
+  )
+  if (overwritten.length > 0) {
+    throw new Error(
+      `${overwritten.join(', ')} would be overwritten by a recalculated copy in --out ${values.out}; choose another --out`
+    )
+  }
   if (
     (values.compare || values.published) &&
     !positionals.some((file) => path.extname(file).toLowerCase() === '.gpkg')
@@ -106,7 +130,7 @@ function parseCli() {
       'note: --compare and --published apply to .gpkg inputs only; .xlsx workbooks are recalculated as given'
     )
   }
-  return { ...values, files: positionals }
+  return { ...values, outDir, files: positionals }
 }
 
 function variantsFor(args) {
@@ -121,32 +145,43 @@ function variantsFor(args) {
     : [{ label: 'corrected', corrections: undefined }]
 }
 
+// The workbooks one input becomes in the output folder: an .xlsx is copied,
+// a .gpkg is written once per variant.
+function targetsFor(file, args, outDir) {
+  const ext = path.extname(file).toLowerCase()
+  const base = path.basename(file, ext)
+  const variants =
+    ext === '.xlsx' ? [{ label: 'recalculated' }] : variantsFor(args)
+  return variants.map((variant) => ({
+    ...variant,
+    target: path.join(outDir, `${base}.${variant.label}.xlsx`)
+  }))
+}
+
 // Stage every input as a workbook in the output folder, so the recalculation
 // (which saves each file over itself) never touches an original.
-function stageInputs(args, outDir) {
+function stageInputs(args) {
   const staged = []
   let templateBuffer
   for (const file of args.files) {
-    const ext = path.extname(file).toLowerCase()
-    const base = path.basename(file, ext)
-    if (ext === '.xlsx') {
-      const target = path.join(outDir, `${base}.xlsx`)
-      copyFileSync(file, target)
-      staged.push({ source: file, label: 'as given', target })
-    } else if (ext === '.gpkg') {
-      templateBuffer ??= readFileSync(TEMPLATE_PATH)
-      for (const { label, corrections } of variantsFor(args)) {
+    for (const { label, corrections, target } of targetsFor(
+      file,
+      args,
+      args.outDir
+    )) {
+      if (path.extname(file).toLowerCase() === '.xlsx') {
+        copyFileSync(file, target)
+        staged.push({ source: file, label, target })
+      } else {
+        templateBuffer ??= readFileSync(TEMPLATE_PATH)
         const { buffer, issues } = workbookFromGeoPackage({
           postInterventionPath: file,
           templateBuffer,
           corrections
         })
-        const target = path.join(outDir, `${base}.${label}.xlsx`)
         writeFileSync(target, buffer)
         staged.push({ source: file, label, target, rejectedInputs: issues })
       }
-    } else {
-      throw new Error(`${file}: expected a .xlsx or .gpkg file`)
     }
   }
   return staged
@@ -208,9 +243,9 @@ function report({ source, label, target, rejectedInputs = [] }, results) {
 
 async function main() {
   const args = parseCli()
-  const outDir = path.resolve(args.out)
+  const { outDir } = args
   mkdirSync(outDir, { recursive: true })
-  const staged = stageInputs(args, outDir)
+  const staged = stageInputs(args)
 
   // LibreOffice's scratch profile forces recalculation on load: without it
   // LibreOffice hands back the values the file was saved with, which looks

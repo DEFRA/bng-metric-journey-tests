@@ -436,10 +436,11 @@ npm run recalc:workbook -- --compare --out docs/bmd-1011-evidence <post-interven
 npm run recalc:workbook -- --help
 ```
 
-- A `.xlsx` is recalculated as it stands (on a copy). A `.gpkg` is first written into the published Defra template the way the harness scenario generator writes it, with the metric's known bugs corrected; `--published` keeps Defra's formulas as published and `--compare` shows both.
+- A `.xlsx` is recalculated as it stands, on a copy named `<name>.recalculated.xlsx`. A `.gpkg` is first written into the published Defra template the way the harness scenario generator writes it, with the metric's known bugs corrected; `--published` keeps Defra's formulas as published and `--compare` shows both.
 - It runs the harness's `bng-scenarios` image ([`compose.recalc.yml`](compose.recalc.yml) builds it from `../bng-metric-harness`), so the LibreOffice release, `bng-library` pin and template match the harness's expected results. It needs the harness checked out beside this repo. The first build takes several minutes; later runs take about 20–40 s.
 - Don't use the host's LibreOffice: it doesn't recalculate an `.xlsx` on load and returns the saved values, which looks like success (and the snap build can't run headless here anyway).
 - Paths are relative to this repo's root; only it and `../bng-metric-harness/example-files` are mounted.
+- The image runs as its `node` user (uid 1000), so output files are owned by uid 1000. On a host where your uid differs, `--out` may not be writable; make the folder writable for uid 1000 first.
 
 ---
 
