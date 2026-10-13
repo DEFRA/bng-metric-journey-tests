@@ -85,9 +85,10 @@ const RETAINED_WATERCOURSE_REF = 'WC1'
 const ENHANCED_HEDGEROW_REF = 'HR2'
 const ENHANCED_UPLIFT_HEDGEROW_REF = 'HG018'
 const ENHANCED_UPLIFT_HEDGEROW_TIME = 'Poor to Moderate - 20 years'
-// BMD-1051: the same file's HG031 carries a Medium Proposed Strategic
-// Significance, which the backend rejects and prices at zero.
-const ENHANCED_REJECTED_HEDGEROW_REF = 'HG031'
+// BMD-1051: the same file's HG032 (a valid Moderate→Good enhancement) carries
+// a Medium Proposed Strategic Significance, which the backend rejects and
+// prices at zero. HG031 would not do: BMD-820 rejects its enhancement first.
+const ENHANCED_REJECTED_HEDGEROW_REF = 'HG032'
 // Any "{label} ({multiplier})" strategic significance — what the page showed
 // for a nulled value ("Low (1)") before frontend PR #370.
 const STRATEGIC_SIGNIFICANCE_WITH_MULTIPLIER = /^(Low|Medium|High) \([\d.]+\)$/

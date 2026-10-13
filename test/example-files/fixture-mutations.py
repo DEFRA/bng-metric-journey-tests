@@ -218,6 +218,41 @@ def build_watercourse_wc3_baseline_fixture():
         con.close()
 
 
+def recut_all_unit_types_hg032():
+    """`all unit and intervention types.gpkg`: HG032 proposed Poor -> Good.
+
+    Backend PR #477 (BMD-820) nulls every proposed field of an enhancement that
+    is not valid for its baseline, before the BMD-1051 strategic significance
+    check runs. A Medium hedgerow must stay Medium with a strictly better
+    condition, so HG032 (Moderate -> Poor) and HG031 (Good -> Moderate) were
+    both rejected by BMD-820 and neither witnessed BMD-1051 any more. Moderate
+    -> Good is a valid enhancement, so HG032 now reaches the BMD-1051 check,
+    where its Medium Proposed Strategic Significance prices it at zero. HG031
+    stays as the BMD-820 witness. HG032 is priced at zero either way, so no
+    total changes. The harness's copy of this file keeps Poor.
+
+    Used by hedgerows-post-intervention.spec.js and
+    post-intervention-habitat-details.spec.js.
+    """
+    path = EX / "Post-intervention - all unit and intervention types.gpkg"
+    con = sqlite3.connect(path)
+    try:
+        update_attr(
+            con, "Hedgerows",
+            '"Proposed Condition"=? WHERE "Parcel Ref"=?',
+            ("Good", "HG032"),
+        )
+        con.commit()
+        rows = con.execute(
+            'SELECT "Parcel Ref", "Baseline Condition", "Proposed Condition" '
+            'FROM "Hedgerows" WHERE "Parcel Ref"=?',
+            ("HG032",),
+        ).fetchall()
+        print(f"\nall unit types HG032:\n  Hedgerows: {rows}")
+    finally:
+        con.close()
+
+
 def _report(con, label, layers):
     print(f"\n{label}:")
     for table, ref in layers:
@@ -233,4 +268,5 @@ if __name__ == "__main__":
     build_distinctiveness_fixture()
     build_created_area_fixture()
     build_watercourse_wc3_baseline_fixture()
+    recut_all_unit_types_hg032()
     print("\nDone.")
