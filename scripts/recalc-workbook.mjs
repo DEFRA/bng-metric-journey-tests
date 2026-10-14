@@ -101,7 +101,11 @@ function parseCli() {
   // Only the repo root is mounted writable: anywhere else is inside the
   // container and is lost when it exits.
   const outRelative = path.relative(process.cwd(), path.resolve(values.out))
-  if (outRelative.startsWith('..') || path.isAbsolute(outRelative)) {
+  if (
+    outRelative === '..' ||
+    outRelative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(outRelative)
+  ) {
     throw new Error(
       `--out ${values.out} is outside the journey-tests root, so nothing written there would survive the container; use a folder inside it, e.g. docs/<ticket>-evidence`
     )
