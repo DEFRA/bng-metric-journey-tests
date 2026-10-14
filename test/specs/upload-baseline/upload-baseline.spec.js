@@ -196,6 +196,15 @@ function describeBaselineReplacement() {
           COMPLETE_BASELINE_FILE
         )
 
+        // The first file's hedgerows are what is stored right now. Checked
+        // before the post-intervention upload, because since BMD-1056/BMD-1066
+        // that upload replaces the baseline with one derived from its own rows,
+        // and COMPLETE_POST_INTERVENTION_FILE has no hedgerows.
+        await hedgerowsBaselinePage.open(id)
+        await expect(
+          hedgerowsBaselinePage.refLink(COMPLETE_BASELINE_HEDGEROW_REF)
+        ).toBeVisible()
+
         await uploadPostInterventionFileFlow.uploadFileAndWaitForSummary(
           id,
           COMPLETE_POST_INTERVENTION_FILE
@@ -206,12 +215,6 @@ function describeBaselineReplacement() {
         await expect(
           projectSummaryPage.uploadPostInterventionLink(AREA_HABITATS)
         ).toHaveCount(0)
-
-        // The first file's hedgerows are what is stored right now.
-        await hedgerowsBaselinePage.open(id)
-        await expect(
-          hedgerowsBaselinePage.refLink(COMPLETE_BASELINE_HEDGEROW_REF)
-        ).toBeVisible()
 
         await uploadBaselineFileFlow.uploadFileAndWaitForSummary(
           id,

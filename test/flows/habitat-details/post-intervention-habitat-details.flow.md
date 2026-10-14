@@ -75,7 +75,7 @@ row showing the raw normalised value.
   when reasoning about a blank row.
 - Distinctiveness and Condition render as `"Value (score)"` via `withMultiplier`; a missing
   score yields the bare value, a missing value yields an empty cell.
-- Strategic significance is the fixed string `"Low (1)"` on the **retained** pages. Created and Enhanced pages show the priced value with its multiplier (`"Low (1)"` / `"High (1.15)"`, BMD-1038) via `proposedStrategicSignificanceDisplay`, and **nothing** when the feature has no `strategicSignificanceCategory` (frontend PR #370, BMD-1051 — it used to fall back to `"Low (1)"`). That covers a value rejected on import (Medium, blank or unrecognised, which the backend also prices at `0.00` units delivered) **and** an uncalculated feature carrying a valid value: all-unit-types HG012 (valid Low, Good → Good) shows blank too, with blank units delivered.
+- Strategic significance is the fixed string `"Low (1)"` on the **retained** pages. Created and Enhanced pages show the priced value with its multiplier (`"Low (1)"` / `"High (1.15)"`, BMD-1038) via `proposedStrategicSignificanceDisplay`, and **nothing** when the feature has no `strategicSignificanceCategory` (frontend PR #370, BMD-1051 — it used to fall back to `"Low (1)"`). That covers a value rejected on import (Medium, blank or unrecognised, which the backend also prices at `0.00` units delivered) **and** an uncalculated feature carrying a valid value, which shows blank too, with blank units delivered. No shipped fixture has such a hedgerow any more: all-unit-types HG012 (Good → Good), the old example, is now rejected by BMD-820 (`medium-hedgerow`, backend PR #477), so its whole proposed side is nulled and its units delivered read `0.00`, not blank.
 - "Habitat units delivered" / "Units in this habitat" is `formatHabitatUnits(feature.units)`
   — 2 decimal places, capped at 7 significant figures.
 
@@ -87,7 +87,14 @@ The **Intervention** row shows the normalised retention category, defaulting to
 Resolved by matching the parcel `ref` across every baseline layer (habitats, trees,
 hedgerows, watercourses) — baseline and post-intervention are independent uploads with
 independent `featureId`s, so `ref` is the only stable join key. Hidden when no baseline
-feature shares the ref (e.g. no baseline uploaded). On a sections page the link renders
+feature shares the ref (e.g. no baseline uploaded).
+
+**Since BMD-1056/BMD-1066 (backend PR#478, 2026-10-13) a fresh upload always matches a
+Retained or Enhanced feature.** The post-intervention upload derives the baseline from the
+file's own rows, so every Retained or Enhanced feature gets a baseline feature with the same
+ref. The "hidden" branch is no longer reached by a pairing of separate baseline and
+post-intervention files (which is how `complete-project` H2-2 and H2-3 reached it). It now
+needs a baseline ref changed after upload, or a Created feature. On a sections page the link renders
 **after the first section**, before the units row. **Created hedgerows suppress the link
 unconditionally** (`buildCreatedHedgerowViewOnlyViewModel` forces `baselineFeatureId: null`)
 — Created areas and Created watercourses do **not**, and still resolve it by ref.

@@ -230,6 +230,24 @@ Observed changes, both confirmed on 2026-09-01:
 
 ---
 
+### A baseline upload ignores Created rows — BMD-1056/BMD-1066 `[IMPLEMENTED]`
+
+Since backend PR#478 (2026-10-13) a baseline file is read as the baseline side of a combined
+file: every row whose `Retention Category` is **Created** is skipped, because a Created habitat
+has no pre-development baseline (`isBaselineRow` in `src/services/upload/baseline-rows.js`).
+Every other row is kept, including one whose Baseline type is blank or a placeholder, so the
+user can complete it.
+
+So a baseline fixture that carries a `Retention Category` column stores fewer features than it
+has rows. `Baseline - no hedgerows.gpkg` has 50 habitats, 7 of them Created, so the area
+baseline lists **43** habitats plus 25 trees = **68** rows, not 75.
+
+The opposite direction is in
+[`upload-post-intervention-file.flow.md`](../upload-post-intervention/upload-post-intervention-file.flow.md):
+a post-intervention upload now derives and **replaces** the baseline.
+
+---
+
 ### Replacing a baseline discards post-intervention data — BMD-850 `[IMPLEMENTED]`
 
 Backend BMD-850 (PR#219) changed `setProjectBaseline`
@@ -245,11 +263,10 @@ for that project. Visible effects:
 - The project summary's unit-type sections offer the "Upload on-site post intervention
   file" link again in place of their post-intervention links.
 - The post-intervention nav children and pages have no data to list.
-- The post-intervention selection on `/projects/{id}/upload-file` becomes available again
-  (its baseline precondition is satisfied by the new baseline).
 
-This is what the selection page's "Uploading a file will overwrite any previous files you
-have uploaded." line warns about. A test that uploads a baseline into a project that already
+The selection page used to warn about this with "Uploading a file will overwrite any previous
+files you have uploaded."; BMD-1056 (frontend PR#377, 2026-10-13) removed that line, and the
+post-intervention option no longer needs a baseline first. A test that uploads a baseline into a project that already
 has post-intervention data must expect the post-intervention side to be **gone**, not
 recalculated.
 

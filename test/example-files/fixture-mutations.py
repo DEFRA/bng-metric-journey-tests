@@ -218,6 +218,120 @@ def build_watercourse_wc3_baseline_fixture():
         con.close()
 
 
+def recut_all_unit_types_hg032():
+    """`all unit and intervention types.gpkg`: HG032 proposed Poor -> Good.
+
+    Backend PR #477 (BMD-820) nulls every proposed field of an enhancement that
+    is not valid for its baseline, before the BMD-1051 strategic significance
+    check runs. A Medium hedgerow must stay Medium with a strictly better
+    condition, so HG032 (Moderate -> Poor) and HG031 (Good -> Moderate) were
+    both rejected by BMD-820 and neither witnessed BMD-1051 any more. Moderate
+    -> Good is a valid enhancement, so HG032 now reaches the BMD-1051 check,
+    where its Medium Proposed Strategic Significance prices it at zero. HG031
+    stays as the BMD-820 witness. HG032 is priced at zero either way, so no
+    total changes. The harness's copy of this file keeps Poor.
+
+    Used by hedgerows-post-intervention.spec.js and
+    post-intervention-habitat-details.spec.js.
+    """
+    path = EX / "Post-intervention - all unit and intervention types.gpkg"
+    con = sqlite3.connect(path)
+    try:
+        update_attr(
+            con, "Hedgerows",
+            '"Proposed Condition"=? WHERE "Parcel Ref"=?',
+            ("Good", "HG032"),
+        )
+        con.commit()
+        rows = con.execute(
+            'SELECT "Parcel Ref", "Baseline Condition", "Proposed Condition" '
+            'FROM "Hedgerows" WHERE "Parcel Ref"=?',
+            ("HG032",),
+        ).fetchall()
+        print(f"\nall unit types HG032:\n  Hedgerows: {rows}")
+    finally:
+        con.close()
+
+
+def _build_all_created_fixture(src_name, dst_name, table):
+    src = EX / src_name
+    dst = EX / dst_name
+    shutil.copyfile(src, dst)
+    con = sqlite3.connect(dst)
+    try:
+        update_attr(con, table, '"Retention Category"=?', ("Created",))
+        con.commit()
+        _report(con, dst_name, [(table, "Parcel Ref")])
+    finally:
+        con.close()
+
+
+def build_created_hedgerows_fixture():
+    """`created hedgerows.gpkg`: copy of complete with hedgerows, HR1-HR3 Created.
+
+    Backend PR #478 (BMD-1056/BMD-1066) derives the baseline from a
+    post-intervention file's own rows, so a Retained or Enhanced hedgerow now
+    puts hedgerows into the baseline too. Only a file whose hedgerows are all
+    Created reaches the post-intervention-only state (BMD-897/BMD-919). The
+    Baseline* columns are left as they are: the backend ignores them on a
+    Created row.
+
+    Used by getHedgerowGainProject in test/utils/summary-projects.js.
+    """
+    _build_all_created_fixture(
+        "Post-intervention - complete with hedgerows.gpkg",
+        "Post-intervention - created hedgerows.gpkg",
+        "Hedgerows",
+    )
+
+
+def build_created_watercourses_fixture():
+    """`created watercourses.gpkg`: copy of complete with watercourses, WC1-WC3 Created.
+
+    The watercourse twin of build_created_hedgerows_fixture.
+
+    Used by getWatercourseGainProject in test/utils/summary-projects.js.
+    """
+    _build_all_created_fixture(
+        "Post-intervention - complete with watercourses.gpkg",
+        "Post-intervention - created watercourses.gpkg",
+        "Rivers",
+    )
+
+
+def build_watercourses_uplift_fixture():
+    """`watercourses mixed retention uplift.gpkg`: copy of watercourses mixed retention, WC2 Good.
+
+    Backend PR #478 (BMD-1056/BMD-1066) derives the baseline from the PI file:
+    WC1 (Retained) and WC2 (Enhanced, Moderate -> Moderate). With nothing
+    gained, the watercourse trading verdict became Not met, the same as the
+    area verdict, so the watercourses post-intervention page could no longer
+    show it reads its own verdict. Improving WC2 to Good makes the watercourse
+    verdict Met again while the area verdict stays Not met.
+
+    Used by getWatercourseInterventionTypesProject in
+    test/utils/summary-projects.js.
+    """
+    src = EX / "Post-intervention - watercourses mixed retention.gpkg"
+    dst = EX / "Post-intervention - watercourses mixed retention uplift.gpkg"
+    shutil.copyfile(src, dst)
+    con = sqlite3.connect(dst)
+    try:
+        update_attr(
+            con, "Rivers",
+            '"Proposed Condition"=? WHERE "Parcel Ref"=?',
+            ("Good", "WC2"),
+        )
+        con.commit()
+        rows = con.execute(
+            'SELECT "Parcel Ref", "Retention Category", "Proposed Condition" '
+            'FROM "Rivers"'
+        ).fetchall()
+        print(f"\nwatercourses mixed retention uplift:\n  Rivers: {rows}")
+    finally:
+        con.close()
+
+
 def _report(con, label, layers):
     print(f"\n{label}:")
     for table, ref in layers:
@@ -233,4 +347,8 @@ if __name__ == "__main__":
     build_distinctiveness_fixture()
     build_created_area_fixture()
     build_watercourse_wc3_baseline_fixture()
+    recut_all_unit_types_hg032()
+    build_created_hedgerows_fixture()
+    build_created_watercourses_fixture()
+    build_watercourses_uplift_fixture()
     print("\nDone.")

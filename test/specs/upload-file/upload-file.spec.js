@@ -28,8 +28,6 @@ const VALID_UUID_V4 = 'aaaaaaaa-bbbb-4ccc-bddd-eeeeeeeeeeee'
 const UNKNOWN_UUID_V4 = 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff'
 const NON_UUID_ID = 'not-a-uuid'
 const SELECT_TYPE_ERROR = 'Select the type of file you want to upload'
-const BASELINE_REQUIRED_ERROR =
-  'Upload a baseline file before uploading a post intervention file'
 const PROBLEM_SUMMARY_TITLE = 'There is a problem'
 
 test.describe('upload-file', { tag: '@upload-file' }, () => {
@@ -40,7 +38,7 @@ test.describe('upload-file', { tag: '@upload-file' }, () => {
     test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
     test(
-      'page renders the heading, project caption, overwrite warning, both file-type options unselected, Continue and Cancel',
+      'page renders the heading, project caption, intro, both file-type options unselected, Continue and Cancel',
       { tag: '@happy-path' },
       async ({
         createProjectFlow,
@@ -58,7 +56,7 @@ test.describe('upload-file', { tag: '@upload-file' }, () => {
         await expect(page).toHaveTitle(/What would you like to upload\?/)
         await expect(uploadFilePage.heading).toBeVisible()
         await expect(page.getByText(name)).toBeVisible()
-        await expect(uploadFilePage.overwriteWarning).toBeVisible()
+        await expect(uploadFilePage.intro).toBeVisible()
 
         await expect(uploadFilePage.baselineRadio).toBeVisible()
         await expect(uploadFilePage.postInterventionRadio).toBeVisible()
@@ -307,13 +305,18 @@ test.describe('upload-file', { tag: '@upload-file' }, () => {
       }
     )
 
+    // BMD-1056 (frontend PR#377): a post-intervention file carries the
+    // baseline, so the page no longer asks for a baseline first. Until then
+    // this choice was rejected with "Upload a baseline file before uploading a
+    // post intervention file" (BMD-850 AC7).
     test(
-      'choosing post-intervention before a baseline exists is rejected, and the choice is preserved',
+      'choosing post-intervention with no baseline goes straight to its upload form',
       { tag: '@regression' },
       async ({
         createProjectFlow,
         projectDashboardPage,
         uploadFilePage,
+        uploadPostInterventionFilePage,
         page
       }) => {
         const { id } = await setupProject(
@@ -325,21 +328,10 @@ test.describe('upload-file', { tag: '@upload-file' }, () => {
         await uploadFilePage.selectPostIntervention()
         await uploadFilePage.submit()
 
-        // Stays on the selection page rather than reaching the upload form.
-        await expect(page).toHaveURL(new RegExp(`/projects/${id}/upload-file$`))
-        await expect(uploadFilePage.errorSummary).toBeVisible()
-        await expect(uploadFilePage.errorSummary).toContainText(
-          PROBLEM_SUMMARY_TITLE
+        await expect(page).toHaveURL(
+          new RegExp(`/projects/${id}/upload-post-intervention-file`)
         )
-        await expect(
-          uploadFilePage.errorLink(BASELINE_REQUIRED_ERROR)
-        ).toHaveAttribute('href', '#uploadType')
-        // BMD-850 AC7: repeated inline above the radios as well as in the
-        // summary.
-        await expect(uploadFilePage.uploadTypeGroup).toContainText(
-          BASELINE_REQUIRED_ERROR
-        )
-        await expect(uploadFilePage.postInterventionRadio).toBeChecked()
+        await expect(uploadPostInterventionFilePage.heading).toBeVisible()
       }
     )
 

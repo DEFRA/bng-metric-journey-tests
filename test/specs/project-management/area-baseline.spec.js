@@ -42,8 +42,10 @@ const REF_SORT_LOCALE = 'en'
 
 // `Baseline - no hedgerows.gpkg` — 50 habitat parcels and 25 urban trees. The
 // counts are asserted rather than hardcoded blindly: the point of the test is
-// that BOTH collections reach one table, so the total is what matters.
-const EXPECTED_HABITATS = 50
+// that BOTH collections reach one table, so the total is what matters. Since
+// BMD-1056/BMD-1066 (backend PR #478) a baseline upload skips Created rows, and
+// 7 of the 50 parcels are Created, so 43 reach the table.
+const EXPECTED_HABITATS = 43
 const EXPECTED_TREES = 25
 const EXPECTED_ROWS = EXPECTED_HABITATS + EXPECTED_TREES
 
