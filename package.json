@@ -23,7 +23,8 @@
     "lint:fix": "eslint . --fix",
     "postinstall": "node scripts/postinstall.mjs",
     "setup:husky": "node -e \"try { (await import('husky')).default() } catch (e) { if (e.code !== 'ERR_MODULE_NOT_FOUND') throw e }\" --input-type module",
-    "install:gitleaks": "node scripts/install-gitleaks.mjs"
+    "install:gitleaks": "node scripts/install-gitleaks.mjs",
+    "recalc:workbook": "docker compose -f compose.recalc.yml run --rm --build recalc-workbook"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",

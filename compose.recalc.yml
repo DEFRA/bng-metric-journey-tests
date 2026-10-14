@@ -1,0 +1,26 @@
+# On-demand LibreOffice recalculation of Defra metric workbooks, for ad-hoc
+# spreadsheet validations: `npm run recalc:workbook -- --help`.
+#
+# Reuses the bng-metric-harness scenario image rather than keeping a copy of
+# its Dockerfile here, so the LibreOffice release, bng-library pin and metric
+# template always match the ones the harness's expected results were made
+# with. Needs ../bng-metric-harness checked out beside this repo.
+
+# Its own project name: sharing the journey-tests stack's would make Docker
+# report the running stack as orphans of this one.
+name: bng-recalc-workbook
+services:
+  recalc-workbook:
+    build:
+      context: ../bng-metric-harness
+      dockerfile: Dockerfile.scenarios
+    image: bng-scenarios
+    # Mounted inside /app so the script resolves the image's bng-library.
+    entrypoint: ['node', '/app/journey-tests/recalc-workbook.mjs']
+    working_dir: /work
+    volumes:
+      - ./scripts/recalc-workbook.mjs:/app/journey-tests/recalc-workbook.mjs:ro
+      # The repo root is /work, and the harness fixtures sit at the same
+      # relative path (../bng-metric-harness/example-files) as on the host.
+      - .:/work
+      - ../bng-metric-harness/example-files:/bng-metric-harness/example-files:ro

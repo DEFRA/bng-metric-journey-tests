@@ -411,19 +411,36 @@ PROFILE=@project-management npm run test:github
 
 ## Run Commands
 
-| Command                                           | What it does                                                                                                                  |
-| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `npm run test:local`                              | Playwright against locally-running frontend (http://localhost:3000)                                                           |
-| `npm run test:github`                             | Playwright against Docker Compose stack (used in CI)                                                                          |
-| `npm run test:e2e`                                | Playwright against CDP deployed env (real Defra ID) — set `ENVIRONMENT=dev\|test` and `DEFRA_ID_USERNAME`/`DEFRA_ID_PASSWORD` |
-| `HEADED=true npm run test:local`                  | Headed browser for debugging                                                                                                  |
-| `BROWSER=firefox npm run test:local`              | Override browser                                                                                                              |
-| `PROFILE=@smoke npm run test:github`              | Run only `@smoke`-tagged tests against Docker Compose stack                                                                   |
-| `PROFILE=@smoke npm run test:e2e`                 | Run only `@smoke`-tagged tests on the CDP portal                                                                              |
-| `PROFILE=@happy-path npm run test:e2e`            | Run only happy-path journeys on the CDP portal — avoids tripping its monitoring alerts (see **@happy-path**)                  |
-| `PROFILE=@regression npm run test:github`         | Run only `@regression`-tagged (non-smoke) tests                                                                               |
-| `PROFILE=@project-management npm run test:github` | Run tests for the `project-management` domain                                                                                 |
-| `npm run test:evidence`                           | Run the `/validate-ac-manual` evidence spec (screenshots + per-AC demo videos) — never part of the normal suite               |
+| Command                                           | What it does                                                                                                                                 |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run test:local`                              | Playwright against locally-running frontend (http://localhost:3000)                                                                          |
+| `npm run test:github`                             | Playwright against Docker Compose stack (used in CI)                                                                                         |
+| `npm run test:e2e`                                | Playwright against CDP deployed env (real Defra ID) — set `ENVIRONMENT=dev\|test` and `DEFRA_ID_USERNAME`/`DEFRA_ID_PASSWORD`                |
+| `HEADED=true npm run test:local`                  | Headed browser for debugging                                                                                                                 |
+| `BROWSER=firefox npm run test:local`              | Override browser                                                                                                                             |
+| `PROFILE=@smoke npm run test:github`              | Run only `@smoke`-tagged tests against Docker Compose stack                                                                                  |
+| `PROFILE=@smoke npm run test:e2e`                 | Run only `@smoke`-tagged tests on the CDP portal                                                                                             |
+| `PROFILE=@happy-path npm run test:e2e`            | Run only happy-path journeys on the CDP portal — avoids tripping its monitoring alerts (see **@happy-path**)                                 |
+| `PROFILE=@regression npm run test:github`         | Run only `@regression`-tagged (non-smoke) tests                                                                                              |
+| `PROFILE=@project-management npm run test:github` | Run tests for the `project-management` domain                                                                                                |
+| `npm run test:evidence`                           | Run the `/validate-ac-manual` evidence spec (screenshots + per-AC demo videos) — never part of the normal suite                              |
+| `npm run recalc:workbook -- <file>`               | Recalculate a metric workbook (`.xlsx`) or a post-intervention GeoPackage with LibreOffice in Docker — see **Metric workbook recalculation** |
+
+### Metric workbook recalculation
+
+For ad-hoc validations of tickets that concern metric spreadsheet calculations (and only those — it builds a ~1 GB image, so `/validate-adhoc-implementation` doesn't run it otherwise), `npm run recalc:workbook` recalculates Defra metric workbooks in a container and prints the metric's own answers: headline units, trading-rule verdicts per band, and row/sheet warnings. It also writes the recalculated copies and a `results.json` to `--out` (default `.cache/recalc`; use `docs/<ticket>-evidence` for evidence).
+
+```sh
+npm run recalc:workbook -- ../bng-metric-harness/example-files/permutations/trading-rules/trading-all-met.xlsx
+npm run recalc:workbook -- --compare --out docs/bmd-1011-evidence <post-intervention>.gpkg   # corrected vs published metric
+npm run recalc:workbook -- --help
+```
+
+- A `.xlsx` is recalculated as it stands, on a copy named `<name>.recalculated.xlsx`. A `.gpkg` is first written into the published Defra template the way the harness scenario generator writes it, with the metric's known bugs corrected; `--published` keeps Defra's formulas as published and `--compare` shows both.
+- It runs the harness's `bng-scenarios` image ([`compose.recalc.yml`](compose.recalc.yml) builds it from `../bng-metric-harness`), so the LibreOffice release, `bng-library` pin and template match the harness's expected results. It needs the harness checked out beside this repo. The first build takes several minutes; later runs take about 20–40 s.
+- Don't use the host's LibreOffice: it doesn't recalculate an `.xlsx` on load and returns the saved values, which looks like success (and the snap build can't run headless here anyway).
+- Paths are relative to this repo's root; only it and `../bng-metric-harness/example-files` are mounted.
+- The image runs as its `node` user (uid 1000), so output files are owned by uid 1000. On a host where your uid differs, `--out` may not be writable; make the folder writable for uid 1000 first.
 
 ---
 
