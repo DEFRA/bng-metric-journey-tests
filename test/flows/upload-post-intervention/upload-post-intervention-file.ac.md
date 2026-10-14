@@ -272,6 +272,10 @@ post-intervention habitat list → the project task list flips the post-interven
 
 **Precondition:** signed-in, approved BNG Completer, with a project.
 
+> **BMD-1056/BMD-1066 (2026-10-13):** a baseline is no longer needed first, and the
+> post-intervention upload replaces the baseline with one derived from its own Baseline
+> columns. The journey's baseline upload is now overwritten by the PI upload.
+>
 > **BMD-1043:** the journey now uploads a baseline first, lands on the project summary, and
 > evidences the stored upload there (the "Upload on-site post intervention file" link is gone)
 > and on the area habitats post-intervention grid. Without a baseline nothing would show the

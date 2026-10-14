@@ -21,12 +21,11 @@ const PROJECT_LABEL = 'Upload post-intervention flow test'
 const UPLOAD_TIMEOUT = 120_000
 const COMPLETE_FILE = 'Post-intervention - complete.gpkg'
 // BMD-850 AC6 replacement pair: HEDGEROWS_FILE adds a Hedgerows layer
-// (HR1-HR3) that COMPLETE_FILE does not have, and HEDGEROW_BASELINE_FILE is the
-// baseline carrying the matching refs.
+// (HR1-HR3, all Retained) that COMPLETE_FILE does not have.
+// HEDGEROW_BASELINE_FILE is the baseline carrying the matching refs.
 const HEDGEROWS_FILE = 'Post-intervention - complete with hedgerows.gpkg'
 const HEDGEROW_BASELINE_FILE = 'Baseline - complete with hedgerow refs.gpkg'
 const REPLACED_HEDGEROW_REF = 'HR3'
-const BASELINE_HEDGEROW_REF = 'HR1'
 const COMPLETE_FILE_AREA_REF = 'H1'
 // REMOVED 2026-09-01: STRUCTURAL_ERROR_FILE / the 'structural validation
 // errors' describe. The fixture was
@@ -134,7 +133,8 @@ function describeHappyPath() {
 
 // BMD-850 AC6: a second post-intervention upload replaces the stored document
 // wholesale — features in the old file and absent from the new one disappear,
-// along with their units — while the baseline is left alone.
+// along with their units. Since BMD-1056/BMD-1066 (backend PR #478) it also
+// replaces the baseline, derived again from the new file's non-Created rows.
 //
 // Sole browser witness for that. The backend counterpart
 // (../bng-metric-backend/integration-tests/post-intervention-persistence.test.js,
@@ -148,34 +148,22 @@ function describePostInterventionReplacement() {
     'Upload post-intervention — replacing an existing upload',
     { tag: '@regression' },
     () => {
-      test('re-uploading replaces the post-intervention habitats and leaves the baseline unchanged', async ({
+      test('re-uploading replaces the post-intervention habitats and re-derives the baseline from the new file', async ({
         createProjectFlow,
         projectDashboardPage,
-        uploadBaselineFileFlow,
         uploadPostInterventionFileFlow,
-        areaBaselinePage,
         hedgerowsBaselinePage,
         page
       }) => {
-        // Three real uploads back this test.
-        test.setTimeout(UPLOAD_TIMEOUT * 3)
+        // Two real uploads back this test. No baseline upload: the
+        // post-intervention file derives its own (BMD-1056/BMD-1066).
+        test.setTimeout(UPLOAD_TIMEOUT * 2)
 
         const { id, name } = await setupProject(
           createProjectFlow,
           projectDashboardPage,
           PROJECT_LABEL
         )
-
-        // A baseline sharing the hedgerow refs, so the first file's hedgerows
-        // calculate against it rather than landing Incomplete.
-        await uploadBaselineFileFlow.uploadFileAndWaitForSummary(
-          id,
-          HEDGEROW_BASELINE_FILE
-        )
-        await areaBaselinePage.open(id)
-        const baselineAreaSize = await areaBaselinePage
-          .totalsCell('size')
-          .innerText()
 
         await uploadPostInterventionFileFlow.uploadFileAndWaitForSummary(
           id,
@@ -184,6 +172,11 @@ function describePostInterventionReplacement() {
         expect(
           await findPiRef(page, id, 'hedgerow', REPLACED_HEDGEROW_REF)
         ).not.toBeNull()
+        // HR3 is Retained, so the derived baseline carries it too.
+        await hedgerowsBaselinePage.open(id)
+        await expect(
+          hedgerowsBaselinePage.refLink(REPLACED_HEDGEROW_REF)
+        ).toBeVisible()
 
         // COMPLETE_FILE carries no Hedgerows layer at all.
         await uploadPostInterventionFileFlow.uploadFileAndWaitForSummary(
@@ -195,20 +188,16 @@ function describePostInterventionReplacement() {
         expect(
           await findPiRef(page, id, 'area', COMPLETE_FILE_AREA_REF)
         ).not.toBeNull()
-        // ...and the previous file's hedgerows are gone rather than merged in.
+        // ...and the previous file's hedgerows are gone rather than merged in,
+        // from the post-intervention document and the derived baseline alike.
         expect(
           await findPiRef(page, id, 'hedgerow', REPLACED_HEDGEROW_REF)
         ).toBeNull()
-
-        // The baseline was not touched by either post-intervention upload.
-        await areaBaselinePage.open(id)
-        await expect(areaBaselinePage.totalsCell('size')).toHaveText(
-          baselineAreaSize
-        )
         await hedgerowsBaselinePage.open(id)
+        await expect(hedgerowsBaselinePage.heading).toBeVisible()
         await expect(
-          hedgerowsBaselinePage.refLink(BASELINE_HEDGEROW_REF)
-        ).toBeVisible()
+          hedgerowsBaselinePage.refLink(REPLACED_HEDGEROW_REF)
+        ).toHaveCount(0)
 
         // BMD-1043 made every dashboard row link to the summary. Asserted here
         // for a project carrying both documents from real uploads; the

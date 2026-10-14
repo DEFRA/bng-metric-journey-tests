@@ -379,7 +379,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       }
     })
 
-    test('Post-intervention is current and the nav lists every unit type', async ({
+    test('Post-intervention is current and the nav lists the unit types the project has', async ({
       hedgerowsPostInterventionPage
     }) => {
       await hedgerowsPostInterventionPage.open(project.id)
@@ -421,12 +421,13 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       await expect(
         hedgerowsPostInterventionPage.navLink(AREA_HABITATS)
       ).toBeVisible()
-      // This fixture's baseline has rivers, so the conditional Watercourses
-      // item renders. hedgerows-baseline.spec.js witnesses the other side of
-      // the same condition, where an empty layer drops the item entirely.
+      // The conditional Watercourses item is absent: the baseline file has
+      // rivers, but since BMD-1056/BMD-1066 the PI upload replaces that
+      // baseline with one derived from `hedgerows mixed retention`, which has
+      // no Rivers layer, so neither document carries watercourses.
       await expect(
         hedgerowsPostInterventionPage.navLink(WATERCOURSES)
-      ).toBeVisible()
+      ).toHaveCount(0)
     })
   })
 
@@ -631,7 +632,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // AC9a and AC9b. There is no back link on this page — the left nav is
       // the only way out, which is what makes following every one of its links
       // worth the click. `unit-type-navigation.test.js` proves the builder as
-      // a pure function; what it cannot show is that the five hrefs resolve.
+      // a pure function; what it cannot show is that the hrefs resolve. Four
+      // since BMD-1056/BMD-1066: the conditional Watercourses item is gone, as
+      // the derived baseline has no rivers either.
       test(
         'each left-navigation link opens its target page',
         { tag: '@happy-path' },
@@ -641,8 +644,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           projectSummaryPage,
           areaSummaryPage,
           hedgerowsSummaryPage,
-          hedgerowsBaselinePage,
-          watercoursesSummaryPage
+          hedgerowsBaselinePage
         }) => {
           const destinations = [
             [SUMMARY, 'project-summary', projectSummaryPage.heading],
@@ -652,11 +654,6 @@ test.describe('project-management', { tag: '@project-management' }, () => {
               BASELINE_NAV_CHILD,
               'hedgerows-baseline',
               hedgerowsBaselinePage.heading
-            ],
-            [
-              WATERCOURSES,
-              'watercourses-summary',
-              watercoursesSummaryPage.heading
             ]
           ]
 
