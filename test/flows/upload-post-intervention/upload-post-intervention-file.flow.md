@@ -27,17 +27,16 @@ every "Upload file" button, and the summary's "Upload on-site post intervention 
 "On-site post intervention habitats" row and, once uploaded, the post-intervention habitat
 list's "Upload a different file" button — both pages were removed.
 
-On the selection page the user picks "Post-intervention Biodiversity Net Gain GeoPackage
-(.gpkg) file" and is redirected into Step 1 with a `returnUrl` query param. See
+On the selection page the user picks "Post-intervention" (the label since BMD-1056, frontend
+PR#377) and is redirected into Step 1 with a `returnUrl` query param. See
 [`test/flows/upload-file/choose-upload-type.flow.md`](../upload-file/choose-upload-type.flow.md).
 
-**Baseline-first ordering is now enforced — but only on the selection page.** Selecting
-post-intervention while `project.baseline` is absent is rejected there with "Upload a
-baseline file before uploading a post intervention file". The upload route below is **not**
-gated: `GET /projects/{id}/upload-post-intervention-file` reached directly by URL still
-renders, and the backend still accepts a post-intervention upload with no stored baseline
-(features that cannot be calculated are marked `Incomplete` — see Step 3). So the constraint
-is a UI guard, not a service-level one.
+**No baseline is needed first** (BMD-1056, frontend PR#377, 2026-10-13). The selection page
+used to reject post-intervention for a project with no baseline ("Upload a baseline file before
+uploading a post intervention file"). That check is gone: the post-intervention file carries
+the baseline, and the backend derives it on import. See
+[A post-intervention upload derives and replaces the baseline](#a-post-intervention-upload-derives-and-replaces-the-baseline--bmd-1056bmd-1066-implemented)
+below.
 
 ## Steps
 
@@ -139,6 +138,8 @@ Resolved by the backend's error code. Three variants:
 | **`HABITAT_REF_INVALID_CHARACTERS`** (BMD-1058)                                                                            | "Your Geopackage (.gpkg) file contains an error"                           | **"One or more habitat references contain characters that are not allowed."** One collated error                                                                                                                                      |
 | **`INVALID_FILENAME`** (BMD-958)                                                                                           | "Your Geopackage (.gpkg) file contains an error"                           | **"The file name contains characters we cannot accept."** — closes with **"upload the renamed file"**, the only entry overriding the shared link text                                                                                 |
 | **`GPKG_TOO_MANY_FEATURES`** (BMD-869)                                                                                     | **"Your Geopackage (.gpkg) file contains too many features"** — its own H1 | **"This file contains {n} features. This service can check up to {max}."** (en-GB thousands separators) — degrades to "This file contains more features than this service can check." when the counts are absent from `error.details` |
+| **`BASELINE_TYPE_MISSING`** (BMD-1066, backend PR#478)                                                                     | "Your Geopackage (.gpkg) file contains an error"                           | **"Some retained or enhanced habitats have no baseline habitat type. Add a baseline habitat type for each of them and"** + the inline link. A Retained or Enhanced row with a blank or placeholder Baseline type                      |
+| **`NO_DERIVED_BASELINE_HABITATS`** (BMD-1066, backend PR#478)                                                              | "Your Geopackage (.gpkg) file contains an error"                           | **"This file has no baseline area habitats. Add baseline habitats and"** + the inline link. The baseline derived from the file has no area habitats                                                                                   |
 | `HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE`                                                                                     | distinctiveness variant (see above)                                        | links to the statutory metric spreadsheet                                                                                                                                                                                             |
 | `REDLINE_OUTSIDE_ENGLAND`, `REDLINE_AREA_TOO_LARGE`, `IGGIS_OUTSIDE_REDLINE`, `TREES_OUTSIDE_REDLINE`, `AREA_SUM_MISMATCH` | placeholder variant                                                        | pending BMD-592                                                                                                                                                                                                                       |
 | any other / unrecognised code (e.g. GeoPackage schema errors)                                                              | "Your Geopackage (.gpkg) file contains an error"                           | catch-all: "The layer names and column names do not match what is required by Natural England…"                                                                                                                                       |
@@ -170,7 +171,8 @@ rather than merging into it: `setProjectPostIntervention` writes the new `postIn
 key wholesale and the upload transaction clears the previous `post_intervention_*` geometry
 rows, so features present in the old file and absent from the new one disappear entirely —
 along with their units, net-change figures and any trading-rule warnings derived from them.
-The stored `baseline` is untouched by this path.
+Since BMD-1056/BMD-1066 the stored `baseline` is replaced too, derived from the new file (see
+the next section).
 
 Visible effects: the unit-type post-intervention pages list only the new file's features, so a
 feature type the new file omits has nothing left to list. Because both uploads land on the same
@@ -178,8 +180,38 @@ page, a replacement test needs **two files that differ in a visible way** —
 re-uploading the same fixture cannot distinguish a replace from a no-op.
 
 Backend counterpart: `../bng-metric-backend/integration-tests/post-intervention-persistence.test.js`
-("AC6 replaces PI while leaving baseline unchanged") pins the document and row-count side at
-the service level; it never renders, so the tab-level consequence needs a journey witness.
+("AC6 replaces an existing baseline with the one derived from the PI file", renamed by backend
+PR#478) pins the document and row-count side at the service level; it never renders, so the
+tab-level consequence needs a journey witness. The journey test
+(`upload-post-intervention.spec.js` › _replacing an existing upload_) checks HR3 leaves both the
+post-intervention document and the derived baseline when the second file has no hedgerows.
+
+---
+
+### A post-intervention upload derives and replaces the baseline — BMD-1056/BMD-1066 `[IMPLEMENTED]`
+
+Backend PR#478 (2026-10-13) made a post-intervention GeoPackage a **combined** file. Each row
+describes one post-intervention feature and carries its pre-development habitat in the
+`Baseline*` columns. On import (`save-upload-for-project.js`, `baseline-rows.js`):
+
+- **Every row except Created becomes a baseline feature**, with its own geometry and ref:
+  Retained, Enhanced, and Lost rows whose Baseline type is real. A Lost row whose Baseline type
+  is blank or a placeholder (`null`, `n/a`, `(no selection)`, `to be created`) is dropped.
+- A Retained or Enhanced row with no Baseline type rejects the upload with
+  `BASELINE_TYPE_MISSING`. A derived baseline with no area habitats rejects it with
+  `NO_DERIVED_BASELINE_HABITATS`. See the single-error table in Step 4.
+- The derived baseline and the post-intervention document, plus their geometry rows, are
+  written together in one transaction (`setProjectBaselineAndPostIntervention`). **Any baseline
+  uploaded earlier is replaced**, along with any edits made to its features.
+
+Consequences for tests:
+
+- A project's baseline is whatever the **post-intervention file's** Baseline columns say. A
+  baseline fixture uploaded first no longer survives a post-intervention upload.
+- A unit type is **post-intervention-only** only when every feature of that type in the file is
+  Created. A Retained or Enhanced feature puts the unit type in the baseline too.
+- A unit type the post-intervention file does not carry is absent from the derived baseline,
+  even if the baseline file had it.
 
 ---
 

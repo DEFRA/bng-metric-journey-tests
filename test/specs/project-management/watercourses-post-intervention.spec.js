@@ -333,6 +333,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // createHabitatPostInterventionController, and the mocked
       // controller.test.js hands it a fabricated verdict. This project's area
       // verdict is Not met, so a mis-wiring to the area function fails here.
+      // WC2 is improved to Good in the uplift copy of the PI file (see
+      // fixture-mutations.py): with the derived baseline (BMD-1056/BMD-1066)
+      // the original file's WC2 Moderate to Moderate left the verdict Not met.
       await expectStatusTag(
         watercoursesPostInterventionPage.tradingRulesTag(),
         STATUS_MET
@@ -394,20 +397,26 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     // `unit-type-navigation.test.js` proves the builder as a pure function and
     // `watercourses-post-intervention/controller.test.js:219` proves the markup
     // against a mocked payload; neither shows the conditional items surviving a
-    // real import. Both conditions are live in this fixture: the baseline
-    // carries WC1 (so the Baseline child renders) and two hedgerows (so the
-    // Hedgerows item renders even though the post-intervention file has none).
+    // real import. The derived baseline carries WC1 and WC2 (so the Baseline
+    // child renders). The baseline file's two hedgerows no longer survive the
+    // PI upload (BMD-1056/BMD-1066), so the Hedgerows item is absent.
     test('the left navigation marks this page current under Watercourses', async ({
       watercoursesPostInterventionPage
     }) => {
       await watercoursesPostInterventionPage.open(project.id)
 
-      for (const item of [SUMMARY, AREA_HABITATS, HEDGEROWS, WATERCOURSES]) {
+      for (const item of [SUMMARY, AREA_HABITATS, WATERCOURSES]) {
         await expect(
           watercoursesPostInterventionPage.navLink(item),
           `nav link "${item}"`
         ).toBeVisible()
       }
+      // Since BMD-1056/BMD-1066 the PI upload replaces the baseline with one
+      // derived from its own rows, and the PI file has no hedgerows, so the
+      // conditional Hedgerows item is absent from both documents.
+      await expect(
+        watercoursesPostInterventionPage.navLink(HEDGEROWS)
+      ).toHaveCount(0)
 
       await expect(
         watercoursesPostInterventionPage.navLink(BASELINE_NAV_CHILD)
@@ -601,7 +610,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // AC9. There is no back link on this page — the left nav is the only way
       // out, which is what makes following every one of its links worth the
       // click. `unit-type-navigation.test.js` proves the builder as a pure
-      // function; what it cannot show is that the five hrefs resolve.
+      // function; what it cannot show is that the hrefs resolve. Four since
+      // BMD-1056/BMD-1066: the conditional Hedgerows item is gone, as the
+      // derived baseline has no hedgerows either.
       test(
         'each left-navigation link opens its target page',
         { tag: '@happy-path' },
@@ -610,14 +621,12 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           watercoursesPostInterventionPage,
           projectSummaryPage,
           areaSummaryPage,
-          hedgerowsSummaryPage,
           watercoursesSummaryPage,
           watercoursesBaselinePage
         }) => {
           const destinations = [
             [SUMMARY, 'project-summary', projectSummaryPage.heading],
             [AREA_HABITATS, 'area-summary', areaSummaryPage.heading],
-            [HEDGEROWS, 'hedgerows-summary', hedgerowsSummaryPage.heading],
             [
               WATERCOURSES,
               'watercourses-summary',

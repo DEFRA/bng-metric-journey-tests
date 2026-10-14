@@ -128,6 +128,9 @@ const TARGET_COLUMNS = [
   'Final time to target',
   'Standard difficulty'
 ]
+const PROPOSED_COLUMNS = TARGET_COLUMNS.slice(
+  TARGET_COLUMNS.indexOf('Habitat type')
+)
 
 // The refs `Post-intervention - created linear features.gpkg` carries per
 // intervention type, in the ascending order AC7 requires. Pinned rather than
@@ -162,12 +165,14 @@ const ENHANCED_REFS = [
   'HG040'
 ]
 const ENHANCED_CALCULATED_REF = 'HG018'
-// BMD-1051: HG031 and HG032 carry a Medium Proposed Strategic Significance,
-// which the backend rejects and prices at zero. HG012 carries a valid Low but
-// does not improve on its baseline condition, so it is uncalculated instead —
-// the row a rejected one must be told apart from.
-const ENHANCED_REJECTED_REFS = ['HG031', 'HG032']
-const ENHANCED_UNCALCULATED_REF = 'HG012'
+// BMD-1051: HG032 (Moderate→Good, a valid enhancement) carries a Medium
+// Proposed Strategic Significance, which the backend rejects and prices at
+// zero. fixture-mutations.py sets its Good; the harness's copy has Poor, which
+// BMD-820 would reject first.
+const ENHANCED_REJECTED_SIGNIFICANCE_REF = 'HG032'
+// BMD-820: HG031 (Good→Moderate) breaks the medium-hedgerow enhancement rule,
+// so every proposed field is nulled before BMD-1051 is checked.
+const ENHANCED_INVALID_ENHANCEMENT_REF = 'HG031'
 const LABEL_ONLY = /^[^()]+$/
 
 const detailsHrefPattern = (projectId) =>
@@ -246,6 +251,13 @@ async function expectTabNotSelected(hedgerowsPage, label) {
     'false'
   )
   await expect(hedgerowsPage.panelHeading(label)).toBeHidden()
+}
+
+async function targetRow(grid, interventionType, ref) {
+  const cells = await grid.rowValues(interventionType, ref)
+  return Object.fromEntries(
+    TARGET_COLUMNS.map((column, index) => [column, cells[index]])
+  )
 }
 
 test.describe('project-management', { tag: '@project-management' }, () => {
@@ -367,7 +379,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       }
     })
 
-    test('Post-intervention is current and the nav lists every unit type', async ({
+    test('Post-intervention is current and the nav lists the unit types the project has', async ({
       hedgerowsPostInterventionPage
     }) => {
       await hedgerowsPostInterventionPage.open(project.id)
@@ -409,12 +421,13 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       await expect(
         hedgerowsPostInterventionPage.navLink(AREA_HABITATS)
       ).toBeVisible()
-      // This fixture's baseline has rivers, so the conditional Watercourses
-      // item renders. hedgerows-baseline.spec.js witnesses the other side of
-      // the same condition, where an empty layer drops the item entirely.
+      // The conditional Watercourses item is absent: the baseline file has
+      // rivers, but since BMD-1056/BMD-1066 the PI upload replaces that
+      // baseline with one derived from `hedgerows mixed retention`, which has
+      // no Rivers layer, so neither document carries watercourses.
       await expect(
         hedgerowsPostInterventionPage.navLink(WATERCOURSES)
-      ).toBeVisible()
+      ).toHaveCount(0)
     })
   })
 
@@ -619,7 +632,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // AC9a and AC9b. There is no back link on this page — the left nav is
       // the only way out, which is what makes following every one of its links
       // worth the click. `unit-type-navigation.test.js` proves the builder as
-      // a pure function; what it cannot show is that the five hrefs resolve.
+      // a pure function; what it cannot show is that the hrefs resolve. Four
+      // since BMD-1056/BMD-1066: the conditional Watercourses item is gone, as
+      // the derived baseline has no rivers either.
       test(
         'each left-navigation link opens its target page',
         { tag: '@happy-path' },
@@ -629,8 +644,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           projectSummaryPage,
           areaSummaryPage,
           hedgerowsSummaryPage,
-          hedgerowsBaselinePage,
-          watercoursesSummaryPage
+          hedgerowsBaselinePage
         }) => {
           const destinations = [
             [SUMMARY, 'project-summary', projectSummaryPage.heading],
@@ -640,11 +654,6 @@ test.describe('project-management', { tag: '@project-management' }, () => {
               BASELINE_NAV_CHILD,
               'hedgerows-baseline',
               hedgerowsBaselinePage.heading
-            ],
-            [
-              WATERCOURSES,
-              'watercourses-summary',
-              watercoursesSummaryPage.heading
             ]
           ]
 
@@ -811,10 +820,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         for (const [ref, significance] of Object.entries(
           CREATED_PRICED_STRATEGIC_SIGNIFICANCE
         )) {
-          const cells = await grid.rowValues(CREATED, ref)
-          rows[ref] = Object.fromEntries(
-            TARGET_COLUMNS.map((column, index) => [column, cells[index]])
-          )
+          rows[ref] = await targetRow(grid, CREATED, ref)
           expect(rows[ref]['Strategic significance'], ref).toBe(significance)
           expect(Number(rows[ref].Units), `${ref} Units`).toBeGreaterThan(0)
         }
@@ -859,10 +865,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         )
         expect(await grid.columnValues(ENHANCED, 'Ref')).toEqual(ENHANCED_REFS)
 
-        const cells = await grid.rowValues(ENHANCED, ENHANCED_CALCULATED_REF)
-        const row = Object.fromEntries(
-          TARGET_COLUMNS.map((column, index) => [column, cells[index]])
-        )
+        const row = await targetRow(grid, ENHANCED, ENHANCED_CALCULATED_REF)
         expect(row.Units).toMatch(GRID_UNITS_2DP)
         expect(row.Size).toMatch(KILOMETRES)
         expect(row.Distinctiveness).toMatch(LABEL_AND_SCORE)
@@ -879,9 +882,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       // BMD-1051 AC4, backend PR #465: a Medium Proposed Strategic Significance
       // is nulled on import, every engine-derived field with it, and the
-      // feature priced at zero. Blank derived cells alone prove nothing — an
-      // uncalculated row renders them too — so the witness is the Units cell:
-      // an explicit 0.00 on a rejected row, blank on an uncalculated one.
+      // feature priced at zero. The user's own proposed condition and years
+      // survive, which is what sets it apart from a BMD-820 rejection below.
       test('an Enhanced hedgerow with a rejected strategic significance is priced at zero', async ({
         hedgerowsPostInterventionPage
       }) => {
@@ -889,30 +891,40 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await grid.open(enhancedProject.id)
         await grid.tab(ENHANCED).click()
 
-        for (const ref of ENHANCED_REJECTED_REFS) {
-          const cells = await grid.rowValues(ENHANCED, ref)
-          const row = Object.fromEntries(
-            TARGET_COLUMNS.map((column, index) => [column, cells[index]])
-          )
-          expect(row.Units, `${ref} Units`).toBe('0.00')
-          expect(row.Distinctiveness, `${ref} Distinctiveness`).toBe('')
-          expect(
-            row['Strategic significance'],
-            `${ref} Strategic significance`
-          ).toBe('')
-          expect(row['Target condition'], `${ref} Target condition`).toMatch(
-            LABEL_ONLY
-          )
-          expect(row['Standard difficulty'], `${ref} Standard difficulty`).toBe(
-            ''
-          )
-        }
-
-        const uncalculated = await grid.rowValues(
+        const row = await targetRow(
+          grid,
           ENHANCED,
-          ENHANCED_UNCALCULATED_REF
+          ENHANCED_REJECTED_SIGNIFICANCE_REF
         )
-        expect(uncalculated[TARGET_COLUMNS.indexOf('Units')]).toBe('')
+        expect(row.Units).toBe('0.00')
+        expect(row.Distinctiveness).toBe('')
+        expect(row['Strategic significance']).toBe('')
+        expect(row['Target condition']).toMatch(LABEL_ONLY)
+        expect(row.Advance).toMatch(YEARS)
+        expect(row.Delay).toMatch(YEARS)
+        expect(row['Standard difficulty']).toBe('')
+      })
+
+      // BMD-820, backend PR #477: an enhancement that is not valid for its
+      // baseline has every proposed field nulled on import, so only the
+      // shape-derived Size and the zero Units render.
+      test('an Enhanced hedgerow that is not a valid enhancement of its baseline is priced at zero with no proposed values', async ({
+        hedgerowsPostInterventionPage
+      }) => {
+        const grid = hedgerowsPostInterventionPage
+        await grid.open(enhancedProject.id)
+        await grid.tab(ENHANCED).click()
+
+        const row = await targetRow(
+          grid,
+          ENHANCED,
+          ENHANCED_INVALID_ENHANCEMENT_REF
+        )
+        expect(row.Units).toBe('0.00')
+        expect(row.Size).toMatch(KILOMETRES)
+        for (const column of PROPOSED_COLUMNS) {
+          expect(row[column], column).toBe('')
+        }
       })
 
       // AC8 and AC9. The `aria-sort` toggle itself is MOJ's own component

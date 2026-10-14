@@ -453,8 +453,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           )
         ).toBeVisible()
 
-        // Watercourses survives on the baseline's 3 rivers even though the PI
-        // file has none, which is the OR's baseline side asserted in passing.
+        // Watercourses survives on the PI file's Retained rivers, which the
+        // upload also derives into the baseline (BMD-1056/BMD-1066).
         await expectUnitTypeSuppressed(projectSummaryPage, HEDGEROWS, [
           AREA_HABITATS,
           WATERCOURSES
@@ -475,7 +475,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           )
         ).toBeVisible()
 
-        // Hedgerows survives on the baseline's 16.
+        // Hedgerows survives on the PI file's Retained hedgerows.
         await expectUnitTypeSuppressed(projectSummaryPage, WATERCOURSES, [
           AREA_HABITATS,
           HEDGEROWS

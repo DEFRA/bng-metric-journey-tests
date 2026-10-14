@@ -2,10 +2,10 @@ import { expect } from '@playwright/test'
 
 import { BasePage } from './base.page.js'
 
-const BASELINE_RADIO_LABEL =
-  'Baseline Biodiversity Net Gain GeoPackage (.gpkg) file'
-const POST_INTERVENTION_RADIO_LABEL =
-  'Post-intervention Biodiversity Net Gain GeoPackage (.gpkg) file'
+// BMD-1056 (frontend PR#377) shortened the labels. Matched exactly so a future
+// option whose label starts with one of these words cannot match as well.
+const BASELINE_RADIO_LABEL = 'Baseline'
+const POST_INTERVENTION_RADIO_LABEL = 'Post-intervention'
 
 /**
  * The shared file-type selection page (`/projects/{id}/upload-file`, BMD-850)
@@ -17,11 +17,14 @@ export class UploadFilePage extends BasePage {
     this.heading = page.getByRole('heading', {
       name: 'What would you like to upload?'
     })
-    this.overwriteWarning = page.getByText(
-      'Uploading a file will overwrite any previous files you have uploaded.'
+    this.intro = page.getByText(
+      'You can either use a baseline file to check the details of your project, or a post-intervention file to review its BNG status.'
     )
-    this.baselineRadio = page.getByLabel(BASELINE_RADIO_LABEL)
-    this.postInterventionRadio = page.getByLabel(POST_INTERVENTION_RADIO_LABEL)
+    this.baselineRadio = page.getByLabel(BASELINE_RADIO_LABEL, { exact: true })
+    this.postInterventionRadio = page.getByLabel(
+      POST_INTERVENTION_RADIO_LABEL,
+      { exact: true }
+    )
     this.continueButton = page.getByRole('button', { name: 'Continue' })
     this.cancelLink = page.getByRole('link', { name: 'Cancel' })
     this.backLink = page.getByRole('link', { name: 'Back' })

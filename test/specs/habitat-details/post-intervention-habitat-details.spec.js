@@ -85,9 +85,10 @@ const RETAINED_WATERCOURSE_REF = 'WC1'
 const ENHANCED_HEDGEROW_REF = 'HR2'
 const ENHANCED_UPLIFT_HEDGEROW_REF = 'HG018'
 const ENHANCED_UPLIFT_HEDGEROW_TIME = 'Poor to Moderate - 20 years'
-// BMD-1051: the same file's HG031 carries a Medium Proposed Strategic
-// Significance, which the backend rejects and prices at zero.
-const ENHANCED_REJECTED_HEDGEROW_REF = 'HG031'
+// BMD-1051: the same file's HG032 (a valid Moderate→Good enhancement) carries
+// a Medium Proposed Strategic Significance, which the backend rejects and
+// prices at zero. HG031 would not do: BMD-820 rejects its enhancement first.
+const ENHANCED_REJECTED_HEDGEROW_REF = 'HG032'
 // Any "{label} ({multiplier})" strategic significance — what the page showed
 // for a nulled value ("Low (1)") before frontend PR #370.
 const STRATEGIC_SIGNIFICANCE_WITH_MULTIPLIER = /^(Low|Medium|High) \([\d.]+\)$/
@@ -125,9 +126,12 @@ const CREATED_AREA_TIME_TO_TARGET = 'Good - 5 years'
 // HR3 in HEDGEROWS_FILE cannot stand in: it is Created *with* a real baseline
 // condition, so it takes the transition branch and never reaches this code.
 //
-// The baseline half carries HG001-HG018, so HG013 has a ref-matching baseline
-// hedgerow. That is what makes "no View baseline details link" worth asserting
-// here — the link is suppressed by the view model, not merely unresolvable.
+// The baseline half carries HG001-HG018, so HG013 used to have a ref-matching
+// baseline hedgerow, which made "no View baseline details link" prove the view
+// model suppresses it. Since BMD-1056/BMD-1066 the PI upload replaces that
+// baseline with one derived from its own non-Created rows, so HG013 (Created)
+// has no match and the link is also unresolvable. Coverage gap: nothing now
+// tells the suppression apart from a missing match.
 // The same pair carries R003 — a Created *watercourse* with the same "N/A"
 // baseline condition — so one upload covers the short-form branch on the
 // Created hedgerow (Step 7) and Created watercourse (Step 8) pages alike. WC3
@@ -322,6 +326,9 @@ function getCompleteProject(browser) {
     'complete',
     { baselineFile: BASELINE_FILE, piFile: COMPLETE_PI_FILE },
     async (page, id) => {
+      // H2-2 is in the PI file only, but since BMD-1056/BMD-1066 the PI upload
+      // derives a baseline feature for every Retained row, so it now has a
+      // same-ref baseline counterpart. The name records where it came from.
       const retainedNoBaseline = await harvestPiFeature(
         page,
         id,
@@ -338,13 +345,11 @@ function getCompleteProject(browser) {
         retainedWithBaseline: await featureIdByRef(page, id, 'area', 'H1'),
         retainedNoBaseline: retainedNoBaseline.featureId,
         retainedNoBaselineUnits: retainedNoBaseline.units,
-        // Enhanced area parcels for the two-section read-only page (BMD-725):
+        // Enhanced area parcel for the two-section read-only page (BMD-725):
         // H3 is Enhanced and shares its ref with a baseline feature (View
-        // baseline link shown); H2-3 is Enhanced with no baseline match (link
-        // hidden).
+        // baseline link shown).
         enhancedWithBaseline: enhancedWithBaseline.featureId,
-        enhancedWithBaselineUnits: enhancedWithBaseline.units,
-        enhancedNoBaseline: await featureIdByRef(page, id, 'area', 'H2-3')
+        enhancedWithBaselineUnits: enhancedWithBaseline.units
       }
     }
   )
@@ -369,9 +374,9 @@ function getCreatedAreaProject(browser) {
 
 // Baseline + PI "created linear features" uploads in one project: the linear
 // counterpart of getCreatedAreaProject. HG013 and R003 are both Created with an
-// "N/A" baseline condition (the short-form time-to-target branch), and both
-// have a ref-matching baseline feature — which is what makes the hedgerow's
-// suppressed baseline link worth asserting.
+// "N/A" baseline condition (the short-form time-to-target branch). Neither has
+// a ref-matching baseline feature since BMD-1056/BMD-1066; see the note on
+// CREATED_LINEAR_PI_FILE.
 function getCreatedLinearProject(browser) {
   return getSharedProject(
     browser,
@@ -833,26 +838,6 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           )
         }
       )
-
-      test(
-        '"View baseline details" is hidden when no baseline feature shares the ref',
-        { tag: '@regression' },
-        async ({ browser, postInterventionHabitatDetailsPage }) => {
-          const shared = await getCompleteProject(browser)
-          // H2-2 exists only in the PI upload (baseline has H1/H2/H3).
-          await postInterventionHabitatDetailsPage.open(
-            shared.id,
-            shared.retainedNoBaseline
-          )
-
-          await expect(
-            postInterventionHabitatDetailsPage.viewOnlyHeading
-          ).toBeVisible()
-          await expect(
-            postInterventionHabitatDetailsPage.viewBaselineLink
-          ).toBeHidden()
-        }
-      )
     })
 
     // ─── Enhanced area habitat — two-section view-only display (BMD-725) ──────
@@ -977,27 +962,6 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
               ref: 'H3'
             }
           )
-        }
-      )
-
-      test(
-        '"View baseline details" is hidden when no baseline feature shares the ref',
-        { tag: '@regression' },
-        async ({ browser, postInterventionHabitatDetailsPage }) => {
-          const shared = await getCompleteProject(browser)
-          // H2-3 is Enhanced but exists only in the PI upload (baseline has
-          // H1/H2/H3), so it still renders the two-section page with no link.
-          await postInterventionHabitatDetailsPage.open(
-            shared.id,
-            shared.enhancedNoBaseline
-          )
-
-          await expect(
-            postInterventionHabitatDetailsPage.timeToTargetSectionHeading
-          ).toBeVisible()
-          await expect(
-            postInterventionHabitatDetailsPage.viewBaselineLink
-          ).toBeHidden()
         }
       )
 
@@ -1594,9 +1558,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(detailsPage.stackedSizeValue).toHaveText(LENGTH_KM_PATTERN)
         await expect(detailsPage.broadHabitatKey).toBeHidden()
         // Step 7's one behavioural difference from the Enhanced hedgerow page.
-        // The baseline upload carries HG013 too, so a ref match exists and the
-        // link would resolve — it is hidden because the Created view model
-        // forces baselineFeatureId to null, not because nothing matched.
+        // The Created view model forces baselineFeatureId to null. HG013 no
+        // longer has a ref match either (BMD-1056/BMD-1066), so this cannot
+        // tell the two apart; see the note on CREATED_LINEAR_PI_FILE.
         await expect(detailsPage.viewBaselineLink).toBeHidden()
       })
 

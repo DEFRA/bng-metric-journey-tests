@@ -9,9 +9,11 @@ every unit-type page link here rather than straight to a type-specific upload fo
 BMD-1043, frontend PR#352, the project task list and both habitat lists did; all three were
 removed.)
 
-It is also the first place the **baseline-before-post-intervention** ordering is enforced.
-Selecting post-intervention for a project with no stored baseline is rejected inline; the
-post-intervention upload route itself is still ungated, so a direct URL bypasses the check.
+There is **no ordering rule** any more. Until **BMD-1056** (frontend PR#377, 2026-10-13) the
+page rejected post-intervention for a project with no stored baseline ("Upload a baseline file
+before uploading a post intervention file"). A post-intervention GeoPackage now carries the
+baseline in its Baseline columns, and the backend derives the baseline from it (backend PR#478),
+so either type can be chosen first.
 
 ## Entry points
 
@@ -50,14 +52,21 @@ survives the round-trip through the POST and on into the chosen upload form.
 - **Auth required:** Yes (session + approved BNG Completer role — `requireBngCompleterRole`;
   redirects to `/auth/forbidden` when the role is missing, to sign-in when unauthenticated)
 - **Backend endpoint:** `GET /projects/{id}` via `fetchProject` — supplies the project name
-  caption and the `baseline` presence used by Step 2's validation
+  caption
 - **Description:** Renders H1 and page title "What would you like to upload?", the project
-  name as caption (falling back to `"Project"` when the payload carries no name), the body
-  line **"Uploading a file will overwrite any previous files you have uploaded."**, and a
-  `govukRadios` group (`name="uploadType"`, `idPrefix="uploadType"`, visually-hidden legend)
-  with two options:
-  - `baseline` — "Baseline Biodiversity Net Gain GeoPackage (.gpkg) file"
-  - `postIntervention` — "Post-intervention Biodiversity Net Gain GeoPackage (.gpkg) file"
+  name as caption (falling back to `"Project"` when the payload carries no name), two body
+  lines — **"You can either use a baseline file to check the details of your project, or a
+  post-intervention file to review its BNG status."** and **"Choose from the following
+  options:"** — and a `govukRadios` group (`name="uploadType"`, `idPrefix="uploadType"`,
+  visually-hidden legend) with two options:
+  - `baseline` — "Baseline"
+  - `postIntervention` — "Post-intervention"
+
+  BMD-1056 (frontend PR#377) replaced the earlier body line "Uploading a file will overwrite
+  any previous files you have uploaded." and the long option labels ("Baseline Biodiversity
+  Net Gain GeoPackage (.gpkg) file" / "Post-intervention Biodiversity Net Gain GeoPackage
+  (.gpkg) file"). PR#377's description spells the second option "Post-Intervention"; the
+  shipped controller (`FILE_TYPES`) has "Post-intervention".
 
   Neither radio is pre-selected on GET. Below the radios: a "Continue" button and a "Cancel"
   link. A hidden `returnUrl` input carries the sanitised return target through the POST. The
@@ -85,8 +94,8 @@ survives the round-trip through the POST and on into the chosen upload form.
 - **Route:** `POST /projects/{id}/upload-file`
 - **Template:** `src/server/upload-file/index.njk` (re-rendered on validation failure)
 - **Auth required:** Yes — same guards as Step 1
-- **Backend endpoint:** `GET /projects/{id}` — re-fetched on submit, both for the caption on
-  a re-render and to test `project.baseline` for the ordering rule below
+- **Backend endpoint:** `GET /projects/{id}` — re-fetched on submit for the caption on a
+  re-render
 - **Description:** The user picks a file type and submits. On success they are redirected to
   the matching upload form with the `returnUrl` preserved.
 - **Validation:**
@@ -100,10 +109,9 @@ survives the round-trip through the POST and on into the chosen upload form.
     summary and inline radio error: **"Select the type of file you want to upload"**
     (summary entry links to `#uploadType`). Page title becomes
     "Error: What would you like to upload?".
-  - **Post-intervention selected while `project.baseline` is absent** → re-render the same
-    way with: **"Upload a baseline file before uploading a post intervention file"**. The
-    submitted radio stays checked on the re-rendered page.
-  - Baseline has no equivalent precondition — it can always be selected.
+  - Either type can always be selected. The post-intervention-needs-a-baseline check
+    ("Upload a baseline file before uploading a post intervention file") was removed by
+    BMD-1056 (frontend PR#377).
 - **On success:**
   - `baseline` → redirect to `/projects/{id}/upload-baseline-file?returnUrl=<safe>`
   - `postIntervention` → redirect to `/projects/{id}/upload-post-intervention-file?returnUrl=<safe>`
@@ -112,19 +120,25 @@ survives the round-trip through the POST and on into the chosen upload form.
 
 ---
 
-## Consequence — replacing a baseline discards post-intervention data
+## Consequence — each upload type replaces data
 
-Backend BMD-850 (PR#219) changed `setProjectBaseline`
-(`bng-metric-backend/src/db/persist-project.js`) to write the new baseline and delete the
-`postIntervention` key in a single JSONB update (`${withBaseline} - 'postIntervention'`),
-alongside the geometry cleanup in the same upload transaction.
+**A baseline upload discards post-intervention data.** Backend BMD-850 (PR#219) changed
+`setProjectBaseline` (`bng-metric-backend/src/db/persist-project.js`) to write the new
+baseline and delete the `postIntervention` key in a single JSONB update
+(`${withBaseline} - 'postIntervention'`), alongside the geometry cleanup in the same upload
+transaction. The visible effect is on the project summary: each unit-type section offers the
+"Upload on-site post intervention file" link again, and the post-intervention pages have
+nothing to list.
 
-So choosing **baseline** here and completing that upload **silently discards any existing
-post-intervention data** for the project. The visible effect is on the project summary: each
-unit-type section offers the "Upload on-site post intervention file" link again, and the
-post-intervention pages have nothing to list. This is what the
-page's "Uploading a file will overwrite any previous files you have uploaded." line warns
-about, and it is the reason the post-intervention ordering rule exists in Step 2.
+**A post-intervention upload replaces the baseline** (BMD-1056/BMD-1066, backend PR#478,
+2026-10-13). The backend derives a baseline from the post-intervention file's Baseline columns
+and writes both documents in one transaction (`setProjectBaselineAndPostIntervention`). Any
+baseline uploaded earlier is replaced, along with any feature edits made to it. See
+[`upload-post-intervention-file.flow.md`](../upload-post-intervention/upload-post-intervention-file.flow.md)
+for which rows become the baseline.
+
+The page no longer warns about either. Its old "Uploading a file will overwrite any previous
+files you have uploaded." line was removed by frontend PR#377.
 
 ---
 
