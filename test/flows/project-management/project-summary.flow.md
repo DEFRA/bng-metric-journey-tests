@@ -208,6 +208,8 @@ Out of scope for BMD-870 per the ticket. Four of the seven have since shipped �
 | "View project details" clickthrough                              | heading + body text only, no link                                                                                                                                                                                                                                                                                                  | `[PLANNED]`     |
 | Submitting the metric                                            | not rendered                                                                                                                                                                                                                                                                                                                       | `[PLANNED]`     |
 
+All three Trading Rules links are **clicked** (not just href-checked) in `project-summary.spec.js` → "Project summary — post-intervention variant", on the shared all-unit-types post-intervention project. They are the `@happy-path` witnesses for the three trading summary pages (added 2026-10-15), so the CDP run reaches those pages without another upload.
+
 The drill-down pages are documented in [`area-summary.flow.md`](area-summary.flow.md), [`area-baseline.flow.md`](area-baseline.flow.md), [`hedgerows-summary.flow.md`](hedgerows-summary.flow.md) and [`watercourses-summary.flow.md`](watercourses-summary.flow.md).
 
 The `appProjectNavigation` and `action()` macros both branch on `item.href` / `params.*.href`, so each of these becomes a link the moment its controller supplies an href — no template change needed.
