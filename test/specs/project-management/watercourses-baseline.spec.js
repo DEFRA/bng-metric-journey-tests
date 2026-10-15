@@ -24,6 +24,7 @@ import {
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 
 const BASELINE_PATH = 'watercourses-baseline-summary'
+const LEGACY_BASELINE_PATH = 'watercourses-baseline'
 
 const UNITS_2DP = /^\d+\.\d{2}$/
 const KILOMETRES = /^\d+(\.\d+)?km$/
@@ -231,6 +232,31 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       expect(page.url()).toContain(`projectId=${project.id}`)
       expect(page.url()).toContain('featureId=')
     })
+
+    // The page moved to /watercourses-baseline-summary in BMD-862 (frontend
+    // PR#285). The old path is kept as a permanent redirect for existing
+    // links, "to be removed after the agreed migration window" — when that
+    // happens this test fails on purpose, and should be deleted with it.
+    test(
+      'the pre-BMD-862 /watercourses-baseline path redirects permanently here',
+      { tag: '@regression' },
+      async ({ page, watercoursesBaselinePage }) => {
+        const response = await page.request.get(
+          `/projects/${project.id}/${LEGACY_BASELINE_PATH}`,
+          { maxRedirects: 0 }
+        )
+        expect(response.status()).toBe(301)
+        expect(response.headers().location).toBe(
+          `/projects/${project.id}/${BASELINE_PATH}`
+        )
+
+        await page.goto(`/projects/${project.id}/${LEGACY_BASELINE_PATH}`)
+        await expect(page).toHaveURL(
+          new RegExp(`/projects/${project.id}/${BASELINE_PATH}$`)
+        )
+        await expect(watercoursesBaselinePage.heading).toBeVisible()
+      }
+    )
   })
 
   // ─── Page furniture (AC3, AC4, AC5, AC11, AC12) ──────────────────────────────

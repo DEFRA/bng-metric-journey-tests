@@ -209,6 +209,15 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         expect(
           await areaTradingSummaryPage.lowTileValue(LOW_TILES.cumulativeSurplus)
         ).toBe('166.54 units')
+        // BMD-1029 (frontend PR#387): the cumulative tile carries the Low
+        // band's status. The other two tiles carry none.
+        await expectStatusTag(
+          areaTradingSummaryPage.lowTileTag(LOW_TILES.cumulativeSurplus),
+          STATUS_MET
+        )
+        await expect(
+          areaTradingSummaryPage.lowTileTag(LOW_TILES.netChange)
+        ).toHaveCount(0)
 
         const grid = await areaTradingSummaryPage.readGridContaining(
           areaTradingSummaryPage.lowSection,
