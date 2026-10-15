@@ -786,16 +786,65 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // clicking its own tile link in area-trading-summary.spec.js says nothing
       // about this one. Its absence without a post-intervention document is
       // the deferred-elements test below.
-      test('the area habitats Trading Rules tile links to the area trading summary', async ({
-        projectSummaryPage
-      }) => {
-        await projectSummaryPage.open(project.id)
+      //
+      // The three Trading Rules click-throughs are the @happy-path witnesses
+      // for the trading summary pages: they ride this already-shared project,
+      // so the CDP run reaches all three pages without another upload.
+      test(
+        'the area habitats Trading Rules tile opens the area trading summary',
+        { tag: '@happy-path' },
+        async ({ page, projectSummaryPage, areaTradingSummaryPage }) => {
+          const target = `/projects/${project.id}/area-trading-summary`
+          await projectSummaryPage.open(project.id)
 
-        await expect(projectSummaryPage.areaTradingRulesLink()).toHaveAttribute(
-          'href',
-          `/projects/${project.id}/area-trading-summary`
-        )
-      })
+          const link = projectSummaryPage.areaTradingRulesLink()
+          await expect(link).toHaveAttribute('href', target)
+
+          await link.click()
+          await expect(page).toHaveURL(new RegExp(`${target}$`))
+          await expect(areaTradingSummaryPage.heading).toBeVisible()
+        }
+      )
+
+      // BMD-1027 / BMD-1026. hedgerows-trading-summary.spec.js and
+      // watercourses-trading-summary.spec.js follow these same links on other
+      // fixture pairs; these twins reuse this describe's project so the
+      // CDP @happy-path run covers them for free.
+      test(
+        'the hedgerows Trading Rules tile opens the hedgerows trading summary',
+        { tag: '@happy-path' },
+        async ({ page, projectSummaryPage, hedgerowsTradingSummaryPage }) => {
+          const target = `/projects/${project.id}/${HEDGEROWS_TRADING_SUMMARY_PATH}`
+          await projectSummaryPage.open(project.id)
+
+          const link = projectSummaryPage.hedgerowsTradingRulesLink()
+          await expect(link).toHaveAttribute('href', target)
+
+          await link.click()
+          await expect(page).toHaveURL(new RegExp(`${target}$`))
+          await expect(hedgerowsTradingSummaryPage.heading).toBeVisible()
+        }
+      )
+
+      test(
+        'the watercourses Trading Rules tile opens the watercourses trading summary',
+        { tag: '@happy-path' },
+        async ({
+          page,
+          projectSummaryPage,
+          watercoursesTradingSummaryPage
+        }) => {
+          const target = `/projects/${project.id}/${WATERCOURSES_TRADING_SUMMARY_PATH}`
+          await projectSummaryPage.open(project.id)
+
+          const link = projectSummaryPage.watercoursesTradingRulesLink()
+          await expect(link).toHaveAttribute('href', target)
+
+          await link.click()
+          await expect(page).toHaveURL(new RegExp(`${target}$`))
+          await expect(watercoursesTradingSummaryPage.heading).toBeVisible()
+        }
+      )
 
       // BMD-858 AC1. `project-summary/controller.test.js:828` proves the link
       // and its href against mocked data; only this proves it renders from a

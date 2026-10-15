@@ -81,7 +81,7 @@ Added 2026-10-08 by `/validate-ac-automated` against the BMD-1025 ACs. The nav c
 | AC1  | Area post intervention | ✅ `area-post-intervention.spec.js` — "the left navigation marks Post intervention as current…"                               |
 | AC2  | Area summary           | ✅ `area-summary.spec.js` — "Area habitats is current and expands to show its Baseline child"                                 |
 | AC2  | Area baseline          | ✅ `area-baseline.spec.js` — "renders the full left navigation with Baseline as the current child"                            |
-| AC3  | Project summary        | ✅ `project-summary.spec.js` — "the area habitats Trading Rules tile links to the area trading summary"                       |
+| AC3  | Project summary        | ✅ `project-summary.spec.js` — "the area habitats Trading Rules tile opens the area trading summary"                          |
 | AC3  | Area summary           | ✅ `area-trading-summary.spec.js` — "opens from "View area trading rules"…"                                                   |
 | AC3  | Area baseline          | ✅ `area-baseline.spec.js` — "a project that satisfies the trading rules reads "Met""                                         |
 | AC3  | Area post intervention | ✅ `area-post-intervention.spec.js` — "the results tiles match the project summary…"                                          |
