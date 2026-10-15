@@ -246,7 +246,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   test.describe('Change project name — unauthenticated access', () => {
     test(
-      'GET /change-project-name/{id} redirects to sign-in',
+      'GET /change-project-name/{id} redirects to access denied',
       { tag: '@smoke' },
       async ({ page }) => {
         await page.goto(
@@ -254,7 +254,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         )
 
         await expect(page).not.toHaveURL(/\/change-project-name/)
-        await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
+        await expect(page).toHaveURL(/\/auth\/forbidden$/)
       }
     )
   })

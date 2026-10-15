@@ -68,7 +68,7 @@ recompute units from the engine's encroachment multipliers (BMD-597).
   - `featureId` required, must be a valid UUID → 400 if missing or invalid
   - `projectId` required, must be a valid UUID → 400 if missing or invalid
   - BNG Completer role required → redirects to `/auth/forbidden` if missing
-  - Unauthenticated → redirects to sign-in
+  - Unauthenticated (no session) → redirects to `/auth/forbidden`
   - Feature not found → 404
   - Watercourse features are viewable (200) via the registered watercourse strategy (BMD-502); a genuinely unknown feature type → 500 (Boom.badImplementation in strategy lookup)
 - **On success:** Renders the habitat details form

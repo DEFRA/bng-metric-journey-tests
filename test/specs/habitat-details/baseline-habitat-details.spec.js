@@ -468,14 +468,14 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
   test.describe('Baseline habitat details — unauthenticated access', () => {
     test(
-      'GET /baseline-habitat-details redirects to sign-in',
+      'GET /baseline-habitat-details redirects to access denied',
       { tag: '@smoke' },
       async ({ page }) => {
         await page.goto(
           `/baseline-habitat-details?projectId=${STUB_UUID}&featureId=${STUB_UUID}`
         )
         await expect(page).not.toHaveURL(/\/baseline-habitat-details/)
-        await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
+        await expect(page).toHaveURL(/\/auth\/forbidden$/)
       }
     )
   })
@@ -549,12 +549,12 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
   test.describe('Conditions proxy — unauthenticated access', () => {
     test(
-      'GET /api/reference/conditions redirects to sign-in',
+      'GET /api/reference/conditions redirects to access denied',
       { tag: '@smoke' },
       async ({ page }) => {
         await page.goto(conditionsProxyUrl(STUB_HABITAT_TYPE))
         await expect(page).not.toHaveURL(/\/api\/reference\/conditions/)
-        await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
+        await expect(page).toHaveURL(/\/auth\/forbidden$/)
       }
     )
   })

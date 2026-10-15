@@ -64,3 +64,17 @@ without an approved BNG completer role, and login/callback failures.
 - The no-role redirect is reproducible in local/github via the stub's `no-role`
   profile; the single real Defra ID account in e2e cannot reproduce a no-role
   user, so those describes skip in e2e (see `skipInE2e` in `test/utils/env.js`).
+
+## Journey coverage
+
+| Trigger / step                                         | Spec                                                                                                                                                                                 | Run mode                        |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------- |
+| Step 2: page render, 403, return link, no Projects nav | `forbidden.spec.js`                                                                                                                                                                  | all; nav test needs a session   |
+| No session, no breadcrumb → exactly `/auth/forbidden`  | one "unauthenticated access" test per protected route (dashboard, project name, change name, project details, both habitat-details pages, error file) plus `session-timeout.spec.js` | all                             |
+| No role / non-approved (status 1) role                 | per-route no-role tests; `forbidden.spec.js` "non-approved role"                                                                                                                     | stub-only                       |
+| IdP `error=` callback; failed token exchange           | `forbidden.spec.js` "OIDC callback failures"                                                                                                                                         | not on CDP (LoginFailed metric) |
+| Callback with no pending state → `/auth/login`         | `forbidden.spec.js` "OIDC callback failures"                                                                                                                                         | not on CDP (LoginFailed metric) |
+| Login initiation (discovery) failure                   | `[BLOCKED: no stub fault hook]` — `test.skip` placeholder; `auth/controller.test.js:130` (mocked)                                                                                    | —                               |
+| Approved role on a non-current relationship            | `[BLOCKED: stub profiles have one relationship]` — `test.skip` placeholder; `verify-role.test.js:36`, `:177`                                                                         | —                               |
+
+The unauthenticated tests used to accept `/auth/forbidden` **or** `/auth/login`. They were tightened to `/auth/forbidden` on 2026-10-15, after this doc was corrected.
