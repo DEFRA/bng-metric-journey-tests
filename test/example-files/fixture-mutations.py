@@ -332,6 +332,41 @@ def build_watercourses_uplift_fixture():
         con.close()
 
 
+def build_unrecognised_riparian_fixture():
+    """`Baseline - unrecognised riparian encroachment.gpkg`: R002 riparian -> Severe/Severe.
+
+    BMD-1059 (backend PR#476) saves a blank or unrecognised encroachment as
+    null instead of reading it as "no encroachment, x1", so the watercourse is
+    Incomplete and its units are cleared. No other fixture in this repo or the
+    harness carries such a value, so this one does: a copy of `no hedgerows`
+    (three Ditches rivers, the watercourses baseline grid fixture) with R002's
+    riparian encroachment changed from "Minor/Minor" to "Severe/Severe", which
+    is not in the reference data and which normalisation leaves unchanged.
+
+    One defect only: the watercourse encroachment ("Major"), type and condition
+    are untouched, so the upload still passes validation and only that field is
+    nulled. Used by watercourses-baseline.spec.js.
+    """
+    src = EX / "Baseline - no hedgerows.gpkg"
+    dst = EX / "Baseline - unrecognised riparian encroachment.gpkg"
+    shutil.copyfile(src, dst)
+    con = sqlite3.connect(dst)
+    try:
+        update_attr(
+            con, "Rivers",
+            '"Baseline Encroachment into riparian zone"=? WHERE "Parcel Ref"=?',
+            ("Severe/Severe", "R002"),
+        )
+        con.commit()
+        rows = con.execute(
+            'SELECT "Parcel Ref", "Baseline Encroachment into Watercourse", '
+            '"Baseline Encroachment into riparian zone" FROM "Rivers"'
+        ).fetchall()
+        print(f"\nunrecognised riparian encroachment baseline:\n  Rivers: {rows}")
+    finally:
+        con.close()
+
+
 def _report(con, label, layers):
     print(f"\n{label}:")
     for table, ref in layers:
@@ -351,4 +386,5 @@ if __name__ == "__main__":
     build_created_hedgerows_fixture()
     build_created_watercourses_fixture()
     build_watercourses_uplift_fixture()
+    build_unrecognised_riparian_fixture()
     print("\nDone.")

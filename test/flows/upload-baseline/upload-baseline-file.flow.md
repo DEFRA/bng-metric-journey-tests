@@ -353,6 +353,20 @@ The copy for both dropouts is interim, pending UCD (Jack / Kyle).
 - The grid display (first 10 characters, then "…") is checked in
   `test/flows/project-management/area-baseline.flow.md`.
 
+### Import normalisation — BMD-1059 `[IMPLEMENTED]`
+
+Backend PR#476 (2026-10-13) normalises each habitat's attributes **after** validation passes and before enrichment (`normaliseImportedDocument`, called from `save-upload-for-project.js`). It never causes a dropout. The upload succeeds, and the affected features land as **Incomplete**.
+
+| Field                                                              | Rule                                                                                                                                          |
+| ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Broad habitat, habitat type, condition (every layer)               | Blank, missing or not in the engine reference data → saved as `null`. A condition prefix is stripped first                                    |
+| Watercourse and riparian encroachment                              | Blank, missing or unrecognised → `null`. It no longer counts as "no encroachment, ×1", so the feature is Incomplete and its units are cleared |
+| Null broad habitat (area habitats, trees)                          | Also nulls the habitat type                                                                                                                   |
+| Null habitat type                                                  | Also nulls condition, plus both encroachments on watercourses                                                                                 |
+| Null habitat type on the proposed side of a Post intervention file | Also nulls strategic significance, advance years and delay years                                                                              |
+
+A post-intervention file gets the same normalisation on both its `baseline` and `proposed` sides. Whether a type is valid for its broad habitat is a separate check (BMD-1060). Logging the nulled values is deferred to BMD-1072. Covered by backend `normalise-imported-attributes.test.js` and `integration-tests/import-attributes.test.js` (real files, never rendered). One journey test shows what the user sees: `watercourses-baseline.spec.js`, "unrecognised encroachment on import", using `Baseline - unrecognised riparian encroachment.gpkg`. The upload is accepted, and the watercourse has no units and an empty select (see [watercourses-baseline.flow.md](../project-management/watercourses-baseline.flow.md)). The other layers and the Post intervention side run through the same normaliser function, so they are variants with no journey test of their own.
+
 ---
 
 ### Landing — project summary (separate flow)

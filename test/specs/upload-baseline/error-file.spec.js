@@ -31,13 +31,13 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
 
   test.describe('Error file — unauthenticated access', () => {
     test(
-      'GET /error-file redirects to sign-in',
+      'GET /error-file redirects to access denied',
       { tag: '@smoke' },
       async ({ page }) => {
         await page.goto('/error-file')
 
         await expect(page).not.toHaveURL(/\/error-file/)
-        await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
+        await expect(page).toHaveURL(/\/auth\/forbidden$/)
       }
     )
   })

@@ -3,6 +3,7 @@ import { WATERCOURSES_TRADING_SUMMARY_PATH } from '@pages/watercourses-trading-s
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
+  buildBaselineOnlyProject,
   getAllUnitTypesProject,
   getBaselineOnlyProject,
   getTargetMetProject
@@ -24,6 +25,14 @@ import {
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 
 const BASELINE_PATH = 'watercourses-baseline-summary'
+const LEGACY_BASELINE_PATH = 'watercourses-baseline'
+
+// `Baseline - no hedgerows.gpkg` with R002's riparian encroachment changed to
+// "Severe/Severe" — built by `build_unrecognised_riparian_fixture()` in
+// test/example-files/fixture-mutations.py.
+const UNRECOGNISED_RIPARIAN_FILE =
+  'Baseline - unrecognised riparian encroachment.gpkg'
+const UNRECOGNISED_RIPARIAN_REF = 'R002'
 
 const UNITS_2DP = /^\d+\.\d{2}$/
 const KILOMETRES = /^\d+(\.\d+)?km$/
@@ -231,6 +240,31 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       expect(page.url()).toContain(`projectId=${project.id}`)
       expect(page.url()).toContain('featureId=')
     })
+
+    // The page moved to /watercourses-baseline-summary in BMD-862 (frontend
+    // PR#285). The old path is kept as a permanent redirect for existing
+    // links, "to be removed after the agreed migration window" — when that
+    // happens this test fails on purpose, and should be deleted with it.
+    test(
+      'the pre-BMD-862 /watercourses-baseline path redirects permanently here',
+      { tag: '@regression' },
+      async ({ page, watercoursesBaselinePage }) => {
+        const response = await page.request.get(
+          `/projects/${project.id}/${LEGACY_BASELINE_PATH}`,
+          { maxRedirects: 0 }
+        )
+        expect(response.status()).toBe(301)
+        expect(response.headers().location).toBe(
+          `/projects/${project.id}/${BASELINE_PATH}`
+        )
+
+        await page.goto(`/projects/${project.id}/${LEGACY_BASELINE_PATH}`)
+        await expect(page).toHaveURL(
+          new RegExp(`/projects/${project.id}/${BASELINE_PATH}$`)
+        )
+        await expect(watercoursesBaselinePage.heading).toBeVisible()
+      }
+    )
   })
 
   // ─── Page furniture (AC3, AC4, AC5, AC11, AC12) ──────────────────────────────
@@ -469,6 +503,77 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expect(
           watercoursesBaselinePage.tradingRulesLink()
         ).toHaveAttribute('href', tradingSummaryHref)
+      })
+    }
+  )
+
+  // ─── Unrecognised encroachment on import (BMD-1059) ─────────────────────────
+  //
+  // Since backend PR#476 an encroachment the reference data does not recognise
+  // is saved as null instead of being read as "no encroachment, x1": the
+  // watercourse is Incomplete and gets no units. The upload is NOT rejected.
+  // `integration-tests/import-attributes.test.js:103` and `:157` prove the null
+  // and the Incomplete status from a real file, but never render. The frontend
+  // shows no "Incomplete" label anywhere, so what the user sees is only this:
+  // a blank Units cell, a total without it, and an empty select to fix it with.
+  // Sole witness that the cleared units and the nulled field reach the page.
+  test.describe(
+    'Watercourses baseline — unrecognised encroachment on import',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      let project
+      test.beforeAll(async ({ browser }) => {
+        // Accepted, not rejected: the build waits for the project summary and
+        // would time out on the error-file dropout.
+        project = await buildBaselineOnlyProject(
+          browser,
+          UNRECOGNISED_RIPARIAN_FILE
+        )
+      })
+
+      test('a watercourse with an unrecognised riparian encroachment is listed without units and asks for the value', async ({
+        page,
+        watercoursesBaselinePage,
+        baselineHabitatDetailsPage
+      }) => {
+        await watercoursesBaselinePage.open(project.id)
+
+        const refs = await watercoursesBaselinePage.columnValues('ref')
+        const units = await watercoursesBaselinePage.columnValues('units')
+        expect(refs).toEqual(['R001', UNRECOGNISED_RIPARIAN_REF, 'R003'])
+
+        const index = refs.indexOf(UNRECOGNISED_RIPARIAN_REF)
+        expect(units[index].trim()).toBe('')
+        const others = units.filter((_, i) => i !== index)
+        for (const value of others) {
+          expect(value).toMatch(UNITS_2DP)
+        }
+
+        // The cleared units must not be counted: the total is the other two.
+        const totalsUnits = Number(
+          await watercoursesBaselinePage.totalsCell('units').innerText()
+        )
+        expect(totalsUnits).toBeCloseTo(
+          others.reduce((sum, value) => sum + Number(value), 0),
+          1
+        )
+
+        await watercoursesBaselinePage
+          .refLink(UNRECOGNISED_RIPARIAN_REF)
+          .click()
+        await page.waitForURL(/\/baseline-habitat-details\?/)
+
+        // Only the unrecognised field is nulled — the river's valid
+        // watercourse encroachment ("Major") survives the import.
+        await expect(
+          baselineHabitatDetailsPage.riparianEncroachmentSelect
+        ).toHaveValue('')
+        await expect(
+          baselineHabitatDetailsPage.watercourseEncroachmentSelect
+        ).toHaveValue('Major')
       })
     }
   )

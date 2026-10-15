@@ -164,11 +164,11 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     'Define project name — unauthenticated access',
     { tag: '@smoke' },
     () => {
-      test('GET /project-name redirects to sign-in', async ({ page }) => {
+      test('GET /project-name redirects to access denied', async ({ page }) => {
         await page.goto('/project-name')
 
         await expect(page).not.toHaveURL(/\/project-name/)
-        await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
+        await expect(page).toHaveURL(/\/auth\/forbidden$/)
       })
     }
   )

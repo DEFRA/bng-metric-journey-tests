@@ -110,6 +110,10 @@ export class AreaTradingSummaryPage extends BasePage {
     return readTileValue(this.lowSection, heading)
   }
 
+  lowTileTag(heading) {
+    return tagIn(tile(this.lowSection, heading))
+  }
+
   /** Column headings then every body and footer row, as trimmed cell text. */
   async readGrid(table) {
     const headers = await table.getByRole('columnheader').allInnerTexts()

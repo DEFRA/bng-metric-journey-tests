@@ -32,7 +32,12 @@ export default defineConfig({
   // e2e runs against a live environment (CDP entrypoint runs test:e2e without
   // CI=true) — give it one retry to absorb transient real-env slowness.
   retries: process.env.CI || runMode === 'e2e' ? 1 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // e2e signs every worker into ONE real Defra ID session, and the pending
+  // upload id is a single key in that session — parallel workers' uploads
+  // clobber it (wrong file imported) and contend for the CDP Uploader past the
+  // frontend's 120s ceiling. One worker also lets the shared-project cache
+  // (utils/summary-projects.js) dedupe builds across spec files.
+  workers: process.env.CI || runMode === 'e2e' ? 1 : undefined,
 
   // CDP Portal hard-kills runs at 2 hours
   globalTimeout: 2 * 60 * 60 * 1000,

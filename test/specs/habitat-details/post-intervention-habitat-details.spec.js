@@ -648,14 +648,14 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
   test.describe('Post-intervention habitat details — unauthenticated access', () => {
     test(
-      'GET /post-intervention-habitat-details redirects to sign-in',
+      'GET /post-intervention-habitat-details redirects to access denied',
       { tag: '@smoke' },
       async ({ page }) => {
         await page.goto(
           detailsUrl({ projectId: STUB_UUID, featureId: STUB_UUID })
         )
         await expect(page).not.toHaveURL(DETAILS_URL_PATTERN)
-        await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
+        await expect(page).toHaveURL(/\/auth\/forbidden$/)
       }
     )
   })
