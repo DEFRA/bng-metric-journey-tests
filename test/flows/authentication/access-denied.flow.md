@@ -11,12 +11,18 @@ without an approved BNG completer role, and login/callback failures.
 ### Step 1 — Forbidden redirect triggers `[IMPLEMENTED]`
 
 - **Route:** Redirect to `GET /auth/forbidden`, triggered by one of:
-  - the session auth scheme (`auth-scheme.js`) when a protected route has no
-    authenticated session;
+  - the session auth scheme (`auth-scheme.js`) when a **required-auth** route
+    has no authenticated session **and** no `sessionEnded` breadcrumb. With the
+    breadcrumb (an expired session was already ended on an earlier request) it
+    redirects to `/auth/session-expired` instead — see
+    [session-expired](session-expired.flow.md). `try`-mode routes (the home
+    page) never redirect; they continue unauthenticated and render signed-out;
   - the `requireBngCompleterRole` pre-handler (`verify-role.js`) when an
     authenticated user lacks the `bng completer` role (used by protected routes,
     e.g. `projects`, `project-name`);
-  - login/callback OIDC failures (`auth/controller.js`).
+  - login initiation failure, an IdP `error=` response on the callback, or a
+    failed token exchange (`auth/controller.js`). A callback with **no pending
+    OIDC state** in the session redirects to `/auth/login`, not here.
 - **Template:** None (redirect only)
 - **Auth required:** N/A (this is the failure path)
 - **Backend endpoint:** None
@@ -28,7 +34,8 @@ without an approved BNG completer role, and login/callback failures.
   **and** the trailing status must be `3` (APPROVED). Statuses `1,2,4,5,6,7`
   (pending/rejected/removed) and any non-integer or out-of-range (not 1–7) status
   are treated as unauthorised. When the token carries a `currentRelationshipId`,
-  the approved role must belong to that relationship; otherwise any approved
+  the approved role must belong to that relationship (compared case-insensitively —
+  both sides are trimmed and lower-cased by `canonicalRelationshipId`); otherwise any approved
   `bng completer` role suffices. (Mirrors the backend RBAC — see `verify-role.js`.)
 - **On success:** Redirects to `/auth/forbidden`
 - **On error:** N/A
