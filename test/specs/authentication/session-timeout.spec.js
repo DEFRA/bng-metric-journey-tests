@@ -10,8 +10,11 @@ test.describe('authentication', { tag: '@authentication' }, () => {
   // ─── Session expiry ──────────────────────────────────────────────────────────
   // A timed-out session (4-hour TTL) leaves the user without a valid session
   // cookie. The silent access-token refresh is unit-tested in the frontend
-  // (refresh-session.js); here we cover the forced re-sign-in fallback: once the
-  // session is gone, a protected route must bounce the user back to sign-in.
+  // (refresh-session.js); here we cover what happens once the session is gone.
+  // Clearing the cookie leaves no `sessionEnded` breadcrumb either, so the
+  // auth scheme cannot tell this browser from one that never signed in and
+  // sends it to /auth/forbidden — not to /auth/session-expired, which needs the
+  // breadcrumb (see session-expired.spec.js).
   // Clearing the cookie client-side mimics expiry without resetting the shared
   // server-side session, so it does not poison STORAGE_STATE for other tests.
 
@@ -20,7 +23,7 @@ test.describe('authentication', { tag: '@authentication' }, () => {
     test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
     test(
-      'a protected route redirects to sign-in once the session cookie is gone',
+      'a protected route is denied once the session cookie is gone',
       { tag: '@regression' },
       async ({ homePage, page }) => {
         await homePage.open()
@@ -32,7 +35,7 @@ test.describe('authentication', { tag: '@authentication' }, () => {
         await page.goto('/manage-projects')
 
         await expect(page).not.toHaveURL(/\/manage-projects/)
-        await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
+        await expect(page).toHaveURL(/\/auth\/forbidden$/)
       }
     )
   })

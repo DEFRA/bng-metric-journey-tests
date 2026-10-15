@@ -30,7 +30,7 @@ Added by **BMD-1024** (frontend PR#332, 2026-09-28). The links into it came from
   | One grid per broad habitat | `<h3>{broad habitat}</h3>`, columns "Habitat type" / "Unit change", a row per Medium habitat type (type shown without its broad-habitat prefix), totals row "Total broad habitat change"                                                                    |
   | Intertidal grid            | when the backend's merged group "Intertidal sediment and hard structures" is present: `<h3>Intertidal sediment and Intertidal hard structures</h3>`, columns "Broad habitat" / "Habitat type" / "On-site unit change", totals row with an empty middle cell |
 
-  **Low distinctiveness** (only when a Low habitat is present) — `<h2>`, three tiles ("Low distinctiveness net change in units", "Medium units available to offset low distinctiveness deficit", "Cumulative surplus of units", each `{n} units`), then one grid with "Broad habitat" / "Habitat type" / "On-site unit change" and a "Total on-site unit change" row.
+  **Low distinctiveness** (only when a Low habitat is present) — `<h2>`, three tiles ("Low distinctiveness net change in units", "Medium units available to offset low distinctiveness deficit", "Cumulative surplus of units", each `{n} units`; the cumulative tile also carries the Low status tag — BMD-1029, frontend PR#387, 2026-10-14), then one grid with "Broad habitat" / "Habitat type" / "On-site unit change" and a "Total on-site unit change" row.
 
   **Display rounding vs. the verdict.** Values render to 2 dp, but the statuses are decided by the backend on full precision. A Medium deficit of a fraction of a unit therefore reads **"0.00 units" beside a red "Not met"** (seen with the IGGI fixture pair). That is the AC's `< 0` rule working, not a bug — but a test pinning "0.00 ⇒ Met" would be wrong.
 
@@ -81,7 +81,7 @@ Added 2026-10-08 by `/validate-ac-automated` against the BMD-1025 ACs. The nav c
 | AC1  | Area post intervention | ✅ `area-post-intervention.spec.js` — "the left navigation marks Post intervention as current…"                               |
 | AC2  | Area summary           | ✅ `area-summary.spec.js` — "Area habitats is current and expands to show its Baseline child"                                 |
 | AC2  | Area baseline          | ✅ `area-baseline.spec.js` — "renders the full left navigation with Baseline as the current child"                            |
-| AC3  | Project summary        | ✅ `project-summary.spec.js` — "the area habitats Trading Rules tile links to the area trading summary"                       |
+| AC3  | Project summary        | ✅ `project-summary.spec.js` — "the area habitats Trading Rules tile opens the area trading summary"                          |
 | AC3  | Area summary           | ✅ `area-trading-summary.spec.js` — "opens from "View area trading rules"…"                                                   |
 | AC3  | Area baseline          | ✅ `area-baseline.spec.js` — "a project that satisfies the trading rules reads "Met""                                         |
 | AC3  | Area post intervention | ✅ `area-post-intervention.spec.js` — "the results tiles match the project summary…"                                          |

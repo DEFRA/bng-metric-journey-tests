@@ -257,13 +257,13 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   test.describe('Project dashboard — unauthenticated access', () => {
     test(
-      'GET /manage-projects redirects to sign-in',
+      'GET /manage-projects redirects to access denied',
       { tag: '@smoke' },
       async ({ page }) => {
         await page.goto('/manage-projects')
 
         await expect(page).not.toHaveURL(/\/manage-projects/)
-        await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
+        await expect(page).toHaveURL(/\/auth\/forbidden$/)
       }
     )
   })

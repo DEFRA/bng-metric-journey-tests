@@ -12,7 +12,8 @@ Each page still passes its **own** habitat key (`watercourses`) and unit field (
 
 ### Step 1 — View the watercourses baseline `[IMPLEMENTED]`
 
-- **Route:** `GET /projects/{id}/watercourses-baseline`
+- **Route:** `GET /projects/{id}/watercourses-baseline-summary`
+  - **Legacy route:** `GET /projects/{id}/watercourses-baseline` declared by `watercoursesBaselineLegacy` (`watercourses-baseline/index.js`) returns a **301** to `/projects/{id}/watercourses-baseline-summary` (`WATERCOURSES_BASELINE_PATH`; the page moved there in BMD-862, frontend PR#285, 2026-09-15). It exists for pre-BMD-862 links and is marked "Remove after the agreed migration window"; it renders nothing itself.
 - **Template:** `src/server/common/templates/habitat-baseline-page.njk` (extends `common/templates/unit-type-page.njk`) — shared by all three baseline pages
 - **Auth required:** Yes — active session + an **approved (status 3)** `bng completer` role (`requireBngCompleterRole` pre-method)
 - **Backend endpoint:** `GET /projects/{id}` (via `fetchProjectOrThrow`)
@@ -64,11 +65,15 @@ The engine cannot score every combination the import accepts. `bng-metric-engine
 
 and is skipped by `sumFinite`, so the totals row and the tile above still agree with each other. `Baseline - all unit and intervention types.gpkg` carries two of these (R001 and R008, both Culvert/Good), which is why the grid assertions in the journey spec run against `Baseline - no hedgerows.gpkg` instead — BMD-861's ACs are all written under a precondition that units were calculated for every watercourse. Whether the import should reject the combination is an open question for the service team, raised from the BMD-861 evidence run on 2026-09-07.
 
+#### Missing or unrecognised encroachment — BMD-1059
+
+Since backend PR#476 (2026-10-13), a watercourse whose Watercourse or Riparian encroachment is blank, missing or not a recognised label is saved with that field **null**. It no longer means "no encroachment, ×1". The engine cannot price it, so the feature is **Incomplete**, and its previously stored units are cleared before the project totals are recalculated. In this grid such a row renders like the Culvert rows above: an empty Units cell, and it is left out of the totals. The same applies to an existing project when it is re-enriched, for example by a Post intervention resync after a baseline edit. An unrecognised habitat type is also saved as null, and that clears its condition and both encroachments. The backend covers the rule in `normalise-imported-attributes.test.js` and, from a real file, in `import-attributes.test.js`. The journey witness is `watercourses-baseline.spec.js`, "Watercourses baseline — unrecognised encroachment on import". It uploads `Baseline - unrecognised riparian encroachment.gpkg` (R002 riparian set to `Severe/Severe`, built by `fixture-mutations.py`) and checks three things: R002 has a blank Units cell, the totals row sums only R001 and R003, and R002's details page shows an empty Riparian encroachment select while keeping its valid watercourse encroachment, "Major".
+
 ---
 
 ### Step 2 — Redirect a project with no baseline to the project summary `[IMPLEMENTED]`
 
-- **Route:** `GET /projects/{id}/watercourses-baseline` (the guard branch)
+- **Route:** `GET /projects/{id}/watercourses-baseline-summary` (the guard branch)
 - **Template:** None (302)
 - **Auth required:** Yes — as Step 1
 - **Backend endpoint:** `GET /projects/{id}`
@@ -94,12 +99,12 @@ and is skipped by `sumFinite`, so the totals row and the tile above still agree 
 
 ## Entry points
 
-| From                                                           | Href                                   | When                                                                          |
-| -------------------------------------------------------------- | -------------------------------------- | ----------------------------------------------------------------------------- |
-| Watercourses summary — nav Baseline child                      | `/projects/{id}/watercourses-baseline` | always (the child renders whenever Watercourses is the current section)       |
-| Watercourses summary — "View on-site watercourses baseline"    | `/projects/{id}/watercourses-baseline` | always — **added by PR#266**; the tile was inert before it                    |
-| Project summary — Watercourses section baseline tile           | `/projects/{id}/watercourses-baseline` | only when the Watercourses section renders, i.e. the project has watercourses |
-| Any unit-type page nav — Watercourses, then its Baseline child | `/projects/{id}/watercourses-baseline` | two clicks; the child expands only once Watercourses is current               |
+| From                                                           | Href                                           | When                                                                          |
+| -------------------------------------------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------- |
+| Watercourses summary — nav Baseline child                      | `/projects/{id}/watercourses-baseline-summary` | always (the child renders whenever Watercourses is the current section)       |
+| Watercourses summary — "View on-site watercourses baseline"    | `/projects/{id}/watercourses-baseline-summary` | always — **added by PR#266**; the tile was inert before it                    |
+| Project summary — Watercourses section baseline tile           | `/projects/{id}/watercourses-baseline-summary` | only when the Watercourses section renders, i.e. the project has watercourses |
+| Any unit-type page nav — Watercourses, then its Baseline child | `/projects/{id}/watercourses-baseline-summary` | two clicks; the child expands only once Watercourses is current               |
 
 There is **no back link**; the left navigation is the only way up.
 
