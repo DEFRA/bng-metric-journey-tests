@@ -524,13 +524,13 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     'Project details — unauthenticated access',
     { tag: '@smoke' },
     () => {
-      test('GET /project-details/{id} redirects to sign-in', async ({
+      test('GET /project-details/{id} redirects to access denied', async ({
         page
       }) => {
         await page.goto(`/project-details/${VALID_UUID_V4}`)
 
         await expect(page).not.toHaveURL(/\/project-details/)
-        await expect(page).toHaveURL(/\/auth\/forbidden|\/auth\/login/)
+        await expect(page).toHaveURL(/\/auth\/forbidden$/)
       })
     }
   )
