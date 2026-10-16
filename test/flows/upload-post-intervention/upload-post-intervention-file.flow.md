@@ -225,6 +225,17 @@ Journey coverage (`upload-post-intervention.spec.js`, BMD-1056 automated validat
   writes neither document. The baseline equivalent lives in `upload-baseline.spec.js`.
 - **`NO_DERIVED_BASELINE_HABITATS`** `[NOT COVERED]`. There is no fixture, and the ticket's
   ACs are happy-path only.
+- **Lost hedgerows, watercourses and trees stay in the derived baseline; Created ones never
+  enter it** (BMD-1066 AC1–AC3) `[COVERED]`. See _Lost/Created split_. The project uploads
+  `Baseline - created linear features.gpkg` first, which carries the Created refs too, so
+  their absence proves the baseline was replaced. The Lost refs that remain can only have come
+  from the derivation. The test also checks one Lost row per type against the file's
+  Baseline columns.
+- **Retained, Enhanced and Created linear features reach the post-intervention grids, and
+  Lost ones do not** (BMD-1066 AC4–AC6) `[COVERED]`. Hedgerows:
+  `hedgerows-post-intervention.spec.js`. Watercourses: `watercourses-post-intervention.spec.js`.
+  Retained/Enhanced trees: `area-post-intervention.spec.js`. The **Created** tree (T005) is
+  checked in _Lost/Created split_, the only journey test that does so.
 
 ---
 

@@ -132,6 +132,22 @@ export class HedgerowsBaselinePage extends BasePage {
       .allInnerTexts()
   }
 
+  /** One feature row's cells, keyed by the column names above, found by its Ref. */
+  async rowValues(reference) {
+    const cells = await this.featureRows()
+      .filter({
+        has: this.page.getByRole('link', { name: reference, exact: true })
+      })
+      .locator('td')
+      .allInnerTexts()
+    return Object.fromEntries(
+      Object.entries(COLUMN).map(([column, index]) => [
+        column,
+        cells[index]?.trim()
+      ])
+    )
+  }
+
   totalsCell(column) {
     return this.totalsRow().locator('td').nth(COLUMN[column])
   }

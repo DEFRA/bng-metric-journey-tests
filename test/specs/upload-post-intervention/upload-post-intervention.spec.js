@@ -11,6 +11,7 @@ import { UploadPostInterventionFileFlow } from '@flows/upload-post-intervention/
 import { ProjectDashboardPage } from '@pages/project-dashboard.page.js'
 import { ErrorFilePage } from '@pages/error-file.page.js'
 import { findPiRef, openPiTabFor } from '@utils/post-intervention-grid.js'
+import { getLinearInterventionTypesProject } from '@utils/summary-projects.js'
 import {
   AREA_HABITATS,
   HEDGEROWS,
@@ -75,6 +76,50 @@ const MISSING_BASELINE_TYPE_FILE =
 const BASELINE_TYPE_MISSING_COPY =
   'Some retained or enhanced habitats have no baseline habitat type'
 const BASELINE_HEDGEROW_REFS = ['HR1', 'HR2']
+
+// BMD-1066's Lost/Created split, read from the PI half of
+// `getLinearInterventionTypesProject` (`Post-intervention - created linear
+// features.gpkg`). The project uploads `Baseline - created linear features.gpkg`
+// first, and that file carries the Created refs below too, so their absence
+// is what proves the derived baseline replaced it.
+const SPLIT_LOST_HEDGEROW_REFS = ['HG001', 'HG002', 'HG003', 'HG011', 'HG014']
+const SPLIT_CREATED_HEDGEROW_REFS = ['HG005', 'HG010', 'HG013', 'HG018']
+const SPLIT_BASELINE_HEDGEROW_COUNT = 14
+const SPLIT_BASELINE_WATERCOURSE_REFS = ['R001', 'R002']
+const SPLIT_LOST_TREE_REFS = [
+  'T001',
+  'T006',
+  'T009',
+  'T010',
+  'T015',
+  'T016',
+  'T019',
+  'T022'
+]
+const SPLIT_CREATED_TREE_REF = 'T005'
+const SPLIT_BASELINE_TREE_COUNT = 26
+const TREE_REF = /^T\d+$/
+// One Lost row per type, as its Baseline columns read in the PI file. Sizes
+// are geometry-derived, so they are compared to the Length column loosely.
+const SPLIT_LOST_HEDGEROW = {
+  ref: 'HG002',
+  habitatType: 'Native hedgerow with trees',
+  condition: 'Good (3)',
+  km: 0.145
+}
+const SPLIT_LOST_WATERCOURSE = {
+  ref: 'R002',
+  habitatType: 'Canals',
+  condition: 'Good (3)',
+  km: 0.083
+}
+// BNG-587: a Small tree's size is the band's fixed area.
+const SPLIT_LOST_TREE = {
+  ref: 'T001',
+  size: '0.0041ha',
+  condition: 'Fairly Good (2.5)'
+}
+const KM_PRECISION = 2
 const METRIC_TOOL_URL =
   'https://www.gov.uk/government/publications/statutory-biodiversity-metric-tools-and-guides'
 const ERROR_FILE_URL = '/error-file'
@@ -226,6 +271,100 @@ function describePostInterventionReplacement() {
           'href',
           `/projects/${id}/project-summary`
         )
+      })
+    }
+  )
+}
+
+// ─── Lost/Created split for hedgerows, watercourses and trees (BMD-1066) ─────
+
+function expectLinearRowMatchesFile(row, expected) {
+  expect(row.habitatType).toBe(expected.habitatType)
+  expect(row.condition).toBe(expected.condition)
+  expect(Number.parseFloat(row.size)).toBeCloseTo(expected.km, KM_PRECISION)
+}
+
+// Sole browser witness that a post-intervention upload keeps Lost hedgerows,
+// watercourses and trees in the baseline it derives (AC1-AC3), and the only
+// journey test that pins a Created tree in a post-intervention grid (AC6).
+// The derivation is `derivedBaselineLayers` -> `isBaselineRow(..., { strict:
+// true })` in the backend's save-upload-for-project.js / baseline-rows.js.
+// `baseline-rows.test.js` covers the rule on hand-built features, and
+// integration `post-intervention-persistence.test.js` ("AC5 creates the
+// baseline from Lost, Retained and Enhanced rows...") on a real file, but it
+// checks refs and counts only: no row's values, and no tree by ref. Deleting
+// this test leaves nothing that shows the derived rows reach the baseline
+// pages. It becomes redundant once that integration test asserts a Lost row's
+// fields per type and the post-intervention tree refs. The Retained/Enhanced/
+// Created hedgerow and watercourse grids (AC4, AC5) are covered in their own
+// post-intervention specs.
+function describeLinearAndTreeSplit() {
+  test.describe(
+    'Upload post-intervention — Lost/Created split for hedgerows, watercourses and trees',
+    { tag: '@regression' },
+    () => {
+      test('Lost features stay in the derived baseline, Created ones reach only the post-intervention grids', async ({
+        browser,
+        hedgerowsBaselinePage,
+        watercoursesBaselinePage,
+        areaBaselinePage,
+        areaPostInterventionPage
+      }) => {
+        // Two real uploads back this project when no earlier spec in the
+        // worker has built it.
+        test.setTimeout(UPLOAD_TIMEOUT * 2)
+        const { id } = await getLinearInterventionTypesProject(browser)
+
+        // AC1: hedgerows.
+        await hedgerowsBaselinePage.open(id)
+        const hedgerowRefs = await hedgerowsBaselinePage.columnValues('ref')
+        expect(hedgerowRefs).toHaveLength(SPLIT_BASELINE_HEDGEROW_COUNT)
+        expect(hedgerowRefs).toEqual(
+          expect.arrayContaining(SPLIT_LOST_HEDGEROW_REFS)
+        )
+        for (const ref of SPLIT_CREATED_HEDGEROW_REFS) {
+          expect(hedgerowRefs).not.toContain(ref)
+        }
+        const hedgerow = await hedgerowsBaselinePage.rowValues(
+          SPLIT_LOST_HEDGEROW.ref
+        )
+        expectLinearRowMatchesFile(hedgerow, SPLIT_LOST_HEDGEROW)
+
+        // AC2: watercourses. R003 is Created.
+        await watercoursesBaselinePage.open(id)
+        expect(await watercoursesBaselinePage.columnValues('ref')).toEqual(
+          SPLIT_BASELINE_WATERCOURSE_REFS
+        )
+        const watercourse = await watercoursesBaselinePage.rowValues(
+          SPLIT_LOST_WATERCOURSE.ref
+        )
+        expectLinearRowMatchesFile(watercourse, SPLIT_LOST_WATERCOURSE)
+
+        // AC3: trees share the area baseline table with the habitat parcels.
+        await areaBaselinePage.open(id)
+        const treeRefs = (await areaBaselinePage.columnValues('ref')).filter(
+          (ref) => TREE_REF.test(ref)
+        )
+        expect(treeRefs).toHaveLength(SPLIT_BASELINE_TREE_COUNT)
+        expect(treeRefs).toEqual(expect.arrayContaining(SPLIT_LOST_TREE_REFS))
+        expect(treeRefs).not.toContain(SPLIT_CREATED_TREE_REF)
+        const tree = await areaBaselinePage.rowValues(SPLIT_LOST_TREE.ref)
+        expect(tree.size).toBe(SPLIT_LOST_TREE.size)
+        expect(tree.condition).toBe(SPLIT_LOST_TREE.condition)
+
+        // AC6: the Created tree reaches the Created grid, and no Lost tree
+        // reaches any grid.
+        await areaPostInterventionPage.open(id)
+        for (const label of ['Retained', 'Enhanced', 'Created']) {
+          await areaPostInterventionPage.tab(label).click()
+          const refs = await areaPostInterventionPage.columnValues(label, 'Ref')
+          for (const ref of SPLIT_LOST_TREE_REFS) {
+            expect(refs, `Lost ${ref} in the ${label} grid`).not.toContain(ref)
+          }
+          if (label === 'Created') {
+            expect(refs).toContain(SPLIT_CREATED_TREE_REF)
+          }
+        }
       })
     }
   )
@@ -734,6 +873,7 @@ test.describe(
 
     describeHappyPath()
     describePostInterventionReplacement()
+    describeLinearAndTreeSplit()
     describeFailedReplacement()
     describeNoPendingUpload()
     describeFormatError()
