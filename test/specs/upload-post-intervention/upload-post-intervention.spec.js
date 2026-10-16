@@ -11,7 +11,11 @@ import { UploadPostInterventionFileFlow } from '@flows/upload-post-intervention/
 import { ProjectDashboardPage } from '@pages/project-dashboard.page.js'
 import { ErrorFilePage } from '@pages/error-file.page.js'
 import { findPiRef, openPiTabFor } from '@utils/post-intervention-grid.js'
-import { AREA_HABITATS } from '@utils/unit-type-labels.js'
+import {
+  AREA_HABITATS,
+  HEDGEROWS,
+  TILE_BASELINE
+} from '@utils/unit-type-labels.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const PROJECT_LABEL = 'Upload post-intervention flow test'
@@ -63,6 +67,14 @@ const MISSING_HABITAT_REF_FILE = 'Post-intervention - missing habitat ref.gpkg'
 const HABITAT_REF_MISSING_COPY = 'All habitats must have a reference'
 const ADVANCE_AND_DELAY_COPY =
   'A habitat has both advance and delayed creation set'
+// BMD-1066 (harness PR#161). The valid all-types post-intervention file with
+// the Baseline type cleared on five Retained or Enhanced rows: H002 (blank),
+// H004 (N/A), HG011 ((no selection)), R003 (Null), T002 (blank).
+const MISSING_BASELINE_TYPE_FILE =
+  'Post-intervention - blank and placeholder baseline types on every layer.gpkg'
+const BASELINE_TYPE_MISSING_COPY =
+  'Some retained or enhanced habitats have no baseline habitat type'
+const BASELINE_HEDGEROW_REFS = ['HR1', 'HR2']
 const METRIC_TOOL_URL =
   'https://www.gov.uk/government/publications/statutory-biodiversity-metric-tools-and-guides'
 const ERROR_FILE_URL = '/error-file'
@@ -102,11 +114,17 @@ function describeHappyPath() {
         await expect(
           projectSummaryPage.uploadPostInterventionLink(AREA_HABITATS)
         ).toBeVisible()
+        await expect(projectSummaryPage.unitSection(HEDGEROWS)).toBeVisible()
 
         await uploadPostInterventionFileFlow.uploadFileAndWaitForSummary(
           id,
           COMPLETE_FILE
         )
+
+        // BMD-1056 AC6: the upload replaced the uploaded baseline with one
+        // derived from COMPLETE_FILE, which has no Hedgerows layer. The
+        // baseline file's HR1/HR2 are gone rather than kept alongside it.
+        await expect(projectSummaryPage.unitSection(HEDGEROWS)).toHaveCount(0)
 
         // The post-intervention document is stored: the summary stops offering
         // its upload, and the file's parcels are listed on the area habitats
@@ -208,6 +226,88 @@ function describePostInterventionReplacement() {
           'href',
           `/projects/${id}/project-summary`
         )
+      })
+    }
+  )
+}
+
+// ─── Failed replacement preserves the stored project ─────────────────────────
+
+// BMD-1056 AC10: a post-intervention file with dropout errors leaves "the
+// project data ... as it was before the failed upload". Every other
+// post-intervention rejection in this file starts from an empty project, so
+// none of them could tell a no-op from a wipe.
+//
+// Sole witness that a rejected post-intervention upload writes neither
+// document, and the only journey test that reaches BASELINE_TYPE_MISSING. A PI
+// upload replaces the baseline and the post-intervention document together
+// (setProjectBaselineAndPostIntervention), so a validation step moved after
+// that write would silently destroy the stored baseline. That is a different
+// path from the baseline equivalent in upload-baseline.spec.js. The backend
+// unit test (save-upload-for-project.test.js, "rejects a Retained or Enhanced
+// row that has no baseline type") mocks persistence and hand-builds its rows;
+// single-error-copy.test.js is handed a fabricated error. Do not delete
+// without an integration test that uploads this fixture into a populated
+// project and asserts both stored documents are untouched.
+function describeFailedReplacement() {
+  test.describe(
+    'Upload post-intervention — failed replacement',
+    { tag: '@regression' },
+    () => {
+      test('a file with a missing baseline habitat type is rejected and leaves the existing baseline intact', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        uploadPostInterventionFileFlow,
+        projectSummaryPage,
+        hedgerowsBaselinePage,
+        errorFilePage,
+        page
+      }) => {
+        // Two real uploads back this test.
+        test.setTimeout(UPLOAD_TIMEOUT * 2)
+
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
+        )
+        await uploadBaselineFileFlow.uploadFileAndWaitForSummary(
+          id,
+          HEDGEROW_BASELINE_FILE
+        )
+        const baselineUnits = await projectSummaryPage.tileValue(
+          AREA_HABITATS,
+          TILE_BASELINE
+        )
+
+        await uploadPostInterventionFileFlow.uploadFile(
+          id,
+          MISSING_BASELINE_TYPE_FILE
+        )
+        await page.waitForURL(ERROR_FILE_URL, { timeout: UPLOAD_TIMEOUT })
+
+        await expect(errorFilePage.geopackageErrorHeading).toBeVisible()
+        await expect(page.getByText(BASELINE_TYPE_MISSING_COPY)).toBeVisible()
+        await expect(errorFilePage.uploadNewFileLink).toHaveAttribute(
+          'href',
+          `/projects/${id}/upload-post-intervention-file`
+        )
+
+        // Nothing was written: the uploaded baseline is still stored, and no
+        // post-intervention document exists, so the summary still offers that
+        // upload.
+        await projectSummaryPage.open(id)
+        expect(
+          await projectSummaryPage.tileValue(AREA_HABITATS, TILE_BASELINE)
+        ).toBe(baselineUnits)
+        await expect(
+          projectSummaryPage.uploadPostInterventionLink(AREA_HABITATS)
+        ).toBeVisible()
+        await hedgerowsBaselinePage.open(id)
+        for (const ref of BASELINE_HEDGEROW_REFS) {
+          await expect(hedgerowsBaselinePage.refLink(ref)).toBeVisible()
+        }
       })
     }
   )
@@ -634,6 +734,7 @@ test.describe(
 
     describeHappyPath()
     describePostInterventionReplacement()
+    describeFailedReplacement()
     describeNoPendingUpload()
     describeFormatError()
     describeContentValidationErrors()

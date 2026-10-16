@@ -213,6 +213,19 @@ Consequences for tests:
 - A unit type the post-intervention file does not carry is absent from the derived baseline,
   even if the baseline file had it.
 
+Journey coverage (`upload-post-intervention.spec.js`, BMD-1056 automated validation, 2026-10-16):
+
+- **Derived baseline replaces an uploaded baseline** (BMD-1056 AC6) `[COVERED]`. In the
+  _happy path_ test, the baseline file's hedgerows HR1/HR2 are gone after the PI upload,
+  because `Post-intervention - complete.gpkg` has no Hedgerows layer.
+- **Derived baseline replaces the previous PI upload's** (AC5/AC7) `[COVERED]`. See
+  _replacing an existing upload_.
+- **`BASELINE_TYPE_MISSING` leaves an existing project untouched** (AC10) `[COVERED]`. See
+  _failed replacement_. This is the sole witness that a rejected **post-intervention** upload
+  writes neither document. The baseline equivalent lives in `upload-baseline.spec.js`.
+- **`NO_DERIVED_BASELINE_HABITATS`** `[NOT COVERED]`. There is no fixture, and the ticket's
+  ACs are happy-path only.
+
 ---
 
 ### A later baseline upload destroys this data — BMD-850 `[IMPLEMENTED]`
