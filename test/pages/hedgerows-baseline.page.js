@@ -1,3 +1,4 @@
+import { rowValuesByRef } from '@utils/row-values.js'
 import { readTileUnits, readTileValue } from '@utils/tile-value.js'
 import {
   hedgerowsTradingRulesLink,
@@ -133,19 +134,8 @@ export class HedgerowsBaselinePage extends BasePage {
   }
 
   /** One feature row's cells, keyed by the column names above, found by its Ref. */
-  async rowValues(reference) {
-    const cells = await this.featureRows()
-      .filter({
-        has: this.page.getByRole('link', { name: reference, exact: true })
-      })
-      .locator('td')
-      .allInnerTexts()
-    return Object.fromEntries(
-      Object.entries(COLUMN).map(([column, index]) => [
-        column,
-        cells[index]?.trim()
-      ])
-    )
+  rowValues(reference) {
+    return rowValuesByRef(this.featureRows(), this.page, reference, COLUMN)
   }
 
   totalsCell(column) {
