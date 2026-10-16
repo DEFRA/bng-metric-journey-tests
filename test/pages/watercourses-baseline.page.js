@@ -1,3 +1,4 @@
+import { rowValuesByRef } from '@utils/row-values.js'
 import { readTileUnits, readTileValue } from '@utils/tile-value.js'
 import {
   tradingRulesTag,
@@ -121,6 +122,11 @@ export class WatercoursesBaselinePage extends BasePage {
     return this.featureRows()
       .locator(`td:nth-child(${COLUMN[column] + 1})`)
       .allInnerTexts()
+  }
+
+  /** One feature row's cells, keyed by the column names above, found by its Ref. */
+  rowValues(reference) {
+    return rowValuesByRef(this.featureRows(), this.page, reference, COLUMN)
   }
 
   totalsCell(column) {
