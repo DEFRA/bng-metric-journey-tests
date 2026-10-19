@@ -28,7 +28,10 @@ import {
   getTargetMetProject,
   getWatercourseGainProject
 } from '@utils/summary-projects.js'
-import { uploadFileHref } from '@utils/upload-file-navigation.js'
+import {
+  noBaselineSummaryRedirectHref,
+  uploadFileHref
+} from '@utils/upload-file-navigation.js'
 import { VIEW_TRADING_RULES } from '@utils/unit-type-labels.js'
 import { reportPdfPath } from '@utils/report-navigation.js'
 import {
@@ -1564,12 +1567,13 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     // upload, so it is asserted in
     // test/specs/upload-post-intervention/upload-post-intervention.spec.js,
     // which already pays for both.
-    // BMD-1043 (frontend PR#352) replaced the redirect to the task list with
-    // an in-page prompt: the summary renders, with no unit-type sections.
-    test('a project with no baseline renders the summary with an upload prompt', async ({
+    // BMD-1076 (frontend PR#396) replaced BMD-1043's in-page upload prompt
+    // with a redirect to the upload-type page, the summary as its returnUrl.
+    test('a project with no baseline is redirected to the upload-type page', async ({
       createProjectFlow,
       projectDashboardPage,
       projectSummaryPage,
+      uploadFilePage,
       page
     }) => {
       const { id, name } = await setupProject(
@@ -1580,19 +1584,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       await projectSummaryPage.open(id)
 
-      await expect(page).toHaveURL(
-        new RegExp(`/projects/${id}/project-summary$`)
-      )
-      await expect(projectSummaryPage.heading).toBeVisible()
-      await expect(projectSummaryPage.caption(name)).toBeVisible()
-      await expect(projectSummaryPage.noBaselinePrompt).toBeVisible()
-      await expect(projectSummaryPage.uploadFileButton).toHaveAttribute(
-        'href',
-        uploadFileHref(id, `/projects/${id}/project-summary`)
-      )
-      for (const label of ['Area habitats', 'Hedgerows', 'Watercourses']) {
-        await expect(projectSummaryPage.unitSection(label)).toHaveCount(0)
-      }
+      await expect(page).toHaveURL(noBaselineSummaryRedirectHref(id))
+      await expect(uploadFilePage.heading).toBeVisible()
+      await expect(page.getByText(name)).toBeVisible()
     })
   })
 

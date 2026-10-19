@@ -25,8 +25,9 @@ so either type can be chosen first.
 | Either upload form — Back link and Cancel link                                        | `/projects/{id}/upload-file?returnUrl=<the returnUrl it was given>`   | always                            |
 
 A bare `/projects/{id}/upload-file` (no `returnUrl`) is no longer linked from anywhere since
-BMD-1043; it is what a direct URL produces, and its Back and Cancel then default to the project
-summary.
+BMD-1043; it is what a direct URL produces — and what the project summary redirects a project with
+no baseline to (BMD-1076), with the summary as its `returnUrl`. Back and Cancel default to the
+project summary, or to `/manage-projects` for a project with no baseline (see Step 1).
 
 ## `returnUrl` and the navigation helper
 
@@ -70,7 +71,10 @@ survives the round-trip through the POST and on into the chosen upload form.
 
   Neither radio is pre-selected on GET. Below the radios: a "Continue" button and a "Cancel"
   link. A hidden `returnUrl` input carries the sanitised return target through the POST. The
-  Back link and the Cancel link both point at the sanitised `returnUrl`.
+  Back link and the Cancel link both point at the sanitised `returnUrl` **when the project has a
+  baseline**; for a project with none (`hasBaselineData` false) both point at `/manage-projects`
+  (BMD-1076, frontend PR#396) — the summary would only redirect straight back here. The hidden
+  `returnUrl` is unaffected, so a successful upload still lands on the summary.
 
 - **Validation:**
   - `id` path param must be a **uuidv4** → **400** if not. (Note this route _does_ validate

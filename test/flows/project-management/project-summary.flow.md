@@ -4,7 +4,7 @@
 
 After uploading a baseline file — or by clicking the project name on the dashboard — the user lands on the project summary: a single page showing, for each habitat type the project actually has data for (area habitats, hedgerows, watercourses), the on-site baseline units, the post-intervention units, the net unit change and the net percentage change against target. It is the landing page for **any project that has a baseline**, with or without post-intervention data.
 
-Added by **BMD-870** (frontend PR#219, 2026-08-14), which built the baseline-only variant. **BMD-852** (PR#227, 2026-08-18) added the post-intervention variant and widened the guard so a project carrying both documents renders here instead of being redirected to the task list. BMD-870 states the page **replaces the project task list (`/add-project-details/{id}`) and the summary section of the baseline habitat list**. **BMD-1043** (frontend PR#352, 2026-10-06) completed that: it removed the task list and both habitat lists, made the summary render for a project with **no** baseline (Step 2), and pointed every dashboard row and every successful upload — baseline and post-intervention — here.
+Added by **BMD-870** (frontend PR#219, 2026-08-14), which built the baseline-only variant. **BMD-852** (PR#227, 2026-08-18) added the post-intervention variant and widened the guard so a project carrying both documents renders here instead of being redirected to the task list. BMD-870 states the page **replaces the project task list (`/add-project-details/{id}`) and the summary section of the baseline habitat list**. **BMD-1043** (frontend PR#352, 2026-10-06) completed that: it removed the task list and both habitat lists, made the summary render for a project with **no** baseline, and pointed every dashboard row and every successful upload — baseline and post-intervention — here. **BMD-1076** (frontend PR#396, 2026-10-16) reversed the no-baseline part: a project with no baseline is now redirected to the upload-type page (Step 2), so the summary again only ever renders for a project that has a baseline.
 
 **Three further tickets have since changed this page** — check the [Deferred elements](#deferred-elements) and [Known deviations](#known-deviations-from-the-design) sections before trusting any older assertion about it:
 
@@ -17,6 +17,7 @@ Added by **BMD-870** (frontend PR#219, 2026-08-14), which built the baseline-onl
 | **BMD-1008**    | #317 | 2026-09-22 | The Trading Rules tile gained a `Met` / `Not met` status tag — **area habitats only**                                                             |
 | **BMD-1002**    | #327 | 2026-09-25 | The **Watercourses** Trading Rules tile gained the same tag, read from `tradingRuleStatuses.watercourses.overall`; hedgerows still have none      |
 | **BMD-1003**    | #362 | 2026-10-06 | The **Hedgerows** Trading Rules tile gained the same tag, read from `tradingRuleStatuses.hedgerows.overall` (backend PR#453)                      |
+| **BMD-1076**    | #396 | 2026-10-16 | A project with no baseline is redirected to `/upload-file` instead of rendering the upload prompt; the prompt and `hasBaseline` were removed      |
 
 The project-details clickthrough remains a separate ticket and is still `[PLANNED]` here.
 The "View trading rules" clickthrough did not ship with BMD-1008 (status tag only); it
@@ -136,28 +137,28 @@ the API response and are rendered **nowhere** — do not expect to assert them f
 - **Validation:** `id` path param must be a valid uuidv4 (Joi); invalid → Hapi 400
 - **On success:** Renders `project-summary/index` with page title "Summary - {serviceName}"
 - **On error:**
-  - Project has **no baseline** → renders the no-baseline variant (Step 2) — not an error since BMD-1043
+  - Project has **no baseline** → 302 to `/projects/{id}/upload-file?returnUrl=%2Fprojects%2F{id}%2Fproject-summary` (Step 2, BMD-1076)
   - Backend 404 → `Boom.notFound` → the global `error/index` page with heading `404` / "Page not found" and a 404 status
   - Backend unreachable (`fetchProject` resolves `null`) or any non-2xx / non-404 status → `Boom.badGateway` ("Failed to fetch project") → `error/index` with a 502
   - Dead, unrefreshable session → redirect to `/auth/session-expired` (handled in `catchAll`)
 
 ---
 
-### Step 2 — Render a project with no baseline `[IMPLEMENTED]`
+### Step 2 — Redirect a project with no baseline to the upload-type page `[IMPLEMENTED]`
 
-- **Route:** `GET /projects/{id}/project-summary` (same route)
-- **Template:** `src/server/project-summary/index.njk`
+- **Route:** `GET /projects/{id}/project-summary` (same route) → 302 to `/projects/{id}/upload-file?returnUrl=%2Fprojects%2F{id}%2Fproject-summary`
+- **Template:** None — redirects before rendering
 - **Auth required:** Yes — as Step 1
 - **Backend endpoint:** `GET /projects/{id}`
-- **Description:** `hasBaselineData(project)` (`src/server/common/helpers/project-state.js`) is `Boolean(project?.baseline)`. When it is false, `buildProjectSummary` sets `hasBaseline: false`, the navigation is a single current "Summary" item, and `unitSummaries` is empty. The page renders its caption, heading and "Upload file" button, then the line **"Upload an on-site baseline file to see your biodiversity net gain results."** in place of the unit-type sections.
+- **Description:** `hasBaselineData(project)` (`src/server/common/helpers/project-state.js`) is `Boolean(project?.baseline)`. When it is false, `getController` returns `h.redirect(uploadFileHref(id))` before building the summary. `uploadFileHref` defaults the `returnUrl` to this page, so once an upload gives the project a baseline the user lands back here. On the upload-type page Back and Cancel go to `/manage-projects` rather than to the `returnUrl` while the project has no baseline — see [`../upload-file/choose-upload-type.flow.md`](../upload-file/choose-upload-type.flow.md) Step 1.
 
-  **Changed by BMD-1043 (frontend PR#352).** Until then this branch was a 302 to the project task list (`/add-project-details/{id}`), which PR#352 removed. Before BMD-852 the guard also redirected a project carrying both documents.
+  **Changed by BMD-1076 (frontend PR#396, 2026-10-16).** BMD-1043 (PR#352) had made this branch render the summary with a single current "Summary" nav item and the line "Upload an on-site baseline file to see your biodiversity net gain results."; PR#396 removed that line, the `hasBaseline` view field and the single-item navigation. Before BMD-1043 this branch was a 302 to the project task list (`/add-project-details/{id}`), and before BMD-852 the guard also redirected a project carrying both documents.
 
 - **Validation:** As Step 1
-- **On success:** 200 — the no-baseline variant above
+- **On success:** 302 to the upload-type page
 - **On error:** As Step 1
 
-> **Reachability note.** Every dashboard row links here since BMD-1043, so this is what a newly created project shows. A project with a post-intervention upload but no baseline also renders this variant, and the unit-type post-intervention pages redirect it back here — its post-intervention features are listed on no page (open question raised with the team, 2026-10-07).
+> **Reachability note.** Every dashboard row links to the summary, so a newly created project lands on the upload-type page via this redirect. Since BMD-1056 a post-intervention upload derives a baseline, so a project with only a post-intervention upload is not in this state.
 
 ---
 
@@ -167,7 +168,7 @@ the API response and are rendered **nowhere** — do not expect to assert them f
 - **Template:** `src/server/upload-file/index.njk`
 - **Auth required:** Yes — as Step 1
 - **Backend endpoint:** None (selection page)
-- **Description:** Both live links on the summary — the header **"Upload file"** button and the **"Upload on-site post intervention file"** link inside every unit-type section — resolve to the _same_ href, built by `uploadFileHref(projectId, '/projects/{id}/project-summary')`. It is the shared file-type selection page from BMD-850, so the user picks baseline or post-intervention there; the summary does not link straight to a type-specific upload form despite the post-intervention wording on the in-section link. The `returnUrl` means Back/Cancel on the selection page and the upload form return **here** (which is also their default since BMD-1043).
+- **Description:** Both live links on the summary — the header **"Upload file"** button and the **"Upload on-site post intervention file"** link inside every unit-type section — resolve to the _same_ href, built by `uploadFileHref(projectId, '/projects/{id}/project-summary')`. It is the shared file-type selection page from BMD-850, so the user picks baseline or post-intervention there; the summary does not link straight to a type-specific upload form despite the post-intervention wording on the in-section link. The `returnUrl` means Back/Cancel on the selection page and the upload form return **here** (which is also their default since BMD-1043). This step only applies to a project with a baseline — for one with none, the selection page sends Back and Cancel to `/manage-projects` (BMD-1076).
 - **Validation:** See [`../upload-file/choose-upload-type.flow.md`](../upload-file/choose-upload-type.flow.md)
 - **On success:** Selection page behaviour is documented in [`../upload-file/choose-upload-type.flow.md`](../upload-file/choose-upload-type.flow.md)
 - **On error:** As above

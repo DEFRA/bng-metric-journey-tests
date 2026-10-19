@@ -60,6 +60,7 @@ test.describe('happy-path-screenshots', { tag: '@screenshots' }, () => {
       projectDashboardPage,
       defineProjectNamePage,
       projectSummaryPage,
+      uploadFilePage,
       uploadBaselineFilePage,
       uploadBaselineFileFlow,
       areaBaselinePage,
@@ -92,10 +93,12 @@ test.describe('happy-path-screenshots', { tag: '@screenshots' }, () => {
         .getAttribute('href')
       const id = projectIdFromHref(href)
 
-      // ── Project summary, before any upload (BMD-1043) ───────────────────
+      // ── Choose upload type ──────────────────────────────────────────────
+      // BMD-1076: the dashboard row links to the summary, which redirects a
+      // project with no baseline here.
       await projectDashboardPage.projectLink(projectName).click()
-      await expect(projectSummaryPage.noBaselinePrompt).toBeVisible()
-      await snap(page, 'project-summary-empty')
+      await expect(uploadFilePage.heading).toBeVisible()
+      await snap(page, 'upload-file')
 
       // ── Upload baseline file ────────────────────────────────────────────
       await uploadBaselineFilePage.open(id)

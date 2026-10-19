@@ -1,5 +1,6 @@
 import { test, expect } from '@fixtures'
 import { projectIdFromHref } from '@utils/project-helpers.js'
+import { noBaselineSummaryRedirectHref } from '@utils/upload-file-navigation.js'
 import {
   STORAGE_STATE,
   NO_PROJECTS_STORAGE_STATE,
@@ -84,17 +85,20 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       async ({
         createProjectFlow,
         projectDashboardPage,
-        projectSummaryPage,
+        uploadFilePage,
         page
       }) => {
         const name = `Row link test ${Date.now()}`
         await createProjectFlow.createProject(name)
         await projectDashboardPage.open()
-        await projectDashboardPage.projectLink(name).click()
+        const link = projectDashboardPage.projectLink(name)
+        const id = projectIdFromHref(await link.getAttribute('href'))
+        await link.click()
 
         // BMD-1043: every row links to the summary, even with no baseline.
-        await expect(page).toHaveURL(/\/projects\/[0-9a-f-]+\/project-summary$/)
-        await expect(projectSummaryPage.heading).toBeVisible()
+        // BMD-1076: the summary passes a project with none on to /upload-file.
+        await expect(page).toHaveURL(noBaselineSummaryRedirectHref(id))
+        await expect(uploadFilePage.heading).toBeVisible()
       }
     )
   })

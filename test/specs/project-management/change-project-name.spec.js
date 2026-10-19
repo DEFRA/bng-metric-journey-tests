@@ -1,5 +1,6 @@
 import { test, expect } from '@fixtures'
 import { projectIdFromHref } from '@utils/project-helpers.js'
+import { noBaselineSummaryRedirectHref } from '@utils/upload-file-navigation.js'
 import { STORAGE_STATE, NO_ROLE_STORAGE_STATE, skipInE2e } from '@utils/env.js'
 
 const PROJECT_NAME_MAX_LENGTH = 1000
@@ -175,9 +176,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await changeProjectNamePage.enterName(newName)
         await changeProjectNamePage.submit()
 
-        await expect(page).toHaveURL(
-          new RegExp(`/projects/${id}/project-summary`)
-        )
+        // BMD-1076: the summary passes a project with no baseline straight on
+        // to the upload-type page, whose caption carries the new name.
+        await expect(page).toHaveURL(noBaselineSummaryRedirectHref(id))
         await expect(page.getByText(newName)).toBeVisible()
 
         await projectDashboardPage.open()
@@ -214,9 +215,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await changeProjectNamePage.open(id)
         await changeProjectNamePage.backLink.click()
 
-        await expect(page).toHaveURL(
-          new RegExp(`/projects/${id}/project-summary`)
-        )
+        await expect(page).toHaveURL(noBaselineSummaryRedirectHref(id))
       })
     }
   )

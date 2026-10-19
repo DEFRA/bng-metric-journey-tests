@@ -7,6 +7,7 @@ import {
 } from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
+import { getBaselineOnlyProject } from '@utils/summary-projects.js'
 import {
   describeRoleEnforcement,
   describeUnauthenticatedAccess
@@ -79,23 +80,30 @@ test.describe('upload-file', { tag: '@upload-file' }, () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
+      // BMD-1076 (frontend PR#396): Back and Cancel follow returnUrl only once
+      // the project has a baseline, so these read-only tests share the
+      // baseline-only project from @utils/summary-projects.js. In CI (one
+      // worker) project-summary.spec.js has usually paid for its upload.
+      // 'default' mode keeps the describe on one worker, so the project is
+      // built once even under test:local.
+      test.describe.configure({ mode: 'default' })
+      let project
+      test.beforeAll(async ({ browser }) => {
+        test.setTimeout(UPLOAD_TIMEOUT + 60_000)
+        project = await getBaselineOnlyProject(browser)
+      })
+
       // BMD-850 AC11/AC12: both links must return the user to the page that
       // triggered the journey. The href is only half of that — this clicks each
       // one and asserts the project summary actually renders, so a link that
       // points correctly but is intercepted (or a summary that 404s) still
       // fails. BMD-1043 moved the default from the removed task list.
       test('Back and Cancel navigate to the project summary when no returnUrl is supplied', async ({
-        createProjectFlow,
-        projectDashboardPage,
         projectSummaryPage,
         uploadFilePage,
         page
       }) => {
-        const { id } = await setupProject(
-          createProjectFlow,
-          projectDashboardPage,
-          PROJECT_LABEL
-        )
+        const { id } = project
         const summary = `/projects/${id}/project-summary`
         await uploadFilePage.open(id)
 
@@ -112,15 +120,9 @@ test.describe('upload-file', { tag: '@upload-file' }, () => {
       })
 
       test('Back and Cancel return to the page the user arrived from', async ({
-        createProjectFlow,
-        projectDashboardPage,
         uploadFilePage
       }) => {
-        const { id } = await setupProject(
-          createProjectFlow,
-          projectDashboardPage,
-          PROJECT_LABEL
-        )
+        const { id } = project
         // The href a unit-type page's "Upload file" button carries.
         const pageRoute = `/projects/${id}/area-baseline`
         await uploadFilePage.open(id, pageRoute)
@@ -137,15 +139,9 @@ test.describe('upload-file', { tag: '@upload-file' }, () => {
         { label: 'a backslash-bearing path', returnUrl: '/\\evil.example' }
       ]) {
         test(`${label} as returnUrl falls back to the project summary`, async ({
-          createProjectFlow,
-          projectDashboardPage,
           uploadFilePage
         }) => {
-          const { id } = await setupProject(
-            createProjectFlow,
-            projectDashboardPage,
-            PROJECT_LABEL
-          )
+          const { id } = project
           await uploadFilePage.open(id, returnUrl)
 
           await uploadFilePage.assertReturnLinks(
@@ -153,6 +149,38 @@ test.describe('upload-file', { tag: '@upload-file' }, () => {
           )
         })
       }
+    }
+  )
+
+  // A project with no baseline has no summary to return to — the summary
+  // would only redirect back here (BMD-1076) — so Back and Cancel go to the
+  // project list whatever the returnUrl says.
+  test.describe(
+    'Choose upload type — return navigation without a baseline',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      test('Back and Cancel go to the project list for a project with no baseline', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadFilePage,
+        page
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
+        )
+        await uploadFilePage.open(id, `/projects/${id}/area-baseline`)
+
+        await uploadFilePage.assertReturnLinks('/manage-projects')
+
+        await uploadFilePage.backLink.click()
+        await expect(page).toHaveURL('/manage-projects')
+        await expect(projectDashboardPage.heading).toBeVisible()
+      })
     }
   )
 

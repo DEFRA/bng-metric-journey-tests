@@ -16,3 +16,16 @@ export function uploadFileHref(projectId, returnUrl) {
   const params = new URLSearchParams({ returnUrl })
   return `/projects/${projectId}/upload-file?${params.toString()}`
 }
+
+/**
+ * Where the project summary sends a project with no baseline (BMD-1076,
+ * frontend PR#396): the selection page, with the summary as its `returnUrl`.
+ * Only that redirect produces this exact URL, so landing on it proves the
+ * browser went through the summary.
+ *
+ * @param {string} projectId
+ * @returns {string}
+ */
+export function noBaselineSummaryRedirectHref(projectId) {
+  return uploadFileHref(projectId, `/projects/${projectId}/project-summary`)
+}

@@ -1,5 +1,6 @@
 import { test, expect } from '@fixtures'
 import { projectIdFromHref } from '@utils/project-helpers.js'
+import { noBaselineSummaryRedirectHref } from '@utils/upload-file-navigation.js'
 import {
   STORAGE_STATE,
   NO_PROJECTS_STORAGE_STATE,
@@ -42,7 +43,8 @@ async function fillAndSave(projectDetailsPage, page, id, values) {
   await projectDetailsPage.open(id)
   await projectDetailsPage.fill(values)
   await projectDetailsPage.submit()
-  await expect(page).toHaveURL(new RegExp(`/projects/${id}/project-summary`))
+  // BMD-1076: the summary passes a project with no baseline on to /upload-file.
+  await expect(page).toHaveURL(noBaselineSummaryRedirectHref(id))
 }
 
 async function assertDetailsMatch(
@@ -496,9 +498,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await projectDetailsPage.open(id)
         await projectDetailsPage.backLink.click()
 
-        await expect(page).toHaveURL(
-          new RegExp(`/projects/${id}/project-summary`)
-        )
+        await expect(page).toHaveURL(noBaselineSummaryRedirectHref(id))
       })
     }
   )

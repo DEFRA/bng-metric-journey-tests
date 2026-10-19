@@ -134,8 +134,9 @@ function describeHappyPath() {
       // BMD-1043 (frontend PR#352): a successful upload lands on the project
       // summary, and the project task list and post-intervention habitat list
       // are gone. The upload is made over a baseline because without one the
-      // summary renders only its upload prompt and the post-intervention pages
-      // redirect — nothing would show the upload was stored.
+      // summary redirects to the upload-type page (BMD-1076) and the
+      // post-intervention pages redirect — nothing would show the upload was
+      // stored.
       test('uploading a valid .gpkg file reaches the project summary and lists its habitats', async ({
         createProjectFlow,
         projectDashboardPage,
