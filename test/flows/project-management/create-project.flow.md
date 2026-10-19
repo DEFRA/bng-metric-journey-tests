@@ -50,16 +50,16 @@ The user creates a new Biodiversity Net Gain project by entering a project name 
 
 ---
 
-### Step 4 — Open the project summary `[IMPLEMENTED]`
+### Step 4 — Open the new project `[IMPLEMENTED]`
 
-- **Route:** `GET /projects/{id}/project-summary`
-- **Template:** `src/server/project-summary/index.njk`
+- **Route:** `GET /projects/{id}/project-summary` → 302 to `/projects/{id}/upload-file?returnUrl=%2Fprojects%2F{id}%2Fproject-summary`
+- **Template:** `src/server/upload-file/index.njk`
 - **Auth required:** Yes (session + BNG Completer role)
 - **Backend endpoint:** `GET /projects/{id}`
-- **Description:** The user clicks the project name link on the dashboard. A newly created project has no baseline, so the summary renders its no-baseline variant: the project name as caption, the "Summary" heading, an "Upload file" button and the line "Upload an on-site baseline file to see your biodiversity net gain results."
+- **Description:** The user clicks the project name link on the dashboard. A newly created project has no baseline, so the summary redirects to the upload-type page ("What would you like to upload?"), whose Back and Cancel links go to `/manage-projects`.
 
-  **BMD-1043 (frontend PR#352):** this step was the project task list (`GET /add-project-details/{id}`), which PR#352 removed along with the conditional dashboard link. See [`project-summary.flow.md`](project-summary.flow.md) Step 2 and [`project-dashboard.flow.md`](project-dashboard.flow.md).
+  **BMD-1043 (frontend PR#352):** this step was the project task list (`GET /add-project-details/{id}`), which PR#352 removed along with the conditional dashboard link. BMD-1043 rendered a no-baseline summary with an upload prompt here; **BMD-1076 (frontend PR#396)** replaced it with the redirect. See [`project-summary.flow.md`](project-summary.flow.md) Step 2 and [`project-dashboard.flow.md`](project-dashboard.flow.md).
 
 - **Validation:** `id` path parameter must be a valid UUID
-- **On success:** Renders the no-baseline project summary
+- **On success:** Renders the upload-type page
 - **On error:** A backend 404 → the global 404 error page

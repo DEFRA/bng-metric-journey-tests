@@ -8,6 +8,7 @@ import {
 } from '@utils/access-checks.js'
 import { setupProject } from '@utils/project-helpers.js'
 import { getBaselineOnlyProject } from '@utils/summary-projects.js'
+import { noBaselineSummaryRedirectHref } from '@utils/upload-file-navigation.js'
 import { REPORTS } from '@utils/unit-type-labels.js'
 import {
   expectedReportFilename,
@@ -177,7 +178,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
     // A project with no baseline has nothing to report on. The guard is the same
     // rule as the project summary's but a SEPARATE copy of it in a separate
-    // controller, so the summary's witness does not cover this one.
+    // controller, so the summary's witness does not cover this one. Since
+    // BMD-1076 the summary redirects on again, to the upload-type page.
     test('a project with no baseline is redirected to the project summary', async ({
       createProjectFlow,
       projectDashboardPage,
@@ -192,9 +194,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       await projectReportsPage.open(id)
 
-      await expect(page).toHaveURL(
-        new RegExp(`/projects/${id}/project-summary`)
-      )
+      await expect(page).toHaveURL(noBaselineSummaryRedirectHref(id))
     })
   })
 

@@ -6,6 +6,7 @@ import {
   baseUrl
 } from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
+import { noBaselineSummaryRedirectHref } from '@utils/upload-file-navigation.js'
 import { CreateProjectFlow } from '@flows/project-management/create-project.flow.js'
 import { UploadBaselineFileFlow } from '@flows/upload-baseline/upload-baseline-file.flow.js'
 import { ProjectDashboardPage } from '@pages/project-dashboard.page.js'
@@ -85,11 +86,10 @@ function describeHappyPath() {
         )
 
         // BMD-870: a successful baseline upload lands on the project summary.
-        // The baseline is stored, so the no-baseline prompt has gone and the
-        // unit-type sections render; no post-intervention document exists yet,
-        // so each section still offers that upload.
+        // The baseline is stored, so the unit-type sections render; no
+        // post-intervention document exists yet, so each section still offers
+        // that upload.
         await expect(projectSummaryPage.heading).toBeVisible()
-        await expect(projectSummaryPage.noBaselinePrompt).toHaveCount(0)
         await expect(
           projectSummaryPage.uploadPostInterventionLink(AREA_HABITATS)
         ).toBeVisible()
@@ -226,7 +226,6 @@ function describeBaselineReplacement() {
         await expect(
           projectSummaryPage.uploadPostInterventionLink(AREA_HABITATS)
         ).toBeVisible()
-        await expect(projectSummaryPage.noBaselinePrompt).toHaveCount(0)
 
         // The stored baseline is the new file, not a merge of the two: the
         // replacement's refs are present and the original's are gone.
@@ -290,10 +289,10 @@ function describeFailedReplacement() {
           await expect(hedgerowsBaselinePage.refLink(ref)).toBeVisible()
         }
 
-        // ...and the summary still renders its results rather than the
-        // no-baseline prompt.
+        // ...and the summary still renders its results rather than
+        // redirecting to the upload-type page as a no-baseline project would.
         await projectSummaryPage.open(id)
-        await expect(projectSummaryPage.noBaselinePrompt).toHaveCount(0)
+        await expect(page).toHaveURL(`/projects/${id}/project-summary`)
         await expect(
           projectSummaryPage.sectionHeading(AREA_HABITATS)
         ).toBeVisible()
@@ -791,8 +790,10 @@ function describeFieldValidation() {
           `/projects/${id}/upload-baseline-file`
         )
 
+        // Nothing was saved, so the summary still redirects the project to the
+        // upload-type page (BMD-1076).
         await projectSummaryPage.open(id)
-        await expect(projectSummaryPage.noBaselinePrompt).toBeVisible()
+        await expect(page).toHaveURL(noBaselineSummaryRedirectHref(id))
       }
 
       // The only check that a real upload reaches HABITAT_REF_INVALID_CHARACTERS
