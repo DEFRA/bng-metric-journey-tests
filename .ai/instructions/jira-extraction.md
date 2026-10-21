@@ -58,14 +58,21 @@ Key locations in the response:
 
 ## Pull requests
 
-1. **Development info** (preferred — this is what the "Development" panel shows):
+1. **Development info** (preferred — this is what the "Development" panel shows). Do **not** hard-code
+   `applicationType=GitHub`: the instance uses the GitHub for Jira app, whose key is
+   `oAuth-com.github.integration.production`, and a wrong key returns `{"detail":[]}` with **no error**.
+   Read the key(s) from the summary first, then query detail once per key:
 
    ```sh
    curl -s -u "$JIRA_EMAIL:$JIRA_API_TOKEN" -H "Accept: application/json" \
-     "$JIRA_BASE/rest/dev-status/latest/issue/detail?issueId=<numeric-id>&applicationType=GitHub&dataType=pullrequest"
+     "$JIRA_BASE/rest/dev-status/latest/issue/summary?issueId=<numeric-id>"
+   # → summary.pullrequest.overall.count, and the keys of summary.pullrequest.byInstanceType
+   curl -s -u "$JIRA_EMAIL:$JIRA_API_TOKEN" -H "Accept: application/json" \
+     "$JIRA_BASE/rest/dev-status/latest/issue/detail?issueId=<numeric-id>&applicationType=<instance-type-key>&dataType=pullrequest"
    ```
 
-   Extract repo name, PR number/URL, and status per PR.
+   Extract repo name, PR number/URL, and status per PR. The detail PR count must equal the summary's
+   `overall.count`. If it doesn't, the key is wrong: never report "no PRs linked" while the summary count is above zero.
 
 2. **Fallbacks:** `GET /rest/api/3/issue/<KEY>/remotelink`, and `github.com/...` PR URLs mentioned in the description or comments.
 3. If nothing is found, report "no PRs linked on the ticket" — do not guess.
