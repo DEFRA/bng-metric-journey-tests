@@ -71,8 +71,9 @@ Key locations in the response:
      "$JIRA_BASE/rest/dev-status/latest/issue/detail?issueId=<numeric-id>&applicationType=<instance-type-key>&dataType=pullrequest"
    ```
 
-   Extract repo name, PR number/URL, and status per PR. The detail PR count must equal the summary's
-   `overall.count`. If it doesn't, the key is wrong: never report "no PRs linked" while the summary count is above zero.
+   Extract repo name, PR number/URL, and status per PR. The total number of PRs across all per-key detail calls
+   must equal the summary's `overall.count`. If it doesn't, a key is missing or wrong, or the API user can't see
+   some PRs: report the gap, and never report "no PRs linked" while the summary count is above zero.
 
 2. **Fallbacks:** `GET /rest/api/3/issue/<KEY>/remotelink`, and `github.com/...` PR URLs mentioned in the description or comments.
 3. If nothing is found, report "no PRs linked on the ticket" — do not guess.
