@@ -881,10 +881,11 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       })
 
       // BMD-1051 AC4, backend PR #465: a Medium Proposed Strategic Significance
-      // is nulled on import, every engine-derived field with it, and the
-      // feature priced at zero. The user's own proposed condition and years
-      // survive, which is what sets it apart from a BMD-820 rejection below.
-      test('an Enhanced hedgerow with a rejected strategic significance is priced at zero', async ({
+      // is nulled on import, every engine-derived field with it, and (since
+      // BMD-1070, backend PR #498) the feature saved with null units, so Units
+      // is blank. The user's own proposed condition and years survive, which
+      // is what sets it apart from a BMD-820 rejection below.
+      test('an Enhanced hedgerow with a rejected strategic significance is left unpriced', async ({
         hedgerowsPostInterventionPage
       }) => {
         const grid = hedgerowsPostInterventionPage
@@ -896,7 +897,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           ENHANCED,
           ENHANCED_REJECTED_SIGNIFICANCE_REF
         )
-        expect(row.Units).toBe('0.00')
+        expect(row.Units).toBe('')
         expect(row.Distinctiveness).toBe('')
         expect(row['Strategic significance']).toBe('')
         expect(row['Target condition']).toMatch(LABEL_ONLY)
@@ -906,9 +907,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       })
 
       // BMD-820, backend PR #477: an enhancement that is not valid for its
-      // baseline has every proposed field nulled on import, so only the
-      // shape-derived Size and the zero Units render.
-      test('an Enhanced hedgerow that is not a valid enhancement of its baseline is priced at zero with no proposed values', async ({
+      // baseline has every proposed field nulled on import. Since BMD-1070
+      // (backend PR #498) its units are null too, so only the shape-derived
+      // Size renders.
+      test('an Enhanced hedgerow that is not a valid enhancement of its baseline is left unpriced with no proposed values', async ({
         hedgerowsPostInterventionPage
       }) => {
         const grid = hedgerowsPostInterventionPage
@@ -920,7 +922,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           ENHANCED,
           ENHANCED_INVALID_ENHANCEMENT_REF
         )
-        expect(row.Units).toBe('0.00')
+        expect(row.Units).toBe('')
         expect(row.Size).toMatch(KILOMETRES)
         for (const column of PROPOSED_COLUMNS) {
           expect(row[column], column).toBe('')

@@ -133,9 +133,11 @@ function gridUnitsTotal(page, type) {
 }
 
 // Habitat units render to two decimal places (formatHabitatUnits); a saved
-// (Complete) habitat shows a non-empty value, an Incomplete habitat shows 0.00.
+// (Complete) habitat shows a non-empty value. Since BMD-1070 (backend PR #498)
+// an Incomplete habitat is saved with null units, which renders as an empty
+// cell (it used to be 0.00).
 const HABITAT_UNITS_PATTERN = /^\d+\.\d{2}$/
-const ZERO_UNITS = '0.00'
+const NO_UNITS = ''
 
 // Distinctiveness renders the band abbreviated (e.g. "V.Low") followed by its
 // score in brackets.
@@ -877,10 +879,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       })
 
       // AC6 (Scenario B — not all options selected): saving with a dropdown
-      // deselected zeroes the units (the grid has no Status column to show
-      // Incomplete — BMD-1043). Runs last in the serial block because it leaves
-      // the shared habitat Incomplete.
-      test('AC6 Scenario B — saving with a deselected dropdown zeroes units', async ({
+      // deselected clears the units — null + Incomplete since BMD-1070 (the
+      // grid has no Status column to show Incomplete — BMD-1043). Runs last in
+      // the serial block because it leaves the shared habitat Incomplete.
+      test('AC6 Scenario B — saving with a deselected dropdown clears units', async ({
         baselineHabitatDetailsPage,
         page
       }) => {
@@ -890,7 +892,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await page.waitForURL(baselinePageUrl(projectId, 'area'))
 
         await expect(gridCell(page, 'area', areaRef, 'units')).toHaveText(
-          ZERO_UNITS
+          NO_UNITS
         )
       })
     }
@@ -1343,9 +1345,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       })
 
       // AC6 (Scenario B — not all options selected): saving with the condition
-      // deselected zeroes the units (no Status column — BMD-1043). Runs last in
-      // the serial block because it leaves the shared hedgerow Incomplete.
-      test('AC6 Scenario B — saving with a deselected dropdown zeroes units', async ({
+      // deselected clears the units — null + Incomplete since BMD-1070 (no
+      // Status column — BMD-1043). Runs last in the serial block because it
+      // leaves the shared hedgerow Incomplete.
+      test('AC6 Scenario B — saving with a deselected dropdown clears units', async ({
         baselineHabitatDetailsPage,
         page
       }) => {
@@ -1356,7 +1359,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
         await expect(
           gridCell(page, 'hedgerow', hedgerowRef, 'units')
-        ).toHaveText(ZERO_UNITS)
+        ).toHaveText(NO_UNITS)
       })
     }
   )
@@ -1731,9 +1734,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       })
 
       // AC8 (Scenario B — not all options selected): saving with the condition
-      // deselected zeroes the units (no Status column — BMD-1043). Runs last in
-      // the serial block because it leaves the shared watercourse Incomplete.
-      test('Scenario B — saving with a deselected dropdown zeroes units', async ({
+      // deselected clears the units — null + Incomplete since BMD-1070 (no
+      // Status column — BMD-1043). Runs last in the serial block because it
+      // leaves the shared watercourse Incomplete.
+      test('Scenario B — saving with a deselected dropdown clears units', async ({
         baselineHabitatDetailsPage,
         page
       }) => {
@@ -1744,7 +1748,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
         await expect(
           gridCell(page, 'watercourse', watercourseRef, 'units')
-        ).toHaveText(ZERO_UNITS)
+        ).toHaveText(NO_UNITS)
       })
     }
   )

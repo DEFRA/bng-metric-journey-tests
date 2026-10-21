@@ -1371,9 +1371,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     // BMD-1051, frontend PR #370: a strategic significance nulled on import
     // shows nothing. Before #370 the page fell back to "Low (1)", so the
     // witness is that no "{label} ({multiplier})" value renders at all, with
-    // the label still present and the zero the backend priced it at.
+    // the label still present. Since BMD-1070 (backend PR #498) the feature is
+    // saved with null units rather than 0, so units delivered is empty too.
     test(
-      'Enhanced hedgerow with a rejected strategic significance shows no value and zero units delivered',
+      'Enhanced hedgerow with a rejected strategic significance shows no value and no units delivered',
       { tag: '@regression' },
       async ({ browser, postInterventionHabitatDetailsPage, page }) => {
         const shared = await getAllTypesProject(browser)
@@ -1393,9 +1394,11 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             .getByRole('main')
             .getByText(STRATEGIC_SIGNIFICANCE_WITH_MULTIPLIER)
         ).toHaveCount(0)
+        // The <dd> keeps its template whitespace, so match "nothing but
+        // whitespace" rather than an exact empty string.
         await expect(
           postInterventionHabitatDetailsPage.habitatUnitsValue
-        ).toHaveText('0.00')
+        ).toHaveText(/^\s*$/)
       }
     )
 

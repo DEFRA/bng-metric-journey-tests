@@ -648,13 +648,11 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       })
 
       // BMD-1051 AC4, backend PR #465: an Enhanced parcel whose Proposed
-      // Strategic Significance is Medium is nulled on import and priced at
-      // zero. The hedgerow grid has its own witness; this is the area
-      // pricing path's. Units `0.00` is what tells it from an uncalculated
-      // row, whose Units cell is blank. H086 has no condition uplift, so an
-      // accepted Medium would leave it uncalculated (blank) rather than priced;
-      // no Medium Enhanced parcel in this fixture has one.
-      test('an Enhanced parcel with a rejected strategic significance is priced at zero', async ({
+      // Strategic Significance is Medium is nulled on import. Since BMD-1070
+      // (backend PR #498) it is saved with null units and status Incomplete
+      // instead of being priced at zero, so its Units cell is blank. The
+      // hedgerow grid has its own witness; this is the area pricing path's.
+      test('an Enhanced parcel with a rejected strategic significance is left unpriced', async ({
         areaPostInterventionPage
       }) => {
         const grid = areaPostInterventionPage
@@ -662,7 +660,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await grid.tab(ENHANCED).click()
 
         const row = await grid.rowByRef(ENHANCED, ENHANCED_REJECTED_REF)
-        expect(row.Units).toBe('0.00')
+        expect(row.Units).toBe('')
         expect(row.Distinctiveness).toBe('')
         expect(row['Strategic significance']).toBe('')
         expect(row['Standard difficulty']).toBe('')
