@@ -82,7 +82,7 @@ recompute units from the engine's encroachment multipliers (BMD-597).
 - **Template:** None (redirect only)
 - **Auth required:** Yes (session + BNG Completer role)
 - **Backend endpoint:** `PUT /projects/{projectId}/features/{featureId}` — persists broadType / habitatType / condition (plus watercourseEncroachment / riparianEncroachment from the watercourse form); recomputes distinctiveness, condition score, habitat units, and Complete/Incomplete status; uses row-level locking with a 5 s timeout; returns `{ type, feature }`. Watercourse saves persist the encroachment selections and recompute units from the engine's encroachment multipliers (BMD-597).
-- **Description:** Submits the dropdown selections. Empty strings are coerced to null by the backend. The redirect anchor is determined by the feature type returned in the backend response.
+- **Description:** Submits the dropdown selections. Empty strings are coerced to null by the backend. A save that leaves any required input empty (a deselected dropdown, or a watercourse encroachment) cannot be priced, so the feature is saved with `units: null` and status `Incomplete` (BMD-1070, backend PR #498 — it used to save `0`). Its Units cell on the baseline grid is then blank. The redirect anchor is determined by the feature type returned in the backend response.
 - **Validation (payload):**
   - `projectId` required UUID
   - `featureId` required UUID

@@ -57,8 +57,23 @@ const RLB_MULTIPLE_GEOMETRY_FILE =
   'Post-intervention - multiple geometry columns in RLB layer.gpkg'
 const RLB_WRONG_GEOMETRY_FILE =
   'Post-intervention - wrong geometry in RLB layer.gpkg'
-const ADVANCE_AND_DELAY_FILE =
-  'Post-intervention - advance and delay both set.gpkg'
+// BMD-1060 AC3 (harness import-timing permutation). Every Created/Enhanced
+// feature on all four layers sets advance 2 AND delay 3; HG003 is an Enhanced
+// hedgerow with explicit 0/0 timing, which is valid and still priced.
+const CONFLICTING_TIMING_BASELINE_FILE =
+  'invalid-timing-conflicting-created-enhanced-baseline.gpkg'
+const CONFLICTING_TIMING_PI_FILE =
+  'invalid-timing-conflicting-created-enhanced-post-intervention.gpkg'
+const CONFLICTING_TIMING_UNPRICED = [
+  ['area', 'H001'],
+  ['area', 'H002'],
+  ['hedgerow', 'HG001'],
+  ['hedgerow', 'HG002'],
+  ['watercourse', 'R001'],
+  ['watercourse', 'R002']
+]
+const ZERO_TIMING_HEDGEROW_REF = 'HG003'
+const UNITS_2DP = /^\d+\.\d{2}$/
 const DISTINCTIVENESS_FILE =
   'Post-intervention - habitat distinctiveness out of scope.gpkg'
 const NATURAL_ENGLAND_MISMATCH_COPY =
@@ -66,8 +81,6 @@ const NATURAL_ENGLAND_MISMATCH_COPY =
 // BMD-1058. One habitat's Parcel Ref is SQL NULL. Interim copy, pending UCD.
 const MISSING_HABITAT_REF_FILE = 'Post-intervention - missing habitat ref.gpkg'
 const HABITAT_REF_MISSING_COPY = 'All habitats must have a reference'
-const ADVANCE_AND_DELAY_COPY =
-  'A habitat has both advance and delayed creation set'
 // BMD-1066 (harness PR#161). The valid all-types post-intervention file with
 // the Baseline type cleared on five Retained or Enhanced rows: H002 (blank),
 // H004 (N/A), HG011 ((no selection)), R003 (Null), T002 (blank).
@@ -605,21 +618,6 @@ function describeContentValidationErrors() {
       expected: NATURAL_ENGLAND_MISMATCH_COPY
     },
     {
-      // BMD-883: the statutory metric rejects a habitat that sets both advance
-      // and delayed creation. The check reads the Proposed advance/delay
-      // columns, so it applies to a post-intervention file exactly as it does
-      // to a baseline one.
-      //
-      // Sole real-GeoPackage witness for ADVANCE_AND_DELAY_BOTH_SET. The rule
-      // itself is well covered in backend advance-delay-check.test.js, but only
-      // against hand-built layer objects — nothing else proves a real .gpkg's
-      // parsed columns reach the check.
-      name: 'a habitat with both advance and delayed creation set',
-      file: ADVANCE_AND_DELAY_FILE,
-      layout: 'single',
-      expected: ADVANCE_AND_DELAY_COPY
-    },
-    {
       // BMD-1058 AC2. The post-intervention case of HABITAT_REF_MISSING: the
       // check is the same as for a baseline, so this proves the code reaches
       // the post-intervention page and its upload link. The invalid-characters
@@ -680,6 +678,75 @@ function describeContentValidationErrors() {
           await expect(page.getByText(expected).first()).toBeVisible()
         })
       }
+    }
+  )
+}
+
+// ─── Conflicting advance and delay timing ────────────────────────────────────
+
+// The Units cell of `ref` in whichever intervention tab holds it.
+async function piUnitsCell(page, projectId, type, ref) {
+  const { unitPage, label } = await openPiTabFor(page, projectId, type, ref)
+  const index = await unitPage.columnIndex(label, 'Units')
+  return unitPage
+    .featureRows(label)
+    .filter({ has: page.getByRole('link', { name: ref, exact: true }) })
+    .locator('td')
+    .nth(index)
+}
+
+function describeConflictingTiming() {
+  test.describe(
+    'Upload post-intervention — conflicting advance and delay timing',
+    { tag: '@regression' },
+    () => {
+      // BMD-1060 AC3 + BMD-1070, backend PR #498. A Created/Enhanced feature
+      // that sets both advance and delay above 0 is no longer rejected (the
+      // BMD-883 ADVANCE_AND_DELAY_BOTH_SET check is gone): the upload is
+      // accepted and both values are saved as null. Without timing the
+      // feature cannot be priced, so it is saved with null units and status
+      // Incomplete, and its Units cell is blank.
+      //
+      // Sole journey witness that a real GeoPackage with conflicting timing is
+      // accepted and left unpriced on every linear and area layer. The rule is
+      // covered by backend integration-tests/import-combinations.test.js
+      // (it.each over timing combinations, asserting null + Incomplete), but
+      // nothing else renders the result. HG003 (explicit 0/0) is the control:
+      // it proves a zero is not mistaken for a conflict and cleared.
+      test('a file whose Created and Enhanced features set both advance and delay is accepted and those features are left unpriced', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        uploadPostInterventionFileFlow,
+        page
+      }) => {
+        // Two real uploads back this test.
+        test.setTimeout(UPLOAD_TIMEOUT * 2)
+
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
+        )
+        await uploadBaselineFileFlow.uploadFileAndWaitForSummary(
+          id,
+          CONFLICTING_TIMING_BASELINE_FILE
+        )
+        await uploadPostInterventionFileFlow.uploadFileAndWaitForSummary(
+          id,
+          CONFLICTING_TIMING_PI_FILE
+        )
+
+        for (const [type, ref] of CONFLICTING_TIMING_UNPRICED) {
+          await expect(
+            await piUnitsCell(page, id, type, ref),
+            `${type} ${ref}`
+          ).toHaveText('')
+        }
+        await expect(
+          await piUnitsCell(page, id, 'hedgerow', ZERO_TIMING_HEDGEROW_REF)
+        ).toHaveText(UNITS_2DP)
+      })
     }
   )
 }
@@ -879,6 +946,7 @@ test.describe(
     describeNoPendingUpload()
     describeFormatError()
     describeContentValidationErrors()
+    describeConflictingTiming()
     describeDistinctivenessError()
     describeCrossUserAccess()
     describeUploaderRejection()
