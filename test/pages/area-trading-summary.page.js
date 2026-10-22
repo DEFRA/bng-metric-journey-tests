@@ -1,5 +1,6 @@
 import { readTileValue } from '@utils/tile-value.js'
 import { tagIn, tile } from '@utils/unit-type-tiles.js'
+import { readTradingGrid } from '@utils/trading-grid.js'
 
 import { BasePage } from './base.page.js'
 import { AREA_HABITATS } from '@utils/unit-type-labels.js'
@@ -115,15 +116,7 @@ export class AreaTradingSummaryPage extends BasePage {
   }
 
   /** Column headings then every body and footer row, as trimmed cell text. */
-  async readGrid(table) {
-    const headers = await table.getByRole('columnheader').allInnerTexts()
-    const rows = []
-    for (const row of await table.getByRole('row').all()) {
-      const cells = await row.getByRole('cell').allInnerTexts()
-      if (cells.length > 0) {
-        rows.push(cells.map((cell) => cell.trim()))
-      }
-    }
-    return { headers: headers.map((header) => header.trim()), rows }
+  readGrid(table) {
+    return readTradingGrid(table)
   }
 }

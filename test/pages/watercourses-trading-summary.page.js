@@ -1,5 +1,6 @@
 import { readTileValue } from '@utils/tile-value.js'
 import { tagIn, tile } from '@utils/unit-type-tiles.js'
+import { readTradingGrid } from '@utils/trading-grid.js'
 
 import { BasePage } from './base.page.js'
 import { WATERCOURSES } from '@utils/unit-type-labels.js'
@@ -116,16 +117,8 @@ export class WatercoursesTradingSummaryPage extends BasePage {
    * A band's grid: column headings, then every body and footer row as trimmed
    * cell text — so a totals row, if one rendered, would show up in `rows`.
    */
-  async readBandGrid(band) {
+  readBandGrid(band) {
     const table = this.bandSection(band).getByRole('table')
-    const headers = await table.getByRole('columnheader').allInnerTexts()
-    const rows = []
-    for (const row of await table.getByRole('row').all()) {
-      const cells = await row.getByRole('cell').allInnerTexts()
-      if (cells.length > 0) {
-        rows.push(cells.map((cell) => cell.trim()))
-      }
-    }
-    return { headers: headers.map((header) => header.trim()), rows }
+    return readTradingGrid(table)
   }
 }
