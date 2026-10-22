@@ -86,25 +86,36 @@ The overall status (`tradingRuleStatuses.hedgerows.overall`) shown in the Tradin
 
 **Entry points (BMD-1027)** — added 2026-10-09 by `/validate-ac-automated`. Both click-throughs are followed in `hedgerows-trading-summary.spec.js` (describe "Hedgerows trading summary — entry points"); the nav child arrives on this page with Hedgerows expanded to Baseline → Post intervention → Trading rules, Trading rules current. The links' presence once a post-intervention file exists (AC1, AC3), and their absence before one (AC2, AC4), are asserted on each source page in `project-summary.spec.js`, `hedgerows-summary.spec.js`, `hedgerows-baseline.spec.js` and `hedgerows-post-intervention.spec.js`.
 
-**Not covered yet** (BMD-1028's own ACs were never run through `/validate-ac-automated`):
+**BMD-1028's own ACs** — added 2026-10-22 by `/validate-ac-automated`.
+
+| Test (describe)                                                   | Fixture pair                     | Covers                                                                                                                      |
+| ----------------------------------------------------------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| band statuses — Medium deficit test (extended)                    | higher-deficit                   | AC3a column headings; AC4 tile tag (Not met); AC6 Tile 2 floor — Low 2.45 / **0.00** / 2.45                                 |
+| band statuses — covered test (extended)                           | lower-deficit-covered-from-above | AC4 tile tag (Met); AC6 Tile 2 carries the Medium surplus (4.88)                                                            |
+| band sections — Medium / Low / Very low section tests             | created linear features          | AC4–AC9: every tile, the cumulative-tile-only tag, each grid with its "Total unit change" row; Very low Tile 2 floor (0.00) |
+| band sections — a Low surplus carries down into the Very low band | all-met                          | AC8 Tile 2 fed the Low **cumulative** figure (1.26); the only real-data Very low "Met"                                      |
+| navigation and upload — each left-navigation link / Upload file   | created linear features          | AC10 (all six links followed, incl. Baseline → `hedgerows-baseline`, Watercourses); AC11; AC1's Watercourses-present branch |
+| entry points — Trading rules nav child (extended)                 | lower-deficit-covered-from-above | AC1 rest of the nav + Watercourses absent (no rivers); AC2 caption + upload button `returnUrl`                              |
+
+The "band sections" describe is the sole real-data witness for `tradingRules.hedgerows.habitatTypes` (no integration test asserts it). Bold on the current nav item is styling and is not asserted; `aria-current="page"` is.
+
+**Not covered yet:**
 
 | Element                                                               | Coverage                                                                                                            |
 | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| Page furniture — caption, heading, upload button `returnUrl`          | No journey test                                                                                                     |
-| Per-hedgerow-type grids and totals rows                               | No journey test                                                                                                     |
-| Redirects (no PI → hedgerows summary; no hedgerows → project summary) | No journey test                                                                                                     |
+| Redirects (no PI → hedgerows summary; no hedgerows → project summary) | No journey test (outside BMD-1028's ACs)                                                                            |
 | "Trading rules have not been calculated" inset                        | `[BLOCKED: needs a post-intervention document saved without hedgerow figures — not producible by a current upload]` |
 
 ---
 
 ## Fixtures
 
-| Pair                                                                              | Hedgerow shape                                                                                                                                                                     |
-| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `trading-higher-deficit-not-covered-from-below-{baseline,post-intervention}.gpkg` | Medium −2.56 (Not met), Low +2.45 (Met), no Very low                                                                                                                               |
-| `trading-lower-deficit-covered-from-above-{baseline,post-intervention}.gpkg`      | Medium +4.88 (Met), Low −1.55 covered → cumulative +3.33 (Met); overall Met                                                                                                        |
-| `{Baseline,Post-intervention} - created linear features.gpkg`                     | Medium +2.22 (Met), Low −4.20 → cumulative −1.98 (Not met), Very low −1.04 (Not met) — HG005/HG010 changed from Medium to Low strategic significance for BMD-1051 (see note below) |
-| `trading-lost-to-development-{baseline,post-intervention}.gpkg` (not shared)      | Medium / Low Met, Very low −0.33 (Not met) — the single-band aggregate case                                                                                                        |
-| `trading-all-met-{baseline,post-intervention}.gpkg` (not shared)                  | all three bands Met, Very low covered from above (+1.26)                                                                                                                           |
+| Pair                                                                              | Hedgerow shape                                                                                                                                                                                                                                                                         |
+| --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `trading-higher-deficit-not-covered-from-below-{baseline,post-intervention}.gpkg` | Medium −2.56 (Not met), Low +2.45 (Met), no Very low                                                                                                                                                                                                                                   |
+| `trading-lower-deficit-covered-from-above-{baseline,post-intervention}.gpkg`      | Medium +4.88 (Met), Low −1.55 covered → cumulative +3.33 (Met); overall Met                                                                                                                                                                                                            |
+| `{Baseline,Post-intervention} - created linear features.gpkg`                     | Medium +2.22 (Met), Low −4.20 → cumulative −1.98 (Not met), Very low −1.04 (Not met) — HG005/HG010 changed from Medium to Low strategic significance for BMD-1051 (see note below)                                                                                                     |
+| `trading-lost-to-development-{baseline,post-intervention}.gpkg` (not shared)      | Medium / Low Met, Very low −0.33 (Not met) — the single-band aggregate case                                                                                                                                                                                                            |
+| `trading-all-met-{baseline,post-intervention}.gpkg`                               | Medium 0.00, Low +1.26 (enhanced), Very low 0.00 (retained) → Low cumulative +1.26 carried down; all three bands Met. Shared via `getHedgerowTradingAllMetProject`. The repo copy predates the harness's BMD-1060 regeneration (lengths differ); the figures above are the repo copy's |
 
 **`created linear features` differs from its harness copy.** Since backend PR #465 (BMD-1051), the service accepts only Low or High as the Proposed Strategic Significance of a created or enhanced feature. A Medium value (`Location ecologically desirable but not in local strategy`) is nulled and the feature priced at **0 units**. The harness file gives Created hedgerows HG005 and HG010 Medium, which turned the Medium band into a deficit and every band Not met. The journey-tests copy sets both to Low (`Area/compensation not in local strategy/ no local strategy`), which restores the Met / Not met / Not met pattern the band-status test needs. The pair's other rejected features (area H008/H012/H043/H051, tree T018) are left as shipped.
