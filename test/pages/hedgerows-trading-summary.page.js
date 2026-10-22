@@ -1,5 +1,6 @@
 import { readTileValue } from '@utils/tile-value.js'
-import { tagIn } from '@utils/unit-type-tiles.js'
+import { tagIn, tile } from '@utils/unit-type-tiles.js'
+import { readTradingGrid } from '@utils/trading-grid.js'
 
 import { BasePage } from './base.page.js'
 import { HEDGEROWS } from '@utils/unit-type-labels.js'
@@ -17,6 +18,14 @@ export const MEDIUM_DEFICIT_TILE =
   'Medium distinctiveness unit deficit required to meet trading rules'
 export const CUMULATIVE_SURPLUS_TILE = 'Cumulative surplus of units'
 export const LOW_NET_CHANGE_TILE = 'Low distinctiveness net change in units'
+export const MEDIUM_AVAILABLE_TILE =
+  'Medium units available to offset low distinctiveness deficit'
+export const VERY_LOW_NET_CHANGE_TILE =
+  'Very low distinctiveness net change in units'
+export const LOW_AVAILABLE_TILE =
+  'Medium and low units available to offset very low distinctiveness deficit'
+export const UNIT_CHANGE_COLUMNS = ['Habitat type', 'Unit change']
+export const TOTAL_UNIT_CHANGE = 'Total unit change'
 
 /**
  * The hedgerows trading summary (`/projects/{id}/hedgerows-trading-summary`,
@@ -27,6 +36,8 @@ export const LOW_NET_CHANGE_TILE = 'Low distinctiveness net change in units'
  * Same shape as the area trading summary: every section is a
  * `<section aria-labelledby>` on its `<h2>`, so each is a named region, and the
  * Trading summary table lists one row per band present, Medium → Very low.
+ * Each band section holds one grid, and — unlike the watercourses page — every
+ * grid ends in a "Total unit change" row.
  */
 export class HedgerowsTradingSummaryPage extends BasePage {
   constructor(page) {
@@ -36,6 +47,7 @@ export class HedgerowsTradingSummaryPage extends BasePage {
       level: 1
     })
     this.navigation = page.getByRole('navigation', { name: 'Project summary' })
+    this.uploadFileButton = page.getByRole('button', { name: 'Upload file' })
     this.statusSection = page.getByRole('region', { name: 'Trading summary' })
   }
 
@@ -49,6 +61,10 @@ export class HedgerowsTradingSummaryPage extends BasePage {
 
   navLink(text) {
     return this.navigation.getByRole('link', { name: text, exact: true })
+  }
+
+  caption(projectName) {
+    return this.page.getByText(projectName)
   }
 
   /** The children listed under "Hedgerows", in rendered order. */
@@ -98,5 +114,26 @@ export class HedgerowsTradingSummaryPage extends BasePage {
 
   bandTileValue(band, tileHeading) {
     return readTileValue(this.bandSection(band), tileHeading)
+  }
+
+  async bandTileValues(band, tileHeadings) {
+    const values = []
+    for (const heading of tileHeadings) {
+      values.push(await this.bandTileValue(band, heading))
+    }
+    return values
+  }
+
+  bandTileTag(band, tileHeading) {
+    return tagIn(tile(this.bandSection(band), tileHeading))
+  }
+
+  /**
+   * A band's grid: column headings, then every body and footer row as trimmed
+   * cell text — so the totals row is the last entry in `rows`.
+   */
+  readBandGrid(band) {
+    const table = this.bandSection(band).getByRole('table')
+    return readTradingGrid(table)
   }
 }

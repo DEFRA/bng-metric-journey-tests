@@ -2,9 +2,11 @@ import { test, expect } from '@fixtures'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import {
   getAreaTradingDeficitProject,
+  getHedgerowTradingAllMetProject,
   getHedgerowTradingMetProject,
   getLinearInterventionTypesProject
 } from '@utils/summary-projects.js'
+import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
   expectStatusTag,
   STATUS_MET,
@@ -14,18 +16,41 @@ import {
   CUMULATIVE_SURPLUS_TILE,
   HEDGEROWS_TRADING_SUMMARY_PATH,
   LOW,
+  LOW_AVAILABLE_TILE,
   LOW_NET_CHANGE_TILE,
   MEDIUM,
+  MEDIUM_AVAILABLE_TILE,
   MEDIUM_DEFICIT_TILE,
-  VERY_LOW
+  TOTAL_UNIT_CHANGE,
+  UNIT_CHANGE_COLUMNS,
+  VERY_LOW,
+  VERY_LOW_NET_CHANGE_TILE
 } from '@pages/hedgerows-trading-summary.page.js'
 import {
+  AREA_HABITATS,
   BASELINE_NAV_CHILD,
+  HEDGEROWS,
   POST_INTERVENTION_NAV_CHILD,
-  TRADING_RULES_NAV_CHILD
+  SUMMARY,
+  TRADING_RULES_NAV_CHILD,
+  WATERCOURSES
 } from '@utils/unit-type-labels.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
+
+const LOW_TILES = [
+  LOW_NET_CHANGE_TILE,
+  MEDIUM_AVAILABLE_TILE,
+  CUMULATIVE_SURPLUS_TILE
+]
+const VERY_LOW_TILES = [
+  VERY_LOW_NET_CHANGE_TILE,
+  LOW_AVAILABLE_TILE,
+  CUMULATIVE_SURPLUS_TILE
+]
+
+const tradingSummaryUrl = (id) =>
+  new RegExp(`/projects/${id}/${HEDGEROWS_TRADING_SUMMARY_PATH}$`)
 
 // ─── Hedgerow trading rules — band statuses (BMD-1003 AC1–AC3) ───────────────
 //
@@ -63,6 +88,11 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         const project = await getAreaTradingDeficitProject(browser)
         await hedgerowsTradingSummaryPage.open(project.id)
 
+        // BMD-1028 AC3a.
+        await expect(
+          hedgerowsTradingSummaryPage.statusSection.getByRole('columnheader')
+        ).toHaveText(['Distinctiveness group', 'Status'])
+
         // AC1, the deficit branch.
         expect(
           await hedgerowsTradingSummaryPage.bandTileValue(
@@ -74,10 +104,21 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           hedgerowsTradingSummaryPage.statusTag(MEDIUM),
           STATUS_NOT_MET
         )
+        // BMD-1028 AC4: the tile carries the band's tag too.
+        await expectStatusTag(
+          hedgerowsTradingSummaryPage.bandTileTag(MEDIUM, MEDIUM_DEFICIT_TILE),
+          STATUS_NOT_MET
+        )
         await expectStatusTag(
           hedgerowsTradingSummaryPage.statusTag(LOW),
           STATUS_MET
         )
+        // BMD-1028 AC6, Tile 2's floor: a Medium deficit is never carried
+        // down, so "available" reads 0.00 rather than -2.56, and Tile 1 +
+        // Tile 2 still equals Tile 3.
+        expect(
+          await hedgerowsTradingSummaryPage.bandTileValues(LOW, LOW_TILES)
+        ).toEqual(['2.45 units', '0.00 units', '2.45 units'])
         // AC3's precondition: no Very low hedgerow on the baseline, so the band
         // is not derived and the page lists no row for it.
         expect(await hedgerowsTradingSummaryPage.bandNames()).toEqual([
@@ -150,23 +191,256 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           hedgerowsTradingSummaryPage.statusTag(MEDIUM),
           STATUS_MET
         )
-        // AC2, the non-deficit branch.
+        await expectStatusTag(
+          hedgerowsTradingSummaryPage.bandTileTag(MEDIUM, MEDIUM_DEFICIT_TILE),
+          STATUS_MET
+        )
+        // AC2, the non-deficit branch. BMD-1028 AC6: the Medium surplus is
+        // what carries down.
+        expect(
+          await hedgerowsTradingSummaryPage.bandTileValues(LOW, LOW_TILES)
+        ).toEqual(['-1.55 units', '4.88 units', '3.33 units'])
+        await expectStatusTag(
+          hedgerowsTradingSummaryPage.statusTag(LOW),
+          STATUS_MET
+        )
+      })
+    }
+  )
+
+  // ─── Band sections (BMD-1028 AC4–AC9) ────────────────────────────────────────
+  //
+  // SOLE WITNESS for `postIntervention.tradingRules.hedgerows.habitatTypes` —
+  // the per-hedgerow-type unit changes in the grids — from a real upload. The
+  // backend calculates them in enrich-post-intervention-hedgerow-trading-rules
+  // .test.js from synthetic features, and the frontend renders them in
+  // hedgerows-trading-summary/controller.test.js from a fabricated payload; no
+  // integration test asserts the figures. Do not delete without an integration
+  // test that uploads a hedgerow-bearing pair and asserts those figures.
+  //
+  // The linear pair is the one shipped pairing with every band present and
+  // several hedgerow types per band, so one project carries all three sections.
+  test.describe(
+    'Hedgerows trading summary — band sections',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      test('the Medium section shows the deficit tile and each Medium hedgerow type with a total', async ({
+        browser,
+        hedgerowsTradingSummaryPage
+      }) => {
+        const project = await getLinearInterventionTypesProject(browser)
+        await hedgerowsTradingSummaryPage.open(project.id)
+
         expect(
           await hedgerowsTradingSummaryPage.bandTileValue(
-            LOW,
-            LOW_NET_CHANGE_TILE
+            MEDIUM,
+            MEDIUM_DEFICIT_TILE
           )
-        ).toBe('-1.55 units')
+        ).toBe('2.22 units')
+        await expectStatusTag(
+          hedgerowsTradingSummaryPage.bandTileTag(MEDIUM, MEDIUM_DEFICIT_TILE),
+          STATUS_MET
+        )
+        // The rows add up to 2.21, the total to 2.22: each figure is rounded
+        // for display on its own, so the two can differ by a penny.
+        expect(await hedgerowsTradingSummaryPage.readBandGrid(MEDIUM)).toEqual({
+          headers: UNIT_CHANGE_COLUMNS,
+          rows: [
+            ['Ecologically valuable line of trees', '1.94'],
+            [
+              'Ecologically valuable line of trees - associated with bank or ditch',
+              '-1.56'
+            ],
+            ['Native hedgerow - associated with bank or ditch', '2.39'],
+            ['Native hedgerow with trees', '-0.56'],
+            ['Species-rich native hedgerow', '0.00'],
+            [TOTAL_UNIT_CHANGE, '2.22']
+          ]
+        })
+      })
+
+      test('the Low section shows its three tiles and each Low hedgerow type with a total', async ({
+        browser,
+        hedgerowsTradingSummaryPage
+      }) => {
+        const project = await getLinearInterventionTypesProject(browser)
+        await hedgerowsTradingSummaryPage.open(project.id)
+
+        expect(
+          await hedgerowsTradingSummaryPage.bandTileValues(LOW, LOW_TILES)
+        ).toEqual(['-4.20 units', '2.22 units', '-1.98 units'])
+        // Only the cumulative tile carries the band's status.
+        await expectStatusTag(
+          hedgerowsTradingSummaryPage.bandTileTag(LOW, CUMULATIVE_SURPLUS_TILE),
+          STATUS_NOT_MET
+        )
+        await expect(
+          hedgerowsTradingSummaryPage.bandTileTag(LOW, LOW_NET_CHANGE_TILE)
+        ).toHaveCount(0)
+        expect(await hedgerowsTradingSummaryPage.readBandGrid(LOW)).toEqual({
+          headers: UNIT_CHANGE_COLUMNS,
+          rows: [
+            ['Line of trees', '-1.76'],
+            ['Line of trees - associated with bank or ditch', '-2.44'],
+            ['Native hedgerow', '0.00'],
+            [TOTAL_UNIT_CHANGE, '-4.20']
+          ]
+        })
+      })
+
+      // A Low cumulative deficit (-1.98) is never carried down, so "available"
+      // reads 0.00. That alone cannot tell which figure the page passes — any
+      // negative input floors to 0.00 — hence the all-met test below.
+      test('the Very low section shows a Low deficit carried down as 0.00 and its hedgerow type with a total', async ({
+        browser,
+        hedgerowsTradingSummaryPage
+      }) => {
+        const project = await getLinearInterventionTypesProject(browser)
+        await hedgerowsTradingSummaryPage.open(project.id)
+
+        expect(
+          await hedgerowsTradingSummaryPage.bandTileValues(
+            VERY_LOW,
+            VERY_LOW_TILES
+          )
+        ).toEqual(['-1.04 units', '0.00 units', '-1.04 units'])
+        await expectStatusTag(
+          hedgerowsTradingSummaryPage.bandTileTag(
+            VERY_LOW,
+            CUMULATIVE_SURPLUS_TILE
+          ),
+          STATUS_NOT_MET
+        )
+        expect(
+          await hedgerowsTradingSummaryPage.readBandGrid(VERY_LOW)
+        ).toEqual({
+          headers: UNIT_CHANGE_COLUMNS,
+          rows: [
+            ['Non-native and ornamental hedgerow', '-1.04'],
+            [TOTAL_UNIT_CHANGE, '-1.04']
+          ]
+        })
+      })
+
+      // harness trading-rules/all-met: the Low hedgerow is enhanced (+1.26) and
+      // the Very low one retained (0.00). SOLE WITNESS that the Very low
+      // "available" tile is fed the Low CUMULATIVE figure — the only shared
+      // pair where that figure is positive under a Very low band — and the only
+      // real-data Very low "Met". The frontend tests the same carry-down
+      // (controller.test.js "carries positive low availability down to very
+      // low") with fabricated figures only.
+      test('a Low surplus carries down into the Very low band, which reads "Met"', async ({
+        browser,
+        hedgerowsTradingSummaryPage
+      }) => {
+        const project = await getHedgerowTradingAllMetProject(browser)
+        await hedgerowsTradingSummaryPage.open(project.id)
+
+        expect(await hedgerowsTradingSummaryPage.bandNames()).toEqual([
+          MEDIUM,
+          LOW,
+          VERY_LOW
+        ])
         expect(
           await hedgerowsTradingSummaryPage.bandTileValue(
             LOW,
             CUMULATIVE_SURPLUS_TILE
           )
-        ).toBe('3.33 units')
+        ).toBe('1.26 units')
+        expect(
+          await hedgerowsTradingSummaryPage.bandTileValues(
+            VERY_LOW,
+            VERY_LOW_TILES
+          )
+        ).toEqual(['0.00 units', '1.26 units', '1.26 units'])
         await expectStatusTag(
-          hedgerowsTradingSummaryPage.statusTag(LOW),
+          hedgerowsTradingSummaryPage.statusTag(VERY_LOW),
           STATUS_MET
         )
+        await expectStatusTag(
+          hedgerowsTradingSummaryPage.bandTileTag(
+            VERY_LOW,
+            CUMULATIVE_SURPLUS_TILE
+          ),
+          STATUS_MET
+        )
+      })
+    }
+  )
+
+  // ─── Navigation and upload (BMD-1028 AC10–AC11) ──────────────────────────────
+  //
+  // The frontend asserts the nav hrefs in mocked markup; this follows each one
+  // from this page and checks where it lands. The linear pair has rivers, so it
+  // also witnesses the Watercourses item's present branch (AC1).
+  test.describe(
+    'Hedgerows trading summary — navigation and upload',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      test('each left-navigation link opens its page', async ({
+        browser,
+        page,
+        hedgerowsTradingSummaryPage,
+        projectSummaryPage,
+        areaSummaryPage,
+        hedgerowsSummaryPage,
+        hedgerowsBaselinePage,
+        hedgerowsPostInterventionPage,
+        watercoursesSummaryPage
+      }) => {
+        const project = await getLinearInterventionTypesProject(browser)
+        const destinations = [
+          [SUMMARY, 'project-summary', projectSummaryPage.heading],
+          [AREA_HABITATS, 'area-summary', areaSummaryPage.heading],
+          [HEDGEROWS, 'hedgerows-summary', hedgerowsSummaryPage.heading],
+          [
+            BASELINE_NAV_CHILD,
+            'hedgerows-baseline',
+            hedgerowsBaselinePage.heading
+          ],
+          [
+            POST_INTERVENTION_NAV_CHILD,
+            'hedgerows-post-intervention',
+            hedgerowsPostInterventionPage.heading
+          ],
+          [
+            WATERCOURSES,
+            'watercourses-summary',
+            watercoursesSummaryPage.heading
+          ]
+        ]
+
+        for (const [linkText, path, landingHeading] of destinations) {
+          await hedgerowsTradingSummaryPage.open(project.id)
+          await hedgerowsTradingSummaryPage.navLink(linkText).click()
+
+          await expect(page, linkText).toHaveURL(
+            new RegExp(`/projects/${project.id}/${path}$`)
+          )
+          await expect(landingHeading, linkText).toBeVisible()
+        }
+      })
+
+      test('Upload file opens the file-type selection page', async ({
+        browser,
+        page,
+        hedgerowsTradingSummaryPage,
+        uploadFilePage
+      }) => {
+        const project = await getLinearInterventionTypesProject(browser)
+        await hedgerowsTradingSummaryPage.open(project.id)
+        await hedgerowsTradingSummaryPage.uploadFileButton.click()
+
+        await expect(page).toHaveURL(
+          new RegExp(`/projects/${project.id}/upload-file\\?`)
+        )
+        await expect(uploadFilePage.heading).toBeVisible()
       })
     }
   )
@@ -186,12 +460,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      const tradingSummaryUrl = (id) =>
-        new RegExp(`/projects/${id}/${HEDGEROWS_TRADING_SUMMARY_PATH}$`)
-
       // Arrives by clicking rather than by URL, so the nav shape asserted is
       // the one a user reaches: Hedgerows expanded, Trading rules current.
-      test('the Hedgerows "Trading rules" nav child opens this page with Trading rules current', async ({
+      test('the Hedgerows "Trading rules" nav child opens this page with Trading rules current, the rest of the nav, the caption and an upload action returning here', async ({
         browser,
         page,
         hedgerowsSummaryPage,
@@ -219,6 +490,34 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expect(
           hedgerowsTradingSummaryPage.navLink(TRADING_RULES_NAV_CHILD)
         ).toHaveCount(0)
+
+        // BMD-1028 AC1: the rest of the nav. This pair has no rivers, so
+        // Watercourses is absent; the navigation describe below covers the
+        // present branch.
+        for (const name of [SUMMARY, AREA_HABITATS, HEDGEROWS]) {
+          await expect(
+            hedgerowsTradingSummaryPage.navLink(name),
+            name
+          ).toBeVisible()
+        }
+        await expect(
+          hedgerowsTradingSummaryPage.navigation.getByText(WATERCOURSES)
+        ).toHaveCount(0)
+
+        // BMD-1028 AC2. The upload button's returnUrl is built per page, so
+        // another page's witness says nothing about this one.
+        await expect(
+          hedgerowsTradingSummaryPage.caption(project.name)
+        ).toBeVisible()
+        await expect(
+          hedgerowsTradingSummaryPage.uploadFileButton
+        ).toHaveAttribute(
+          'href',
+          uploadFileHref(
+            project.id,
+            `/projects/${project.id}/${HEDGEROWS_TRADING_SUMMARY_PATH}`
+          )
+        )
       })
 
       test('the project summary "View hedgerows trading rules" link opens this page', async ({

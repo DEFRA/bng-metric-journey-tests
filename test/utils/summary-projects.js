@@ -148,6 +148,18 @@ export const HEDGEROW_TRADING_MET_BASELINE_FILE =
 export const HEDGEROW_TRADING_MET_PI_FILE =
   'trading-lower-deficit-covered-from-above-post-intervention.gpkg'
 
+// BMD-1028's Very low carry-down pair (harness permutations/trading-rules). One
+// hedgerow per band: Medium retained, Low enhanced from Poor to Good, Very low
+// retained. The Low band ends in surplus and the Very low band loses nothing,
+// so this is the only shared pair where a POSITIVE Low cumulative figure is
+// carried down into the Very low band — the linear pair's Very low hedgerow
+// sits under a Low deficit, which renders 0.00 whatever figure is passed. Also
+// the only shared pair with a Very low band that reads Met.
+export const HEDGEROW_TRADING_ALL_MET_BASELINE_FILE =
+  'trading-all-met-baseline.gpkg'
+export const HEDGEROW_TRADING_ALL_MET_PI_FILE =
+  'trading-all-met-post-intervention.gpkg'
+
 // IGGI is Medium in the engine's reference data (the file's own column says
 // V.Low, which the backend ignores) and sits in Intertidal hard structures —
 // the only shipped pair that reaches the merged intertidal grid. It also has
@@ -541,6 +553,25 @@ export function getHedgerowTradingMetProject(browser) {
         browser,
         HEDGEROW_TRADING_MET_BASELINE_FILE,
         HEDGEROW_TRADING_MET_PI_FILE
+      )
+  )
+}
+
+/**
+ * A project whose hedgerows are Met in all three bands, with a Low surplus
+ * carried down into the Very low band — BMD-1028 AC8 Tile 2's positive branch.
+ */
+export function getHedgerowTradingAllMetProject(browser) {
+  return getOrBuildProject(
+    projectKey(
+      HEDGEROW_TRADING_ALL_MET_BASELINE_FILE,
+      HEDGEROW_TRADING_ALL_MET_PI_FILE
+    ),
+    () =>
+      buildPostInterventionProject(
+        browser,
+        HEDGEROW_TRADING_ALL_MET_BASELINE_FILE,
+        HEDGEROW_TRADING_ALL_MET_PI_FILE
       )
   )
 }
