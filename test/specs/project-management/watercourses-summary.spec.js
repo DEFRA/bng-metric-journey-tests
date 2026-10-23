@@ -125,23 +125,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     )
 
     // BMD-861's half of frontend PR#266 (2026-09-04), the watercourse twin of
-    // BMD-859 AC1: the tile was inert until that PR passed
-    // `watercoursesBaselineAction(href)` into this controller. Following the
-    // link belongs to BMD-861's own AC sweep — asserted here is that this page
-    // emits its own unit type's wording rather than the shared default.
-    test('the baseline tile links to the watercourses baseline page', async ({
-      watercoursesSummaryPage
-    }) => {
-      await watercoursesSummaryPage.open(project.id)
-
-      await expect(watercoursesSummaryPage.baselineLink()).toHaveAttribute(
-        'href',
-        `/projects/${project.id}/watercourses-baseline-summary`
-      )
-      await expect(
-        watercoursesSummaryPage.viewOnSiteBaselineText()
-      ).toHaveCount(0)
-    })
+    // BMD-859 AC1 — this page's baseline tile link, its wording and its href —
+    // is asserted and followed in watercourses-baseline.spec.js ("both
+    // triggers on the watercourses summary open this page").
 
     test('Watercourses is current and expands its own Baseline child', async ({
       watercoursesSummaryPage
@@ -157,9 +143,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       // BMD-856 AC7. Asserting the hrefs rather than mere visibility: this
       // page has no back link, so the left nav is the only way out, and the
-      // AC names a destination per link. area-summary.spec.js and
-      // hedgerows-summary.spec.js follow the equivalent links from their own
-      // pages, which is what makes clicking all three again here redundant.
+      // AC names a destination per link. Each is followed once elsewhere
+      // (see the "Nav click witnesses" table in
+      // test/flows/project-management/area-summary.flow.md), which is what makes
+      // clicking all three again here redundant.
       const destinations = [
         [AREA_HABITATS, 'area-summary'],
         [HEDGEROWS, 'hedgerows-summary'],

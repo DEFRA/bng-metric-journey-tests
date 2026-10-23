@@ -407,47 +407,6 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     }
   )
 
-  // ─── Watercourse viewable ─────────────────────────────────────────────────────
-
-  test.describe(
-    'Baseline habitat details — watercourse viewable',
-    { tag: '@regression' },
-    () => {
-      test.use({ storageState: STORAGE_STATE })
-      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
-
-      test(
-        'navigating to a watercourse feature renders the details page',
-        { tag: ['@happy-path'] },
-        async ({
-          createProjectFlow,
-          projectDashboardPage,
-          uploadBaselineFileFlow,
-          baselineHabitatDetailsPage,
-          page
-        }) => {
-          const shared = await getSharedBaseline({
-            createProjectFlow,
-            projectDashboardPage,
-            uploadBaselineFileFlow,
-            page
-          })
-
-          // BMD-502 registered the watercourse strategy, so the page now renders
-          // (200) instead of throwing in the strategy lookup (500). Watercourse
-          // editing/saving remains unsupported (the backend rejects the PUT).
-          const response = await page.goto(
-            `/baseline-habitat-details?projectId=${shared.id}&featureId=${shared.watercourse.featureId}`
-          )
-          expect(response.status()).toBe(HTTP_OK)
-          await expect(
-            baselineHabitatDetailsPage.baselineDetailsHeading
-          ).toBeVisible()
-        }
-      )
-    }
-  )
-
   // ─── Role enforcement ────────────────────────────────────────────────────────
 
   test.describe('Baseline habitat details — role enforcement', () => {
@@ -579,100 +538,31 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     }
   )
 
-  // ─── Area habitat details — page display ─────────────────────────────────────
-
-  test.describe(
-    'Baseline habitat details — area habitat page display',
-    { tag: '@smoke' },
-    () => {
-      test.use({ storageState: STORAGE_STATE })
-      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
-      test.skip(runMode === 'e2e', E2E_UPLOAD_SKIP_REASON)
-      test.describe.configure({ mode: 'serial' })
-
-      let projectId
-      let areaFeatureId
-
-      test('area habitat details form renders with all summary rows and dropdowns', async ({
-        createProjectFlow,
-        projectDashboardPage,
-        uploadBaselineFileFlow,
-        baselineHabitatDetailsPage,
-        page
-      }) => {
-        const shared = await getSharedBaseline({
-          createProjectFlow,
-          projectDashboardPage,
-          uploadBaselineFileFlow,
-          page
-        })
-        projectId = shared.id
-        areaFeatureId = shared.area.featureId
-
-        await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
-
-        await expect(baselineHabitatDetailsPage.heading).toBeVisible()
-        await expect(
-          baselineHabitatDetailsPage.baselineDetailsHeading
-        ).toBeVisible()
-        await expect(
-          baselineHabitatDetailsPage.broadHabitatSelect
-        ).toBeVisible()
-        await expect(baselineHabitatDetailsPage.habitatTypeSelect).toBeVisible()
-        await expect(baselineHabitatDetailsPage.conditionSelect).toBeVisible()
-        await expect(baselineHabitatDetailsPage.saveButton).toBeVisible()
-        await expect(baselineHabitatDetailsPage.cancelLink).toBeVisible()
-        await expect(baselineHabitatDetailsPage.backLink).toBeVisible()
-        await expect(page.getByText('Area (hectares)')).toBeVisible()
-
-        // Read-only summary rows, including the fixed "Low (1)" strategic
-        // significance applied in MVS.
-        await expect(baselineHabitatDetailsPage.referenceKey).toBeVisible()
-        await expect(
-          baselineHabitatDetailsPage.distinctivenessKey
-        ).toBeVisible()
-        await expect(
-          baselineHabitatDetailsPage.strategicSignificanceKey
-        ).toBeVisible()
-        await expect(
-          baselineHabitatDetailsPage.strategicSignificanceValue
-        ).toBeVisible()
-        await expect(baselineHabitatDetailsPage.tradingRulesKey).toBeVisible()
-        await expect(baselineHabitatDetailsPage.habitatUnitsKey).toBeVisible()
-      })
-
-      test('save area habitat selections redirects to the area habitats baseline', async ({
-        baselineHabitatDetailsPage,
-        page
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
-        await baselineHabitatDetailsPage.saveButton.click()
-        await expect(page).toHaveURL(baselinePageUrl(projectId, 'area'))
-      })
-    }
-  )
+  // ─── Area habitat details — page display and save ─────────────────────────────
+  // The rendered page is asserted by "area habitat content › AC2–AC11" and the
+  // save-and-redirect by "area habitat edit › AC6 Scenario A" (both @smoke).
 
   // ─── Area habitat details — edit and recompute ───────────────────────────────
 
-  test.describe(
-    'Baseline habitat details — area habitat edit',
-    { tag: '@regression' },
-    () => {
-      test.use({ storageState: STORAGE_STATE })
-      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
-      test.skip(runMode === 'e2e', E2E_UPLOAD_SKIP_REASON)
-      test.describe.configure({ mode: 'serial' })
+  test.describe('Baseline habitat details — area habitat edit', () => {
+    test.use({ storageState: STORAGE_STATE })
+    test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+    test.skip(runMode === 'e2e', E2E_UPLOAD_SKIP_REASON)
+    test.describe.configure({ mode: 'serial' })
 
-      let projectId
-      let areaFeatureId
-      let areaRef
+    let projectId
+    let areaFeatureId
+    let areaRef
 
-      // AC6 (Scenario A — all options selected): saving a changed selection
-      // persists it, recalculates the habitat units, and returns to the area
-      // habitats baseline with the row and the grid total reflecting the new
-      // calculation. The grid has no Status column (BMD-1043), so "Complete" is
-      // evidenced by the recalculated units rather than a status cell.
-      test('AC6 Scenario A — saving with all options selected recalculates units', async ({
+    // AC6 (Scenario A — all options selected): saving a changed selection
+    // persists it, recalculates the habitat units, and returns to the area
+    // habitats baseline with the row and the grid total reflecting the new
+    // calculation. The grid has no Status column (BMD-1043), so "Complete" is
+    // evidenced by the recalculated units rather than a status cell.
+    test(
+      'AC6 Scenario A — saving with all options selected recalculates units',
+      { tag: '@smoke' },
+      async ({
         createProjectFlow,
         projectDashboardPage,
         uploadBaselineFileFlow,
@@ -708,15 +598,17 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(gridUnitsTotal(page, 'area')).toHaveText(
           HABITAT_UNITS_PATTERN
         )
-      })
+      }
+    )
 
-      // AC2: selecting a different valid habitat type updates the derived
-      // distinctiveness + trading-rules displays, refreshes and resets the
-      // condition options to "Choose condition", and leaves units untouched
-      // (recalculation only happens on Save).
-      test('AC2 — selecting a valid habitat type updates derived values and resets condition', async ({
-        baselineHabitatDetailsPage
-      }) => {
+    // AC2: selecting a different valid habitat type updates the derived
+    // distinctiveness + trading-rules displays, refreshes and resets the
+    // condition options to "Choose condition", and leaves units untouched
+    // (recalculation only happens on Save).
+    test(
+      'AC2 — selecting a valid habitat type updates derived values and resets condition',
+      { tag: '@regression' },
+      async ({ baselineHabitatDetailsPage }) => {
         await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
         const before = await baselineHabitatDetailsPage.conditionOptionValues()
         const unitsBefore = await baselineHabitatDetailsPage.habitatUnitsText()
@@ -745,13 +637,15 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(baselineHabitatDetailsPage.habitatUnitsValue).toHaveText(
           unitsBefore
         )
-      })
+      }
+    )
 
-      // AC1: changing the condition shows the new value as the (collapsed)
-      // selection with no DB write and no unit recalculation.
-      test('AC1 — selecting a new condition shows it without recalculating units', async ({
-        baselineHabitatDetailsPage
-      }) => {
+    // AC1: changing the condition shows the new value as the (collapsed)
+    // selection with no DB write and no unit recalculation.
+    test(
+      'AC1 — selecting a new condition shows it without recalculating units',
+      { tag: '@regression' },
+      async ({ baselineHabitatDetailsPage }) => {
         await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
         const unitsBefore = await baselineHabitatDetailsPage.habitatUnitsText()
         const distinctivenessBefore = (
@@ -772,13 +666,15 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(baselineHabitatDetailsPage.habitatUnitsValue).toHaveText(
           unitsBefore
         )
-      })
+      }
+    )
 
-      // AC3: deselecting the habitat type ("Choose habitat type") hides the
-      // derived displays, resets the condition, and leaves units untouched.
-      test('AC3 — deselecting the habitat type hides derived values and resets condition', async ({
-        baselineHabitatDetailsPage
-      }) => {
+    // AC3: deselecting the habitat type ("Choose habitat type") hides the
+    // derived displays, resets the condition, and leaves units untouched.
+    test(
+      'AC3 — deselecting the habitat type hides derived values and resets condition',
+      { tag: '@regression' },
+      async ({ baselineHabitatDetailsPage }) => {
         await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
         const unitsBefore = await baselineHabitatDetailsPage.habitatUnitsText()
 
@@ -794,14 +690,16 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(baselineHabitatDetailsPage.habitatUnitsValue).toHaveText(
           unitsBefore
         )
-      })
+      }
+    )
 
-      // AC4: selecting a new broad habitat hides the derived displays and
-      // reverts both the habitat type and condition to their defaults, without
-      // recalculating units.
-      test('AC4 — selecting a new broad habitat reverts type and condition and hides derived values', async ({
-        baselineHabitatDetailsPage
-      }) => {
+    // AC4: selecting a new broad habitat hides the derived displays and
+    // reverts both the habitat type and condition to their defaults, without
+    // recalculating units.
+    test(
+      'AC4 — selecting a new broad habitat reverts type and condition and hides derived values',
+      { tag: '@regression' },
+      async ({ baselineHabitatDetailsPage }) => {
         await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
         const unitsBefore = await baselineHabitatDetailsPage.habitatUnitsText()
 
@@ -821,14 +719,16 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(baselineHabitatDetailsPage.habitatUnitsValue).toHaveText(
           unitsBefore
         )
-      })
+      }
+    )
 
-      // AC5: deselecting the broad habitat ("Choose broad habitat") hides the
-      // derived displays and reverts the habitat type and condition to their
-      // defaults, without recalculating units.
-      test('AC5 — deselecting the broad habitat reverts type and condition and hides derived values', async ({
-        baselineHabitatDetailsPage
-      }) => {
+    // AC5: deselecting the broad habitat ("Choose broad habitat") hides the
+    // derived displays and reverts the habitat type and condition to their
+    // defaults, without recalculating units.
+    test(
+      'AC5 — deselecting the broad habitat reverts type and condition and hides derived values',
+      { tag: '@regression' },
+      async ({ baselineHabitatDetailsPage }) => {
         await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
         const unitsBefore = await baselineHabitatDetailsPage.habitatUnitsText()
 
@@ -847,15 +747,16 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(baselineHabitatDetailsPage.habitatUnitsValue).toHaveText(
           unitsBefore
         )
-      })
+      }
+    )
 
-      // AC7: changing a dropdown then clicking Cancel discards the change —
-      // the user returns to the area habitats baseline and the row's condition
-      // + units are unchanged from before the edit (no UI or DB update).
-      test('AC7 — cancelling after a change discards it and leaves the row unchanged', async ({
-        baselineHabitatDetailsPage,
-        page
-      }) => {
+    // AC7: changing a dropdown then clicking Cancel discards the change —
+    // the user returns to the area habitats baseline and the row's condition
+    // + units are unchanged from before the edit (no UI or DB update).
+    test(
+      'AC7 — cancelling after a change discards it and leaves the row unchanged',
+      { tag: '@regression' },
+      async ({ baselineHabitatDetailsPage, page }) => {
         // Capture the currently-persisted row state fresh from the grid.
         await openBaselineGrid(page, projectId, 'area')
         const conditionBefore = (
@@ -876,16 +777,17 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(gridCell(page, 'area', areaRef, 'units')).toHaveText(
           unitsBefore
         )
-      })
+      }
+    )
 
-      // AC6 (Scenario B — not all options selected): saving with a dropdown
-      // deselected clears the units — null + Incomplete since BMD-1070 (the
-      // grid has no Status column to show Incomplete — BMD-1043). Runs last in
-      // the serial block because it leaves the shared habitat Incomplete.
-      test('AC6 Scenario B — saving with a deselected dropdown clears units', async ({
-        baselineHabitatDetailsPage,
-        page
-      }) => {
+    // AC6 (Scenario B — not all options selected): saving with a dropdown
+    // deselected clears the units — null + Incomplete since BMD-1070 (the
+    // grid has no Status column to show Incomplete — BMD-1043). Runs last in
+    // the serial block because it leaves the shared habitat Incomplete.
+    test(
+      'AC6 Scenario B — saving with a deselected dropdown clears units',
+      { tag: '@regression' },
+      async ({ baselineHabitatDetailsPage, page }) => {
         await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
         await baselineHabitatDetailsPage.conditionSelect.selectOption('')
         await baselineHabitatDetailsPage.saveButton.click()
@@ -894,27 +796,27 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(gridCell(page, 'area', areaRef, 'units')).toHaveText(
           NO_UNITS
         )
-      })
-    }
-  )
+      }
+    )
+  })
 
   // ─── Area habitat details — page content (ACs) ───────────────────────────────
 
-  test.describe(
-    'Baseline habitat details — area habitat content',
-    { tag: '@regression' },
-    () => {
-      test.use({ storageState: STORAGE_STATE })
-      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
-      test.describe.configure({ mode: 'serial' })
+  test.describe('Baseline habitat details — area habitat content', () => {
+    test.use({ storageState: STORAGE_STATE })
+    test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+    test.describe.configure({ mode: 'serial' })
 
-      let projectId
-      let projectName
-      let areaFeatureId
-      let areaRef
-      let areaSize
+    let projectId
+    let projectName
+    let areaFeatureId
+    let areaRef
+    let areaSize
 
-      test('AC1 — page pathname is /baseline-habitat-details after click-through, and Back returns to the area habitats baseline', async ({
+    test(
+      'AC1 — page pathname is /baseline-habitat-details after click-through, and Back returns to the area habitats baseline',
+      { tag: '@regression' },
+      async ({
         createProjectFlow,
         projectDashboardPage,
         uploadBaselineFileFlow,
@@ -952,19 +854,40 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await baselineHabitatDetailsPage.backLink.click()
         await expect(page).toHaveURL(baselinePageUrl(projectId, 'area'))
         await expect(grid.table()).toBeVisible()
-      })
+      }
+    )
 
-      // AC2–AC11, consolidated. These were nine separate page loads asserting one
-      // label or value each; merged into one panel assertion so the rendered page
-      // is described in one place. No assertion was dropped in the merge. The
-      // frontend controller unit tests cover the same rows against mocked backend
-      // data (../bng-metric-frontend/src/server/baseline-habitat-details/controller.test.js,
-      // "#baselineHabitatDetails - GET"); this test's distinct job is to prove the
-      // rows render from a *real* uploaded GeoPackage.
-      test('AC2–AC11 — renders every summary row and saved value', async ({
+    // AC2–AC11, consolidated. These were nine separate page loads asserting one
+    // label or value each; merged into one panel assertion so the rendered page
+    // is described in one place. No assertion was dropped in the merge. The
+    // frontend controller unit tests cover the same rows against mocked backend
+    // data (../bng-metric-frontend/src/server/baseline-habitat-details/controller.test.js,
+    // "#baselineHabitatDetails - GET"); this test's distinct job is to prove the
+    // rows render from a *real* uploaded GeoPackage.
+    test(
+      'AC2–AC11 — renders every summary row and saved value',
+      { tag: '@smoke' },
+      async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
         baselineHabitatDetailsPage,
         page
       }) => {
+        // PROFILE=@smoke selects this test without AC1, so it harvests the
+        // shared ids itself. getSharedBaseline is memoised: no extra upload.
+        const shared = await getSharedBaseline({
+          createProjectFlow,
+          projectDashboardPage,
+          uploadBaselineFileFlow,
+          page
+        })
+        projectId = shared.id
+        projectName = shared.name
+        areaFeatureId = shared.area.featureId
+        areaRef = shared.area.ref
+        areaSize = shared.area.size
+
         await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
 
         // AC2 — header
@@ -1022,6 +945,14 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           .soft(page.getByText(DISTINCTIVENESS_PATTERN).first())
           .toBeVisible()
 
+        // Fixed "Low (1)" strategic significance applied in MVS
+        await expect
+          .soft(baselineHabitatDetailsPage.strategicSignificanceKey)
+          .toBeVisible()
+        await expect
+          .soft(baselineHabitatDetailsPage.strategicSignificanceValue)
+          .toBeVisible()
+
         // AC10 / AC11 — trading rules and units labels
         await expect
           .soft(baselineHabitatDetailsPage.tradingRulesKey)
@@ -1029,13 +960,19 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect
           .soft(baselineHabitatDetailsPage.habitatUnitsKey)
           .toBeVisible()
-      })
 
-      // AC5b, AC6b and AC8b consolidated: every dropdown's option list on one
-      // page load.
-      test('AC5b/AC6b/AC8b — dropdowns offer correctly ordered options', async ({
-        baselineHabitatDetailsPage
-      }) => {
+        // Form controls
+        await expect.soft(baselineHabitatDetailsPage.saveButton).toBeVisible()
+        await expect.soft(baselineHabitatDetailsPage.cancelLink).toBeVisible()
+      }
+    )
+
+    // AC5b, AC6b and AC8b consolidated: every dropdown's option list on one
+    // page load.
+    test(
+      'AC5b/AC6b/AC8b — dropdowns offer correctly ordered options',
+      { tag: '@regression' },
+      async ({ baselineHabitatDetailsPage }) => {
         await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
 
         const broadTexts = await optionTexts(
@@ -1054,11 +991,13 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expectConditionOptionsOrderedByScore(
           baselineHabitatDetailsPage.conditionSelect
         )
-      })
+      }
+    )
 
-      test('AC10 — trading-rule guidance value is shown and tracks the distinctiveness band', async ({
-        baselineHabitatDetailsPage
-      }) => {
+    test(
+      'AC10 — trading-rule guidance value is shown and tracks the distinctiveness band',
+      { tag: '@regression' },
+      async ({ baselineHabitatDetailsPage }) => {
         await baselineHabitatDetailsPage.open(projectId, areaFeatureId)
 
         // Beyond the AC10 label: the saved habitat shows a populated guidance
@@ -1091,18 +1030,19 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         if (bandAfter !== bandBefore) {
           expect(guidanceAfter).not.toBe(guidanceBefore)
         }
-      })
+      }
+    )
 
-      // BMD-878 AC2, bookmark route: open() deep-links via page.goto(), which
-      // sends no Referer, so the Back link falls back to the area habitats
-      // baseline (BMD-1043; it was the habitat list). Do not "improve" this to
-      // click through from a post-intervention habitat details page — that
-      // sends a Referer and the link would correctly point back there instead,
-      // which is AC1, not this test.
-      test('AC14/AC15 — Back and Cancel return to the area habitats baseline', async ({
-        baselineHabitatDetailsPage,
-        page
-      }) => {
+    // BMD-878 AC2, bookmark route: open() deep-links via page.goto(), which
+    // sends no Referer, so the Back link falls back to the area habitats
+    // baseline (BMD-1043; it was the habitat list). Do not "improve" this to
+    // click through from a post-intervention habitat details page — that
+    // sends a Referer and the link would correctly point back there instead,
+    // which is AC1, not this test.
+    test(
+      'AC14/AC15 — Back and Cancel return to the area habitats baseline',
+      { tag: '@regression' },
+      async ({ baselineHabitatDetailsPage, page }) => {
         // Since BMD-1043 Cancel and Back share one destination — the row
         // anchor Cancel used to carry went with the habitat list.
         await expectBackAndCancelReturnToBaseline(
@@ -1110,88 +1050,34 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           baselineHabitatDetailsPage,
           { projectId, featureId: areaFeatureId, type: 'area' }
         )
-      })
-    }
-  )
+      }
+    )
+  })
 
-  // ─── Hedgerow details — page display ─────────────────────────────────────────
-
-  test.describe(
-    'Baseline habitat details — hedgerow page display',
-    { tag: '@smoke' },
-    () => {
-      test.use({ storageState: STORAGE_STATE })
-      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
-      test.skip(runMode === 'e2e', E2E_UPLOAD_SKIP_REASON)
-      test.describe.configure({ mode: 'serial' })
-
-      let projectId
-      let hedgerowFeatureId
-
-      test('hedgerow details form renders without Broad habitat row and with Length (km) size', async ({
-        createProjectFlow,
-        projectDashboardPage,
-        uploadBaselineFileFlow,
-        baselineHabitatDetailsPage,
-        page
-      }) => {
-        const shared = await getSharedBaseline({
-          createProjectFlow,
-          projectDashboardPage,
-          uploadBaselineFileFlow,
-          page
-        })
-        projectId = shared.id
-        hedgerowFeatureId = shared.hedgerow.featureId
-
-        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
-
-        await expect(baselineHabitatDetailsPage.heading).toBeVisible()
-        await expect(
-          baselineHabitatDetailsPage.baselineDetailsHeading
-        ).toBeVisible()
-        await expect(
-          baselineHabitatDetailsPage.broadHabitatSelect
-        ).not.toBeVisible()
-        await expect(baselineHabitatDetailsPage.habitatTypeSelect).toBeVisible()
-        await expect(baselineHabitatDetailsPage.conditionSelect).toBeVisible()
-        await expect(baselineHabitatDetailsPage.saveButton).toBeVisible()
-        await expect(baselineHabitatDetailsPage.backLink).toBeVisible()
-        await expect(baselineHabitatDetailsPage.cancelLink).toBeVisible()
-        await expect(page.getByText('Length (km)')).toBeVisible()
-      })
-
-      test('save hedgerow selections redirects to the hedgerows baseline', async ({
-        baselineHabitatDetailsPage,
-        page
-      }) => {
-        await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
-        await baselineHabitatDetailsPage.saveButton.click()
-        await expect(page).toHaveURL(baselinePageUrl(projectId, 'hedgerow'))
-      })
-    }
-  )
+  // ─── Hedgerow details — page display and save ─────────────────────────────────
+  // The rendered page is asserted by "hedgerow content › AC2–AC11" and the
+  // save-and-redirect by "hedgerow edit › AC6 Scenario A" (both @smoke).
 
   // ─── Hedgerow details — edit and recompute ────────────────────────────────────
 
-  test.describe(
-    'Baseline habitat details — hedgerow edit',
-    { tag: '@regression' },
-    () => {
-      test.use({ storageState: STORAGE_STATE })
-      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
-      test.skip(runMode === 'e2e', E2E_UPLOAD_SKIP_REASON)
-      test.describe.configure({ mode: 'serial' })
+  test.describe('Baseline habitat details — hedgerow edit', () => {
+    test.use({ storageState: STORAGE_STATE })
+    test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+    test.skip(runMode === 'e2e', E2E_UPLOAD_SKIP_REASON)
+    test.describe.configure({ mode: 'serial' })
 
-      let projectId
-      let hedgerowFeatureId
-      let hedgerowRef
+    let projectId
+    let hedgerowFeatureId
+    let hedgerowRef
 
-      // AC6 (Scenario A — all options selected): saving a changed selection
-      // persists it, recalculates the hedgerow units, and returns to the
-      // hedgerows baseline with the row and the grid total reflecting the new
-      // calculation. The grid has no Status column (BMD-1043).
-      test('AC6 Scenario A — saving with all options selected recalculates units', async ({
+    // AC6 (Scenario A — all options selected): saving a changed selection
+    // persists it, recalculates the hedgerow units, and returns to the
+    // hedgerows baseline with the row and the grid total reflecting the new
+    // calculation. The grid has no Status column (BMD-1043).
+    test(
+      'AC6 Scenario A — saving with all options selected recalculates units',
+      { tag: '@smoke' },
+      async ({
         createProjectFlow,
         projectDashboardPage,
         uploadBaselineFileFlow,
@@ -1223,16 +1109,18 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(gridUnitsTotal(page, 'hedgerow')).toHaveText(
           HABITAT_UNITS_PATTERN
         )
-      })
+      }
+    )
 
-      // AC2: selecting a different valid habitat type updates the derived
-      // distinctiveness + trading-rules displays and resets the condition to
-      // "Choose condition", without recalculating units. (Hedgerow types share
-      // the same condition set, so the options are unchanged but the selection
-      // still resets.)
-      test('AC2 — selecting a habitat type updates derived values and resets condition', async ({
-        baselineHabitatDetailsPage
-      }) => {
+    // AC2: selecting a different valid habitat type updates the derived
+    // distinctiveness + trading-rules displays and resets the condition to
+    // "Choose condition", without recalculating units. (Hedgerow types share
+    // the same condition set, so the options are unchanged but the selection
+    // still resets.)
+    test(
+      'AC2 — selecting a habitat type updates derived values and resets condition',
+      { tag: '@regression' },
+      async ({ baselineHabitatDetailsPage }) => {
         await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
         const unitsBefore = await baselineHabitatDetailsPage.habitatUnitsText()
 
@@ -1260,13 +1148,15 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(baselineHabitatDetailsPage.habitatUnitsValue).toHaveText(
           unitsBefore
         )
-      })
+      }
+    )
 
-      // AC1: changing the condition shows the new value as the selection with no
-      // DB write and no unit recalculation.
-      test('AC1 — selecting a new condition shows it without recalculating units', async ({
-        baselineHabitatDetailsPage
-      }) => {
+    // AC1: changing the condition shows the new value as the selection with no
+    // DB write and no unit recalculation.
+    test(
+      'AC1 — selecting a new condition shows it without recalculating units',
+      { tag: '@regression' },
+      async ({ baselineHabitatDetailsPage }) => {
         await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
         const unitsBefore = await baselineHabitatDetailsPage.habitatUnitsText()
         const distinctivenessBefore = (
@@ -1286,13 +1176,15 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(baselineHabitatDetailsPage.habitatUnitsValue).toHaveText(
           unitsBefore
         )
-      })
+      }
+    )
 
-      // AC3: deselecting the habitat type ("Choose habitat type") hides the
-      // derived displays, resets the condition, and leaves units untouched.
-      test('AC3 — deselecting the habitat type hides derived values and resets condition', async ({
-        baselineHabitatDetailsPage
-      }) => {
+    // AC3: deselecting the habitat type ("Choose habitat type") hides the
+    // derived displays, resets the condition, and leaves units untouched.
+    test(
+      'AC3 — deselecting the habitat type hides derived values and resets condition',
+      { tag: '@regression' },
+      async ({ baselineHabitatDetailsPage }) => {
         await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
         const unitsBefore = await baselineHabitatDetailsPage.habitatUnitsText()
 
@@ -1308,15 +1200,16 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(baselineHabitatDetailsPage.habitatUnitsValue).toHaveText(
           unitsBefore
         )
-      })
+      }
+    )
 
-      // AC7: changing a dropdown then clicking Cancel discards the change — the
-      // user returns to the hedgerows baseline and the row's condition + units
-      // are unchanged from before the edit (no UI or DB update).
-      test('AC7 — cancelling after a change discards it and leaves the row unchanged', async ({
-        baselineHabitatDetailsPage,
-        page
-      }) => {
+    // AC7: changing a dropdown then clicking Cancel discards the change — the
+    // user returns to the hedgerows baseline and the row's condition + units
+    // are unchanged from before the edit (no UI or DB update).
+    test(
+      'AC7 — cancelling after a change discards it and leaves the row unchanged',
+      { tag: '@regression' },
+      async ({ baselineHabitatDetailsPage, page }) => {
         // Capture the currently-persisted row state fresh from the grid.
         await openBaselineGrid(page, projectId, 'hedgerow')
         const conditionBefore = (
@@ -1342,16 +1235,17 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(
           gridCell(page, 'hedgerow', hedgerowRef, 'units')
         ).toHaveText(unitsBefore)
-      })
+      }
+    )
 
-      // AC6 (Scenario B — not all options selected): saving with the condition
-      // deselected clears the units — null + Incomplete since BMD-1070 (no
-      // Status column — BMD-1043). Runs last in the serial block because it
-      // leaves the shared hedgerow Incomplete.
-      test('AC6 Scenario B — saving with a deselected dropdown clears units', async ({
-        baselineHabitatDetailsPage,
-        page
-      }) => {
+    // AC6 (Scenario B — not all options selected): saving with the condition
+    // deselected clears the units — null + Incomplete since BMD-1070 (no
+    // Status column — BMD-1043). Runs last in the serial block because it
+    // leaves the shared hedgerow Incomplete.
+    test(
+      'AC6 Scenario B — saving with a deselected dropdown clears units',
+      { tag: '@regression' },
+      async ({ baselineHabitatDetailsPage, page }) => {
         await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
         await baselineHabitatDetailsPage.conditionSelect.selectOption('')
         await baselineHabitatDetailsPage.saveButton.click()
@@ -1360,27 +1254,27 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(
           gridCell(page, 'hedgerow', hedgerowRef, 'units')
         ).toHaveText(NO_UNITS)
-      })
-    }
-  )
+      }
+    )
+  })
 
   // ─── Hedgerow details — page content (ACs) ───────────────────────────────────
 
-  test.describe(
-    'Baseline habitat details — hedgerow content',
-    { tag: '@regression' },
-    () => {
-      test.use({ storageState: STORAGE_STATE })
-      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
-      test.describe.configure({ mode: 'serial' })
+  test.describe('Baseline habitat details — hedgerow content', () => {
+    test.use({ storageState: STORAGE_STATE })
+    test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+    test.describe.configure({ mode: 'serial' })
 
-      let projectId
-      let projectName
-      let hedgerowFeatureId
-      let hedgerowRef
-      let hedgerowLength
+    let projectId
+    let projectName
+    let hedgerowFeatureId
+    let hedgerowRef
+    let hedgerowLength
 
-      test('AC1 — page pathname is /baseline-habitat-details after click-through', async ({
+    test(
+      'AC1 — page pathname is /baseline-habitat-details after click-through',
+      { tag: '@regression' },
+      async ({
         createProjectFlow,
         projectDashboardPage,
         uploadBaselineFileFlow,
@@ -1401,20 +1295,41 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         const grid = await openBaselineGrid(page, projectId, 'hedgerow')
         await grid.refLink(hedgerowRef).click()
         await expect(page).toHaveURL(/\/baseline-habitat-details/)
-      })
+      }
+    )
 
-      // AC2–AC11, consolidated. These were nine separate page loads asserting one
-      // label or value each; merged into one panel assertion so the rendered page
-      // is described in one place. No assertion was dropped in the merge. The
-      // hedgerow strategy has partial unit coverage
-      // (../bng-metric-frontend/src/server/baseline-habitat-details/controller.test.js,
-      // "#baselineHabitatDetails - GET (hedgerow strategy)" — heading, Length row,
-      // omitted Broad row, conditions source, back/cancel), all against mocked
-      // backend data; this test proves the rows render from a real GeoPackage.
-      test('AC2–AC11 — renders every summary row and saved value', async ({
+    // AC2–AC11, consolidated. These were nine separate page loads asserting one
+    // label or value each; merged into one panel assertion so the rendered page
+    // is described in one place. No assertion was dropped in the merge. The
+    // hedgerow strategy has partial unit coverage
+    // (../bng-metric-frontend/src/server/baseline-habitat-details/controller.test.js,
+    // "#baselineHabitatDetails - GET (hedgerow strategy)" — heading, Length row,
+    // omitted Broad row, conditions source, back/cancel), all against mocked
+    // backend data; this test proves the rows render from a real GeoPackage.
+    test(
+      'AC2–AC11 — renders every summary row and saved value',
+      { tag: '@smoke' },
+      async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
         baselineHabitatDetailsPage,
         page
       }) => {
+        // PROFILE=@smoke selects this test without AC1, so it harvests the
+        // shared ids itself. getSharedBaseline is memoised: no extra upload.
+        const shared = await getSharedBaseline({
+          createProjectFlow,
+          projectDashboardPage,
+          uploadBaselineFileFlow,
+          page
+        })
+        projectId = shared.id
+        projectName = shared.name
+        hedgerowFeatureId = shared.hedgerow.featureId
+        hedgerowRef = shared.hedgerow.ref
+        hedgerowLength = shared.hedgerow.length
+
         await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
 
         // AC2 — header
@@ -1440,6 +1355,11 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect
           .soft(page.getByText(hedgerowLength, { exact: true }))
           .toBeVisible()
+
+        // No Broad habitat dropdown — hedgerows have no broad-habitat dimension
+        await expect
+          .soft(baselineHabitatDetailsPage.broadHabitatSelect)
+          .toHaveCount(0)
 
         // AC6a / AC8a — dropdowns show the saved values
         await expect
@@ -1478,12 +1398,18 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect
           .soft(baselineHabitatDetailsPage.habitatUnitsKey)
           .toBeVisible()
-      })
 
-      // AC6b and AC8b consolidated: both dropdowns' option lists on one page load.
-      test('AC6b/AC8b — dropdowns offer correctly ordered options', async ({
-        baselineHabitatDetailsPage
-      }) => {
+        // Form controls
+        await expect.soft(baselineHabitatDetailsPage.saveButton).toBeVisible()
+        await expect.soft(baselineHabitatDetailsPage.cancelLink).toBeVisible()
+      }
+    )
+
+    // AC6b and AC8b consolidated: both dropdowns' option lists on one page load.
+    test(
+      'AC6b/AC8b — dropdowns offer correctly ordered options',
+      { tag: '@regression' },
+      async ({ baselineHabitatDetailsPage }) => {
         await baselineHabitatDetailsPage.open(projectId, hedgerowFeatureId)
 
         const typeTexts = await optionTexts(
@@ -1496,22 +1422,23 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expectConditionOptionsOrderedByScore(
           baselineHabitatDetailsPage.conditionSelect
         )
-      })
+      }
+    )
 
-      // BMD-878 AC2, bookmark route — see the Areas-tab AC14 test for why these
-      // must keep reaching the page via open()/page.goto() (no Referer).
-      test('AC14/AC15 — Back and Cancel return to the hedgerows baseline', async ({
-        baselineHabitatDetailsPage,
-        page
-      }) => {
+    // BMD-878 AC2, bookmark route — see the Areas-tab AC14 test for why these
+    // must keep reaching the page via open()/page.goto() (no Referer).
+    test(
+      'AC14/AC15 — Back and Cancel return to the hedgerows baseline',
+      { tag: '@regression' },
+      async ({ baselineHabitatDetailsPage, page }) => {
         await expectBackAndCancelReturnToBaseline(
           page,
           baselineHabitatDetailsPage,
           { projectId, featureId: hedgerowFeatureId, type: 'hedgerow' }
         )
-      })
-    }
-  )
+      }
+    )
+  })
 
   // ─── Watercourse details — edit and recompute (BMD-597) ──────────────────────
 
@@ -1769,28 +1696,34 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       let watercourseRef
       let watercourseLength
 
-      test('AC1 — page pathname is /baseline-habitat-details after click-through', async ({
-        createProjectFlow,
-        projectDashboardPage,
-        uploadBaselineFileFlow,
-        page
-      }) => {
-        const shared = await getSharedBaseline({
+      // @happy-path: the user's route onto a watercourse's details page. It
+      // harvests its own ids, so it runs on its own under PROFILE=@happy-path.
+      test(
+        'AC1 — page pathname is /baseline-habitat-details after click-through',
+        { tag: '@happy-path' },
+        async ({
           createProjectFlow,
           projectDashboardPage,
           uploadBaselineFileFlow,
           page
-        })
-        projectId = shared.id
-        projectName = shared.name
-        watercourseFeatureId = shared.watercourse.featureId
-        watercourseRef = shared.watercourse.ref
-        watercourseLength = shared.watercourse.length
+        }) => {
+          const shared = await getSharedBaseline({
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            page
+          })
+          projectId = shared.id
+          projectName = shared.name
+          watercourseFeatureId = shared.watercourse.featureId
+          watercourseRef = shared.watercourse.ref
+          watercourseLength = shared.watercourse.length
 
-        const grid = await openBaselineGrid(page, projectId, 'watercourse')
-        await grid.refLink(watercourseRef).click()
-        await expect(page).toHaveURL(/\/baseline-habitat-details/)
-      })
+          const grid = await openBaselineGrid(page, projectId, 'watercourse')
+          await grid.refLink(watercourseRef).click()
+          await expect(page).toHaveURL(/\/baseline-habitat-details/)
+        }
+      )
 
       // AC2–AC13 + encroachment row order, consolidated. These were 13 separate
       // uploads-shared page loads asserting one label or value each; merged into

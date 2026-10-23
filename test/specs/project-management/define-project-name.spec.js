@@ -58,18 +58,18 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     )
 
     test(
-      'submitting name over 1000 characters shows length error',
+      'submitting name over 1000 characters shows length error, with the input pre-filled',
       { tag: '@regression' },
       async ({ defineProjectNamePage }) => {
+        const oversizedName = 'a'.repeat(PROJECT_NAME_MAX_LENGTH + 1)
         await defineProjectNamePage.open()
-        await defineProjectNamePage.enterProjectName(
-          'a'.repeat(PROJECT_NAME_MAX_LENGTH + 1)
-        )
+        await defineProjectNamePage.enterProjectName(oversizedName)
         await defineProjectNamePage.submit()
 
         await defineProjectNamePage.assertNameError(
           'Project name must be 1000 characters or fewer'
         )
+        await expect(defineProjectNamePage.nameInput).toHaveValue(oversizedName)
       }
     )
 
@@ -88,19 +88,6 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await defineProjectNamePage.assertNameError(
           'Project name must only contain valid characters'
         )
-      }
-    )
-
-    test(
-      'on validation error the input is pre-filled with the submitted value',
-      { tag: '@regression' },
-      async ({ defineProjectNamePage }) => {
-        const oversizedName = 'a'.repeat(PROJECT_NAME_MAX_LENGTH + 1)
-        await defineProjectNamePage.open()
-        await defineProjectNamePage.enterProjectName(oversizedName)
-        await defineProjectNamePage.submit()
-
-        await expect(defineProjectNamePage.nameInput).toHaveValue(oversizedName)
       }
     )
 

@@ -214,9 +214,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
     // BMD-861 AC10. Wiring the unit tests cannot reach: they assert the href is
     // in the markup, not that following it resolves to that feature's page.
-    // `baseline-habitat-details.spec.js:381` does render a real watercourse,
-    // but reaches it from the DEPRECATED habitat list — so this is the only
-    // test tying THIS grid's Ref links to the details page. `baseline
+    // This is the only test tying THIS grid's Ref links to the details page;
+    // baseline-habitat-details.spec.js opens the watercourse by URL. `baseline
     // .watercourses` is also a third backend collection, resolved by its own
     // branch of the features endpoint and its own details-page strategy
     // (`headingPrefix: 'Watercourse'`), which is what makes the heading
@@ -290,8 +289,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // upload href is the part worth pinning specifically: `uploadFileHref` is
       // parameterised per page, so a test of the helper proves the encoding
       // while only this assertion proves THIS page hands it its own returnUrl.
-      // Following the link is `hedgerows-baseline.spec.js:296`'s job — the
-      // destination and its Back/Cancel behaviour are page-independent.
+      // Following the link is project-summary.spec.js's job — the destination
+      // and its Back/Cancel behaviour are page-independent.
       test('renders the caption, five tiles and an upload action returning here', async ({
         watercoursesBaselinePage
       }) => {
@@ -339,9 +338,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // produces this shape as a pure function; this proves the page renders it
       // from a project whose habitats actually earn all four entries.
       //
-      // Following the links is area-summary.spec.js:260's job — the four
-      // destinations are the same, and re-clicking them here would test the
-      // shared macro rather than this page. What is asserted is that this page
+      // Each link is followed once elsewhere — the builder takes only the
+      // project and the current href, so re-clicking them here would test the
+      // shared macro rather than this page. See the "Nav click witnesses" table
+      // in test/flows/project-management/area-summary.flow.md. What is asserted is that this page
       // emits them at all, which on a fixture without watercourses it could not.
       test('renders the full left navigation with Baseline as the current child', async ({
         watercoursesBaselinePage
@@ -399,8 +399,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         project = await getAllUnitTypesProject(browser)
       })
 
-      // BMD-861 AC1, both routes. watercourses-summary.spec.js:86 and :114
-      // assert both hrefs and stop there — until this test nothing had followed
+      // BMD-861 AC1, both routes. watercourses-summary.spec.js asserts the nav
+      // child's href and stops there — until this test nothing had followed
       // either, so nothing proved the page they point at renders. The
       // results-section link did not exist at all before PR#266. Do not delete
       // without moving the clicks onto another test that reaches this page from
@@ -420,7 +420,16 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expect(watercoursesBaselinePage.heading).toBeVisible()
 
         // Route B — "View on-site watercourses baseline" in the Results tile.
+        // BMD-861's half of frontend PR#266: the tile carries this unit type's
+        // own wording, not the shared inert default ("View on-site baseline").
         await watercoursesSummaryPage.open(project.id)
+        await expect(
+          watercoursesSummaryPage.viewOnSiteBaselineText()
+        ).toHaveCount(0)
+        await expect(watercoursesSummaryPage.baselineLink()).toHaveAttribute(
+          'href',
+          baselineUrl
+        )
         await watercoursesSummaryPage.baselineLink().click()
 
         await expect(page).toHaveURL(new RegExp(baselineUrl))

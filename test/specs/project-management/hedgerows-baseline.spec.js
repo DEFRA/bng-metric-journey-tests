@@ -303,33 +303,19 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         )
       })
 
-      // AC11. The unit tests assert the upload href is in the markup; only a
-      // real navigation shows that following it resolves and that Back/Cancel
-      // come back HERE rather than to the summary page above.
-      test('"Upload file" opens the file-type selection page, whose Back returns here', async ({
-        page,
-        hedgerowsBaselinePage,
-        uploadFilePage
-      }) => {
-        const baselineUrl = `/projects/${project.id}/${BASELINE_PATH}`
-        await hedgerowsBaselinePage.open(project.id)
-
-        await hedgerowsBaselinePage.uploadFileButton.click()
-
-        await expect(uploadFilePage.heading).toBeVisible()
-        await uploadFilePage.assertReturnLinks(baselineUrl)
-
-        await uploadFilePage.backLink.click()
-        await expect(page).toHaveURL(new RegExp(baselineUrl))
-      })
+      // AC11's href half is the test above. Following the link is
+      // project-summary.spec.js's job — the destination and its Back/Cancel
+      // behaviour do not depend on the page, only the returnUrl does, and
+      // upload-file.spec.js proves an arbitrary page's returnUrl drives them.
 
       // AC3 and AC12. `unit-type-navigation.test.js:102` proves the builder
       // produces this shape as a pure function; this proves the page renders it
       // from a project whose habitats actually earn all four entries.
       //
-      // Following the links is area-summary.spec.js:260's job — the four
-      // destinations are the same, and re-clicking them here would test the
-      // shared macro rather than this page. What is asserted is that this page
+      // Each link is followed once elsewhere — the builder takes only the
+      // project and the current href, so re-clicking them here would test the
+      // shared macro rather than this page. See the "Nav click witnesses" table
+      // in test/flows/project-management/area-summary.flow.md. What is asserted is that this page
       // emits them at all, which on a fixture without hedgerows it could not.
       test('renders the full left navigation with Baseline as the current child', async ({
         hedgerowsBaselinePage

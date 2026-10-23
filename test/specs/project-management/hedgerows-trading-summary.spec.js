@@ -371,88 +371,59 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     }
   )
 
-  // ─── Navigation and upload (BMD-1028 AC10–AC11) ──────────────────────────────
+  // ─── Navigation (BMD-1028 AC10) ──────────────────────────────────────────────
   //
-  // The frontend asserts the nav hrefs in mocked markup; this follows each one
-  // from this page and checks where it lands. The linear pair has rivers, so it
-  // also witnesses the Watercourses item's present branch (AC1).
+  // The frontend asserts the nav hrefs in mocked markup; this proves the page
+  // emits them for a real project. The linear pair has rivers, so it also
+  // witnesses the Watercourses item's present branch (AC1).
+  // Each href is followed once elsewhere, and the builder takes only the
+  // project and the current href, so the click does not depend on the page:
+  // Summary, Hedgerows and Watercourses from area-summary.spec.js; Area
+  // habitats and Reports from the project summary (area-summary.spec.js,
+  // project-reports.spec.js); and each section's Baseline, Post intervention
+  // and Trading rules children from that section's own summary page (the
+  // "both triggers" and entry-point tests in each destination's spec). AC11's "Upload file" target is
+  // the href asserted in the entry-points describe below; following it is
+  // project-summary.spec.js's job, since the destination does not depend on
+  // the page.
   test.describe(
-    'Hedgerows trading summary — navigation and upload',
+    'Hedgerows trading summary — navigation',
     { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      test('each left-navigation link opens its page', async ({
+      test('each left-navigation link points at its page', async ({
         browser,
-        page,
-        hedgerowsTradingSummaryPage,
-        projectSummaryPage,
-        areaSummaryPage,
-        hedgerowsSummaryPage,
-        hedgerowsBaselinePage,
-        hedgerowsPostInterventionPage,
-        watercoursesSummaryPage
-      }) => {
-        const project = await getLinearInterventionTypesProject(browser)
-        const destinations = [
-          [SUMMARY, 'project-summary', projectSummaryPage.heading],
-          [AREA_HABITATS, 'area-summary', areaSummaryPage.heading],
-          [HEDGEROWS, 'hedgerows-summary', hedgerowsSummaryPage.heading],
-          [
-            BASELINE_NAV_CHILD,
-            'hedgerows-baseline',
-            hedgerowsBaselinePage.heading
-          ],
-          [
-            POST_INTERVENTION_NAV_CHILD,
-            'hedgerows-post-intervention',
-            hedgerowsPostInterventionPage.heading
-          ],
-          [
-            WATERCOURSES,
-            'watercourses-summary',
-            watercoursesSummaryPage.heading
-          ]
-        ]
-
-        for (const [linkText, path, landingHeading] of destinations) {
-          await hedgerowsTradingSummaryPage.open(project.id)
-          await hedgerowsTradingSummaryPage.navLink(linkText).click()
-
-          await expect(page, linkText).toHaveURL(
-            new RegExp(`/projects/${project.id}/${path}$`)
-          )
-          await expect(landingHeading, linkText).toBeVisible()
-        }
-      })
-
-      test('Upload file opens the file-type selection page', async ({
-        browser,
-        page,
-        hedgerowsTradingSummaryPage,
-        uploadFilePage
+        hedgerowsTradingSummaryPage
       }) => {
         const project = await getLinearInterventionTypesProject(browser)
         await hedgerowsTradingSummaryPage.open(project.id)
-        await hedgerowsTradingSummaryPage.uploadFileButton.click()
 
-        await expect(page).toHaveURL(
-          new RegExp(`/projects/${project.id}/upload-file\\?`)
-        )
-        await expect(uploadFilePage.heading).toBeVisible()
+        for (const [linkText, path] of [
+          [SUMMARY, 'project-summary'],
+          [AREA_HABITATS, 'area-summary'],
+          [HEDGEROWS, 'hedgerows-summary'],
+          [BASELINE_NAV_CHILD, 'hedgerows-baseline'],
+          [POST_INTERVENTION_NAV_CHILD, 'hedgerows-post-intervention'],
+          [WATERCOURSES, 'watercourses-summary']
+        ]) {
+          await expect(
+            hedgerowsTradingSummaryPage.navLink(linkText),
+            linkText
+          ).toHaveAttribute('href', `/projects/${project.id}/${path}`)
+        }
       })
     }
   )
 
   // ─── Entry points (BMD-1027 AC5) ─────────────────────────────────────────────
   //
-  // SOLE WITNESS that either hedgerow link is followable. The other hedgerow
-  // specs assert only the two links' hrefs, and no frontend unit test can
-  // follow a link — `unit-type-navigation.test.js:339` builds the nav child
-  // from a fabricated project, and the tile link has no hedgerow-specific
-  // controller test at all. Same project as the "Met" band test above, so no
-  // extra upload.
+  // Sole witness that the hedgerows "Trading rules" nav child is followable.
+  // The project summary's "View hedgerows trading rules" link is followed in
+  // project-summary.spec.js. No frontend unit test can follow a link —
+  // `unit-type-navigation.test.js:339` builds the nav child from a fabricated
+  // project. Same project as the "Met" band test above, so no extra upload.
   test.describe(
     'Hedgerows trading summary — entry points',
     { tag: '@regression' },
@@ -518,21 +489,6 @@ test.describe('project-management', { tag: '@project-management' }, () => {
             `/projects/${project.id}/${HEDGEROWS_TRADING_SUMMARY_PATH}`
           )
         )
-      })
-
-      test('the project summary "View hedgerows trading rules" link opens this page', async ({
-        browser,
-        page,
-        projectSummaryPage,
-        hedgerowsTradingSummaryPage
-      }) => {
-        const project = await getHedgerowTradingMetProject(browser)
-        await projectSummaryPage.open(project.id)
-
-        await projectSummaryPage.hedgerowsTradingRulesLink().click()
-
-        await expect(page).toHaveURL(tradingSummaryUrl(project.id))
-        await expect(hedgerowsTradingSummaryPage.heading).toBeVisible()
       })
     }
   )

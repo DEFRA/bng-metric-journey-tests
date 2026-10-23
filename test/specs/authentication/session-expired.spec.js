@@ -73,9 +73,10 @@ test.describe('authentication', { tag: '@authentication' }, () => {
   // every other authenticated test in the run — the same constraint as the
   // interactive sign-out click-through.
   //
-  // NOTE: session-timeout.spec.js clears the session cookie CLIENT-side, which
-  // leaves no `sessionEnded` breadcrumb and so redirects to /auth/forbidden, not
-  // here — it does NOT cover this path.
+  // NOTE: clearing the session cookie CLIENT-side does not reach this path
+  // either: it leaves no `sessionEnded` breadcrumb, so the request looks like
+  // one that never signed in and redirects to /auth/forbidden — what every
+  // "unauthenticated access" test already asserts.
   //
   // Unblock: mint a dedicated throwaway completer session in auth.setup.js (so
   // resetting it cannot affect other tests), or add a stub hook to expire a

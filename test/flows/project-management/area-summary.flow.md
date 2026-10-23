@@ -102,20 +102,40 @@ Added 2026-09-01 by `/discover-journey-tests` — `test/specs/project-management
 
 The frontend unit suite already covers this page densely (`area-summary/controller.test.js`, 20 tests; plus `unit-summary.test.js` and `unit-type-navigation.test.js`), but every one of those mocks `wreck` and is handed hand-written literals — so they prove the page's **rendering**, never that the backend emits those fields. The journey tests deliberately do not mirror them. They cover only what a mocked test cannot:
 
-| Test                                          | Why it needs a real browser and real data                                                                                             |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Renders from real backend data                | `baseline.units` actually reaches the page                                                                                            |
-| Baseline units agree with the project summary | both pages read the same backend field through the same formatter — a mismatch means one is reading something else                    |
-| Targets computed from the real baseline       | the Targets section exists nowhere else in the service; nothing outside the mocked tests had seen this arithmetic run on real numbers |
-| Nav expansion                                 | the **Baseline** child renders only on the area pages; the project summary witnesses only the collapsed state                         |
-| Drill-down wiring ×2                          | unit tests assert the href is in the markup, not that following it resolves                                                           |
-| Entry points (BMD-854 AC1)                    | the nav link and section-heading hrefs are asserted on the project summary but were never followed                                    |
-| Left-nav destinations (AC7)                   | the baseline-only fixture renders no Hedgerows link, so neither linear href was ever asserted or followed from this page              |
-| Post-intervention results (AC4)               | every other test here runs baseline-only; nothing rendered the populated tile, its hyphenated heading, the percentage or net change   |
-| Deficit — shortfall (AC5)                     | `buildTargetsSummary` is shared, but this controller picks what to feed it — re-pointing it at another unit type would stay green     |
-| Deficit — target met (AC5)                    | the only non-degenerate zero-deficit case for area units; needs the area net-gain fixture pair, not the linear one                    |
+| Test                                    | Why it needs a real browser and real data                                                                                                                                                                                                                                                 |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Renders from real backend data          | `baseline.units` actually reaches the page                                                                                                                                                                                                                                                |
+| Targets computed from the real baseline | the Targets section exists nowhere else in the service; nothing outside the mocked tests had seen this arithmetic run on real numbers                                                                                                                                                     |
+| Nav expansion                           | the **Baseline** child renders only on the area pages; the project summary witnesses only the collapsed state                                                                                                                                                                             |
+| Drill-down wiring ×2                    | unit tests assert the href is in the markup, not that following it resolves                                                                                                                                                                                                               |
+| Entry points (BMD-854 AC1)              | the nav link and section-heading hrefs are asserted on the project summary but were never followed                                                                                                                                                                                        |
+| Left-nav destinations (AC7)             | the baseline-only fixture renders no Hedgerows link, so neither linear href was ever asserted or followed from this page; follows the three top-level summary links (`@happy-path`); see **Nav click witnesses** below for every other link                                               |
+| Post-intervention results (AC4)         | every other test here runs baseline-only; nothing rendered the populated tile, its hyphenated heading, the percentage or net change; also the baseline tile's agreement with the project summary, which the controller computes the same way with or without a post-intervention document |
+| Deficit — shortfall (AC5)               | `buildTargetsSummary` is shared, but this controller picks what to feed it — re-pointing it at another unit type would stay green                                                                                                                                                         |
+| Deficit — target met (AC5)              | the only non-degenerate zero-deficit case for area units; needs the area net-gain fixture pair, not the linear one                                                                                                                                                                        |
 
 Deliberately **not** covered here, each with its witness: invalid uuid → 400 (Joi rejects before the mocked boundary, so `controller.test.js:435` is genuine coverage); unauthenticated and role enforcement (`auth: 'session'` and `requireBngCompleterRole` take no per-route parameter — `session-expired.spec.js` and `forbidden.spec.js:89` witness them); unknown uuid, cross-user IDOR and the no-baseline guard (same `fetchProjectOrThrow` and guard, witnessed on `project-summary`).
+
+### Nav click witnesses
+
+The left nav comes from one builder (`buildUnitTypeNavigation`), which takes only the project and the current href, so a link's href does not depend on the page it is clicked from. Each page therefore asserts the hrefs it emits, and each link is **clicked once**, by the test below:
+
+| Nav item                          | Clicked from         | Test                                                                                                    |
+| --------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------- |
+| Summary, Hedgerows, Watercourses  | area summary         | `area-summary.spec.js` — "each left-navigation link opens its target page"                              |
+| Area habitats                     | project summary      | `area-summary.spec.js` — "the nav link and the section heading both open this page"                     |
+| Reports                           | project summary      | `project-reports.spec.js` — "the Reports nav item on the project summary opens the reports page"        |
+| Area habitats › Baseline          | area summary         | `area-summary.spec.js` — "the Baseline nav child opens the area baseline page"                          |
+| Area habitats › Post intervention | area summary         | `area-summary.spec.js` — "both area summary triggers open the area post-intervention page"              |
+| Area habitats › Trading rules     | area summary         | `area-trading-summary.spec.js` — "the left navigation expands Area habitats with Trading rules current" |
+| Hedgerows › Baseline              | hedgerows summary    | `hedgerows-summary.spec.js` — "both baseline triggers open the hedgerows baseline page"                 |
+| Hedgerows › Post intervention     | hedgerows summary    | `hedgerows-post-intervention.spec.js` — "both hedgerows summary triggers open this page"                |
+| Hedgerows › Trading rules         | hedgerows summary    | `hedgerows-trading-summary.spec.js` — "the Hedgerows "Trading rules" nav child opens this page…"        |
+| Watercourses › Baseline           | watercourses summary | `watercourses-baseline.spec.js` — "both triggers on the watercourses summary open this page"            |
+| Watercourses › Post intervention  | watercourses summary | `watercourses-post-intervention.spec.js` — "both watercourses summary triggers open this page"          |
+| Watercourses › Trading rules      | watercourses summary | `watercourses-trading-summary.spec.js` — "the Watercourses "Trading rules" nav child opens this page…"  |
+
+Clicking the same links again from another page would test the shared builder, not that page. Each page's own nav tests assert only the current item, the conditional items and the hrefs.
 
 ---
 

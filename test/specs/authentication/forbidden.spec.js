@@ -19,29 +19,20 @@ test.describe('authentication', { tag: '@authentication' }, () => {
 
   test.describe('Forbidden page — page content', () => {
     test(
-      'renders the access denied page with heading, body and return link',
+      'renders the access denied page with heading, body and return link, under a forbidden status',
       { tag: '@smoke' },
       async ({ forbiddenPage, page }) => {
-        await forbiddenPage.open()
+        const response = await page.goto('/auth/forbidden')
 
         await expect(page).toHaveTitle('Access denied - Biodiversity Net Gain')
         await expect(forbiddenPage.heading).toBeVisible()
         await expect(forbiddenPage.body).toBeVisible()
         await expect(forbiddenPage.returnHomeLink).toBeVisible()
-      }
-    )
 
-    test(
-      'serves the access denied page with a forbidden status',
-      { tag: '@regression' },
-      async ({ forbiddenPage, page }) => {
-        const response = await page.goto('/auth/forbidden')
-
-        // Primary signal: the access-denied page is actually served. The app
-        // returns it with a 403; assert that, but tolerate the page being
-        // surfaced under a 200 in case a platform layer (CDP ingress) rewrites
-        // the status — the rendered content is the contract that matters.
-        await expect(forbiddenPage.body).toBeVisible()
+        // The app returns the page with a 403; assert that, but tolerate it
+        // being surfaced under a 200 in case a platform layer (CDP ingress)
+        // rewrites the status — the rendered content is the contract that
+        // matters.
         expect([403, 200]).toContain(response.status())
       }
     )

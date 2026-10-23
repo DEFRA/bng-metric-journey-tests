@@ -234,54 +234,33 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     )
 
     // BMD-1024 AC8. The frontend asserts the hrefs in mocked markup; this
-    // follows each one from this page and checks where it lands.
+    // proves the page emits them for a real project.
+    // Each href is followed once elsewhere, and the builder takes only the
+    // project and the current href, so the click does not depend on the page:
+    // Summary, Hedgerows and Watercourses from area-summary.spec.js; Area
+    // habitats and Reports from the project summary (area-summary.spec.js,
+    // project-reports.spec.js); and each section's Baseline, Post intervention
+    // and Trading rules children from that section's own summary page (the
+    // "both triggers" and entry-point tests in each destination's spec). The "Upload file" href is asserted
+    // in the first test above; following it is project-summary.spec.js's job.
     test(
-      'each left-navigation link opens its page',
+      'each left-navigation link points at its page',
       { tag: '@regression' },
-      async ({
-        page,
-        areaTradingSummaryPage,
-        projectSummaryPage,
-        areaSummaryPage,
-        areaBaselinePage,
-        areaPostInterventionPage,
-        hedgerowsSummaryPage
-      }) => {
-        const destinations = [
-          [SUMMARY, 'project-summary', projectSummaryPage.heading],
-          [AREA_HABITATS, 'area-summary', areaSummaryPage.heading],
-          [BASELINE_NAV_CHILD, 'area-baseline', areaBaselinePage.heading],
-          [
-            POST_INTERVENTION_NAV_CHILD,
-            'area-post-intervention',
-            areaPostInterventionPage.heading
-          ],
-          [HEDGEROWS, 'hedgerows-summary', hedgerowsSummaryPage.heading]
-        ]
-
-        for (const [linkText, path, landingHeading] of destinations) {
-          await areaTradingSummaryPage.open(project.id)
-          await areaTradingSummaryPage.navLink(linkText).click()
-
-          await expect(page, linkText).toHaveURL(
-            new RegExp(`/projects/${project.id}/${path}$`)
-          )
-          await expect(landingHeading, linkText).toBeVisible()
-        }
-      }
-    )
-
-    test(
-      'Upload file opens the file-type selection page',
-      { tag: '@regression' },
-      async ({ page, areaTradingSummaryPage, uploadFilePage }) => {
+      async ({ areaTradingSummaryPage }) => {
         await areaTradingSummaryPage.open(project.id)
-        await areaTradingSummaryPage.uploadFileButton.click()
 
-        await expect(page).toHaveURL(
-          new RegExp(`/projects/${project.id}/upload-file\\?`)
-        )
-        await expect(uploadFilePage.heading).toBeVisible()
+        for (const [linkText, path] of [
+          [SUMMARY, 'project-summary'],
+          [AREA_HABITATS, 'area-summary'],
+          [BASELINE_NAV_CHILD, 'area-baseline'],
+          [POST_INTERVENTION_NAV_CHILD, 'area-post-intervention'],
+          [HEDGEROWS, 'hedgerows-summary']
+        ]) {
+          await expect(
+            areaTradingSummaryPage.navLink(linkText),
+            linkText
+          ).toHaveAttribute('href', `/projects/${project.id}/${path}`)
+        }
       }
     )
   })
@@ -340,16 +319,17 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     )
 
     test(
-      'lists Watercourses in the navigation and it opens the watercourses summary',
+      'lists Watercourses in the navigation, linking to the watercourses summary',
       { tag: '@regression' },
-      async ({ page, areaTradingSummaryPage, watercoursesSummaryPage }) => {
+      async ({ areaTradingSummaryPage }) => {
         await areaTradingSummaryPage.open(project.id)
-        await areaTradingSummaryPage.navLink(WATERCOURSES).click()
 
-        await expect(page).toHaveURL(
-          new RegExp(`/projects/${project.id}/watercourses-summary$`)
+        await expect(
+          areaTradingSummaryPage.navLink(WATERCOURSES)
+        ).toHaveAttribute(
+          'href',
+          `/projects/${project.id}/watercourses-summary`
         )
-        await expect(watercoursesSummaryPage.heading).toBeVisible()
       }
     )
   })

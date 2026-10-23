@@ -267,8 +267,11 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         project = await getAllUnitTypesPostInterventionProject(browser)
       })
 
-      // AC4.
-      test('the header shows the project name, the page heading and an Upload file button', async ({
+      // AC4 and AC9. The `returnUrl` is built per page from the factory's
+      // `config.path`, so the hedgerow page's twin of this assertion does not
+      // cover it. Following the button is project-summary.spec.js's job — the
+      // destination does not depend on the page, only the returnUrl does.
+      test('the header shows the project name, the page heading and an Upload file button returning here', async ({
         areaPostInterventionPage
       }) => {
         await areaPostInterventionPage.open(project.id)
@@ -277,32 +280,11 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           areaPostInterventionPage.caption(project.name)
         ).toBeVisible()
         await expect(areaPostInterventionPage.heading).toBeVisible()
-        await expect(areaPostInterventionPage.uploadFileButton).toBeVisible()
+        await expect(areaPostInterventionPage.uploadFileButton).toHaveAttribute(
+          'href',
+          uploadFileHref(project.id, `/projects/${project.id}/${PAGE_PATH}`)
+        )
       })
-
-      // AC9. The `returnUrl` is built per page from the factory's `config.path`,
-      // so the hedgerow page's twin of this test does not cover it.
-      test(
-        'Upload file opens the file-type selection page',
-        { tag: '@happy-path' },
-        async ({ page, areaPostInterventionPage, uploadFilePage }) => {
-          await areaPostInterventionPage.open(project.id)
-          const target = uploadFileHref(
-            project.id,
-            `/projects/${project.id}/${PAGE_PATH}`
-          )
-
-          await expect(
-            areaPostInterventionPage.uploadFileButton
-          ).toHaveAttribute('href', target)
-          await areaPostInterventionPage.uploadFileButton.click()
-
-          await expect(page).toHaveURL(
-            new RegExp(`/projects/${project.id}/upload-file`)
-          )
-          await expect(uploadFilePage.heading).toBeVisible()
-        }
-      )
 
       // AC3a, plus AC10's targets as hrefs on THIS page. Following them is
       // left to area-trading-summary.spec.js (Trading rules, clicked from the

@@ -140,7 +140,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
     test(
-      'invalid survey completion date shows "must be a real date" error',
+      'invalid survey completion date shows "must be a real date" error and preserves the other fields',
       { tag: '@smoke' },
       async ({
         createProjectFlow,
@@ -152,11 +152,23 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           projectDashboardPage
         )
         await projectDetailsPage.open(id)
-        await projectDetailsPage.fill({ day: '31', month: '2', year: '2026' })
+        await projectDetailsPage.fill({
+          localPlanningAuthority: BATH_LPA.name,
+          surveyCompleters: 'J. Smith',
+          day: '31',
+          month: '2',
+          year: '2026'
+        })
         await projectDetailsPage.submit()
 
         await projectDetailsPage.assertFieldError(
           'Survey completion date must be a real date'
+        )
+        await expect(
+          projectDetailsPage.localPlanningAuthoritySelect
+        ).toHaveValue(BATH_LPA.reference)
+        await expect(projectDetailsPage.surveyCompletersInput).toHaveValue(
+          'J. Smith'
         )
       }
     )
@@ -304,74 +316,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         )
       }
     )
-
-    test(
-      'a validation error preserves previously typed values in other fields',
-      { tag: '@regression' },
-      async ({
-        createProjectFlow,
-        projectDashboardPage,
-        projectDetailsPage
-      }) => {
-        const { id } = await setupProject(
-          createProjectFlow,
-          projectDashboardPage
-        )
-        await projectDetailsPage.open(id)
-        await projectDetailsPage.fill({
-          localPlanningAuthority: BATH_LPA.name,
-          surveyCompleters: 'J. Smith',
-          day: '31',
-          month: '2',
-          year: '2026'
-        })
-        await projectDetailsPage.submit()
-
-        await projectDetailsPage.assertFieldError(
-          'Survey completion date must be a real date'
-        )
-        await expect(
-          projectDetailsPage.localPlanningAuthoritySelect
-        ).toHaveValue(BATH_LPA.reference)
-        await expect(projectDetailsPage.surveyCompletersInput).toHaveValue(
-          'J. Smith'
-        )
-      }
-    )
   })
-
-  // ─── Happy path ──────────────────────────────────────────────────────────────
-
-  test.describe(
-    'Project details — happy path',
-    { tag: ['@smoke', '@happy-path'] },
-    () => {
-      test.use({ storageState: STORAGE_STATE })
-      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
-
-      test('submitting valid values redirects to the project summary', async ({
-        createProjectFlow,
-        projectDashboardPage,
-        projectDetailsPage,
-        page
-      }) => {
-        const { id } = await setupProject(
-          createProjectFlow,
-          projectDashboardPage
-        )
-        await fillAndSave(projectDetailsPage, page, id, {
-          localPlanningAuthority: BATH_LPA.name,
-          surveyCompleters: 'J. Smith, A. Jones',
-          day: '15',
-          month: '3',
-          year: '2026',
-          developmentType: 'Small site',
-          nsips: 'No',
-          applicant: 'Acme Developments Ltd'
-        })
-      })
-    }
-  )
 
   // ─── Persistence ─────────────────────────────────────────────────────────────
 
@@ -393,6 +338,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           projectDashboardPage
         )
 
+        // The happy path: a full set of valid values saves and redirects to
+        // the project summary (fillAndSave asserts the redirect).
         await fillAndSave(projectDetailsPage, page, id, {
           localPlanningAuthority: BATH_LPA.name,
           surveyCompleters: 'J. Smith, A. Jones',

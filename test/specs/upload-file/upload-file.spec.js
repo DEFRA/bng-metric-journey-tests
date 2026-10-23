@@ -18,7 +18,6 @@ import { CreateProjectFlow } from '@flows/project-management/create-project.flow
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const PROJECT_LABEL = 'Choose upload type test'
-const COMPLETE_BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
 const UPLOAD_TIMEOUT = 120_000
 const HTTP_BAD_REQUEST = 400
 const HTTP_NOT_FOUND = 404
@@ -251,35 +250,26 @@ test.describe('upload-file', { tag: '@upload-file' }, () => {
     'Choose upload type — post-intervention selection',
     { tag: ['@smoke', '@happy-path'] },
     () => {
-      // One real baseline upload backs this describe, so it is serialised with
-      // the rest of this file. Note what that does and does not buy: CI and
-      // test:github run single-worker (playwright.config.js sets workers: 1
-      // when CI is set), which is what actually keeps concurrent uploads from
-      // clobbering the shared pendingUploadId session key. Under test:local
-      // (multi-worker, fullyParallel) this only orders tests within the file —
-      // uploads in other spec files can still run alongside it.
-      test.describe.configure({ mode: 'serial' })
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      test('selecting post-intervention redirects to its upload form once a baseline exists', async ({
+      // BMD-1056 (frontend PR#377): a post-intervention file carries the
+      // baseline, so the page no longer asks for a baseline first. Until then
+      // this choice was rejected with "Upload a baseline file before uploading
+      // a post intervention file" (BMD-850 AC7). The POST handler redirects on
+      // the chosen type alone, so a project with no baseline exercises the same
+      // path as one with a baseline — without paying for an upload.
+      test('selecting post-intervention redirects to its upload form, with or without a baseline', async ({
         createProjectFlow,
         projectDashboardPage,
-        uploadBaselineFileFlow,
         uploadFilePage,
         uploadPostInterventionFilePage,
         page
       }) => {
-        test.setTimeout(UPLOAD_TIMEOUT + 60_000)
-
         const { id } = await setupProject(
           createProjectFlow,
           projectDashboardPage,
           PROJECT_LABEL
-        )
-        await uploadBaselineFileFlow.uploadFileAndWaitForSummary(
-          id,
-          COMPLETE_BASELINE_FILE
         )
 
         await uploadFilePage.open(id)
@@ -330,36 +320,6 @@ test.describe('upload-file', { tag: '@upload-file' }, () => {
         await expect(uploadFilePage.uploadTypeGroup).toContainText(
           SELECT_TYPE_ERROR
         )
-      }
-    )
-
-    // BMD-1056 (frontend PR#377): a post-intervention file carries the
-    // baseline, so the page no longer asks for a baseline first. Until then
-    // this choice was rejected with "Upload a baseline file before uploading a
-    // post intervention file" (BMD-850 AC7).
-    test(
-      'choosing post-intervention with no baseline goes straight to its upload form',
-      { tag: '@regression' },
-      async ({
-        createProjectFlow,
-        projectDashboardPage,
-        uploadFilePage,
-        uploadPostInterventionFilePage,
-        page
-      }) => {
-        const { id } = await setupProject(
-          createProjectFlow,
-          projectDashboardPage,
-          PROJECT_LABEL
-        )
-        await uploadFilePage.open(id)
-        await uploadFilePage.selectPostIntervention()
-        await uploadFilePage.submit()
-
-        await expect(page).toHaveURL(
-          new RegExp(`/projects/${id}/upload-post-intervention-file`)
-        )
-        await expect(uploadPostInterventionFilePage.heading).toBeVisible()
       }
     )
 

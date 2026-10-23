@@ -609,68 +609,39 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         }
       )
 
-      // AC8. The unit test asserts the upload href is in the markup; only a
-      // real navigation shows that following it resolves and that Back/Cancel
-      // come back HERE rather than defaulting to the task list.
-      test(
-        '"Upload file" opens the file-type selection page, whose Back returns here',
-        { tag: '@happy-path' },
-        async ({ page, hedgerowsPostInterventionPage, uploadFilePage }) => {
-          const target = `/projects/${project.id}/${PAGE_PATH}`
-          await hedgerowsPostInterventionPage.open(project.id)
-
-          await hedgerowsPostInterventionPage.uploadFileButton.click()
-
-          await expect(uploadFilePage.heading).toBeVisible()
-          await uploadFilePage.assertReturnLinks(target)
-
-          await uploadFilePage.backLink.click()
-          await expect(page).toHaveURL(new RegExp(target))
-        }
-      )
+      // AC8's href half is the smoke test above. Following the link is
+      // project-summary.spec.js's job — the destination and its Back/Cancel
+      // behaviour do not depend on the page, only the returnUrl does.
 
       // AC9a and AC9b. There is no back link on this page — the left nav is
-      // the only way out, which is what makes following every one of its links
-      // worth the click. `unit-type-navigation.test.js` proves the builder as
-      // a pure function; what it cannot show is that the hrefs resolve. Four
-      // since BMD-1056/BMD-1066: the conditional Watercourses item is gone, as
-      // the derived baseline has no rivers either.
-      test(
-        'each left-navigation link opens its target page',
-        { tag: '@happy-path' },
-        async ({
-          page,
-          hedgerowsPostInterventionPage,
-          projectSummaryPage,
-          areaSummaryPage,
-          hedgerowsSummaryPage,
-          hedgerowsBaselinePage
-        }) => {
-          const destinations = [
-            [SUMMARY, 'project-summary', projectSummaryPage.heading],
-            [AREA_HABITATS, 'area-summary', areaSummaryPage.heading],
-            [HEDGEROWS, 'hedgerows-summary', hedgerowsSummaryPage.heading],
-            [
-              BASELINE_NAV_CHILD,
-              'hedgerows-baseline',
-              hedgerowsBaselinePage.heading
-            ]
-          ]
+      // the only way out. `unit-type-navigation.test.js` proves the builder as
+      // a pure function; this proves the page emits the hrefs for a real
+      // project. Each href is followed once elsewhere, and the builder takes only the
+      // project and the current href, so the click does not depend on the page:
+      // Summary, Hedgerows and Watercourses from area-summary.spec.js; Area
+      // habitats and Reports from the project summary (area-summary.spec.js,
+      // project-reports.spec.js); and each section's Baseline, Post intervention
+      // and Trading rules children from that section's own summary page (the
+      // "both triggers" and entry-point tests in each destination's spec).
+      // Four since BMD-1056/BMD-1066: the conditional
+      // Watercourses item is gone, as the derived baseline has no rivers either.
+      test('each left-navigation link points at its target page', async ({
+        hedgerowsPostInterventionPage
+      }) => {
+        await hedgerowsPostInterventionPage.open(project.id)
 
-          for (const [label, path, heading] of destinations) {
-            await hedgerowsPostInterventionPage.open(project.id)
-            const target = `/projects/${project.id}/${path}`
-
-            await expect(
-              hedgerowsPostInterventionPage.navLink(label)
-            ).toHaveAttribute('href', target)
-            await hedgerowsPostInterventionPage.navLink(label).click()
-
-            await expect(page).toHaveURL(new RegExp(target))
-            await expect(heading).toBeVisible()
-          }
+        for (const [label, path] of [
+          [SUMMARY, 'project-summary'],
+          [AREA_HABITATS, 'area-summary'],
+          [HEDGEROWS, 'hedgerows-summary'],
+          [BASELINE_NAV_CHILD, 'hedgerows-baseline']
+        ]) {
+          await expect(
+            hedgerowsPostInterventionPage.navLink(label),
+            label
+          ).toHaveAttribute('href', `/projects/${project.id}/${path}`)
         }
-      )
+      })
     }
   )
 

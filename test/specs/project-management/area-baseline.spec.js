@@ -323,8 +323,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // produces that shape as a pure function; this proves the page renders it
       // from a project whose habitats actually earn all four entries.
       //
-      // Following the links is area-summary.spec.js:260's job — the four
-      // destinations are the same. What is asserted here is that this page
+      // Each link is followed once elsewhere — see the "Nav click witnesses"
+      // table in test/flows/project-management/area-summary.flow.md. What is asserted here is that this page
       // emits them at all, which on `Baseline - no hedgerows.gpkg` it could not.
       test('renders the full left navigation with Baseline as the current child', async ({
         areaBaselinePage
