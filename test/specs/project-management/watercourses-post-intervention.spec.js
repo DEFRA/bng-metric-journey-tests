@@ -513,37 +513,11 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         }
       )
 
-      // AC7.
-      test(
-        'clicking a tab selects it, moves focus and reveals its panel',
-        { tag: '@happy-path' },
-        async ({ watercoursesPostInterventionPage }) => {
-          await watercoursesPostInterventionPage.open(project.id)
-
-          await watercoursesPostInterventionPage.tab(ENHANCED).click()
-
-          // Selection is asserted through aria-selected, not through the label
-          // ceasing to be a link: the GOV.UK component keeps every tab an <a>.
-          // The AC's "becomes text only (not a link)" bullet was withdrawn on
-          // the hedgerow twin (BMD-860 ticket comment, 2026-09-09) for exactly
-          // this reason; BMD-862 repeats the bullet but not the withdrawal.
-          await expectTabSelected(watercoursesPostInterventionPage, ENHANCED)
-          await expect(
-            watercoursesPostInterventionPage.tab(ENHANCED)
-          ).toBeFocused()
-
-          await expectTabsUnselectedAndLinked(
-            watercoursesPostInterventionPage,
-            [RETAINED, CREATED]
-          )
-
-          // Selecting Created is the only way its subheading is ever asserted
-          // VISIBLE: every other test in this file sees that heading hidden.
-          await watercoursesPostInterventionPage.tab(CREATED).click()
-          await expectTabSelected(watercoursesPostInterventionPage, CREATED)
-          await expectTabNotSelected(watercoursesPostInterventionPage, ENHANCED)
-        }
-      )
+      // AC7 — clicking a tab selects it, moves focus and reveals its panel —
+      // is the GOV.UK Tabs component, client-side JS on the same template as
+      // the hedgerow page, and is witnessed in hedgerows-post-intervention.spec.js.
+      // The Created panel revealing its own subheading here is asserted in the
+      // Created grid test below.
     }
   )
 
@@ -596,72 +570,34 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         }
       )
 
-      // AC8. The unit test asserts the upload href is in the markup; only a
-      // real navigation shows that following it resolves and that Back/Cancel
-      // come back HERE rather than defaulting to the task list.
-      test(
-        '"Upload file" opens the file-type selection page, whose Back returns here',
-        { tag: '@happy-path' },
-        async ({ page, watercoursesPostInterventionPage, uploadFilePage }) => {
-          const target = `/projects/${project.id}/${PAGE_PATH}`
-          await watercoursesPostInterventionPage.open(project.id)
-
-          await watercoursesPostInterventionPage.uploadFileButton.click()
-
-          await expect(uploadFilePage.heading).toBeVisible()
-          await uploadFilePage.assertReturnLinks(target)
-
-          await uploadFilePage.backLink.click()
-          await expect(page).toHaveURL(new RegExp(target))
-        }
-      )
+      // AC8's href half is the smoke test above. Following the link is
+      // project-summary.spec.js's job — the destination and its Back/Cancel
+      // behaviour do not depend on the page, only the returnUrl does.
 
       // AC9. There is no back link on this page — the left nav is the only way
-      // out, which is what makes following every one of its links worth the
-      // click. `unit-type-navigation.test.js` proves the builder as a pure
-      // function; what it cannot show is that the hrefs resolve. Four since
-      // BMD-1056/BMD-1066: the conditional Hedgerows item is gone, as the
-      // derived baseline has no hedgerows either.
-      test(
-        'each left-navigation link opens its target page',
-        { tag: '@happy-path' },
-        async ({
-          page,
-          watercoursesPostInterventionPage,
-          projectSummaryPage,
-          areaSummaryPage,
-          watercoursesSummaryPage,
-          watercoursesBaselinePage
-        }) => {
-          const destinations = [
-            [SUMMARY, 'project-summary', projectSummaryPage.heading],
-            [AREA_HABITATS, 'area-summary', areaSummaryPage.heading],
-            [
-              WATERCOURSES,
-              'watercourses-summary',
-              watercoursesSummaryPage.heading
-            ],
-            [
-              BASELINE_NAV_CHILD,
-              'watercourses-baseline-summary',
-              watercoursesBaselinePage.heading
-            ]
-          ]
+      // out. `unit-type-navigation.test.js` proves the builder as a pure
+      // function; this proves the page emits the hrefs for a real project.
+      // Following them is area-summary.spec.js's job — the builder takes only
+      // the project and the current href, so a click from here exercises the
+      // same link. Four since BMD-1056/BMD-1066: the conditional Hedgerows item
+      // is gone, as the derived baseline has no hedgerows either.
+      test('each left-navigation link points at its target page', async ({
+        watercoursesPostInterventionPage
+      }) => {
+        await watercoursesPostInterventionPage.open(project.id)
 
-          for (const [label, path, heading] of destinations) {
-            await watercoursesPostInterventionPage.open(project.id)
-            const target = `/projects/${project.id}/${path}`
-
-            await expect(
-              watercoursesPostInterventionPage.navLink(label)
-            ).toHaveAttribute('href', target)
-            await watercoursesPostInterventionPage.navLink(label).click()
-
-            await expect(page).toHaveURL(new RegExp(target))
-            await expect(heading).toBeVisible()
-          }
+        for (const [label, path] of [
+          [SUMMARY, 'project-summary'],
+          [AREA_HABITATS, 'area-summary'],
+          [WATERCOURSES, 'watercourses-summary'],
+          [BASELINE_NAV_CHILD, 'watercourses-baseline-summary']
+        ]) {
+          await expect(
+            watercoursesPostInterventionPage.navLink(label),
+            label
+          ).toHaveAttribute('href', `/projects/${project.id}/${path}`)
         }
-      )
+      })
     }
   )
 
@@ -835,6 +771,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await grid.open(mixProject.id)
         await grid.tab(CREATED).click()
 
+        // BMD-862 AC7 on this page's own panel: selecting Created reveals its
+        // subheading. Tab switching itself is the GOV.UK Tabs component,
+        // witnessed in hedgerows-post-intervention.spec.js.
+        await expectTabSelected(grid, CREATED)
         expect(await grid.columnHeadings(CREATED)).toEqual(TARGET_COLUMNS)
         expect(await grid.columnHeadings(CREATED)).not.toContain('Condition')
         await expect(grid.featureRows(CREATED)).toHaveCount(1)
@@ -881,54 +821,11 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expectTotalsRow(grid, CREATED)
       })
 
-      // AC8 and AC9. The `aria-sort` toggle itself is MOJ's own component
-      // behaviour, already witnessed by real clicks in
-      // hedgerows-baseline.spec.js. Two
-      // things here are not:
-      //
-      //  - the RESULTING ROW ORDER on THIS grid, which depends on the
-      //    `data-sort-value` attributes `post-intervention-habitat-grid.js`
-      //    writes — a different builder from the baseline page's; and
-      //  - that `createAll(SortableTable)` binds a table sitting inside a
-      //    `display:none` GOV.UK tab panel at all. No other suite can see this:
-      //    the frontend unit tests parse markup with cheerio and never run the
-      //    client-side JS.
-      test(
-        'clicking a column heading re-orders a tab grid ascending, then descending',
-        { tag: '@happy-path' },
-        async ({ watercoursesPostInterventionPage }) => {
-          const grid = watercoursesPostInterventionPage
-          await grid.open(multiProject.id)
-
-          const sizeHeader = grid
-            .columnHeaders(RETAINED)
-            .nth(RETAINED_COLUMNS.indexOf('Size'))
-          const sortButton = grid.sortButton(RETAINED, 'Size')
-
-          await sortButton.click()
-          await expect(sizeHeader).toHaveAttribute('aria-sort', 'ascending')
-          const ascending = numbersIn(
-            await grid.columnValues(RETAINED, 'Size'),
-            'km'
-          )
-          expect(ascending).toHaveLength(MULTI_RETAINED_REFS.length)
-          expect(ascending).toEqual([...ascending].sort((a, b) => a - b))
-
-          await sortButton.click()
-          await expect(sizeHeader).toHaveAttribute('aria-sort', 'descending')
-          const descending = numbersIn(
-            await grid.columnValues(RETAINED, 'Size'),
-            'km'
-          )
-          expect(descending).toEqual([...descending].sort((a, b) => b - a))
-
-          // Only the clicked column is highlighted — MOJ clears the rest.
-          const states = await grid.sortStates(RETAINED)
-          expect(states.filter((state) => state !== 'none')).toEqual([
-            'descending'
-          ])
-        }
-      )
+      // AC8 and AC9 (column sort) are witnessed in
+      // hedgerows-post-intervention.spec.js. The hedgerow page passes the same
+      // `readSize` (`sizeMetres`), the same km formatters and the same grid
+      // builder to createHabitatPostInterventionController, so the
+      // `data-sort-value`s a Size sort reads are built by identical code.
 
       // AC10. `post-intervention-habitat-details.spec.js` reaches these same
       // detail pages by harvesting a featureId from the DEPRECATED

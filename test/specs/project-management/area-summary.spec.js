@@ -111,25 +111,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       }
     )
 
-    // Cross-page agreement on real numbers. Both pages compute area units as
-    // `habitatsTotal + treesTotal` through the same helper and format with the
-    // same `formatUnits`, so the rendered strings must match exactly — a
-    // mismatch means one of them is reading a different backend field.
-    test('the baseline units agree with the project summary', async ({
-      areaSummaryPage,
-      projectSummaryPage
-    }) => {
-      await projectSummaryPage.open(project.id)
-      const fromSummary = await projectSummaryPage.tileValue(
-        AREA_HABITATS,
-        TILE_BASELINE
-      )
-
-      await areaSummaryPage.open(project.id)
-      const fromAreaSummary = await areaSummaryPage.tileValue(TILE_BASELINE)
-
-      expect(fromAreaSummary).toBe(fromSummary)
-    })
+    // Cross-page agreement of the baseline tile with the project summary is
+    // asserted in "post-intervention results" below, alongside the other four
+    // tiles: the controller reads `areaUnits(baseline.units)` whether or not a
+    // post-intervention document exists.
 
     // The Targets section exists nowhere else in the service — the project
     // summary has no equivalent — so nothing outside the mocked unit tests has
@@ -280,38 +265,45 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // BMD-854 AC7. There is no back link on this page — the left nav is the
       // only way out, which is what makes following every link worth the click.
       // `unit-type-navigation.test.js` proves the builder as a pure function;
-      // what it cannot show is that the hrefs it produces resolve.
-      test('each left-navigation link opens its target page', async ({
-        page,
-        areaSummaryPage,
-        projectSummaryPage,
-        hedgerowsSummaryPage,
-        watercoursesSummaryPage
-      }) => {
-        const destinations = [
-          [SUMMARY, 'project-summary', projectSummaryPage.heading],
-          [HEDGEROWS, 'hedgerows-summary', hedgerowsSummaryPage.heading],
-          [
-            WATERCOURSES,
-            'watercourses-summary',
-            watercoursesSummaryPage.heading
+      // what it cannot show is that the hrefs it produces resolve. The suite's
+      // one nav click-through: the builder takes only the project and the
+      // current href, so every other unit-type page asserts its hrefs and
+      // relies on this test (and each destination's own spec) for the click.
+      test(
+        'each left-navigation link opens its target page',
+        { tag: '@happy-path' },
+        async ({
+          page,
+          areaSummaryPage,
+          projectSummaryPage,
+          hedgerowsSummaryPage,
+          watercoursesSummaryPage
+        }) => {
+          const destinations = [
+            [SUMMARY, 'project-summary', projectSummaryPage.heading],
+            [HEDGEROWS, 'hedgerows-summary', hedgerowsSummaryPage.heading],
+            [
+              WATERCOURSES,
+              'watercourses-summary',
+              watercoursesSummaryPage.heading
+            ]
           ]
-        ]
 
-        for (const [label, path, heading] of destinations) {
-          await areaSummaryPage.open(project.id)
-          const target = `/projects/${project.id}/${path}`
+          for (const [label, path, heading] of destinations) {
+            await areaSummaryPage.open(project.id)
+            const target = `/projects/${project.id}/${path}`
 
-          await expect(areaSummaryPage.navLink(label)).toHaveAttribute(
-            'href',
-            target
-          )
-          await areaSummaryPage.navLink(label).click()
+            await expect(areaSummaryPage.navLink(label)).toHaveAttribute(
+              'href',
+              target
+            )
+            await areaSummaryPage.navLink(label).click()
 
-          await expect(page).toHaveURL(new RegExp(target))
-          await expect(heading).toBeVisible()
+            await expect(page).toHaveURL(new RegExp(target))
+            await expect(heading).toBeVisible()
+          }
         }
-      })
+      )
     }
   )
 
@@ -436,9 +428,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       // BMD-858 AC2b. `area-summary/controller.test.js:211` proves the link and
       // its href against mocked data; only this proves it renders from a real
-      // project and resolves. The nav route to the same page (AC2a) is clicked
-      // through in area-trading-summary.spec.js — same builder, no per-page
-      // parameter.
+      // project and resolves. The nav route to the same page (AC2a) is an href
+      // from the shared nav builder, asserted on the area post-intervention
+      // and area trading summary pages; the destination is opened here.
       test('the post-intervention tile opens the area post-intervention page', async ({
         page,
         areaSummaryPage,

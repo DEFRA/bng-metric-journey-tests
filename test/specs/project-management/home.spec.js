@@ -1,7 +1,4 @@
 import { test, expect } from '@fixtures'
-import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
-
-const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 
 test.describe('project-management', { tag: '@project-management' }, () => {
   test.describe('Home page', () => {
@@ -23,22 +20,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       }
     )
 
-    test.describe('authenticated user', () => {
-      test.use({ storageState: STORAGE_STATE })
-      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
-
-      test(
-        'sees project dashboard link',
-        { tag: '@smoke' },
-        async ({ homePage, page }) => {
-          await homePage.open()
-
-          await expect(homePage.signedInAs).toBeVisible()
-          await expect(
-            page.getByRole('link', { name: 'View all projects' })
-          ).toBeVisible()
-        }
-      )
-    })
+    // The authenticated home page — "Signed in as" and the "View all projects"
+    // link, followed through to the project area — is asserted in
+    // authentication/defra-id-login.spec.js.
   })
 })

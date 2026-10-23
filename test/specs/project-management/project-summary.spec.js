@@ -1,5 +1,6 @@
 import { test, expect } from '@fixtures'
 import { HEDGEROWS_TRADING_SUMMARY_PATH } from '@pages/hedgerows-trading-summary.page.js'
+import { ProjectSummaryPage } from '@pages/project-summary.page.js'
 import { WATERCOURSES_TRADING_SUMMARY_PATH } from '@pages/watercourses-trading-summary.page.js'
 import {
   STORAGE_STATE,
@@ -353,9 +354,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     test(
       'summary renders the caption, heading and navigation, with a unit-type section only where the project has data',
       { tag: ['@smoke', '@happy-path'] },
-      async ({ projectSummaryPage }) => {
+      async ({ projectSummaryPage, page }) => {
         await projectSummaryPage.open(project.id)
 
+        await expect(page).toHaveTitle(/^Summary - /)
         await expect(projectSummaryPage.heading).toBeVisible()
         await expect(projectSummaryPage.caption(project.name)).toBeVisible()
         await expect(projectSummaryPage.uploadFileButton).toBeVisible()
@@ -377,16 +379,6 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           0
         )
         await expect(projectSummaryPage.navItem(HEDGEROWS)).toHaveCount(0)
-      }
-    )
-
-    test(
-      'page title is the summary heading',
-      { tag: '@regression' },
-      async ({ projectSummaryPage, page }) => {
-        await projectSummaryPage.open(project.id)
-
-        await expect(page).toHaveTitle(/^Summary - /)
       }
     )
   })
@@ -809,10 +801,11 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         }
       )
 
-      // BMD-1027 / BMD-1026. hedgerows-trading-summary.spec.js and
-      // watercourses-trading-summary.spec.js follow these same links on other
-      // fixture pairs; these twins reuse this describe's project so the
-      // CDP @happy-path run covers them for free.
+      // BMD-1027 AC5 / BMD-1031 AC5. Sole witnesses that these two links are
+      // followable from the project summary — the trading-summary specs used to
+      // repeat the same clicks on other fixture pairs, but the href depends only
+      // on the project id. Reusing this describe's project means the CDP
+      // @happy-path run covers them for free.
       test(
         'the hedgerows Trading Rules tile opens the hedgerows trading summary',
         { tag: '@happy-path' },
@@ -1242,8 +1235,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         )
 
         // BMD-1031 AC3: with a post-intervention document the tile links to
-        // the watercourses trading summary. Following it is
-        // watercourses-trading-summary.spec.js's job (AC5).
+        // the watercourses trading summary. The post-intervention variant
+        // describe above follows it (AC5).
         await expect(
           projectSummaryPage.watercoursesTradingRulesLink()
         ).toHaveAttribute(
@@ -1301,8 +1294,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         )
 
         // BMD-1027 AC3: with a post-intervention document the tile links to
-        // the hedgerows trading summary. Following it is
-        // hedgerows-trading-summary.spec.js's job (AC5).
+        // the hedgerows trading summary. The post-intervention variant
+        // describe above follows it (AC5).
         await expect(
           projectSummaryPage.hedgerowsTradingRulesLink()
         ).toHaveAttribute(
@@ -1639,11 +1632,17 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         })
         try {
           const otherPage = await otherContext.newPage()
-          const response = await otherPage.goto(
-            `/projects/${id}/project-summary`
-          )
+          const otherSummary = new ProjectSummaryPage(otherPage)
+          const response = await otherSummary.open(id)
 
+          // The backend scopes GET /projects/{id} by owner (visibleToUser), so
+          // it 404s and the summary throws to the global 404 page, with none
+          // of the creator's project content.
           expect(response.status()).toBe(HTTP_NOT_FOUND)
+          await expect(
+            otherPage.getByRole('heading', { name: '404' })
+          ).toBeVisible()
+          await expect(otherSummary.heading).toBeHidden()
           await expect(otherPage.getByText(name)).toBeHidden()
 
           // The post-intervention pages took over listing a project's features

@@ -65,7 +65,12 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
       // not the task list. Opening the form with no returnUrl makes the
       // selection page's own Back/Cancel default to the project summary, so the
       // journey out is one step longer than it was.
-      test('Back link returns to the upload type selection page', async ({
+      //
+      // Both links render the same computed `selectionHref`, so one project
+      // serves both: each link is clicked from its own page load. This form and
+      // the post-intervention one share their controller factory and template,
+      // so this is the witness for both.
+      test('Back and Cancel return to the upload type selection page', async ({
         createProjectFlow,
         projectDashboardPage,
         uploadBaselineFilePage,
@@ -76,31 +81,19 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
           projectDashboardPage,
           PROJECT_LABEL
         )
-        await uploadBaselineFilePage.open(id)
-        await uploadBaselineFilePage.backLink.click()
-
-        await expect(page).toHaveURL(
-          uploadFileHref(id, `/projects/${id}/project-summary`)
+        const selectionPage = uploadFileHref(
+          id,
+          `/projects/${id}/project-summary`
         )
-      })
 
-      test('Cancel link returns to the upload type selection page', async ({
-        createProjectFlow,
-        projectDashboardPage,
-        uploadBaselineFilePage,
-        page
-      }) => {
-        const { id } = await setupProject(
-          createProjectFlow,
-          projectDashboardPage,
-          PROJECT_LABEL
-        )
-        await uploadBaselineFilePage.open(id)
-        await uploadBaselineFilePage.cancelLink.click()
-
-        await expect(page).toHaveURL(
-          uploadFileHref(id, `/projects/${id}/project-summary`)
-        )
+        for (const link of [
+          uploadBaselineFilePage.backLink,
+          uploadBaselineFilePage.cancelLink
+        ]) {
+          await uploadBaselineFilePage.open(id)
+          await link.click()
+          await expect(page).toHaveURL(selectionPage)
+        }
       })
     }
   )

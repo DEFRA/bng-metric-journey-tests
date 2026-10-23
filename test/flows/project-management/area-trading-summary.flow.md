@@ -58,15 +58,15 @@ Added 2026-10-02 by `/validate-ac-automated` against the BMD-1024 ACs — `test/
 
 The frontend unit suite covers every AC (`area-trading-summary/controller.test.js`, plus `unit-type-navigation.test.js`) — all against a **mocked** backend handed the worked-example literal. The backend and the engine cover the arithmetic (`bng-library` `area-trading-rules.worked-example.test.mjs`, backend `area-trading-rule-statuses.test.js`, `enrich-post-intervention-area-trading-rules.test.js`) — on synthetic input. No suite showed that a **real upload** produces the figures this page renders, which is what the journey tests are for: one witness per data family, from two shared fixture pairs.
 
-| Test                        | Fixture pair   | Data family witnessed                                   |
-| --------------------------- | -------------- | ------------------------------------------------------- |
-| Nav, heading, upload button | higher-deficit | page furniture on this page's own controller            |
-| Status grid                 | higher-deficit | `tradingRuleStatuses.areaHabitats.medium` / `.low`      |
-| Medium deficit tile         | higher-deficit | `figures.medium.deficit`                                |
-| Broad-habitat grid          | higher-deficit | `figures.habitatTypes` + `figures.medium.broadHabitats` |
-| Low tiles + grid            | higher-deficit | `figures.low.*`, `figures.medium.surplus`               |
-| Intertidal grid             | IGGI           | the backend's intertidal merge (sole witness)           |
-| Nav destinations            | both           | the hrefs actually resolve from this page               |
+| Test                        | Fixture pair   | Data family witnessed                                                               |
+| --------------------------- | -------------- | ----------------------------------------------------------------------------------- |
+| Nav, heading, upload button | higher-deficit | page furniture on this page's own controller                                        |
+| Status grid                 | higher-deficit | `tradingRuleStatuses.areaHabitats.medium` / `.low`                                  |
+| Medium deficit tile         | higher-deficit | `figures.medium.deficit`                                                            |
+| Broad-habitat grid          | higher-deficit | `figures.habitatTypes` + `figures.medium.broadHabitats`                             |
+| Low tiles + grid            | higher-deficit | `figures.low.*`, `figures.medium.surplus`                                           |
+| Intertidal grid             | IGGI           | the backend's intertidal merge (sole witness)                                       |
+| Nav hrefs                   | both           | the page emits them for a real project; the clicks are `area-summary.spec.js`'s job |
 
 Deliberately **not** duplicated (the rule is covered elsewhere and the rendering shape already has a real-data witness here): Medium "Met", Low "Not met" and the 0.00 "Met" tile — variants of the families above.
 

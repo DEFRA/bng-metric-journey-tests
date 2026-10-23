@@ -300,59 +300,29 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expect(hedgerowsSummaryPage.heading).toBeVisible()
       })
 
-      // The unit tests assert the upload href is in the markup; only a real
-      // navigation shows that following it resolves and that Back/Cancel come
-      // back HERE rather than defaulting to the task list.
-      test('"Upload file" opens the file-type selection page, whose Back returns here', async ({
-        page,
-        hedgerowsSummaryPage,
-        uploadFilePage
+      // The "Upload file" href is asserted by the smoke test above. Following
+      // it is project-summary.spec.js's job: the destination and its
+      // Back/Cancel behaviour do not depend on the page, only the returnUrl does.
+
+      // There is no back link on this page — the left nav is the only way out.
+      // `unit-type-navigation.test.js` proves the builder as a pure function;
+      // this proves the page emits its hrefs for a real project. Following them
+      // is area-summary.spec.js's job — the builder takes only the project and
+      // the current href, so a click from here exercises the same link.
+      test('each left-navigation link points at its target page', async ({
+        hedgerowsSummaryPage
       }) => {
-        const hedgerowsUrl = `/projects/${project.id}/hedgerows-summary`
         await hedgerowsSummaryPage.open(project.id)
 
-        await hedgerowsSummaryPage.uploadFileButton.click()
-
-        await expect(uploadFilePage.heading).toBeVisible()
-        await uploadFilePage.assertReturnLinks(hedgerowsUrl)
-
-        await uploadFilePage.backLink.click()
-        await expect(page).toHaveURL(new RegExp(hedgerowsUrl))
-      })
-
-      // There is no back link on this page — the left nav is the only way out,
-      // which is what makes following every one of its links worth the click.
-      // `unit-type-navigation.test.js` proves the builder as a pure function;
-      // what it cannot show is that the three hrefs it produces resolve.
-      test('each left-navigation link opens its target page', async ({
-        page,
-        hedgerowsSummaryPage,
-        projectSummaryPage,
-        areaSummaryPage,
-        watercoursesSummaryPage
-      }) => {
-        const destinations = [
-          [SUMMARY, 'project-summary', projectSummaryPage.heading],
-          [AREA_HABITATS, 'area-summary', areaSummaryPage.heading],
-          [
-            WATERCOURSES,
-            'watercourses-summary',
-            watercoursesSummaryPage.heading
-          ]
-        ]
-
-        for (const [label, path, heading] of destinations) {
-          await hedgerowsSummaryPage.open(project.id)
-          const target = `/projects/${project.id}/${path}`
-
-          await expect(hedgerowsSummaryPage.navLink(label)).toHaveAttribute(
-            'href',
-            target
-          )
-          await hedgerowsSummaryPage.navLink(label).click()
-
-          await expect(page).toHaveURL(new RegExp(target))
-          await expect(heading).toBeVisible()
+        for (const [label, path] of [
+          [SUMMARY, 'project-summary'],
+          [AREA_HABITATS, 'area-summary'],
+          [WATERCOURSES, 'watercourses-summary']
+        ]) {
+          await expect(
+            hedgerowsSummaryPage.navLink(label),
+            label
+          ).toHaveAttribute('href', `/projects/${project.id}/${path}`)
         }
       })
     }

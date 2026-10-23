@@ -3,7 +3,6 @@ import { projectIdFromHref } from '@utils/project-helpers.js'
 import { noBaselineSummaryRedirectHref } from '@utils/upload-file-navigation.js'
 import { STORAGE_STATE, NO_ROLE_STORAGE_STATE, skipInE2e } from '@utils/env.js'
 
-const PROJECT_NAME_MAX_LENGTH = 1000
 const HTTP_BAD_REQUEST = 400
 const HTTP_NOT_FOUND = 404
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
@@ -80,75 +79,13 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       }
     )
 
-    test(
-      'submitting whitespace-only name shows "Enter a project name" error',
-      { tag: '@regression' },
-      async ({
-        createProjectFlow,
-        projectDashboardPage,
-        changeProjectNamePage
-      }) => {
-        const { id } = await setupProject(
-          createProjectFlow,
-          projectDashboardPage
-        )
-        await changeProjectNamePage.open(id)
-        await changeProjectNamePage.enterName('   ')
-        await changeProjectNamePage.submit()
-
-        await changeProjectNamePage.assertNameError('Enter a project name')
-      }
-    )
-
-    test(
-      'submitting name over 1000 characters shows length error',
-      { tag: '@regression' },
-      async ({
-        createProjectFlow,
-        projectDashboardPage,
-        changeProjectNamePage
-      }) => {
-        const { id } = await setupProject(
-          createProjectFlow,
-          projectDashboardPage
-        )
-        await changeProjectNamePage.open(id)
-        await changeProjectNamePage.enterName(
-          'a'.repeat(PROJECT_NAME_MAX_LENGTH + 1)
-        )
-        await changeProjectNamePage.submit()
-
-        await changeProjectNamePage.assertNameError(
-          'Project name must be 1000 characters or fewer'
-        )
-      }
-    )
-
-    test(
-      'submitting name with control characters shows invalid characters error',
-      { tag: '@regression' },
-      async ({
-        createProjectFlow,
-        projectDashboardPage,
-        changeProjectNamePage
-      }) => {
-        test.skip(
-          process.env.BROWSER === 'firefox',
-          'Firefox automation strips all C0 control characters (0x00–0x1f) from text inputs before form submission; backend validation covered by Chromium and WebKit runs'
-        )
-        const { id } = await setupProject(
-          createProjectFlow,
-          projectDashboardPage
-        )
-        await changeProjectNamePage.open(id)
-        await changeProjectNamePage.enterName('Project\x01Name')
-        await changeProjectNamePage.submit()
-
-        await changeProjectNamePage.assertNameError(
-          'Project name must only contain valid characters'
-        )
-      }
-    )
+    // The other name rules (whitespace-only, over 1000 characters, control
+    // characters) are witnessed in define-project-name.spec.js. Both forms
+    // validate with the same `projectNameSchema`
+    // (frontend common/helpers/project-name.js), and this route's failAction
+    // renders whichever message Joi returns, so the test above is what proves
+    // this form is wired to the schema; re-running each rule here would test
+    // the schema again, not this page.
   })
 
   // ─── Happy path ──────────────────────────────────────────────────────────────

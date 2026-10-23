@@ -10,10 +10,8 @@ import {
 } from '@utils/env.js'
 import { CreateProjectFlow } from '@flows/project-management/create-project.flow.js'
 import { ProjectDashboardPage } from '@pages/project-dashboard.page.js'
-import { ProjectSummaryPage } from '@pages/project-summary.page.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
-const HTTP_NOT_FOUND = 404
 
 test.describe('project-management', { tag: '@project-management' }, () => {
   // ─── Page content ───────────────────────────────────────────────────────────
@@ -36,17 +34,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       }
     )
 
-    test(
-      'clicking "Create project" button navigates to /project-name',
-      { tag: ['@regression', '@happy-path'] },
-      async ({ createProjectFlow, projectDashboardPage, page }) => {
-        await createProjectFlow.createProject(`Setup ${Date.now()}`)
-        await projectDashboardPage.open()
-        await projectDashboardPage.createProjectButton.click()
-
-        await expect(page).toHaveURL(/\/project-name/)
-      }
-    )
+    // Not tested separately: clicking "Create project" to reach /project-name.
+    // CreateProjectFlow clicks that button on every call once the user has a
+    // project, so nearly every test in the suite already follows it.
 
     test(
       'projects table has "Project name", "Last modified", and "Date created" column headings',
@@ -163,50 +153,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         }
       })
 
-      test('a project created by one user cannot be opened directly by a different user', async ({
-        browser
-      }) => {
-        const projectName = `Isolation direct ${Date.now()}`
-
-        const creatorContext = await browser.newContext({
-          storageState: STORAGE_STATE,
-          baseURL: baseUrl
-        })
-        const otherContext = await browser.newContext({
-          storageState: NO_PROJECTS_STORAGE_STATE,
-          baseURL: baseUrl
-        })
-
-        try {
-          const creatorPage = await creatorContext.newPage()
-          const creatorDashboard = new ProjectDashboardPage(creatorPage)
-          await new CreateProjectFlow(creatorPage).createProject(projectName)
-          await creatorDashboard.open()
-          const href = await creatorDashboard
-            .projectLink(projectName)
-            .getAttribute('href')
-          const projectId = projectIdFromHref(href)
-
-          // The other user opens the creator's project URL directly — the
-          // summary the dashboard row links to (BMD-1043). The backend scopes
-          // GET /projects/{id} by owner (visibleToUser), so it 404s and the
-          // summary throws to the global 404 page, with none of the creator's
-          // project content.
-          const otherPage = await otherContext.newPage()
-          const otherSummary = new ProjectSummaryPage(otherPage)
-          const response = await otherSummary.open(projectId)
-
-          expect(response.status()).toBe(HTTP_NOT_FOUND)
-          await expect(
-            otherPage.getByRole('heading', { name: '404' })
-          ).toBeVisible()
-          await expect(otherSummary.heading).toBeHidden()
-          await expect(otherPage.getByText(projectName)).toBeHidden()
-        } finally {
-          await creatorContext.close()
-          await otherContext.close()
-        }
-      })
+      // Opening another user's project directly by URL is covered in
+      // project-summary.spec.js ("Project summary — cross-user visibility"),
+      // the page every dashboard row links to.
     }
   )
 

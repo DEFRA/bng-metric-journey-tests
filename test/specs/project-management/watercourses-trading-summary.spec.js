@@ -249,11 +249,11 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   // ─── Entry points (BMD-1031 AC5) ─────────────────────────────────────────────
   //
-  // SOLE WITNESS that either watercourse link is followable. The other
-  // watercourse specs and project-summary.spec.js assert only the two links'
-  // hrefs, and no frontend unit test can follow a link —
-  // watercourses-trading-summary/controller.test.js:460-501 renders each entry
-  // page against a fabricated project and reads the href off the markup.
+  // Sole witness that the watercourses "Trading rules" nav child is
+  // followable. The project summary's "View watercourses trading rules" link
+  // is followed in project-summary.spec.js. No frontend unit test can follow a
+  // link — watercourses-trading-summary/controller.test.js:460-501 renders each
+  // entry page against a fabricated project and reads the href off the markup.
   // getTargetMetProject is already built by project-summary.spec.js and
   // watercourses-baseline.spec.js, so in a shared worker this costs no upload.
   test.describe(
@@ -307,21 +307,6 @@ test.describe('project-management', { tag: '@project-management' }, () => {
             `/projects/${project.id}/${WATERCOURSES_TRADING_SUMMARY_PATH}`
           )
         )
-      })
-
-      test('the project summary "View watercourses trading rules" link opens this page', async ({
-        browser,
-        page,
-        projectSummaryPage,
-        watercoursesTradingSummaryPage
-      }) => {
-        const project = await getTargetMetProject(browser)
-        await projectSummaryPage.open(project.id)
-
-        await projectSummaryPage.watercoursesTradingRulesLink().click()
-
-        await expect(page).toHaveURL(tradingSummaryUrl(project.id))
-        await expect(watercoursesTradingSummaryPage.heading).toBeVisible()
       })
     }
   )

@@ -761,26 +761,14 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       )
 
       test(
-        'back link returns to the area habitats post-intervention page',
-        { tag: '@regression' },
-        async ({ browser, postInterventionHabitatDetailsPage, page }) => {
-          const shared = await getCompleteProject(browser)
-          await postInterventionHabitatDetailsPage.open(
-            shared.id,
-            shared.retainedNoBaseline
-          )
-          await postInterventionHabitatDetailsPage.backLink.click()
-
-          await expectOnPiPage(page, shared.id, 'area')
-        }
-      )
-
-      test(
         '"View baseline details" links to the ref-matched baseline feature, whose Back and Cancel links return here',
         // @happy-path: a CDP-runnable functional journey (click through to the
-        // baseline page, click Back or Cancel, land where you started). The
-        // Enhanced variant below is the same journey via a different template,
-        // so per the one-representative rule only this one carries the tag.
+        // baseline page, click Back or Cancel, land where you started). Covers
+        // the Enhanced area page too (BMD-878/BMD-935 admit either): Retained,
+        // Enhanced and Created area pages all extend
+        // layouts/pi-view-only-sections-page.njk, `viewBaselineHref` comes from
+        // the shared buildSharedPiViewOnlyFields, and the controller resolves
+        // the baseline feature by ref whatever the retention category.
         { tag: ['@regression', '@happy-path'] },
         async ({
           browser,
@@ -911,74 +899,6 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           ).toHaveText(shared.enhancedWithBaselineUnits)
         }
       )
-
-      test(
-        '"View baseline details" links to the ref-matched baseline feature, whose Back and Cancel links return here',
-        { tag: '@regression' },
-        async ({
-          browser,
-          postInterventionHabitatDetailsPage,
-          baselineHabitatDetailsPage,
-          page
-        }) => {
-          const shared = await getCompleteProject(browser)
-          await postInterventionHabitatDetailsPage.open(
-            shared.id,
-            shared.enhancedWithBaseline
-          )
-
-          // The click-through is exercised on the two-section Enhanced template
-          // specifically — the retained single-list page proves the same
-          // mechanism elsewhere, but the Enhanced page renders the link via a
-          // distinct template that positions it after section 1.
-          await expect(
-            postInterventionHabitatDetailsPage.viewBaselineLink
-          ).toBeVisible()
-          await postInterventionHabitatDetailsPage.viewBaselineLink.click()
-          await expect(page).toHaveURL(BASELINE_DETAILS_URL_PATTERN)
-
-          // The baseline and PI uploads assign independent featureIds, so the
-          // link must resolve the baseline feature by parcel ref — a different
-          // featureId from the PI feature the user came from.
-          const baselineFeatureId = new URL(page.url()).searchParams.get(
-            'featureId'
-          )
-          expect(baselineFeatureId).not.toBe(shared.enhancedWithBaseline)
-          await expect(postInterventionHabitatDetailsPage.heading).toHaveText(
-            'Habitat H3'
-          )
-
-          // BMD-878 AC1 and BMD-935 AC1 (Enhanced) — both stories' GIVEN
-          // admits a retained *or* enhanced habitat, and the two arrive at the
-          // baseline page from different post-intervention templates, so both
-          // are covered.
-          await expectReturnLinksToPiDetails(
-            page,
-            baselineHabitatDetailsPage,
-            postInterventionHabitatDetailsPage,
-            {
-              projectId: shared.id,
-              featureId: shared.enhancedWithBaseline,
-              ref: 'H3'
-            }
-          )
-        }
-      )
-
-      test(
-        'back link returns to the area habitats post-intervention page',
-        { tag: '@regression' },
-        async ({ browser, postInterventionHabitatDetailsPage, page }) => {
-          const shared = await getCompleteProject(browser)
-          await postInterventionHabitatDetailsPage.open(
-            shared.id,
-            shared.enhancedWithBaseline
-          )
-          await postInterventionHabitatDetailsPage.backLink.click()
-
-          await expectOnPiPage(page, shared.id, 'area')
-        }
-      )
     })
 
     // ─── Created area habitats (BMD-736) ─────────────────────────────────────
@@ -1060,10 +980,13 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await expect(detailsPage.viewBaselineLink).toBeHidden()
         })
 
-        // BMD-736 AC2. The back link is shared with the Enhanced area page,
-        // but the Created page is a distinct template built by its own view
-        // model, so the anchor it passes through is asserted from this page
-        // too — as it already is for the Created hedgerow and watercourse.
+        // BMD-736 AC2, and the back-link witness for every area habitat page.
+        // The controller overrides each view model's back href with
+        // `postInterventionBackHref(projectId, type, returnUrl)` — keyed on the
+        // feature type, never the retention category — and the Retained,
+        // Enhanced and Created area pages share one layout, so one click per
+        // feature type covers them all. The hedgerow and watercourse equivalents
+        // are folded into their retained smoke tests below.
         test(
           'back link from a Created area habitat returns to the area habitats post-intervention page',
           { tag: '@happy-path' },
@@ -1210,6 +1133,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(detailsPage.saveButton).toBeHidden()
         await expect(detailsPage.habitatTypeSelect).toBeHidden()
 
+        // The back-link witness for every hedgerow page (BMD-723, BMD-733 and
+        // BMD-737 AC2): the controller sets the back href from the feature type
+        // alone — see the Created area back-link test.
         await detailsPage.backLink.click()
         await expectOnPiPage(page, shared.id, 'hedgerow')
       }
@@ -1401,54 +1327,6 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         ).toHaveText(/^\s*$/)
       }
     )
-
-    test(
-      'back link returns to the hedgerows post-intervention page',
-      { tag: '@regression' },
-      async ({ browser, postInterventionHabitatDetailsPage, page }) => {
-        const shared = await getHedgerowsProject(browser)
-        await postInterventionHabitatDetailsPage.open(
-          shared.id,
-          shared.enhancedHedgerow
-        )
-        await postInterventionHabitatDetailsPage.backLink.click()
-
-        await expectOnPiPage(page, shared.id, 'hedgerow')
-      }
-    )
-
-    test(
-      '"View baseline details" links to the ref-matched baseline hedgerow',
-      { tag: '@regression' },
-      async ({ browser, postInterventionHabitatDetailsPage, page }) => {
-        const shared = await getHedgerowsProject(browser)
-        await postInterventionHabitatDetailsPage.open(
-          shared.id,
-          shared.enhancedHedgerow
-        )
-
-        // The click-through is exercised on the two-section Enhanced template
-        // specifically — the retained single-list hedgerow proves the same
-        // mechanism, but the Enhanced page renders the link via a distinct
-        // template that positions it after section 1.
-        await expect(
-          postInterventionHabitatDetailsPage.viewBaselineLink
-        ).toBeVisible()
-        await postInterventionHabitatDetailsPage.viewBaselineLink.click()
-        await expect(page).toHaveURL(BASELINE_DETAILS_URL_PATTERN)
-
-        // The baseline and PI uploads assign independent featureIds, so the
-        // link must resolve the baseline feature by parcel ref — a different
-        // featureId from the PI feature the user came from.
-        const baselineFeatureId = new URL(page.url()).searchParams.get(
-          'featureId'
-        )
-        expect(baselineFeatureId).not.toBe(shared.enhancedHedgerow)
-        await expect(postInterventionHabitatDetailsPage.heading).toHaveText(
-          `Hedgerow ${ENHANCED_HEDGEROW_REF}`
-        )
-      }
-    )
   })
 
   // ─── Created hedgerows (BMD-737, frontend PR#186) ───────────────────────────
@@ -1566,28 +1444,6 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         // tell the two apart; see the note on CREATED_LINEAR_PI_FILE.
         await expect(detailsPage.viewBaselineLink).toBeHidden()
       })
-
-      // BMD-737 AC2. The back link is shared with the Enhanced hedgerow page
-      // (one template), but the Created page is built by its own view model,
-      // so the anchor it passes through is asserted from this page too.
-      test('back link from a Created hedgerow returns to the hedgerows post-intervention page', async ({
-        browser,
-        postInterventionHabitatDetailsPage,
-        page
-      }) => {
-        const shared = await getHedgerowsProject(browser)
-        // AC2's GIVEN is AC1, so arrive the way the user does rather than
-        // deep-linking: click HR3's Ref link in the hedgerows post-intervention grid.
-        await openPiFeatureDetails(
-          page,
-          shared.id,
-          'hedgerow',
-          CREATED_HEDGEROW_REF
-        )
-        await postInterventionHabitatDetailsPage.backLink.click()
-
-        await expectOnPiPage(page, shared.id, 'hedgerow')
-      })
     }
   )
 
@@ -1641,6 +1497,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         // Baseline WC1 shares the parcel ref, so the link renders.
         await expect(detailsPage.viewBaselineLink).toBeVisible()
 
+        // The back-link witness for every watercourse page (BMD-724, BMD-735
+        // and BMD-739 AC2): the controller sets the back href from the feature
+        // type alone, and all three watercourse pages share one layout.
         await detailsPage.backLink.click()
         await expectOnPiPage(page, shared.id, 'watercourse')
       }
@@ -1794,54 +1653,6 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         )
       }
     )
-
-    test(
-      'back link returns to the watercourses post-intervention page',
-      { tag: '@regression' },
-      async ({ browser, postInterventionHabitatDetailsPage, page }) => {
-        const shared = await getAllTypesProject(browser)
-        await postInterventionHabitatDetailsPage.open(
-          shared.id,
-          shared.enhancedUpliftWatercourse
-        )
-        await postInterventionHabitatDetailsPage.backLink.click()
-
-        await expectOnPiPage(page, shared.id, 'watercourse')
-      }
-    )
-
-    test(
-      '"View baseline details" links to the ref-matched baseline watercourse',
-      { tag: '@regression' },
-      async ({ browser, postInterventionHabitatDetailsPage, page }) => {
-        const shared = await getAllTypesProject(browser)
-        await postInterventionHabitatDetailsPage.open(
-          shared.id,
-          shared.enhancedUpliftWatercourse
-        )
-
-        // The click-through is exercised on the two-section Enhanced
-        // watercourse template specifically — the retained watercourse page
-        // proves the same mechanism, but the Enhanced page renders the link
-        // via a distinct template that positions it after section 1.
-        await expect(
-          postInterventionHabitatDetailsPage.viewBaselineLink
-        ).toBeVisible()
-        await postInterventionHabitatDetailsPage.viewBaselineLink.click()
-        await expect(page).toHaveURL(BASELINE_DETAILS_URL_PATTERN)
-
-        // The baseline and PI uploads assign independent featureIds, so the
-        // link must resolve the baseline feature by parcel ref — a different
-        // featureId from the PI feature the user came from.
-        const baselineFeatureId = new URL(page.url()).searchParams.get(
-          'featureId'
-        )
-        expect(baselineFeatureId).not.toBe(shared.enhancedUpliftWatercourse)
-        await expect(postInterventionHabitatDetailsPage.heading).toHaveText(
-          `Watercourse ${ENHANCED_UPLIFT_WATERCOURSE_REF}`
-        )
-      }
-    )
   })
 
   // ─── Created / Enhanced watercourses (BMD-739, BMD-735) ─────────────────────
@@ -1989,29 +1800,6 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         // not suppress it the way Created hedgerows do (flow doc Step 8). The
         // product decision on whether that is correct is still open, so
         // asserting either way would cement it.
-      })
-
-      // BMD-739 AC2. The back link is shared with the Enhanced watercourse
-      // page, but the Created page is a distinct template built by its own
-      // view model, so the anchor it passes through is asserted from this page
-      // too.
-      test('back link from a Created watercourse returns to the watercourses post-intervention page', async ({
-        browser,
-        postInterventionHabitatDetailsPage,
-        page
-      }) => {
-        const shared = await getWatercoursesProject(browser)
-        // AC2's GIVEN is AC1, so arrive the way the user does rather than
-        // deep-linking: click WC3's Ref link in the watercourses post-intervention grid.
-        await openPiFeatureDetails(
-          page,
-          shared.id,
-          'watercourse',
-          CREATED_WATERCOURSE_REF
-        )
-        await postInterventionHabitatDetailsPage.backLink.click()
-
-        await expectOnPiPage(page, shared.id, 'watercourse')
       })
     }
   )

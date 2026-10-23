@@ -1,7 +1,6 @@
 import { test, expect } from '@fixtures'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
-import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
   describeRoleEnforcement,
   describeUnauthenticatedAccess
@@ -9,9 +8,6 @@ import {
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const PROJECT_LABEL = 'Upload post-intervention test'
-const ERROR_NO_FILE = 'Select a GeoPackage (.gpkg) file'
-const ERROR_WRONG_EXTENSION = 'The selected file must be a GeoPackage (.gpkg)'
-const NON_GPKG_FILE = 'not-a-geopackage.txt'
 
 test.describe(
   'upload-post-intervention',
@@ -61,116 +57,17 @@ test.describe(
       )
     })
 
-    // ─── Form navigation ───────────────────────────────────────────────────────
-
-    test.describe(
-      'Upload post-intervention file — form navigation',
-      { tag: ['@regression', '@happy-path'] },
-      () => {
-        test.use({ storageState: STORAGE_STATE })
-        test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
-
-        // BMD-850: Back and Cancel now return to the file-type selection page,
-        // not the task list. Opening the form with no returnUrl makes the
-        // selection page's own Back/Cancel default to the project summary, so the
-        // journey out is one step longer than it was.
-        test('Back link returns to the upload type selection page', async ({
-          createProjectFlow,
-          projectDashboardPage,
-          uploadPostInterventionFilePage,
-          page
-        }) => {
-          const { id } = await setupProject(
-            createProjectFlow,
-            projectDashboardPage,
-            PROJECT_LABEL
-          )
-          await uploadPostInterventionFilePage.open(id)
-          await uploadPostInterventionFilePage.backLink.click()
-
-          await expect(page).toHaveURL(
-            uploadFileHref(id, `/projects/${id}/project-summary`)
-          )
-        })
-
-        test('Cancel link returns to the upload type selection page', async ({
-          createProjectFlow,
-          projectDashboardPage,
-          uploadPostInterventionFilePage,
-          page
-        }) => {
-          const { id } = await setupProject(
-            createProjectFlow,
-            projectDashboardPage,
-            PROJECT_LABEL
-          )
-          await uploadPostInterventionFilePage.open(id)
-          await uploadPostInterventionFilePage.cancelLink.click()
-
-          await expect(page).toHaveURL(
-            uploadFileHref(id, `/projects/${id}/project-summary`)
-          )
-        })
-      }
-    )
-
-    // ─── Client-side validation ──────────────────────────────────────────────────
-
-    test.describe(
-      'Upload post-intervention file — client-side validation',
-      { tag: '@regression' },
-      () => {
-        test.use({ storageState: STORAGE_STATE })
-        test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
-
-        test('Continue with no file selected shows the required-file error', async ({
-          createProjectFlow,
-          projectDashboardPage,
-          uploadPostInterventionFilePage,
-          page
-        }) => {
-          const { id } = await setupProject(
-            createProjectFlow,
-            projectDashboardPage,
-            PROJECT_LABEL
-          )
-          await uploadPostInterventionFilePage.open(id)
-          await uploadPostInterventionFilePage.continueButton.click()
-
-          await expect(
-            uploadPostInterventionFilePage.clientError(ERROR_NO_FILE)
-          ).toBeVisible()
-          await expect(page).toHaveURL(/\/upload-post-intervention-file/)
-        })
-
-        test('Continue with a non-.gpkg file selected shows the wrong-extension error', async ({
-          createProjectFlow,
-          projectDashboardPage,
-          uploadPostInterventionFileFlow,
-          uploadPostInterventionFilePage
-        }) => {
-          const { id } = await setupProject(
-            createProjectFlow,
-            projectDashboardPage,
-            PROJECT_LABEL
-          )
-          await uploadPostInterventionFilePage.open(id)
-          await uploadPostInterventionFilePage.fileInput.setInputFiles(
-            uploadPostInterventionFileFlow.filePath(NON_GPKG_FILE)
-          )
-          // Client-side validation runs on submit, not on selection
-          // (BMD-958, frontend PR#290) — the error appears once Continue is pressed.
-          // The negative half (no error on selection alone) is asserted once, on
-          // the baseline side — both pages share one template and one client
-          // script, so a second copy would add runtime without adding a witness.
-          await uploadPostInterventionFilePage.continueButton.click()
-
-          await expect(
-            uploadPostInterventionFilePage.clientError(ERROR_WRONG_EXTENSION)
-          ).toBeVisible()
-        })
-      }
-    )
+    // ─── Form navigation and client-side validation ───────────────────────────
+    //
+    // Not repeated here: Back/Cancel and the client-side checks (no file,
+    // wrong extension, disallowed filename). Both upload forms are built by one
+    // controller factory (createUploadFileController) and render one template
+    // (common/templates/upload-geopackage-file.njk); Back and Cancel share one
+    // computed `selectionHref`, and the validation script is loaded on every
+    // page by application.js. The `uploadType` the factory is handed changes
+    // only the copy and the session keys, which the form-display test above
+    // and the upload journeys in upload-post-intervention.spec.js witness. See
+    // upload-baseline-file.spec.js for the shared behaviour.
 
     // ─── Role enforcement ──────────────────────────────────────────────────────
 

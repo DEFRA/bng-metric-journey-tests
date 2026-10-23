@@ -84,9 +84,10 @@ user who never signed in.
 - `/auth/session-expired` is directly reachable by `GET` with no auth, so the
   page render (and the "Sign in again" → `/auth/login` link) is testable in all
   modes independently of the expiry redirect (see `session-expired.spec.js`).
-  Note `session-timeout.spec.js` does **not** cover this page: it clears the
-  session cookie client-side, which leaves no `sessionEnded` breadcrumb and so
-  redirects to `/auth/forbidden`, not here.
+  Clearing the session cookie client-side does **not** reach this page: it
+  leaves no `sessionEnded` breadcrumb, so the request is indistinguishable from
+  one that never signed in and redirects to `/auth/forbidden` — the path every
+  "unauthenticated access" test already covers.
 - After `expireSession`, the `no-store` Cache-Control header (`auth-scheme.js`
   `onPreResponse`) is not set on this response (the request is unauthenticated by
   the time it renders), but the reset session id prevents the old cookie from
