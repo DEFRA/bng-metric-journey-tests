@@ -577,9 +577,14 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // AC9. There is no back link on this page — the left nav is the only way
       // out. `unit-type-navigation.test.js` proves the builder as a pure
       // function; this proves the page emits the hrefs for a real project.
-      // Following them is area-summary.spec.js's job — the builder takes only
-      // the project and the current href, so a click from here exercises the
-      // same link. Four since BMD-1056/BMD-1066: the conditional Hedgerows item
+      // Each href is followed once elsewhere, and the builder takes only the
+      // project and the current href, so the click does not depend on the page:
+      // Summary, Hedgerows and Watercourses from area-summary.spec.js; Area
+      // habitats and Reports from the project summary (area-summary.spec.js,
+      // project-reports.spec.js); and each section's Baseline, Post intervention
+      // and Trading rules children from that section's own summary page (the
+      // "both triggers" and entry-point tests in each destination's spec).
+      // Four since BMD-1056/BMD-1066: the conditional Hedgerows item
       // is gone, as the derived baseline has no hedgerows either.
       test('each left-navigation link points at its target page', async ({
         watercoursesPostInterventionPage

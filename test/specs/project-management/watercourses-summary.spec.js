@@ -143,9 +143,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       // BMD-856 AC7. Asserting the hrefs rather than mere visibility: this
       // page has no back link, so the left nav is the only way out, and the
-      // AC names a destination per link. area-summary.spec.js and
-      // hedgerows-summary.spec.js follow the equivalent links from their own
-      // pages, which is what makes clicking all three again here redundant.
+      // AC names a destination per link. Each is followed once elsewhere
+      // (see the "Nav click witnesses" table in
+      // test/flows/project-management/area-summary.flow.md), which is what makes
+      // clicking all three again here redundant.
       const destinations = [
         [AREA_HABITATS, 'area-summary'],
         [HEDGEROWS, 'hedgerows-summary'],

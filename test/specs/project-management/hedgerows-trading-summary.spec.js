@@ -375,10 +375,14 @@ test.describe('project-management', { tag: '@project-management' }, () => {
   //
   // The frontend asserts the nav hrefs in mocked markup; this proves the page
   // emits them for a real project. The linear pair has rivers, so it also
-  // witnesses the Watercourses item's present branch (AC1). Following the
-  // links is area-summary.spec.js's job: the nav builder takes only the project
-  // and the current href, so a click from here exercises the same link, and
-  // each destination is opened by its own spec. AC11's "Upload file" target is
+  // witnesses the Watercourses item's present branch (AC1).
+  // Each href is followed once elsewhere, and the builder takes only the
+  // project and the current href, so the click does not depend on the page:
+  // Summary, Hedgerows and Watercourses from area-summary.spec.js; Area
+  // habitats and Reports from the project summary (area-summary.spec.js,
+  // project-reports.spec.js); and each section's Baseline, Post intervention
+  // and Trading rules children from that section's own summary page (the
+  // "both triggers" and entry-point tests in each destination's spec). AC11's "Upload file" target is
   // the href asserted in the entry-points describe below; following it is
   // project-summary.spec.js's job, since the destination does not depend on
   // the page.

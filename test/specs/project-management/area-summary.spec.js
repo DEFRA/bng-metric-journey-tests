@@ -265,10 +265,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // BMD-854 AC7. There is no back link on this page — the left nav is the
       // only way out, which is what makes following every link worth the click.
       // `unit-type-navigation.test.js` proves the builder as a pure function;
-      // what it cannot show is that the hrefs it produces resolve. The suite's
-      // one nav click-through: the builder takes only the project and the
-      // current href, so every other unit-type page asserts its hrefs and
-      // relies on this test (and each destination's own spec) for the click.
+      // what it cannot show is that the hrefs it produces resolve. Every other
+      // unit-type page asserts its own hrefs and leaves the clicks to this test
+      // (the three top-level summaries) and to the tests that follow each
+      // section child from its own summary page.
       test(
         'each left-navigation link opens its target page',
         { tag: '@happy-path' },
@@ -426,23 +426,28 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         }
       })
 
-      // BMD-858 AC2b. `area-summary/controller.test.js:211` proves the link and
-      // its href against mocked data; only this proves it renders from a real
-      // project and resolves. The nav route to the same page (AC2a) is an href
-      // from the shared nav builder, asserted on the area post-intervention
-      // and area trading summary pages; the destination is opened here.
-      test('the post-intervention tile opens the area post-intervention page', async ({
+      // BMD-858 AC2a and AC2b, the area twin of the hedgerow and watercourse
+      // "both triggers" tests. `area-summary/controller.test.js:211` proves
+      // the tile link and its href against mocked data; only this proves it
+      // renders from a real project and resolves. The nav child (AC2a) comes
+      // from the shared nav builder rather than this controller, and this is
+      // the only test that follows it.
+      test('both area summary triggers open the area post-intervention page', async ({
         page,
         areaSummaryPage,
         areaPostInterventionPage
       }) => {
+        const target = new RegExp(`/projects/${project.id}/${AREA_PI_PATH}$`)
+
         await areaSummaryPage.open(project.id)
-
         await areaSummaryPage.viewOnSiteAreaPostInterventionLink().click()
+        await expect(page).toHaveURL(target)
+        await expect(areaPostInterventionPage.heading).toBeVisible()
 
-        await expect(page).toHaveURL(
-          new RegExp(`/projects/${project.id}/${AREA_PI_PATH}$`)
-        )
+        // Route two: the left nav's Post intervention child.
+        await areaSummaryPage.open(project.id)
+        await areaSummaryPage.navLink(POST_INTERVENTION_NAV_CHILD).click()
+        await expect(page).toHaveURL(target)
         await expect(areaPostInterventionPage.heading).toBeVisible()
       })
 

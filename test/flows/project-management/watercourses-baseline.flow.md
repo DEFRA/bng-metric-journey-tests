@@ -134,7 +134,7 @@ Both projects come from `@utils/summary-projects.js` (`getAllUnitTypesProject`, 
 
 - **`aria-sort` toggling and the resulting row order (AC8, AC9).** MoJ component behaviour — the ACs themselves say "default component behaviour" — witnessed by real clicks in `hedgerows-baseline.spec.js` (the habitat-list witness was deleted with BMD-1043), and the row order this grid's sort keys produce is asserted in `hedgerows-baseline.spec.js:217`. That test drives the **same** builder, the same seven columns and the same unparameterised sort cells; only the rows differ.
 - **The details pane overflowing horizontally (AC6's last bullet).** `hedgerows-baseline.spec.js:195` measures it on the same pane with the same column widths.
-- **Following the four left-nav links (AC12).** `area-summary.spec.js:260` follows the same four destinations through the same shared macro; what this page needs to prove is that it **emits** them, which a fixture without hedgerows could not.
+- **Following the four left-nav links (AC12).** Each link is clicked once elsewhere through the same shared builder (see **Nav click witnesses** in [`area-summary.flow.md`](area-summary.flow.md)); what this page needs to prove is that it **emits** them, which a fixture without hedgerows could not.
 
 ---
 

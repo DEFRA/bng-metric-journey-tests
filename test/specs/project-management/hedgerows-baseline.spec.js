@@ -312,9 +312,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // produces this shape as a pure function; this proves the page renders it
       // from a project whose habitats actually earn all four entries.
       //
-      // Following the links is area-summary.spec.js:260's job — the four
-      // destinations are the same, and re-clicking them here would test the
-      // shared macro rather than this page. What is asserted is that this page
+      // Each link is followed once elsewhere — the builder takes only the
+      // project and the current href, so re-clicking them here would test the
+      // shared macro rather than this page. See the "Nav click witnesses" table
+      // in test/flows/project-management/area-summary.flow.md. What is asserted is that this page
       // emits them at all, which on a fixture without hedgerows it could not.
       test('renders the full left navigation with Baseline as the current child', async ({
         hedgerowsBaselinePage

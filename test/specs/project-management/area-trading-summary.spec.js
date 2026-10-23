@@ -234,10 +234,14 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     )
 
     // BMD-1024 AC8. The frontend asserts the hrefs in mocked markup; this
-    // proves the page emits them for a real project. Following them is
-    // area-summary.spec.js's job: the nav builder takes only the project and
-    // the current href, so a click from here exercises the same link, and each
-    // destination is opened by its own spec. The "Upload file" href is asserted
+    // proves the page emits them for a real project.
+    // Each href is followed once elsewhere, and the builder takes only the
+    // project and the current href, so the click does not depend on the page:
+    // Summary, Hedgerows and Watercourses from area-summary.spec.js; Area
+    // habitats and Reports from the project summary (area-summary.spec.js,
+    // project-reports.spec.js); and each section's Baseline, Post intervention
+    // and Trading rules children from that section's own summary page (the
+    // "both triggers" and entry-point tests in each destination's spec). The "Upload file" href is asserted
     // in the first test above; following it is project-summary.spec.js's job.
     test(
       'each left-navigation link points at its page',
