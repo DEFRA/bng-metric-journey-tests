@@ -3,8 +3,10 @@ import { WATERCOURSES_TRADING_SUMMARY_PATH } from '@pages/watercourses-trading-s
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
+  buildPostInterventionProject,
   getAllUnitTypesPostInterventionProject,
-  getWatercourseInterventionTypesProject
+  getWatercourseInterventionTypesProject,
+  WATERCOURSE_REFS_BASELINE_FILE
 } from '@utils/summary-projects.js'
 import {
   AREA_HABITATS,
@@ -188,6 +190,13 @@ const ENHANCED_CALCULATED_REF = 'R007'
 const MIX_RETAINED_REF = 'WC1'
 const MIX_ENHANCED_REF = 'WC2'
 const MIX_CREATED_REF = 'WC3'
+
+// `watercourses mixed retention uplift` with WC2's proposed watercourse
+// encroachment and WC3's proposed riparian encroachment emptied — built by
+// `build_null_proposed_encroachment_fixture()` in
+// test/example-files/fixture-mutations.py. WC1 is untouched.
+const NULL_PROPOSED_ENCROACHMENT_FILE =
+  'Post-intervention - null proposed encroachment.gpkg'
 
 const detailsHrefPattern = (projectId) =>
   new RegExp(
@@ -961,6 +970,66 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           }
         }
       )
+    }
+  )
+
+  // ─── Null proposed encroachment (BMD-1070 Developer Note) ───────────────────
+  //
+  // A null encroachment is no longer read as "no encroachment, x1" (backend
+  // PR#476), and PR#498 guards the calculators: a Created or Enhanced
+  // watercourse is priced from its PROPOSED encroachments, so a null one leaves
+  // it with null units and Incomplete. Retained is priced from the baseline.
+  //
+  // Sole witness that a real import reaches this rule. The backend proves it
+  // only on hand-built features (`null-unit-calculation.test.js:142`); its
+  // real-file case (`import-attributes.test.js:116`) nulls the proposed type
+  // and condition alongside both encroachments, so it cannot tell an
+  // encroachment alone from the rest. Redundant once an
+  // `integration-tests/import-combinations.test.js` case nulls ONE proposed
+  // encroachment on a Created/Enhanced watercourse and asserts null units.
+  test.describe(
+    'Watercourses post-intervention — null proposed encroachment',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      let project
+      test.beforeAll(async ({ browser }) => {
+        project = await buildPostInterventionProject(
+          browser,
+          WATERCOURSE_REFS_BASELINE_FILE,
+          NULL_PROPOSED_ENCROACHMENT_FILE
+        )
+      })
+
+      test('Created and Enhanced watercourses with a null proposed encroachment are listed without units', async ({
+        watercoursesPostInterventionPage
+      }) => {
+        const grid = watercoursesPostInterventionPage
+        const unitsOf = async (label, reference) =>
+          (await grid.rowValues(label, reference))[
+            await grid.columnIndex(label, 'Units')
+          ]
+
+        await grid.open(project.id)
+
+        // The control: untouched, and priced from its baseline encroachments.
+        // Without it a blank assertion would pass on a grid that rendered
+        // nothing.
+        expect(await unitsOf(RETAINED, MIX_RETAINED_REF)).toMatch(
+          GRID_UNITS_2DP
+        )
+
+        for (const [label, reference] of [
+          [ENHANCED, MIX_ENHANCED_REF],
+          [CREATED, MIX_CREATED_REF]
+        ]) {
+          await grid.tab(label).click()
+          await expect(grid.featureRow(label, reference)).toBeVisible()
+          expect(await unitsOf(label, reference)).toBe('')
+        }
+      })
     }
   )
 })

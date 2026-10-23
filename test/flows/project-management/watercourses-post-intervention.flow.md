@@ -183,6 +183,14 @@ Backend coverage proposals in the BMD-999 analysis.
 
 > **Observed during the BMD-862 manual validation (2026-09-16).** In the Enhanced tab the fixture's WC2 renders an **empty Units cell and a `0.00` totals row** — the same "Incomplete feature renders as blank cells" shape the hedgerow grid has, with no `Status` column to explain it. It sits against BMD-862's shared precondition "units were successfully calculated on import" and against `post-intervention-persistence.test.js:177`, which asserts `units > 0` for Enhanced linear features. Raised against **BMD-999**, not this page's ACs. Confirmed again during the BMD-999 manual validation (2026-09-16) on a second fixture — R008 in `Post-intervention - all unit and intervention types.gpkg` (`Good -> Good`, no uplift) renders the same way, and its encroachment cells lose the `(multiplier)` suffix too. Both fixtures' non-uplift rows are excluded by the ACs' own precondition, so the grid tests assert VALUES only on a calculated row.
 
+### BMD-1070 — null proposed encroachment `[IMPLEMENTED]`
+
+BMD-1070's Developer Note: a null encroachment must not be read as "no encroachment". BMD-1059 (backend PR#476, 2026-10-13) removed that default, and PR#498 added a check that runs before the calculation. A **Created** or **Enhanced** watercourse is priced from its **proposed** encroachments. If either is null, the watercourse is saved with null units and the status `Incomplete`, and it renders with an empty Units cell in its tab. A **Retained** watercourse is priced from its baseline encroachments. The baseline side is covered in `watercourses-baseline.flow.md`, under "Missing or unrecognised encroachment".
+
+The journey witness is the "null proposed encroachment" describe in `watercourses-post-intervention.spec.js`. It uploads `Baseline - complete with watercourse refs.gpkg`, then `Post-intervention - null proposed encroachment.gpkg`. That second file is a copy of `watercourses mixed retention uplift`, made by `fixture-mutations.py`, with two fields emptied: WC2 (Enhanced) has no proposed watercourse encroachment and WC3 (Created) has no proposed riparian encroachment. The test checks that WC2 and WC3 have blank Units cells and that the untouched WC1 (Retained) still has units.
+
+**Sole witness, do not delete without a replacement.** The backend covers the rule only against hand-built features (`null-unit-calculation.test.js:142`). Its real-file case (`import-attributes.test.js:116`) nulls the proposed type and condition together with the encroachments, so it cannot show that an encroachment alone stops pricing. Validated manually on 2026-10-23, including the saved `units: null` / `Incomplete` read from Postgres.
+
 ---
 
 ## Deferred elements
