@@ -367,6 +367,47 @@ def build_unrecognised_riparian_fixture():
         con.close()
 
 
+def build_null_proposed_encroachment_fixture():
+    """`Post-intervention - null proposed encroachment.gpkg`: WC2/WC3 proposed -> NULL.
+
+    BMD-1070's developer note: a null encroachment must no longer be read as
+    "no encroachment". Created and Enhanced watercourses are priced from their
+    PROPOSED encroachments, so a null there must leave them unpriced.
+
+    A copy of `watercourses mixed retention uplift` (WC1 Retained, WC2
+    Enhanced, WC3 Created, all priced) with WC2's proposed watercourse
+    encroachment and WC3's proposed riparian encroachment emptied. WC1 is
+    untouched and stays priced as the control.
+
+    One defect per row, so the upload still passes validation. Used by
+    watercourses-post-intervention.spec.js.
+    """
+    src = EX / "Post-intervention - watercourses mixed retention uplift.gpkg"
+    dst = EX / "Post-intervention - null proposed encroachment.gpkg"
+    shutil.copyfile(src, dst)
+    con = sqlite3.connect(dst)
+    try:
+        update_attr(
+            con, "Rivers",
+            '"Proposed Encroachment into Watercourse"=NULL WHERE "Parcel Ref"=?',
+            ("WC2",),
+        )
+        update_attr(
+            con, "Rivers",
+            '"Proposed Encroachment into riparian zone"=NULL WHERE "Parcel Ref"=?',
+            ("WC3",),
+        )
+        con.commit()
+        rows = con.execute(
+            'SELECT "Parcel Ref", "Retention Category", '
+            '"Proposed Encroachment into Watercourse", '
+            '"Proposed Encroachment into riparian zone" FROM "Rivers"'
+        ).fetchall()
+        print(f"\nnull proposed encroachment post-intervention:\n  Rivers: {rows}")
+    finally:
+        con.close()
+
+
 def _report(con, label, layers):
     print(f"\n{label}:")
     for table, ref in layers:
@@ -387,4 +428,5 @@ if __name__ == "__main__":
     build_created_watercourses_fixture()
     build_watercourses_uplift_fixture()
     build_unrecognised_riparian_fixture()
+    build_null_proposed_encroachment_fixture()
     print("\nDone.")
