@@ -8,7 +8,7 @@ Built with [Playwright Test](https://playwright.dev). Runs on DEFRA's CDP Portal
 
 ## Prerequisites
 
-- Node.js >= 22 (use `nvm use` to switch to the version in `.nvmrc`)
+- Node.js >= 24.22.1 (use `nvm use` to switch to the version in `.nvmrc`)
 - Docker and Docker Compose (for full-stack local testing and CI mode)
 - Sibling repos cloned alongside this one:
   - `../bng-metric-frontend`
