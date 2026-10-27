@@ -128,7 +128,7 @@ The prototype needs Node ≥24 and fetches the `bng-library` GitHub dependency (
 cd ../bng-metric-digital-prototype
 # Use nvm's Node 24 without hardcoding a patch version:
 export PATH="$(dirname "$(ls -d $HOME/.nvm/versions/node/v24*/bin/node | sort -V | tail -1)"):$PATH"
-node -v   # expect v24.x (engines wants >=24.14.1; nearby 24.x runs fine)
+node -v   # expect v24.x (engines wants >=24.22.1; nearby 24.x runs fine)
 # Only if node_modules is missing or built for the wrong Node — this forces a multi-minute reinstall:
 #   rm -rf node_modules
 npm_config_engine_strict=false npm ci                        # fetches bng-library from GitHub, builds better-sqlite3
