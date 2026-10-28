@@ -1,22 +1,25 @@
-# Post-Intervention Habitat Details User Flow (read-only view)
+# Post-Intervention Habitat Details User Flow (read-only view; Created area edit)
 
 ## Overview
 
 A BNG Completer opens a feature from its unit-type post-intervention page —
 `area-post-intervention`, `hedgerows-post-intervention` or `watercourses-post-intervention`
 (BMD-1043, frontend PR#352; it was the post-intervention habitat list, now removed) — and
-views its details. **Every post-intervention feature renders a read-only page** — area, hedgerow and
-watercourse features each get a page specific to their type _and_ their intervention
-(retention) category; individual trees render an unsupported-feature placeholder. There is
-no editable form on this route: `POST /post-intervention-habitat-details` returns
-**501 Not Implemented**.
+views its details. **Every post-intervention feature renders a read-only page except a
+Created area habitat**, which renders an **editable form** (BMD-1048, frontend PR#418 /
+backend PR#539, 2026-10-28) — area, hedgerow and watercourse features each get a page
+specific to their type _and_ their intervention (retention) category; individual trees
+render an unsupported-feature placeholder. `POST /post-intervention-habitat-details` saves
+the Created area form (Step 11); for any other feature it returns **501 Not Implemented**.
 
-**Layout: the stacked "sections" design is now the norm.** Seven of the eight rendered
+**Layout: the stacked "sections" design is now the norm.** Six of the seven read-only
 pages extend `layouts/pi-view-only-sections-page.njk` (bold label on one line, value on the
 next; no `govukSummaryList` rows; a bordered "Habitat units delivered" summary row at the
 bottom; the parcel **ref** as the H1). The **retained hedgerow** page is the only one still
 on the older `layouts/pi-view-only-page.njk` `govukSummaryList` design, with the generic
-"Post-intervention habitat details" H1 and a "Units in this habitat" row.
+"Post-intervention habitat details" H1 and a "Units in this habitat" row. The Created area
+edit page (Step 4) extends `layouts/page.njk` and keeps the same two section headings and
+"Habitat units delivered" row.
 
 ### Back link (BMD-1043)
 
@@ -41,10 +44,14 @@ backend's discriminator (`habitat`, `tree`, `hedgerow`, `watercourse`) and
 
 | Feature type            | `Enhanced`                         | `Created`                                        | anything else (incl. `Retained`, unrecognised, absent) |
 | ----------------------- | ---------------------------------- | ------------------------------------------------ | ------------------------------------------------------ |
-| `habitat`               | `pi-habitat-details-enhanced`      | `pi-habitat-details-created`                     | `pi-habitat-details` (Step 1)                          |
+| `habitat`               | `pi-habitat-details-enhanced`      | `pi-habitat-details-created-edit` (Step 4, form) | `pi-habitat-details` (Step 1)                          |
 | `hedgerow`              | `pi-hedgerow-details-enhanced`     | `pi-hedgerow-details-enhanced` (different model) | `pi-hedgerow-details` (Step 2)                         |
 | `watercourse`           | `pi-watercourse-details-enhanced`  | `pi-watercourse-details-created`                 | `pi-watercourse-details` (Step 3)                      |
 | `tree` / any other type | `pi-feature-unsupported` (Step 10) | —                                                | —                                                      |
+
+The Created **area** case is checked in the GET handler _before_ `resolveViewOnlyPage` is
+called, so it never reaches the view-only map. A Lost area parcel is persisted as Created
+(BMD-534), so it gets the edit form too.
 
 A category the map does not know (the backend only persists `Retained`/`Created`/`Enhanced`,
 so this is defensive) falls through to the retained page for its type, with the Intervention
@@ -189,23 +196,48 @@ Every GET step below shares this contract, so it is stated once rather than repe
 
 ---
 
-### Step 4 — View Created area habitat details (read-only, two-section) `[IMPLEMENTED]`
+### Step 4 — Edit Created area habitat details (form, BMD-1048) `[IMPLEMENTED]`
 
-- **Route:** shared GET contract (area feature whose normalised `retentionCategory === "Created"`)
-- **Template:** `src/server/habitat-details/pi-habitat-details-created.njk` (extends `layouts/pi-view-only-sections-page.njk`; BMD-736, frontend PR#180)
-- **Backend endpoint:** shared GET contract
-- **Description:** Two-section stacked page, H1 = parcel ref, caption = project name.
-  - **Section 1 — "Post-intervention habitat details":** Intervention, **Area**, Broad
-    habitat, Habitat type, Distinctiveness, Condition, Strategic significance. Note the
-    label is `Area` (not "Area (hectares)") and the value carries its own **`ha` suffix**
-    via `formatAreaHectares` — the opposite convention to the retained area page in Step 1.
-  - **"View baseline details"** link renders here, after the first section.
-  - **Section 2 — "Time to target / difficulty":** Target condition, Standard time to
-    target condition, Standard difficulty, Advance or delay?, Final time to target
-    condition, Applied difficulty multiplier.
-  - Then the bordered **"Habitat units delivered"** row.
-  - **Standard time to target condition** (`formatStandardTimeToTarget`,
-    `post-intervention-habitat-details/view-only-shared.js`) renders the condition
+- **Route:** shared GET contract (area feature whose normalised `retentionCategory === "Created"`,
+  including a Lost area parcel, which is persisted as Created)
+- **Template:** `src/server/habitat-details/pi-habitat-details-created-edit.njk` (extends
+  `layouts/page.njk`; BMD-1048, frontend PR#418, 2026-10-28). It replaced the read-only
+  `pi-habitat-details-created.njk` (BMD-736, frontend PR#180), which was deleted.
+- **Backend endpoints:** shared GET contract, plus `GET /reference/area-creation` (backend
+  PR#539) for the dropdown options and derived values, cached in the frontend process
+- **Description:** A form with H1 = parcel ref and caption = project name, an **"Upload
+  file"** button in the header (to the upload-file page) and a GOV.UK error summary when
+  Step 11 re-renders it with errors. Values come from `feature.proposed`.
+  - **Section 1 — "Post-intervention habitat details":** a **Habitat reference** text input,
+    the **"View baseline details"** link (when resolved), read-only **Intervention** and
+    **"Size (hectares)"** (value without a unit suffix), the **Broad habitat** and **Habitat
+    type** dropdowns, read-only **"Distinctiveness (multiplier)"**, and the **Strategic
+    significance** dropdown.
+  - **Section 2 — "Time to target / difficulty":** the **Target condition** dropdown,
+    read-only Standard time to target condition and Standard difficulty, an **"Advance or
+    delay?"** fieldset holding the "Habitat created in advance (years)" and "Delay in
+    starting habitat creation (years)" dropdowns, then read-only **"Final time to target
+    condition (multiplier)"** and Applied difficulty multiplier.
+  - Then the **"Habitat units delivered"** row, and **Save** / **Cancel** (Cancel = back link).
+  - Every dropdown leads with a "Choose …" option (`Choose broad habitat`, `Choose habitat
+type`, `Choose target condition`, `Choose strategic significance`, `Choose advance`,
+    `Choose delay`), selected when the saved value is null. Habitat type lists only the
+    types for the selected broad habitat; Target condition lists only the conditions with a
+    defined creation time to target for the selected type; the year dropdowns offer 0–30
+    and 30+.
+  - **Derived values update in the browser** (`src/client/javascripts/created-area-details.js`)
+    as the dropdowns change; nothing is saved until Save (BMD-1048 AC4–AC10). Units are only
+    recalculated by the backend on Save.
+  - An imported value the dropdown does not offer shows a hint that saving without a new
+    selection clears it. A reference over 100 characters shows a "Shorten it" hint.
+  - The "View baseline details" link resolves through `parentFeatureId` when the feature
+    carries one (BNG Service template, BMD-1083), otherwise by ref as above.
+  - **Standard time to target condition** on first load is the view-only value below (the
+    edit page reuses it while the selection is unchanged); after a change it is rebuilt by
+    `createdAreaDerived` (`src/shared/created-area-details.js`) with the same rules — a real
+    baseline condition gives the transition form, an absent or `N/A…` one the short form.
+    The read-only value it reuses, `formatStandardTimeToTarget`
+    (`post-intervention-habitat-details/view-only-shared.js`), renders the condition
     _transition_ `"<baseline condition> to <proposed condition> - N years"` (frontend
     PR#193), with any `"N. "` prefix stripped from both conditions. **Frontend PR#211
     (2026-08-12) changed the missing-baseline case:** when the baseline condition is absent
@@ -239,12 +271,11 @@ Every GET step below shares this contract, so it is stated once rather than repe
       **R003** covers the Created **watercourse** page (Step 8), `Fairly Poor - 2 years`
       (BMD-739). This is the branch real Natural England uploads hit.
 
-  - **Target condition and Condition render the identical string** — both are
-    `withMultiplier(stripConditionPrefix(proposed.condition), proposed.conditionScore)`.
-  - Every value on this page reads from `proposed`.
-  - Back link to the area habitats post-intervention page (see Back link above).
-- **Validation:** shared GET contract
-- **On success:** Renders the Created two-section read-only area details page
+  - There is **no separate Condition row** on this page: the proposed condition is the
+    Target condition dropdown's selected option (its prefix stripped, no multiplier).
+  - Back link and Cancel go to the area habitats post-intervention page (see Back link above).
+- **Validation:** shared GET contract on load; the form's own rules are in Step 11
+- **On success:** Renders the Created area edit form
 - **On error:** shared GET contract
 
 ---
@@ -373,23 +404,47 @@ Every GET step below shares this contract, so it is stated once rather than repe
 
 ---
 
-### Step 11 — Save is not implemented (read-only route) `[IMPLEMENTED]`
+### Step 11 — Save Created area habitat details (BMD-1048) `[IMPLEMENTED]`
 
 - **Route:** `POST /post-intervention-habitat-details`
-- **Template:** None
+- **Template:** `pi-habitat-details-created-edit.njk` on a validation failure; none otherwise
 - **Auth required:** Yes (session + approved BNG Completer role — the route keeps the same
   `auth: 'session'` + `requireBngCompleterRole` guards as the GET)
-- **Backend endpoint:** None — no page renders a form that posts here.
-- **Description:** Every post-intervention details page is read-only, so nothing submits to
-  this route. It stays registered and its handler throws `Boom.notImplemented` so a stale
-  page or client gets an explicit **501** rather than a 404. The previous editable-form save
-  (which called `PUT /projects/{projectId}/post-intervention/habitats/{featureId}`) has been
-  removed from this route; the backend endpoint still exists but is no longer called from
-  here. BMD-845 (which added the habitat-list "Intervention type" column) confirmed there
-  are no per-intervention-type _editable_ variations to build.
-- **Validation:** None — the handler declares no payload schema and reads no input.
-- **On success:** N/A — the handler always throws.
-- **On error:** 501 Not Implemented.
+- **Backend endpoints:** `GET /projects/{projectId}/post-intervention/features/{featureId}`
+  (to check the feature is a Created area), `GET /reference/area-creation`, then
+  `PUT /projects/{projectId}/post-intervention/habitats/{featureId}` (backend PR#539), which
+  validates the edit again, re-prices the habitat and the area total, and saves it
+  `Complete` with its units, or `Incomplete` with `units: null` when a field it needs is
+  blank (the area total counts it as 0)
+- **Description:** Only the Step 4 form posts here. The handler, in order:
+  1. Validates the payload against Joi `createdAreaPayloadSchema` — `projectId` and
+     `featureId` (UUIDs), `ref`, `broadHabitat`, `habitatType`, `condition`,
+     `strategicSignificance` (strings, may be empty), `advanceYears` / `delayYears` (empty,
+     `0`–`30` or `30+`), all required; `returnUrl` and `crumb` optional. A body that fails
+     it is rejected with **400** before the handler runs.
+  2. Fetches the feature; if it is **not a Created area habitat** it throws
+     `Boom.notImplemented` → **501** (every other feature type is still read-only).
+  3. Runs `validateCreatedArea`; on any error it re-renders the form with the entered values
+     kept, an error summary and inline errors (BMD-1048 AC13).
+  4. Otherwise saves through the backend `PUT` and redirects to the area habitats
+     post-intervention page.
+- **Validation (step 3, `validateCreatedArea`):**
+  - Habitat reference blank, whitespace-only or not well-formed UTF-8 → inline "Enter a valid
+    habitat reference.", summary "You have entered an invalid habitat reference."
+  - Habitat reference over 100 characters → "Enter a habitat reference of 100 characters or
+    fewer." (not in the BMD-1048 ACs; matches the BMD-1058 limit)
+  - Advance and Delay both above 0 → inline "Either the advance or delay field must be set at
+    zero.", summary "A habitat cannot be created both in advance and with a delay." (one
+    summary entry for both fields)
+  - A dropdown value that is not one of its options → "Choose a valid broad habitat" /
+    "Choose a habitat type for the selected broad habitat" / "Choose a target condition for
+    the selected habitat type" / "Choose a valid strategic significance"
+  - Duplicate references are allowed. Blank dropdowns are allowed — the habitat saves as
+    Incomplete.
+- **On success:** 302 to `/projects/{projectId}/area-post-intervention` (or the safe
+  `returnUrl`)
+- **On error:** 400 for an invalid payload; 501 for a feature that is not a Created area
+  habitat; the form re-rendered for a field error
 
 ---
 

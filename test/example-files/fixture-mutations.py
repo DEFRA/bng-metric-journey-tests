@@ -263,6 +263,9 @@ def recut_all_unit_types_hg032():
 # drops with them to stay invalid rather than become a priced enhancement.
 # Trees and area habitats only move their baseline units. HG001 in "net gain
 # met" is Very Low, which no condition change can enhance, so it is Retained.
+# HG006 in "created linear features" is a Low hedge in Good condition whose
+# type has no Medium target since backend PR #551 repinned bng-library; it was
+# Good -> Good and stays nulled as Moderate -> Moderate.
 #   (file, table, ref column, ref, {column: value})
 _ALL_TYPES = "Post-intervention - all unit and intervention types.gpkg"
 _MODERATE_BASELINE = {"Baseline Condition": "Moderate"}
@@ -284,6 +287,8 @@ UNENHANCEABLE_BASELINE_RECUTS = [
     *[("Post-intervention - created linear features.gpkg", "Urban Trees",
        "Tree Ref", ref, _FAIRLY_GOOD_BASELINE)
       for ref in ("T017", "T024")],
+    ("Post-intervention - created linear features.gpkg", "Hedgerows",
+     "Parcel Ref", "HG006", _MODERATE_BOTH_SIDES),
     ("Post-intervention - linear net gain met.gpkg", "Habitats",
      "Parcel Ref", "H006", _MODERATE_BASELINE),
     ("Post-intervention - linear net gain met.gpkg", "Urban Trees",

@@ -128,9 +128,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       })
 
       // The "created linear features" pair: the Medium hedgerows gain 2.22
-      // units, which falls short of the Low loss of 4.20, and the Very low
-      // hedgerows lose 1.04 with nothing left to carry down. The Medium gain
-      // relies on HG005 and HG010 carrying a Low Proposed Strategic
+      // units, which falls short of the Low loss of 3.77 (4.20 before HG006's
+      // baseline was recut from Good to Moderate for BMD-1182), and the Very
+      // low hedgerows lose 1.04 with nothing left to carry down. The Medium
+      // gain relies on HG005 and HG010 carrying a Low Proposed Strategic
       // Significance: the harness file gives them Medium, which BMD-1051
       // rejects and prices at zero, leaving every band Not met.
       test('Low and Very low running totals below zero read "Not met" under a Met Medium band', async ({
@@ -151,7 +152,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
             LOW,
             CUMULATIVE_SURPLUS_TILE
           )
-        ).toBe('-1.98 units')
+        ).toBe('-1.55 units')
         await expectStatusTag(
           hedgerowsTradingSummaryPage.statusTag(LOW),
           STATUS_NOT_MET
@@ -271,7 +272,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
         expect(
           await hedgerowsTradingSummaryPage.bandTileValues(LOW, LOW_TILES)
-        ).toEqual(['-4.20 units', '2.22 units', '-1.98 units'])
+        ).toEqual(['-3.77 units', '2.22 units', '-1.55 units'])
         // Only the cumulative tile carries the band's status.
         await expectStatusTag(
           hedgerowsTradingSummaryPage.bandTileTag(LOW, CUMULATIVE_SURPLUS_TILE),
@@ -284,14 +285,14 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           headers: UNIT_CHANGE_COLUMNS,
           rows: [
             ['Line of trees', '-1.76'],
-            ['Line of trees - associated with bank or ditch', '-2.44'],
+            ['Line of trees - associated with bank or ditch', '-2.01'],
             ['Native hedgerow', '0.00'],
-            [TOTAL_UNIT_CHANGE, '-4.20']
+            [TOTAL_UNIT_CHANGE, '-3.77']
           ]
         })
       })
 
-      // A Low cumulative deficit (-1.98) is never carried down, so "available"
+      // A Low cumulative deficit (-1.55) is never carried down, so "available"
       // reads 0.00. That alone cannot tell which figure the page passes — any
       // negative input floors to 0.00 — hence the all-met test below.
       test('the Very low section shows a Low deficit carried down as 0.00 and its hedgerow type with a total', async ({

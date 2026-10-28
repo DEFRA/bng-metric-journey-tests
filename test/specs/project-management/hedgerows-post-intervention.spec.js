@@ -816,9 +816,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // AC4b, AC5 on the Enhanced grid — on the OTHER project.
       //
       // This pairing's two Enhanced hedgerows do not improve on their baseline
-      // condition (HG006 Good -> Good, HG009 Moderate -> Poor), so the engine
-      // calculates no units for either and their Units, Distinctiveness and
-      // whole target/time block render empty — the case BMD-998's AC
+      // condition (HG006 Moderate -> Moderate, recut from Good -> Good for
+      // BMD-1182; HG009 Moderate -> Poor), so the engine calculates no units
+      // for either and their Units, Distinctiveness and whole target/time
+      // block render empty — the case BMD-998's AC
       // preconditions exclude ("units were successfully calculated on import").
       // HG018 in the all-unit-types fixture is the only Enhanced hedgerow in
       // any shipped fixture with a real uplift (Poor -> Moderate), so it is the
