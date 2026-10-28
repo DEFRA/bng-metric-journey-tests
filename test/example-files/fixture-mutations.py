@@ -228,8 +228,10 @@ def recut_all_unit_types_hg032():
     both rejected by BMD-820 and neither witnessed BMD-1051 any more. Moderate
     -> Good is a valid enhancement, so HG032 now reaches the BMD-1051 check,
     where its Medium Proposed Strategic Significance prices it at zero. HG031
-    stays as the BMD-820 witness. HG032 is priced at zero either way, so no
-    total changes. The harness's copy of this file keeps Poor.
+    stays as the BMD-820 witness: recut_unenhanceable_baselines later makes it
+    Moderate -> Moderate (BMD-1182 refuses a Good Medium baseline), which
+    BMD-820 still rejects. HG032 is priced at zero either way, so no total
+    changes. The harness's copy of this file keeps Poor.
 
     Used by hedgerows-post-intervention.spec.js and
     post-intervention-habitat-details.spec.js.
@@ -255,9 +257,12 @@ def recut_all_unit_types_hg032():
 
 # BMD-1182 (backend PR #544) refuses the WHOLE file when an Enhanced feature's
 # baseline cannot be enhanced: a Medium area habitat, hedgerow or watercourse in
-# Good condition (an individual tree counts as a Medium area habitat), or a Very
-# Low hedgerow in any condition. Each Good baseline below drops one step so the
-# file imports again. The hedgerows stay invalid under BMD-820 (a Medium hedge
+# Good condition (an individual tree counts as a Medium area habitat), a Very
+# Low hedgerow in any condition, or a Low hedgerow in Good condition whose type
+# the metric lets become no Medium hedgerow. Each Good baseline below drops one
+# step so the file imports again. Not every Low Good hedge is caught: "all unit
+# and intervention types" HG040 (Native hedgerow, Good -> Poor) has a Medium
+# target, so the backend accepts it and it is left alone. The hedgerows stay invalid under BMD-820 (a Medium hedge
 # needs a strictly better condition), so they are still nulled at import as
 # they were before; HR2 and HG012 were Good -> Good, so their proposed side
 # drops with them to stay invalid rather than become a priced enhancement.
@@ -327,6 +332,7 @@ def recut_unenhanceable_baselines():
                 f'FROM "{table}" WHERE "{ref_col}"=?',
                 (ref,),
             ).fetchone()
+            assert row is not None, f"{name}: no {table} row with {ref_col}={ref}"
             print(f"unenhanceable baseline recut ({name}): {row}")
         finally:
             con.close()
