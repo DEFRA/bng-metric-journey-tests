@@ -7,8 +7,10 @@ export const UNITS_TWO_DP_PATTERN = /^\s*\d+\.\d{2}\s*$/
 
 // The /post-intervention-habitat-details route renders a read-only page for
 // every feature, picked by feature type *and* retention category, plus an
-// unsupported-feature placeholder for individual trees. POST to this route
-// answers 501 — there is no editable form. Two layout families:
+// unsupported-feature placeholder for individual trees — except a Created
+// area habitat, which renders an edit form (BMD-1048, frontend PR#418). POST
+// saves that form and answers 501 for any other feature. Two read-only layout
+// families:
 //
 //   - stacked sections (layouts/pi-view-only-sections-page.njk) — <h3> label
 //     over <p> value, feature ref as the H1, a "Habitat units delivered"
@@ -18,10 +20,10 @@ export const UNITS_TWO_DP_PATTERN = /^\s*\d+\.\d{2}\s*$/
 //   - summary list (layouts/pi-view-only-page.njk) — the original <dl>, now
 //     only the retained hedgerow page (BMD-723).
 //
-// Extending the baseline page object inherits its select/save locators only so
-// the "hidden on a read-only page" assertions in this file's specs have
-// something to check against; the locators added here cover the view-only
-// pages.
+// Extending the baseline page object inherits its select/save locators: the
+// read-only pages assert them hidden, and the Created area edit form asserts
+// them visible. The locators added here cover the view-only pages and the
+// edit form's own controls.
 export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPage {
   constructor(page) {
     super(page)
@@ -105,8 +107,10 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
       'Time to target / difficulty',
       { exact: true }
     )
-    // Created/Enhanced size labels — these pages put the unit on the value
-    // ("1.23ha" / "0.09km"), so their labels are the bare "Area" / "Length".
+    // Enhanced area and Created/Enhanced linear size labels — these pages put
+    // the unit on the value ("1.23ha" / "0.09km"), so their labels are the
+    // bare "Area" / "Length". The Created area edit form uses
+    // "Size (hectares)".
     this.enhancedAreaKey = page.getByText('Area', { exact: true })
     this.enhancedLengthKey = page.getByText('Length', { exact: true })
     // Lower-case on every stacked page; the retained hedgerow summary list is
@@ -169,6 +173,29 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     this.habitatUnitsDeliveredKey = page.getByText('Habitat units delivered', {
       exact: true
     })
+
+    // ─── Created area edit form (BMD-1048) ──────────────────────────────────
+    // pi-habitat-details-created-edit.njk keeps the two section headings and
+    // the units row, but its editable fields are form controls and two
+    // derived labels name their multiplier.
+    this.habitatReferenceInput = page.getByLabel('Habitat reference')
+    this.strategicSignificanceSelect = page.getByLabel('Strategic significance')
+    this.targetConditionSelect = page.getByLabel('Target condition')
+    this.advanceYearsSelect = page.getByLabel(
+      'Habitat created in advance (years)'
+    )
+    this.delayYearsSelect = page.getByLabel(
+      'Delay in starting habitat creation (years)'
+    )
+    this.distinctivenessMultiplierKey = page.getByText(
+      'Distinctiveness (multiplier)',
+      { exact: true }
+    )
+    this.finalTimeToTargetMultiplierKey = page.getByText(
+      'Final time to target condition (multiplier)',
+      { exact: true }
+    )
+    this.uploadFileButton = page.getByRole('button', { name: 'Upload file' })
   }
 
   async open(projectId, featureId) {
@@ -214,12 +241,67 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
   }
 
   /**
+   * Assert the Created area edit form (BMD-1048 AC1/AC2): the feature ref as
+   * the H1, the read-only Intervention and Size rows, the reference input
+   * pre-filled with the ref, a dropdown for each editable field, the derived
+   * rows in both sections, the units row, and Save / Cancel / Upload file.
+   */
+  async assertCreatedAreaEditForm({ ref }) {
+    await expect(
+      this.page.getByRole('heading', { name: ref, exact: true })
+    ).toBeVisible()
+    await expect(this.viewOnlyHeading).toBeVisible()
+    await expect(this.interventionKey).toBeVisible()
+    await expect(this.page.getByText('Created', { exact: true })).toBeVisible()
+    await expect(this.sizeHectaresKey).toBeVisible()
+    await expect(this.habitatReferenceInput).toHaveValue(ref)
+    await expect(this.broadHabitatSelect).toBeVisible()
+    await expect(this.habitatTypeSelect).toBeVisible()
+    await expect(this.distinctivenessMultiplierKey).toBeVisible()
+    await expect(this.strategicSignificanceSelect).toBeVisible()
+
+    await expect(this.timeToTargetSectionHeading).toBeVisible()
+    await expect(this.targetConditionSelect).toBeVisible()
+    await expect(this.standardTimeToTargetKey).toBeVisible()
+    await expect(this.standardDifficultyKey).toBeVisible()
+    await expect(this.advanceOrDelayKey).toBeVisible()
+    await expect(this.advanceYearsSelect).toBeVisible()
+    await expect(this.delayYearsSelect).toBeVisible()
+    await expect(this.finalTimeToTargetMultiplierKey).toBeVisible()
+    await expect(this.appliedDifficultyMultiplierKey).toBeVisible()
+
+    await expect(this.habitatUnitsDeliveredKey).toBeVisible()
+
+    await expect(this.saveButton).toBeVisible()
+    await expect(this.cancelLink).toBeVisible()
+    await expect(this.uploadFileButton).toBeVisible()
+  }
+
+  /**
+   * Assert the values a Created feature with no usable baseline condition
+   * shows on any of its pages: the page chrome, the short-form time-to-target
+   * row, and the units row.
+   *
+   * @param {{ projectName: string, timeToTarget: string, units: string }} expected
+   */
+  async assertCreatedAbsentBaselineValues({
+    projectName,
+    timeToTarget,
+    units
+  }) {
+    await expect(this.backLink).toBeVisible()
+    await expect(this.caption).toHaveText(projectName)
+    await expect(this.createdTimeToTargetValue).toHaveText(timeToTarget)
+    await expect(this.habitatUnitsValue).toHaveText(UNITS_TWO_DP_PATTERN)
+    await expect(this.habitatUnitsValue).toHaveText(units)
+  }
+
+  /**
    * Assert the shape a Created feature with no usable baseline condition
-   * shares across the area, hedgerow and watercourse pages: the two-section
-   * layout, the page chrome that sits outside it, the short-form
-   * time-to-target row, and the units row. Feature-specific rows (size label,
-   * broad habitat, encroachments) and the "View baseline details" expectation
-   * differ per page, so they stay with the caller.
+   * shares across the hedgerow and watercourse read-only pages: the
+   * two-section layout plus assertCreatedAbsentBaselineValues.
+   * Feature-specific rows (size label, encroachments) and the "View baseline
+   * details" expectation differ per page, so they stay with the caller.
    *
    * @param {{ ref: string, projectName: string, timeToTarget: string, units: string }} expected
    */
@@ -230,10 +312,10 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     units
   }) {
     await this.assertTwoSectionLayout({ ref, intervention: 'Created' })
-    await expect(this.backLink).toBeVisible()
-    await expect(this.caption).toHaveText(projectName)
-    await expect(this.createdTimeToTargetValue).toHaveText(timeToTarget)
-    await expect(this.habitatUnitsValue).toHaveText(UNITS_TWO_DP_PATTERN)
-    await expect(this.habitatUnitsValue).toHaveText(units)
+    await this.assertCreatedAbsentBaselineValues({
+      projectName,
+      timeToTarget,
+      units
+    })
   }
 }

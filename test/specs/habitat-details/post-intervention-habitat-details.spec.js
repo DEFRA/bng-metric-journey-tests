@@ -68,9 +68,10 @@ const WATERCOURSE_BASELINE_FILE =
   'Baseline - complete with watercourse refs.gpkg'
 const MIXED_FILE = 'Post-intervention - mixed complete and incomplete.gpkg'
 const TREES_FILE = 'Post-intervention - urban trees all sizes.gpkg'
-// The mixed hedgerow fixture's only Enhanced hedge, HR2, is Good→Good (no
-// condition uplift), so its time-to-target section renders blank — fine for the
-// label-only structural assertions but useless for pinning the dynamic
+// The mixed hedgerow fixture's only Enhanced hedge, HR2, is Moderate→Moderate
+// (no condition uplift; recut from Good→Good for BMD-1182), so its
+// time-to-target section renders blank — fine for the label-only structural
+// assertions but useless for pinning the dynamic
 // condition-transition text (frontend PR#193). The "all unit and intervention
 // types" fixture is the only shipped file with an Enhanced hedge that actually
 // improves: HG018 goes Poor→Moderate, so its "Standard time to target
@@ -94,7 +95,7 @@ const ENHANCED_REJECTED_HEDGEROW_REF = 'HG032'
 const STRATEGIC_SIGNIFICANCE_WITH_MULTIPLIER = /^(Low|Medium|High) \([\d.]+\)$/
 const CREATED_HEDGEROW_REF = 'HR3'
 // HR3 and WC3 are both created to Moderate condition over 5 years, so unlike
-// their Enhanced siblings (HR2 Good→Good, WC2 Moderate→Moderate, neither of
+// their Enhanced siblings (HR2 and WC2, both Moderate→Moderate, neither of
 // which resolves a time-to-target) their sections populate — enough to pin the
 // dynamic condition-transition text on the Created hedgerow and watercourse
 // pages alike.
@@ -901,15 +902,14 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       )
     })
 
-    // ─── Created area habitats (BMD-736) ─────────────────────────────────────
-    // A Created area feature renders its own two-section read-only page
-    // (pi-habitat-details-created.njk, frontend PR#180) — the same shape as the
-    // Enhanced area page, differing only in the Intervention value. Retention
-    // never gates whether a page renders, and BMD-845 confirmed there are no
-    // per-intervention-type *editable* variations to build.
+    // ─── Created area habitats (BMD-736, BMD-1048) ───────────────────────────
+    // A Created area feature renders the edit form
+    // (pi-habitat-details-created-edit.njk, frontend PR#418), which replaced
+    // the BMD-736 read-only page. It keeps that page's two section headings,
+    // derived rows and units row, so the BMD-736 value checks still apply.
 
     test.describe(
-      'non-retained area habitats are read-only',
+      'Created area habitats render the edit form',
       { tag: '@regression' },
       () => {
         test.use({ storageState: STORAGE_STATE })
@@ -917,11 +917,11 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
         // A Lost area habitat is one whose baseline habitat was removed and
         // replaced, so the backend maps it to Created (BMD-531/534) — it still
-        // appears, rendering the Created two-section page.
+        // appears, rendering the Created area edit form.
         // (Lost hedgerows, watercourses and trees are instead excluded
         // entirely; that is covered by the post-intervention grid specs in
         // test/specs/project-management.)
-        test('a Lost area habitat is imported as Created and renders the two-section read-only page', async ({
+        test('a Lost area habitat is imported as Created and renders the Created area edit form', async ({
           browser,
           postInterventionHabitatDetailsPage,
           page
@@ -932,18 +932,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await openPiFeatureDetails(page, shared.id, 'area', 'H2-1')
           await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
-          await postInterventionHabitatDetailsPage.assertTwoSectionLayout({
-            ref: 'H2-1',
-            intervention: 'Created'
+          await postInterventionHabitatDetailsPage.assertCreatedAreaEditForm({
+            ref: 'H2-1'
           })
-          // Area habitats label the size row "Area", with the unit on the
-          // value — unlike the retained area page's "Size (hectares)".
-          await expect(
-            postInterventionHabitatDetailsPage.enhancedAreaKey
-          ).toBeVisible()
-          await expect(
-            postInterventionHabitatDetailsPage.broadHabitatKey
-          ).toBeVisible()
         })
 
         // BMD-736 AC1 asks for labels *and values*. The Lost-sourced parcel
@@ -969,8 +960,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           // not.toContainText(STALE_TIME_TO_TARGET_TEXT) guard; that would be
           // vacuous here, because the stale wording itself contains " to " and
           // is therefore already outside this locator's reach.
-          await detailsPage.assertCreatedAbsentBaselinePage({
-            ref: CREATED_AREA_REF,
+          await detailsPage.assertCreatedAreaEditForm({ ref: CREATED_AREA_REF })
+          await detailsPage.assertCreatedAbsentBaselineValues({
             projectName: shared.name,
             timeToTarget: CREATED_AREA_TIME_TO_TARGET,
             units: shared.createdAreaUnits
@@ -983,8 +974,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         // BMD-736 AC2, and the back-link witness for every area habitat page.
         // The controller overrides each view model's back href with
         // `postInterventionBackHref(projectId, type, returnUrl)` — keyed on the
-        // feature type, never the retention category — and the Retained,
-        // Enhanced and Created area pages share one layout, so one click per
+        // feature type, never the retention category — and the Created area
+        // edit form builds its back href the same way, so one click per
         // feature type covers them all. The hedgerow and watercourse equivalents
         // are folded into their retained smoke tests below.
         test(
@@ -1265,9 +1256,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       'Enhanced hedgerow shows its section-2 values and the dynamic condition-transition time (PR#193)',
       { tag: '@regression' },
       async ({ browser, postInterventionHabitatDetailsPage }) => {
-        // HR2 (the mixed fixture's Enhanced hedge) is Good→Good, so its
-        // time-to-target renders blank — the dynamic transition can only be
-        // pinned on a hedge that actually improves. HG018 goes Poor→Moderate.
+        // HR2 (the mixed fixture's Enhanced hedge) is Moderate→Moderate, so
+        // its time-to-target renders blank — the dynamic transition can only
+        // be pinned on a hedge that actually improves. HG018 goes
+        // Poor→Moderate.
         const shared = await getAllTypesProject(browser)
         await postInterventionHabitatDetailsPage.open(
           shared.id,
@@ -1843,34 +1835,50 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     }
   )
 
-  // ─── Save is not implemented (read-only route) ──────────────────────────────
-  // Every PI details page is read-only (BMD-608/723/724), so nothing renders a
-  // form that posts here — but the route stays registered and must answer 501
-  // rather than a default 404, so a stale page or client gets an explicit
-  // "not implemented" response.
+  // ─── Save is not implemented for read-only features ─────────────────────────
+  // Only the Created area edit form (BMD-1048) posts here. The route answers
+  // 501 for every other feature, so a stale page or client gets an explicit
+  // "not implemented" response rather than a save. The handler validates the
+  // payload first (400 for a malformed body), so the request must be a
+  // well-formed save aimed at a read-only feature to reach that branch.
 
   test.describe(
-    'Post-intervention habitat details — save not implemented',
+    'Post-intervention habitat details — save not implemented for read-only features',
     { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      test('POST /post-intervention-habitat-details returns 501 Not Implemented', async ({
+      test('POST /post-intervention-habitat-details for a Retained area habitat returns 501 Not Implemented', async ({
+        browser,
         page
       }) => {
-        // No page on this route ever renders a form that posts here (it's
-        // read-only), so there is no crumb-carrying HTML form to submit via a
-        // real browser action. Any response sets the httpOnly `crumb` cookie
-        // (@hapi/crumb, restful: false); read it from the context and echo it
-        // back in the JSON payload the same way a real form submission would.
+        const shared = await getCompleteProject(browser)
+        // No read-only page renders a form, so there is no crumb-carrying HTML
+        // form to submit via a real browser action. Any response sets the
+        // httpOnly `crumb` cookie (@hapi/crumb, restful: false); read it from
+        // the context and echo it back in the payload the same way a real form
+        // submission would.
         await page.goto('/')
         const crumbCookie = (await page.context().cookies()).find(
           (cookie) => cookie.name === 'crumb'
         )
         const response = await page.request.post(
           '/post-intervention-habitat-details',
-          { data: { crumb: crumbCookie.value } }
+          {
+            data: {
+              projectId: shared.id,
+              featureId: shared.retainedWithBaseline,
+              ref: 'H1',
+              broadHabitat: '',
+              habitatType: '',
+              condition: '',
+              strategicSignificance: '',
+              advanceYears: '',
+              delayYears: '',
+              crumb: crumbCookie.value
+            }
+          }
         )
         expect(response.status()).toBe(HTTP_NOT_IMPLEMENTED)
       })
