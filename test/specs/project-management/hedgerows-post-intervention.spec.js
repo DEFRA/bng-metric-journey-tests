@@ -170,7 +170,8 @@ const ENHANCED_CALCULATED_REF = 'HG018'
 // zero. fixture-mutations.py sets its Good; the harness's copy has Poor, which
 // BMD-820 would reject first.
 const ENHANCED_REJECTED_SIGNIFICANCE_REF = 'HG032'
-// BMD-820: HG031 (Good→Moderate) breaks the medium-hedgerow enhancement rule,
+// BMD-820: HG031 (Moderate→Moderate; recut from Good→Moderate for BMD-1182,
+// which refuses a Good Medium baseline) breaks the medium-hedgerow rule,
 // so every proposed field is nulled before BMD-1051 is checked.
 const ENHANCED_INVALID_ENHANCEMENT_REF = 'HG031'
 const LABEL_ONLY = /^[^()]+$/

@@ -253,6 +253,80 @@ def recut_all_unit_types_hg032():
         con.close()
 
 
+# BMD-1182 (backend PR #544) refuses the WHOLE file when an Enhanced feature's
+# baseline cannot be enhanced: a Medium area habitat, hedgerow or watercourse in
+# Good condition (an individual tree counts as a Medium area habitat), or a Very
+# Low hedgerow in any condition. Each Good baseline below drops one step so the
+# file imports again. The hedgerows stay invalid under BMD-820 (a Medium hedge
+# needs a strictly better condition), so they are still nulled at import as
+# they were before; HR2 and HG012 were Good -> Good, so their proposed side
+# drops with them to stay invalid rather than become a priced enhancement.
+# Trees and area habitats only move their baseline units. HG001 in "net gain
+# met" is Very Low, which no condition change can enhance, so it is Retained.
+#   (file, table, ref column, ref, {column: value})
+_ALL_TYPES = "Post-intervention - all unit and intervention types.gpkg"
+_MODERATE_BASELINE = {"Baseline Condition": "Moderate"}
+_MODERATE_BOTH_SIDES = {
+    "Baseline Condition": "Moderate",
+    "Proposed Condition": "Moderate",
+}
+_FAIRLY_GOOD_BASELINE = {"Baseline Condition": "Fairly Good"}
+UNENHANCEABLE_BASELINE_RECUTS = [
+    ("Post-intervention - hedgerows mixed retention.gpkg", "Hedgerows",
+     "Parcel Ref", "HR2", _MODERATE_BOTH_SIDES),
+    (_ALL_TYPES, "Habitats", "Parcel Ref", "H084", _MODERATE_BASELINE),
+    (_ALL_TYPES, "Hedgerows", "Parcel Ref", "HG011", _MODERATE_BASELINE),
+    (_ALL_TYPES, "Hedgerows", "Parcel Ref", "HG012", _MODERATE_BOTH_SIDES),
+    (_ALL_TYPES, "Hedgerows", "Parcel Ref", "HG026", _MODERATE_BASELINE),
+    (_ALL_TYPES, "Hedgerows", "Parcel Ref", "HG031", _MODERATE_BASELINE),
+    *[(_ALL_TYPES, "Urban Trees", "Tree Ref", ref, _FAIRLY_GOOD_BASELINE)
+      for ref in ("T018", "T027", "T029", "T033", "T053")],
+    *[("Post-intervention - created linear features.gpkg", "Urban Trees",
+       "Tree Ref", ref, _FAIRLY_GOOD_BASELINE)
+      for ref in ("T017", "T024")],
+    ("Post-intervention - linear net gain met.gpkg", "Habitats",
+     "Parcel Ref", "H006", _MODERATE_BASELINE),
+    ("Post-intervention - linear net gain met.gpkg", "Urban Trees",
+     "Tree Ref", "T004", _FAIRLY_GOOD_BASELINE),
+    ("Post-intervention - net gain met.gpkg", "Hedgerows",
+     "Parcel Ref", "HG001", {"Retention Category": "Retained"}),
+    # Fairly Good, not Moderate: Moderate cuts the baseline enough to lift the
+    # watercourse gain past the 10% target (14.26%), which is the one thing
+    # this fixture must not do. Fairly Good keeps it a positive gain below it.
+    ("Post-intervention - watercourse gain below target.gpkg", "Rivers",
+     "Parcel Ref", "R002", _FAIRLY_GOOD_BASELINE),
+]
+
+
+def recut_unenhanceable_baselines():
+    """BMD-1182: lift every Enhanced row off an unenhanceable baseline.
+
+    See UNENHANCEABLE_BASELINE_RECUTS. Used by
+    post-intervention-habitat-details.spec.js, the area/hedgerows/watercourses
+    post-intervention specs, project-summary.spec.js and
+    test/utils/summary-projects.js.
+    """
+    for name, table, ref_col, ref, values in UNENHANCEABLE_BASELINE_RECUTS:
+        con = sqlite3.connect(EX / name)
+        try:
+            for column, value in values.items():
+                update_attr(
+                    con, table,
+                    f'"{column}"=? WHERE "{ref_col}"=?',
+                    (value, ref),
+                )
+            con.commit()
+            row = con.execute(
+                f'SELECT "{ref_col}", "Baseline Condition", '
+                f'"Proposed Condition", "Retention Category" '
+                f'FROM "{table}" WHERE "{ref_col}"=?',
+                (ref,),
+            ).fetchone()
+            print(f"unenhanceable baseline recut ({name}): {row}")
+        finally:
+            con.close()
+
+
 def _build_all_created_fixture(src_name, dst_name, table):
     src = EX / src_name
     dst = EX / dst_name
@@ -424,6 +498,7 @@ if __name__ == "__main__":
     build_created_area_fixture()
     build_watercourse_wc3_baseline_fixture()
     recut_all_unit_types_hg032()
+    recut_unenhanceable_baselines()
     build_created_hedgerows_fixture()
     build_created_watercourses_fixture()
     build_watercourses_uplift_fixture()

@@ -94,12 +94,12 @@ the API response and are rendered **nowhere** — do not expect to assert them f
 
   **Fixtures that reach each state** (in `test/example-files/`, copied from `bng-metric-harness` `example-files/permutations/`; the harness generator prices each pair through the real `bng-metric-engine` and fails if it lands on the wrong side of the target):
 
-  | State                                  | Fixture pair                          | Observed                                           |
-  | -------------------------------------- | ------------------------------------- | -------------------------------------------------- |
-  | Green `Met` — areas                    | `… - net gain met`                    | area habitats ~292%                                |
-  | Green `Met` — hedgerows + watercourses | `… - linear net gain met`             | hedgerows ~64%, watercourses ~21%                  |
-  | Red `Not met` from a **gain**          | `… - watercourse gain below target`   | watercourses ~+3.8% — pins the target at 10, not 0 |
-  | Red `Not met` from a loss              | `… - all unit and intervention types` | all three types negative                           |
+  | State                                  | Fixture pair                          | Observed                                                                                                  |
+  | -------------------------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+  | Green `Met` — areas                    | `… - net gain met`                    | area habitats ~292%                                                                                       |
+  | Green `Met` — hedgerows + watercourses | `… - linear net gain met`             | hedgerows ~64%, watercourses ~21%                                                                         |
+  | Red `Not met` from a **gain**          | `… - watercourse gain below target`   | watercourses gain a little under 10% (R002 recut for BMD-1182; was ~+3.8%) — pins the target at 10, not 0 |
+  | Red `Not met` from a loss              | `… - all unit and intervention types` | all three types negative                                                                                  |
 
 - **Post-intervention-only habitats (BMD-897, PR#238, 2026-08-25) `[IMPLEMENTED]`:** a unit type can appear in the post-intervention document with nothing in the baseline — a hedgerow created by the intervention, say. `hasPostInterventionOnlyHabitat(project, type)` detects it (empty/absent in `baseline`, non-empty in `postIntervention`), and that section renders a **fourth variant**, distinct from both the baseline-only and the both-documents cases above:
 

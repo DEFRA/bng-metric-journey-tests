@@ -50,14 +50,18 @@ export const ALL_UNIT_TYPES_PI_FILE =
 
 // harness intervention/watercourse-created-* — hedgerows gain ~64% and
 // watercourses ~21%, so both linear types clear the 10% target. One pair
-// therefore covers the zero-deficit branch for either of them.
+// therefore covers the zero-deficit branch for either of them. The PI file is
+// recut by fixture-mutations.py for BMD-1182 (H006 and T004 off a Good Medium
+// baseline), so do not re-copy it from the harness.
 export const TARGET_MET_BASELINE_FILE = 'Baseline - linear net gain met.gpkg'
 export const TARGET_MET_PI_FILE = 'Post-intervention - linear net gain met.gpkg'
 
 // harness net-gain/met-* — every parcel enhanced from Low/Poor to Medium/Good,
 // so AREA habitats gain ~292%. The linear pair above does nothing for area
 // units, which makes this the only pairing that drives the AREA deficit to zero
-// from a non-zero baseline.
+// from a non-zero baseline. The PI file is recut by fixture-mutations.py for
+// BMD-1182: its Very Low hedge HG001 is Retained, not Enhanced, so do not
+// re-copy it from the harness.
 export const AREA_GAIN_BASELINE_FILE = 'Baseline - net gain met.gpkg'
 export const AREA_GAIN_PI_FILE = 'Post-intervention - net gain met.gpkg'
 

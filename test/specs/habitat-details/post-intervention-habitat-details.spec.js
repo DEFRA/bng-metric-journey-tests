@@ -68,9 +68,10 @@ const WATERCOURSE_BASELINE_FILE =
   'Baseline - complete with watercourse refs.gpkg'
 const MIXED_FILE = 'Post-intervention - mixed complete and incomplete.gpkg'
 const TREES_FILE = 'Post-intervention - urban trees all sizes.gpkg'
-// The mixed hedgerow fixture's only Enhanced hedge, HR2, is Good→Good (no
-// condition uplift), so its time-to-target section renders blank — fine for the
-// label-only structural assertions but useless for pinning the dynamic
+// The mixed hedgerow fixture's only Enhanced hedge, HR2, is Moderate→Moderate
+// (no condition uplift; recut from Good→Good for BMD-1182), so its
+// time-to-target section renders blank — fine for the label-only structural
+// assertions but useless for pinning the dynamic
 // condition-transition text (frontend PR#193). The "all unit and intervention
 // types" fixture is the only shipped file with an Enhanced hedge that actually
 // improves: HG018 goes Poor→Moderate, so its "Standard time to target
@@ -94,7 +95,7 @@ const ENHANCED_REJECTED_HEDGEROW_REF = 'HG032'
 const STRATEGIC_SIGNIFICANCE_WITH_MULTIPLIER = /^(Low|Medium|High) \([\d.]+\)$/
 const CREATED_HEDGEROW_REF = 'HR3'
 // HR3 and WC3 are both created to Moderate condition over 5 years, so unlike
-// their Enhanced siblings (HR2 Good→Good, WC2 Moderate→Moderate, neither of
+// their Enhanced siblings (HR2 and WC2, both Moderate→Moderate, neither of
 // which resolves a time-to-target) their sections populate — enough to pin the
 // dynamic condition-transition text on the Created hedgerow and watercourse
 // pages alike.
@@ -1265,9 +1266,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       'Enhanced hedgerow shows its section-2 values and the dynamic condition-transition time (PR#193)',
       { tag: '@regression' },
       async ({ browser, postInterventionHabitatDetailsPage }) => {
-        // HR2 (the mixed fixture's Enhanced hedge) is Good→Good, so its
-        // time-to-target renders blank — the dynamic transition can only be
-        // pinned on a hedge that actually improves. HG018 goes Poor→Moderate.
+        // HR2 (the mixed fixture's Enhanced hedge) is Moderate→Moderate, so
+        // its time-to-target renders blank — the dynamic transition can only
+        // be pinned on a hedge that actually improves. HG018 goes
+        // Poor→Moderate.
         const shared = await getAllTypesProject(browser)
         await postInterventionHabitatDetailsPage.open(
           shared.id,

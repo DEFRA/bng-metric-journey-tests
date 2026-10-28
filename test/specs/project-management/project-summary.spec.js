@@ -128,9 +128,12 @@ const TAG_TEXT = /^(Met|Not met)$/
 // @utils/summary-projects.js as `getAreaGainProject` so the area summary's
 // zero-deficit test shares this file's build instead of uploading it twice.
 //
-// harness intervention/watercourse-enhanced-* — watercourses gain ~3.8%: a real
-// gain that is still under the target, so the tag must stay red. This is the
-// only fixture that pins the threshold at 10 rather than at 0.
+// harness intervention/watercourse-enhanced-* — watercourses gain a little
+// under 10%: a real gain that is still under the target, so the tag must stay
+// red. This is the only fixture that pins the threshold at 10 rather than at
+// 0. The PI file is recut by fixture-mutations.py for BMD-1182 (R002 off a
+// Good Medium baseline, which lifted the gain from ~3.8%), so do not re-copy
+// it from the harness.
 const BELOW_TARGET_BASELINE_FILE =
   'Baseline - watercourse gain below target.gpkg'
 const BELOW_TARGET_PI_FILE =
