@@ -116,11 +116,12 @@ Rules:
 
 Present the proposed flow doc (or a diff if updating an existing one) and explain any marker changes. **Stop here.** Do not write to `test/flows/<flow-name>.flow.md` until the user explicitly approves.
 
-**New flow doc:** also propose where it goes in `test/flows/discovery-rotation.md` — the
-existing group it fits (same unit type, same upload entry point, same page family), or a
-new group with a one-line "Why together" if none fits. Present the placement with the flow
-doc so both are approved together. A renamed or removed flow doc gets the matching change
-to that table.
+**New flow doc:** also propose its row in the **Flows** table of
+`test/flows/discovery-rotation.md` — the existing group it fits (same unit type, same
+upload entry point, same page family), or a new group with a one-line "Why together" if
+none fits — with **Last discovered** as `—`. Present the placement with the flow doc so
+both are approved together. A renamed or removed flow doc gets the matching change to that
+table.
 
 On approval: write the file, and update `test/flows/discovery-rotation.md` if the placement
 above applies. Do not touch any spec, page object, fixture, or test file.

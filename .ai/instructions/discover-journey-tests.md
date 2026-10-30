@@ -37,15 +37,20 @@ npm run test:github
 
 Only proceed once the user confirms both steps are done and all tests passed.
 
+If the user already confirmed this pre-flight earlier in the same session (e.g. for an
+earlier flow in the same rotation group) and has not pulled new images since, do not ask
+again.
+
 ---
 
 ## Step 1 — Read the flow doc
 
 Read `test/flows/<flow-name>.flow.md`. Only `[IMPLEMENTED]` steps are in scope for executable tests. Do **not** discard `[PLANNED]`/`[BLOCKED]` steps — collect them for the "Blocked / not-yet-built" section (Step 4b).
 
-Then find the flow in `test/flows/discovery-rotation.md`. If it is missing (a flow doc added
-without `/analyse-user-flow`), propose the group it fits — or a new group with a one-line
-"Why together" — and present that placement alongside the gap table in Step 5.
+Then find the flow's row in the **Flows** table of `test/flows/discovery-rotation.md`. If it
+is missing (a flow doc added without `/analyse-user-flow`), propose the group it fits — or
+a new group with a one-line "Why together" — and present that placement alongside the gap
+table in Step 5.
 
 ---
 
@@ -198,12 +203,17 @@ For each, recommend a **documented skip placeholder** following the repo convent
 
 Present the gap table and a short summary of how many tests need writing or enhancing. **Stop here.** Do not touch any test file until the user explicitly approves the analysis.
 
-Once the gap table has been presented — whether or not any recommendation is approved —
-set the flow's group's **Last discovered** cell in `test/flows/discovery-rotation.md` to
-today's date (`YYYY-MM-DD`), and apply any placement from Step 1 that the user approved.
-This is the only file this command writes before approval.
+When you present the gap table, also set this flow's **Last discovered** cell in the
+**Flows** table of `test/flows/discovery-rotation.md` to today's date (`YYYY-MM-DD`). The
+flow has been reviewed whether or not any recommendation is later approved, so this is the
+one write that does not wait for approval. Update only this flow's row, never the other
+flows in its group. If the flow has no row yet, leave the date until the placement is
+approved (below).
 
 On approval:
+
+- For a rotation placement proposed in Step 1: add the flow's row (and a new group, if
+  proposed) to `test/flows/discovery-rotation.md`, with today's date as **Last discovered**.
 
 - For **Write E2E** items: follow the checklist in `AGENTS.md` under "Adding a New Test".
 - For **Enhance** items: apply the specific change described in the Recommendation column to the identified spec file.

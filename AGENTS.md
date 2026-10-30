@@ -40,8 +40,8 @@ The suite runs on DEFRA's CDP Portal. Tests are packaged in a Docker image and r
 
 **Ownership boundaries:**
 
-- `/analyse-user-flow` writes to `test/flows/` only — no test code.
-- `/discover-journey-tests`, `/validate-ac-automated` write to `test/` only, after approval. They **read** the sibling repos to check existing coverage, and never write to them.
+- `/analyse-user-flow` writes to `test/flows/` only — the flow doc and its row in `test/flows/discovery-rotation.md`; no test code.
+- `/discover-journey-tests`, `/validate-ac-automated` write to `test/` only, after approval. They **read** the sibling repos to check existing coverage, and never write to them. One exception: `/discover-journey-tests` sets the flow's **Last discovered** date in `test/flows/discovery-rotation.md` as soon as it presents the gap table, without waiting for approval.
 - `/validate-ac-manual` writes to `test/evidence/` only (temp spec + screenshots + demo videos).
 - `/verify-integration-coverage` is dormant. While dormant, **nothing writes to the sibling repos** — backend coverage gaps are recorded as proposals in the analysis output and as comments on the journey tests that stand in for them.
 
