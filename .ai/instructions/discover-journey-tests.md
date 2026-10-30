@@ -47,8 +47,9 @@ again.
 
 Read `test/flows/<flow-name>.flow.md`. Only `[IMPLEMENTED]` steps are in scope for executable tests. Do **not** discard `[PLANNED]`/`[BLOCKED]` steps — collect them for the "Blocked / not-yet-built" section (Step 4b).
 
-Then find the flow's row in the **Flows** table of `test/flows/discovery-rotation.md`. If it
-is missing (a flow doc added without `/analyse-user-flow`), propose the group it fits — or
+Then find the flow's row in the **Flows** table of `test/flows/discovery-rotation.md`. If the
+flow is listed under "Not in the rotation", skip every rotation step (placement and date).
+Otherwise, if it is missing (a flow doc added without `/analyse-user-flow`), propose the group it fits — or
 a new group with a one-line "Why together" — and present that placement alongside the gap
 table in Step 5.
 

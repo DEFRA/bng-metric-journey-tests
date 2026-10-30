@@ -119,8 +119,9 @@ Present the proposed flow doc (or a diff if updating an existing one) and explai
 **New flow doc:** also propose its row in the **Flows** table of
 `test/flows/discovery-rotation.md` — the existing group it fits (same unit type, same
 upload entry point, same page family), or a new group with a one-line "Why together" if
-none fits — with **Last discovered** as `—`. Present the placement with the flow doc so
-both are approved together. A renamed or removed flow doc gets the matching change to that
+none fits — with **Last discovered** as `—`. A flow doc that is not a regression journey
+(like `capture-happy-path`) goes under "Not in the rotation" instead. Present the placement
+with the flow doc so both are approved together. A renamed or removed flow doc gets the matching change to that
 table.
 
 On approval: write the file, and update `test/flows/discovery-rotation.md` if the placement
