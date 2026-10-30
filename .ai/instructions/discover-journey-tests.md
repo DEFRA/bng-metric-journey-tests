@@ -43,6 +43,10 @@ Only proceed once the user confirms both steps are done and all tests passed.
 
 Read `test/flows/<flow-name>.flow.md`. Only `[IMPLEMENTED]` steps are in scope for executable tests. Do **not** discard `[PLANNED]`/`[BLOCKED]` steps — collect them for the "Blocked / not-yet-built" section (Step 4b).
 
+Then find the flow in `test/flows/discovery-rotation.md`. If it is missing (a flow doc added
+without `/analyse-user-flow`), propose the group it fits — or a new group with a one-line
+"Why together" — and present that placement alongside the gap table in Step 5.
+
 ---
 
 ## Step 2 — Map existing specs to flow steps
@@ -193,6 +197,11 @@ For each, recommend a **documented skip placeholder** following the repo convent
 ## Step 5 — Approval gate
 
 Present the gap table and a short summary of how many tests need writing or enhancing. **Stop here.** Do not touch any test file until the user explicitly approves the analysis.
+
+Once the gap table has been presented — whether or not any recommendation is approved —
+set the flow's group's **Last discovered** cell in `test/flows/discovery-rotation.md` to
+today's date (`YYYY-MM-DD`), and apply any placement from Step 1 that the user approved.
+This is the only file this command writes before approval.
 
 On approval:
 

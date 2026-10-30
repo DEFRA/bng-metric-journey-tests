@@ -34,6 +34,8 @@ After pulling the latest changes to `../bng-metric-frontend` or `../bng-metric-b
 
 This reads the current source and updates (or creates) the `.flow.md` file with accurate `[IMPLEMENTED]`, `[PLANNED]`, and `[BLOCKED]` markers. The `.flow.md` is the contract used by `/discover-journey-tests` and `/verify-integration-coverage` — keep it current.
 
+For the periodic coverage sweep — which flows to run `/discover-journey-tests` on together, and when each group was last done — see [`discovery-rotation.md`](discovery-rotation.md).
+
 ## Status markers (journey flow docs)
 
 When documenting a journey's steps, use these markers in the flow doc:
