@@ -422,11 +422,6 @@ function getMixedProject(browser) {
   )
 }
 
-// Baseline + PI hedgerow uploads in one project: retained hedgerows for the
-// view-only page, with HR1 ref-matched to a baseline hedgerow so the
-// "View baseline details" link renders (BMD-723 AC1/AC3). HR2 is Enhanced and
-// also ref-matched (the baseline file has HR1/HR2), so it drives the two-section
-// Enhanced hedgerow page with its View-baseline link shown (BMD-733).
 const HEDGEROW_CREATION_OPTIONS = [
   'Choose habitat type',
   'Ecologically valuable line of trees',
@@ -460,6 +455,11 @@ async function expectCreatedHedgerowSelections(
   ])
 }
 
+// Baseline + PI hedgerow uploads in one project: retained hedgerows for the
+// view-only page, with HR1 ref-matched to a baseline hedgerow so the
+// "View baseline details" link renders (BMD-723 AC1/AC3). HR2 is Enhanced and
+// also ref-matched (the baseline file has HR1/HR2), so it drives the two-section
+// Enhanced hedgerow page with its View-baseline link shown (BMD-733).
 function getHedgerowsProject(browser, key = 'hedgerows') {
   return getSharedProject(
     browser,
@@ -1146,11 +1146,6 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         const detailsPage = postInterventionHabitatDetailsPage
         await expect(detailsPage.viewOnlyHeading).toBeVisible()
         await expect(detailsPage.interventionKey).toBeVisible()
-        await expectCreatedHedgerowSelections(detailsPage, {
-          habitatType: 'Native hedgerow',
-          condition: 'Moderate',
-          significance: 'Low'
-        })
         await expect(detailsPage.lengthKey).toBeVisible()
         await expect(detailsPage.habitatTypeKey).toBeVisible()
         // Hedgerows have no broad-habitat dimension and no area size row.
@@ -1386,6 +1381,11 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         const detailsPage = postInterventionHabitatDetailsPage
         await detailsPage.assertCreatedHedgerowEditForm({
           ref: CREATED_HEDGEROW_REF
+        })
+        await expectCreatedHedgerowSelections(detailsPage, {
+          habitatType: 'Native hedgerow',
+          condition: 'Moderate',
+          significance: 'Low'
         })
         await expect(detailsPage.lengthKey).toBeVisible()
         await expect(detailsPage.stackedSizeValue).toHaveText(LENGTH_KM_PATTERN)

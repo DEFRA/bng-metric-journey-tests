@@ -21,7 +21,7 @@ export const UNITS_TWO_DP_PATTERN = /^\s*\d+\.\d{2}\s*$/
 //     only the retained hedgerow page (BMD-723).
 //
 // Extending the baseline page object inherits its select/save locators: the
-// read-only pages assert them hidden, and the Created area edit form asserts
+// read-only pages assert them hidden, and the Created edit forms assert
 // them visible. The locators added here cover the view-only pages and the
 // edit form's own controls.
 export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPage {
@@ -48,8 +48,8 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     this.sizeKilometresKey = page.getByText('Size (kilometres)', {
       exact: true
     })
-    // Summary-list size label — the retained hedgerow page is the only page
-    // keeps its summary-list layout; the Created form uses stacked fields.
+    // "Length (km)" labels the retained hedgerow summary row and the
+    // Created hedgerow edit form's size field.
     this.lengthKey = page.getByText('Length (km)', { exact: true })
     this.broadHabitatKey = page.getByText('Broad habitat', { exact: true })
     this.habitatTypeKey = page.getByText('Habitat type', { exact: true })
