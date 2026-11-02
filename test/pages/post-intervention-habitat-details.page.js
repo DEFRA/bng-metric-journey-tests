@@ -247,15 +247,28 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
    * rows in both sections, the units row, and Save / Cancel / Upload file.
    */
   async assertCreatedAreaEditForm({ ref }) {
+    await this.assertCreatedEditForm({ ref })
+  }
+
+  async assertCreatedHedgerowEditForm({ ref }) {
+    await this.assertCreatedEditForm({ ref, kind: 'hedgerow' })
+  }
+
+  async assertCreatedEditForm({ ref, kind = 'area' }) {
     await expect(
       this.page.getByRole('heading', { name: ref, exact: true })
     ).toBeVisible()
     await expect(this.viewOnlyHeading).toBeVisible()
     await expect(this.interventionKey).toBeVisible()
     await expect(this.page.getByText('Created', { exact: true })).toBeVisible()
-    await expect(this.sizeHectaresKey).toBeVisible()
+    if (kind === 'area') {
+      await expect(this.sizeHectaresKey).toBeVisible()
+      await expect(this.broadHabitatSelect).toBeVisible()
+    } else {
+      await expect(this.lengthKey).toBeVisible()
+      await expect(this.broadHabitatSelect).toBeHidden()
+    }
     await expect(this.habitatReferenceInput).toHaveValue(ref)
-    await expect(this.broadHabitatSelect).toBeVisible()
     await expect(this.habitatTypeSelect).toBeVisible()
     await expect(this.distinctivenessMultiplierKey).toBeVisible()
     await expect(this.strategicSignificanceSelect).toBeVisible()

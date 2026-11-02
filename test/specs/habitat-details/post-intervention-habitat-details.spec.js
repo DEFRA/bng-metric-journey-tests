@@ -427,10 +427,10 @@ function getMixedProject(browser) {
 // "View baseline details" link renders (BMD-723 AC1/AC3). HR2 is Enhanced and
 // also ref-matched (the baseline file has HR1/HR2), so it drives the two-section
 // Enhanced hedgerow page with its View-baseline link shown (BMD-733).
-function getHedgerowsProject(browser) {
+function getHedgerowsProject(browser, key = 'hedgerows') {
   return getSharedProject(
     browser,
-    'hedgerows',
+    key,
     { baselineFile: HEDGEROW_BASELINE_FILE, piFile: HEDGEROWS_FILE },
     async (page, id) => {
       const retained = await harvestPiFeature(
@@ -1329,13 +1329,13 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
   // the way the user does: click the Ref link in the hedgerows post-intervention grid.
 
   test.describe(
-    'non-retained hedgerow habitats are read-only',
+    'Created hedgerow habitats are editable',
     { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      test('a Created hedgerow renders the two-section read-only page', async ({
+      test('a Created hedgerow renders the editable form with transition values', async ({
         browser,
         postInterventionHabitatDetailsPage,
         page
@@ -1350,23 +1350,12 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
         const detailsPage = postInterventionHabitatDetailsPage
-        await detailsPage.assertTwoSectionLayout({
-          ref: CREATED_HEDGEROW_REF,
-          intervention: 'Created'
+        await detailsPage.assertCreatedHedgerowEditForm({
+          ref: CREATED_HEDGEROW_REF
         })
-        // Page chrome (BMD-737 AC1): the back link and the project-name
-        // caption sit outside the two sections, so assertTwoSectionLayout does
-        // not reach them.
-        await expect(detailsPage.backLink).toBeVisible()
-        await expect(detailsPage.caption).toHaveText(shared.name)
-        // Hedgerows label the size row "Length" (unit on the value) and have
-        // no broad-habitat dimension. AC1 asks for the length "expressed in
-        // km", so assert the km-suffixed value too — the label alone would
-        // survive a regression that rendered hectares against it.
-        await expect(detailsPage.enhancedLengthKey).toBeVisible()
+        await expect(detailsPage.lengthKey).toBeVisible()
         await expect(detailsPage.stackedSizeValue).toHaveText(LENGTH_KM_PATTERN)
-        await expect(detailsPage.broadHabitatKey).toBeHidden()
-        await expect(detailsPage.habitatTypeSelect).toBeHidden()
+        await expect(detailsPage.broadHabitatSelect).toBeHidden()
 
         // AC1 asks for labels *and* values. assertTwoSectionLayout pins the six
         // time-to-target labels; the standard time-to-target value proves
@@ -1419,15 +1408,17 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         // regression BMD-737 was re-worked for: a blank row leaves the locator
         // unresolved, and so does a reappearing transition prefix. It also
         // proves the sentinel itself never reaches the page.
-        await detailsPage.assertCreatedAbsentBaselinePage({
-          ref: CREATED_LINEAR_HEDGEROW_REF,
+        await detailsPage.assertCreatedHedgerowEditForm({
+          ref: CREATED_LINEAR_HEDGEROW_REF
+        })
+        await detailsPage.assertCreatedAbsentBaselineValues({
           projectName: shared.name,
           timeToTarget: CREATED_LINEAR_HEDGEROW_TIME_TO_TARGET,
           units: shared.createdLinearHedgerowUnits
         })
         // Hedgerows label the size row "Length" (unit on the value) and have no
         // broad-habitat dimension.
-        await expect(detailsPage.enhancedLengthKey).toBeVisible()
+        await expect(detailsPage.lengthKey).toBeVisible()
         await expect(detailsPage.stackedSizeValue).toHaveText(LENGTH_KM_PATTERN)
         await expect(detailsPage.broadHabitatKey).toBeHidden()
         // Step 7's one behavioural difference from the Enhanced hedgerow page.
@@ -1436,6 +1427,34 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         // tell the two apart; see the note on CREATED_LINEAR_PI_FILE.
         await expect(detailsPage.viewBaselineLink).toBeHidden()
       })
+      test(
+        'saves a Created hedgerow reference and reloads the edited row',
+        { tag: '@happy-path' },
+        async ({ browser, page, postInterventionHabitatDetailsPage }) => {
+          const shared = await getHedgerowsProject(
+            browser,
+            'hedgerows-edit-save'
+          )
+          await openPiFeatureDetails(
+            page,
+            shared.id,
+            'hedgerow',
+            CREATED_HEDGEROW_REF
+          )
+          const details = postInterventionHabitatDetailsPage
+          const updatedRef = `${CREATED_HEDGEROW_REF} edited`
+          await details.habitatReferenceInput.fill(updatedRef)
+          await details.saveButton.click()
+          await expect(page).toHaveURL(
+            new RegExp(`/projects/${shared.id}/hedgerows-post-intervention`)
+          )
+          await openPiFeatureDetails(page, shared.id, 'hedgerow', updatedRef)
+          await expect(details.habitatReferenceInput).toHaveValue(updatedRef)
+          await expect(details.habitatUnitsValue).toHaveText(
+            shared.createdHedgerowUnits
+          )
+        }
+      )
     }
   )
 
@@ -1836,7 +1855,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
   )
 
   // ─── Save is not implemented for read-only features ─────────────────────────
-  // Only the Created area edit form (BMD-1048) posts here. The route answers
+  // Created area and hedgerow edit forms post here. The route answers
   // 501 for every other feature, so a stale page or client gets an explicit
   // "not implemented" response rather than a save. The handler validates the
   // payload first (400 for a malformed body), so the request must be a
