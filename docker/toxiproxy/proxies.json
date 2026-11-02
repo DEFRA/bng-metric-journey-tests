@@ -4,5 +4,11 @@
     "listen": "0.0.0.0:15432",
     "upstream": "postgres:5432",
     "enabled": true
+  },
+  {
+    "name": "redis",
+    "listen": "0.0.0.0:6379",
+    "upstream": "redis:6379",
+    "enabled": true
   }
 ]

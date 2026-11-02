@@ -31,6 +31,19 @@ Tests assert three things: an error page is rendered, it arrives within a bound,
 - **On error:** generic error page when the frontend's 10s backend timeout (`BACKEND_TIMEOUT_MS`) fires
 - **Recovery:** dashboard lists the user's project once the fault clears
 
-### Step 3 — Other dependencies `[PLANNED]`
+### Step 3 — Redis unreachable `[IMPLEMENTED]`
 
-S3, CDP Uploader, the backend itself and Redis. Awaiting the outcome of the BMD-1189 proof of concept.
+- **Route:** `GET /manage-projects`, signed in
+- **Fault:** frontend → Redis `down`
+- **On error:** generic error page, immediately (`errorOnCacheNotReady` in the frontend's `session-cache.js`)
+- **Recovery:** dashboard lists the user's project once the fault clears
+
+### Step 4 — Redis not answering `[BLOCKED: known defect, no Redis command timeout]`
+
+- **Route:** `GET /manage-projects`, signed in
+- **Fault:** frontend → Redis `hang`
+- **On error:** should be the generic error page, but the page currently never responds. The test is marked `test.fail`, so it goes red once the defect is fixed.
+
+### Step 5 — Other dependencies `[PLANNED]`
+
+S3, CDP Uploader and the backend itself. Awaiting the outcome of the BMD-1189 proof of concept.

@@ -7,6 +7,10 @@ import { defineConfig } from '@playwright/test'
 
 const TIMEOUT_MS = 60_000
 const EXPECT_TIMEOUT_MS = 15_000
+// This is the "does not hang" assertion: a page that takes longer fails the
+// test. The frontend's backend timeout is 10s and a page can make two backend
+// calls in sequence, so 25s allows for that on a slower CI runner.
+const NAVIGATION_TIMEOUT_MS = 25_000
 
 export default defineConfig({
   globalSetup: './test/setup/auth.setup.js',
@@ -30,6 +34,7 @@ export default defineConfig({
     baseURL: 'http://localhost:3000',
     headless: process.env.HEADED !== 'true',
     browserName: 'chromium',
+    navigationTimeout: NAVIGATION_TIMEOUT_MS,
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     trace: 'retain-on-failure'
