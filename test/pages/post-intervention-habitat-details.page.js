@@ -8,7 +8,7 @@ export const UNITS_TWO_DP_PATTERN = /^\s*\d+\.\d{2}\s*$/
 // The /post-intervention-habitat-details route renders a read-only page for
 // every feature, picked by feature type *and* retention category, plus an
 // unsupported-feature placeholder for individual trees — except a Created
-// area habitat, which renders an edit form (BMD-1048, frontend PR#418). POST
+// area habitat or Created hedgerow, which renders an edit form (BMD-1048, frontend PR#418). POST
 // saves that form and answers 501 for any other feature. Two read-only layout
 // families:
 //
@@ -21,7 +21,7 @@ export const UNITS_TWO_DP_PATTERN = /^\s*\d+\.\d{2}\s*$/
 //     only the retained hedgerow page (BMD-723).
 //
 // Extending the baseline page object inherits its select/save locators: the
-// read-only pages assert them hidden, and the Created area edit form asserts
+// read-only pages assert them hidden, and the Created edit forms assert
 // them visible. The locators added here cover the view-only pages and the
 // edit form's own controls.
 export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPage {
@@ -48,8 +48,8 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     this.sizeKilometresKey = page.getByText('Size (kilometres)', {
       exact: true
     })
-    // Summary-list size label — the retained hedgerow page is the only page
-    // still on layouts/pi-view-only-page.njk, so it keeps "Length (km)".
+    // "Length (km)" labels the retained hedgerow summary row and the
+    // Created hedgerow edit form's size field.
     this.lengthKey = page.getByText('Length (km)', { exact: true })
     this.broadHabitatKey = page.getByText('Broad habitat', { exact: true })
     this.habitatTypeKey = page.getByText('Habitat type', { exact: true })
@@ -76,10 +76,13 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     // beforeContent, which GOV.UK's template places *outside* <main>, as does
     // the back link. Without this scope every index is shifted by the chrome.
     this.stackedValues = page.getByRole('main').getByRole('paragraph')
-    // Size is the second row on both stacked retained pages (after
-    // Intervention), and the "View baseline details" paragraph sorts after
-    // every row, so nth(1) is stable.
+    // Read-only stacked pages put Size after Intervention, with the baseline
+    // link after the section. Created forms put the baseline link before those
+    // rows, so use the text-based Created length locator on their edit form.
     this.stackedSizeValue = this.stackedValues.nth(1)
+    this.createdLengthValue = page
+      .getByRole('main')
+      .getByText(/^\s*[\d.]+km\s*$/)
 
     // Shown only when a baseline feature shares the parcel ref (the baseline
     // and post-intervention uploads have independent featureIds).
@@ -114,8 +117,7 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     this.enhancedAreaKey = page.getByText('Area', { exact: true })
     this.enhancedLengthKey = page.getByText('Length', { exact: true })
     // Lower-case on every stacked page; the retained hedgerow summary list is
-    // the only page still using the title-case "Strategic Significance"
-    // inherited from the baseline page object.
+    // the only page still using the title-case "Strategic Significance".
     this.stackedStrategicSignificanceKey = page.getByText(
       'Strategic significance',
       { exact: true }
@@ -178,7 +180,6 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     // pi-habitat-details-created-edit.njk keeps the two section headings and
     // the units row, but its editable fields are form controls and two
     // derived labels name their multiplier.
-    this.habitatReferenceInput = page.getByLabel('Habitat reference')
     this.strategicSignificanceSelect = page.getByLabel('Strategic significance')
     this.targetConditionSelect = page.getByLabel('Target condition')
     this.advanceYearsSelect = page.getByLabel(
@@ -247,15 +248,28 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
    * rows in both sections, the units row, and Save / Cancel / Upload file.
    */
   async assertCreatedAreaEditForm({ ref }) {
+    await this.assertCreatedEditForm({ ref })
+  }
+
+  async assertCreatedHedgerowEditForm({ ref }) {
+    await this.assertCreatedEditForm({ ref, kind: 'hedgerow' })
+  }
+
+  async assertCreatedEditForm({ ref, kind = 'area' }) {
     await expect(
       this.page.getByRole('heading', { name: ref, exact: true })
     ).toBeVisible()
     await expect(this.viewOnlyHeading).toBeVisible()
     await expect(this.interventionKey).toBeVisible()
     await expect(this.page.getByText('Created', { exact: true })).toBeVisible()
-    await expect(this.sizeHectaresKey).toBeVisible()
+    if (kind === 'area') {
+      await expect(this.sizeHectaresKey).toBeVisible()
+      await expect(this.broadHabitatSelect).toBeVisible()
+    } else {
+      await expect(this.lengthKey).toBeVisible()
+      await expect(this.broadHabitatSelect).toBeHidden()
+    }
     await expect(this.habitatReferenceInput).toHaveValue(ref)
-    await expect(this.broadHabitatSelect).toBeVisible()
     await expect(this.habitatTypeSelect).toBeVisible()
     await expect(this.distinctivenessMultiplierKey).toBeVisible()
     await expect(this.strategicSignificanceSelect).toBeVisible()
