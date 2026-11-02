@@ -427,6 +427,39 @@ function getMixedProject(browser) {
 // "View baseline details" link renders (BMD-723 AC1/AC3). HR2 is Enhanced and
 // also ref-matched (the baseline file has HR1/HR2), so it drives the two-section
 // Enhanced hedgerow page with its View-baseline link shown (BMD-733).
+const HEDGEROW_CREATION_OPTIONS = [
+  'Choose habitat type',
+  'Ecologically valuable line of trees',
+  'Ecologically valuable line of trees - associated with bank or ditch',
+  'Line of trees',
+  'Line of trees - associated with bank or ditch',
+  'Native hedgerow',
+  'Native hedgerow - associated with bank or ditch',
+  'Native hedgerow with trees',
+  'Non-native and ornamental hedgerow',
+  'Species-rich native hedgerow'
+]
+
+async function expectCreatedHedgerowSelections(
+  details,
+  { habitatType, condition, significance }
+) {
+  await expect(details.habitatTypeSelect).toHaveValue(habitatType)
+  await expect(details.targetConditionSelect).toHaveValue(condition)
+  await expect(details.strategicSignificanceSelect).toHaveValue(significance)
+  await expect(details.advanceYearsSelect).toHaveValue('0')
+  await expect(details.delayYearsSelect).toHaveValue('0')
+  await expect(details.habitatTypeSelect.getByRole('option')).toHaveText(
+    HEDGEROW_CREATION_OPTIONS
+  )
+  await expect(details.targetConditionSelect.getByRole('option')).toHaveText([
+    'Choose target condition',
+    'Good (3)',
+    'Moderate (2)',
+    'Poor (1)'
+  ])
+}
+
 function getHedgerowsProject(browser, key = 'hedgerows') {
   return getSharedProject(
     browser,
@@ -1113,6 +1146,11 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         const detailsPage = postInterventionHabitatDetailsPage
         await expect(detailsPage.viewOnlyHeading).toBeVisible()
         await expect(detailsPage.interventionKey).toBeVisible()
+        await expectCreatedHedgerowSelections(detailsPage, {
+          habitatType: 'Native hedgerow',
+          condition: 'Moderate',
+          significance: 'Low'
+        })
         await expect(detailsPage.lengthKey).toBeVisible()
         await expect(detailsPage.habitatTypeKey).toBeVisible()
         // Hedgerows have no broad-habitat dimension and no area size row.
@@ -1321,12 +1359,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     )
   })
 
-  // ─── Created hedgerows (BMD-737, frontend PR#186) ───────────────────────────
-  // A Created hedgerow shares the Enhanced hedgerow's two-section template
-  // (pi-hedgerow-details-enhanced.njk) but is built by its own view model,
-  // which forces baselineFeatureId to null so the "View baseline details" link
-  // is never offered — a created hedgerow has no baseline counterpart. Reached
-  // the way the user does: click the Ref link in the hedgerows post-intervention grid.
+  // BMD-1049: real uploaded Created hedgerows render the shared edit form.
+  // Keep both baseline-transition and absent-baseline fixtures as witnesses.
 
   test.describe(
     'Created hedgerow habitats are editable',
@@ -1357,7 +1391,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(detailsPage.stackedSizeValue).toHaveText(LENGTH_KM_PATTERN)
         await expect(detailsPage.broadHabitatSelect).toBeHidden()
 
-        // AC1 asks for labels *and* values. assertTwoSectionLayout pins the six
+        // AC1 asks for labels *and* values. The edit-form helper pins the six
         // time-to-target labels; the standard time-to-target value proves
         // section 2 resolves its data.
         //
@@ -1418,13 +1452,15 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         })
         // Hedgerows label the size row "Length" (unit on the value) and have no
         // broad-habitat dimension.
+        await expectCreatedHedgerowSelections(detailsPage, {
+          habitatType: 'Native hedgerow with trees',
+          condition: 'Good',
+          significance: 'High'
+        })
         await expect(detailsPage.lengthKey).toBeVisible()
         await expect(detailsPage.stackedSizeValue).toHaveText(LENGTH_KM_PATTERN)
         await expect(detailsPage.broadHabitatKey).toBeHidden()
-        // Step 7's one behavioural difference from the Enhanced hedgerow page.
-        // The Created view model forces baselineFeatureId to null. HG013 no
-        // longer has a ref match either (BMD-1056/BMD-1066), so this cannot
-        // tell the two apart; see the note on CREATED_LINEAR_PI_FILE.
+        // This fixture has no explicit stored parent, so there is no baseline link.
         await expect(detailsPage.viewBaselineLink).toBeHidden()
       })
       test(
@@ -1444,15 +1480,17 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           const details = postInterventionHabitatDetailsPage
           const updatedRef = `${CREATED_HEDGEROW_REF} edited`
           await details.habitatReferenceInput.fill(updatedRef)
+          await details.targetConditionSelect.selectOption('Poor')
           await details.saveButton.click()
-          await expect(page).toHaveURL(
-            new RegExp(`/projects/${shared.id}/hedgerows-post-intervention`)
-          )
+          await expectOnPiPage(page, shared.id, 'hedgerow')
+          // HR3: 0.024 km of Native hedgerow, Poor condition, zero timing.
+          expect(
+            await unitsByRef(page, shared.id, 'hedgerow', updatedRef)
+          ).toBe('0.05')
           await openPiFeatureDetails(page, shared.id, 'hedgerow', updatedRef)
           await expect(details.habitatReferenceInput).toHaveValue(updatedRef)
-          await expect(details.habitatUnitsValue).toHaveText(
-            shared.createdHedgerowUnits
-          )
+          await expect(details.targetConditionSelect).toHaveValue('Poor')
+          await expect(details.habitatUnitsValue).toHaveText('0.05')
         }
       )
     }

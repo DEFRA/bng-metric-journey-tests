@@ -8,7 +8,7 @@ export const UNITS_TWO_DP_PATTERN = /^\s*\d+\.\d{2}\s*$/
 // The /post-intervention-habitat-details route renders a read-only page for
 // every feature, picked by feature type *and* retention category, plus an
 // unsupported-feature placeholder for individual trees — except a Created
-// area habitat, which renders an edit form (BMD-1048, frontend PR#418). POST
+// area habitat or Created hedgerow, which renders an edit form (BMD-1048, frontend PR#418). POST
 // saves that form and answers 501 for any other feature. Two read-only layout
 // families:
 //
@@ -49,7 +49,7 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
       exact: true
     })
     // Summary-list size label — the retained hedgerow page is the only page
-    // still on layouts/pi-view-only-page.njk, so it keeps "Length (km)".
+    // keeps its summary-list layout; the Created form uses stacked fields.
     this.lengthKey = page.getByText('Length (km)', { exact: true })
     this.broadHabitatKey = page.getByText('Broad habitat', { exact: true })
     this.habitatTypeKey = page.getByText('Habitat type', { exact: true })

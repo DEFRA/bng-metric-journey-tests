@@ -49,7 +49,7 @@ backend's discriminator (`habitat`, `tree`, `hedgerow`, `watercourse`) and
 | `watercourse`           | `pi-watercourse-details-enhanced`  | `pi-watercourse-details-created`                            | `pi-watercourse-details` (Step 3)                      |
 | `tree` / any other type | `pi-feature-unsupported` (Step 10) | —                                                           | —                                                      |
 
-The Created **area** case is checked in the GET handler _before_ `resolveViewOnlyPage` is
+The Created **area and hedgerow** cases are checked in the GET handler _before_ `resolveViewOnlyPage` is
 called, so it never reaches the view-only map. A Lost area parcel is persisted as Created
 (BMD-534), so it gets the edit form too.
 
@@ -317,7 +317,7 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
 
 ---
 
-### Step 7 ? Edit Created hedgerow details `[IMPLEMENTED]`
+### Step 7 — Edit Created hedgerow details `[IMPLEMENTED]`
 
 BMD-1049 (frontend #434, backend #564) uses the shared Created edit form with
 Length (km) and no broad-habitat field. HR3 retains its baseline-to-target time
