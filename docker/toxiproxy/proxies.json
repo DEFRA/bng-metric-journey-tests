@@ -10,5 +10,17 @@
     "listen": "0.0.0.0:6379",
     "upstream": "redis:6379",
     "enabled": true
+  },
+  {
+    "name": "s3",
+    "listen": "0.0.0.0:14566",
+    "upstream": "localstack:4566",
+    "enabled": true
+  },
+  {
+    "name": "cdp-uploader",
+    "listen": "0.0.0.0:17337",
+    "upstream": "cdp-uploader:7337",
+    "enabled": true
   }
 ]

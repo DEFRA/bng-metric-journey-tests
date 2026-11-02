@@ -10,13 +10,36 @@ const MAX_RECOVERY_MS = 15_000
 const RECOVERY_ATTEMPT_MS = 2_000
 
 /**
- * Assert a signed-in user gets the error page while a dependency has a fault,
- * then reads their project again once it clears, without restarting anything.
- *
- * The bound on how long the error page may take is `navigationTimeout` in
- * playwright.resilience.config.js, so a page that hangs fails at that point
- * rather than at the test timeout. The status code is deliberately not
+ * Assert the generic error page is showing. The status code is deliberately not
  * asserted — see test/flows/resilience/downstream-failures.flow.md.
+ *
+ * Pass `timeout` when the error arrives after polling rather than on the
+ * navigation, as it does during the file check. Otherwise the bound is
+ * `navigationTimeout` in playwright.resilience.config.js.
+ */
+export async function assertErrorPage(
+  page,
+  serviceErrorPage,
+  { timeout } = {}
+) {
+  await expect(page).toHaveTitle(ServiceErrorPage.title, { timeout })
+  await expect(serviceErrorPage.message).toBeVisible()
+}
+
+/**
+ * Assert a page works again after a fault clears, without restarting anything.
+ * Reloads between attempts, because a dependency can take a moment to reconnect.
+ */
+export async function assertRecovers(open, readyLocator) {
+  await expect(async () => {
+    await open()
+    await expect(readyLocator).toBeVisible({ timeout: RECOVERY_ATTEMPT_MS })
+  }).toPass({ timeout: MAX_RECOVERY_MS })
+}
+
+/**
+ * Assert a signed-in user gets the error page on the project dashboard while a
+ * dependency has a fault, then reads their project again once it clears.
  */
 export async function assertHandlesOutage({
   injectFault,
@@ -35,15 +58,12 @@ export async function assertHandlesOutage({
   await injectFault()
 
   await projectDashboardPage.open()
-  await expect(page).toHaveTitle(ServiceErrorPage.title)
-  await expect(serviceErrorPage.message).toBeVisible()
+  await assertErrorPage(page, serviceErrorPage)
 
   await toxiproxy.reset()
 
-  await expect(async () => {
-    await projectDashboardPage.open()
-    await expect(projectDashboardPage.projectLink(name)).toBeVisible({
-      timeout: RECOVERY_ATTEMPT_MS
-    })
-  }).toPass({ timeout: MAX_RECOVERY_MS })
+  await assertRecovers(
+    () => projectDashboardPage.open(),
+    projectDashboardPage.projectLink(name)
+  )
 }

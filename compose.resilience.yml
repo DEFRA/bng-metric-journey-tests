@@ -1,9 +1,13 @@
 ################################################################################
 # Override for the resilience tests (npm run test:resilience): routes the
-# backend's Postgres connection and the frontend's Redis connection through
-# Toxiproxy so a test can fail one of them without touching anything else in the
-# stack. The uploader and the identity stub keep their own direct Redis
-# connections, so a Redis fault only reaches the frontend.
+# backend's Postgres, S3 and CDP Uploader connections and the frontend's Redis
+# connection through Toxiproxy, so a test can fail one of them without touching
+# anything else in the stack.
+#
+# Only those connections go through the proxy. The uploader and the identity stub
+# keep their own Redis connections, the uploader keeps its own S3 and SQS
+# connections, and the browser posts files to the uploader directly, so a fault
+# only reaches the one service it is aimed at.
 #
 # Run:
 #   docker compose -f compose.yml -f compose.resilience.yml up --wait -d
@@ -32,6 +36,8 @@ services:
     environment:
       - DB_HOST=toxiproxy
       - DB_PORT=15432
+      - S3_ENDPOINT=http://toxiproxy:14566
+      - CDP_UPLOADER_URL=http://toxiproxy:17337
     # The backend exits at startup if it cannot reach Postgres, so the proxy has
     # to be serving before the backend starts.
     depends_on:

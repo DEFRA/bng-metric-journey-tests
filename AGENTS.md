@@ -440,7 +440,7 @@ npm run test:resilience
 docker compose up --wait -d --remove-orphans   # put the normal stack back
 ```
 
-The override recreates the backend and the frontend with their Postgres and Redis connections going through Toxiproxy. Put the normal stack back before running the main suite.
+The override recreates the backend and the frontend with their Postgres, S3, CDP Uploader and Redis connections going through Toxiproxy. Put the normal stack back before running the main suite.
 
 ### Metric workbook recalculation
 

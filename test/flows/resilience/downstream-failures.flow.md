@@ -44,6 +44,31 @@ Tests assert three things: an error page is rendered, it arrives within a bound,
 - **Fault:** frontend → Redis `hang`
 - **On error:** should be the generic error page, but the page currently never responds. The test is marked `test.fail`, so it goes red once the defect is fixed.
 
-### Step 5 — Other dependencies `[PLANNED]`
+### Step 5 — S3 failing during the file check `[IMPLEMENTED]`
 
-S3, CDP Uploader and the backend itself. Awaiting the outcome of the BMD-1189 proof of concept.
+- **Route:** `GET /projects/{id}/upload-received`, after submitting a baseline file
+- **Fault:** backend → S3 `down` and `hang`. The uploader keeps its own S3 connection, so the upload itself succeeds.
+- **On error:** generic error page, within the frontend's 25s budget for the file check (`BACKEND_VALIDATE_TIMEOUT_MS`)
+- **Recovery:** the same file uploads successfully once the fault clears
+
+### Step 6 — CDP Uploader failing when the upload page opens `[IMPLEMENTED]`
+
+- **Route:** `GET /projects/{id}/upload-baseline-file`
+- **Fault:** backend → CDP Uploader `down` and `hang`
+- **On error:** generic error page, immediately or at the frontend's 10s backend timeout
+- **Recovery:** the upload form renders once the fault clears
+
+### Step 7 — CDP Uploader lost during the file check `[IMPLEMENTED]`
+
+- **Route:** `GET /projects/{id}/upload-received`, after submitting a baseline file
+- **Fault:** backend → CDP Uploader `down`. The browser posts the file to the uploader directly, so the upload itself succeeds.
+- **On error:** "Checking your file" until the frontend's 120s limit (`MAX_WAIT_SECONDS`), then the generic error page. The "file check timed out" message is lost, because the upload page clears it and then fails to load. This is a known defect, which the test does not assert.
+- **Recovery:** the same file uploads successfully once the fault clears
+
+### Step 8 — Browser posting a file to a failing CDP Uploader `[BLOCKED: not reachable through the proxy]`
+
+The browser talks to the uploader directly, so the service can't answer for this path. In a throwaway lab, a browser got its own error page when the uploader was down, and no feedback by a 60s cap when it hung. Those results would not carry over to CDP, where the platform sits between them.
+
+### Step 9 — Backend failing `[PLANNED]`
+
+Frontend → backend. The ticket does not name it, and it is awaiting the outcome of the BMD-1189 proof of concept.
