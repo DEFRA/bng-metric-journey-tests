@@ -101,10 +101,13 @@ Retained or Enhanced feature.** The post-intervention upload derives the baselin
 file's own rows, so every Retained or Enhanced feature gets a baseline feature with the same
 ref. The "hidden" branch is no longer reached by a pairing of separate baseline and
 post-intervention files (which is how `complete-project` H2-2 and H2-3 reached it). It now
-needs a baseline ref changed after upload, or a Created feature. On a sections page the link renders
-**after the first section**, before the units row. **Created hedgerows suppress the link
-unconditionally** (`buildCreatedHedgerowViewOnlyViewModel` forces `baselineFeatureId: null`)
-— Created areas and Created watercourses do **not**, and still resolve it by ref.
+needs a baseline ref changed after upload, or a Created feature. On a read-only
+sections page the link renders **after the first section**, before the units row.
+Created area and hedgerow forms render the link before Intervention and size. They
+resolve an explicit parent only within the matching baseline unit layer; an explicit
+null parent suppresses the link. Service-template projects require that parent link.
+Legacy non-template features without a parent field still resolve by ref. Created
+watercourses keep the read-only ref-based link behavior.
 
 **Matched on the cleaned ref (BMD-1058) `[IMPLEMENTED]`.** `comparableRef` in
 `post-intervention-habitat-details/controller.js` trims both refs and cuts them to 100
@@ -228,8 +231,10 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
   - **Derived values update in the browser** (`src/client/javascripts/created-area-details.js`)
     as the dropdowns change; nothing is saved until Save (BMD-1048 AC4–AC10). Units are only
     recalculated by the backend on Save.
-  - An imported value the dropdown does not offer shows a hint that saving without a new
-    selection clears it. A reference over 100 characters shows a "Shorten it" hint.
+  - Unavailable imported habitat/condition choices show a hint that saving without a new
+    selection clears them. Imported timing outside the offered range stays selected as
+    unchanged until explicitly replaced or cleared. A reference over 100 characters shows
+    a "Shorten it" hint.
   - The "View baseline details" link resolves through `parentFeatureId` when the feature
     carries one (BNG Service template, BMD-1083), otherwise by ref as above.
   - **Standard time to target condition** on first load is the view-only value below (the
@@ -319,17 +324,26 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
 
 ### Step 7 — Edit Created hedgerow details `[IMPLEMENTED]`
 
-BMD-1049 (frontend #434, backend #564) uses the shared Created edit form with
-Length (km) and no broad-habitat field. HR3 retains its baseline-to-target time
-wording; HG013 has no usable baseline condition and shows the target alone.
-All editable fields are populated from the saved feature, with hedgerow-only
-habitat and target-condition choices. Legacy timing outside the new-choice range
-is retained as an imported option until explicitly replaced or cleared.
-Save returns to the hedgerow list and persists the edited row and recalculated
-units/status; Cancel and Upload discard local changes. A missing hedgerow reference
-endpoint (404 during backend rollout) retains the former read-only page.
-Created hedgerows with a stored parent keep their baseline link; unrelated matching
-references do not create new links.
+- **Route:** shared GET contract (hedgerow whose normalised retention category is Created)
+- **Template:** `src/server/habitat-details/pi-habitat-details-created-edit.njk`
+- **Backend endpoints:** GET `/reference/hedgerow-creation` and PUT
+  `/projects/{projectId}/post-intervention/hedgerows/{featureId}` (backend #564)
+- **Description:** BMD-1049 uses the shared Created edit form, with fixed imported
+  Length (km), no broad-habitat field and hedgerow-only habitat/target-condition choices.
+  HR3 retains its baseline-to-target time wording; HG013 shows the target alone.
+  Editable fields start from the saved feature. Imported timing outside the new-choice
+  range stays selected as unchanged until explicitly replaced or cleared. Stored final-time
+  text remains visible while its calculation inputs are unchanged.
+  Created hedgerows keep valid stored-parent links; explicit null parents suppress them.
+  Legacy non-template features without a parent field can still resolve a baseline by ref.
+- **Validation:** shared Created form validation, including mutually exclusive positive
+  advance/delay values and strict validation of newly selected years.
+- **On success:** Save persists the edits, recalculated units/status and returns to the
+  hedgerow list. Cancel and Upload discard local edits.
+- **On error:** Field errors redisplay the form. A 404 from the creation-reference endpoint
+  during rollout renders the previous read-only page; other backend failures propagate.
+
+---
 
 ### Step 8 — View Created watercourse details (read-only, two-section) `[IMPLEMENTED]`
 
@@ -342,8 +356,8 @@ references do not create new links.
     encroachment**, **Riparian encroachment**. Note the order differs from the retained
     watercourse page in Step 3 — here Strategic significance sits **above** the two
     encroachment rows. Length carries its own `km` suffix (`formatLengthDisplay`).
-  - **"View baseline details"** link after the first section, resolved by ref (**not**
-    suppressed, unlike the Created hedgerow in Step 7).
+  - **"View baseline details"** link after the first section, resolved by ref when a
+    matching baseline exists. Created hedgerow edit forms use the parent rules in Step 7.
   - **Section 2 — "Time to target / difficulty":** the same six rows as Step 4.
   - Then the bordered "Habitat units delivered" row.
   - **Encroachment values read from `proposed`**, not baseline-first — for a created or
@@ -395,47 +409,39 @@ references do not create new links.
 
 ---
 
-### Step 11 — Save Created area habitat details (BMD-1048) `[IMPLEMENTED]`
+### Step 11 — Save Created area or hedgerow details (BMD-1048/BMD-1049) `[IMPLEMENTED]`
 
 - **Route:** `POST /post-intervention-habitat-details`
-- **Template:** `pi-habitat-details-created-edit.njk` on a validation failure; none otherwise
-- **Auth required:** Yes (session + approved BNG Completer role — the route keeps the same
-  `auth: 'session'` + `requireBngCompleterRole` guards as the GET)
-- **Backend endpoints:** `GET /projects/{projectId}/post-intervention/features/{featureId}`
-  (to check the feature is a Created area), `GET /reference/area-creation`, then
-  `PUT /projects/{projectId}/post-intervention/habitats/{featureId}` (backend PR#539), which
-  validates the edit again, re-prices the habitat and the area total, and saves it
-  `Complete` with its units, or `Incomplete` with `units: null` when a field it needs is
-  blank (the area total counts it as 0)
-- **Description:** Only the Step 4 form posts here. The handler, in order:
-  1. Validates the payload against Joi `createdAreaPayloadSchema` — `projectId` and
-     `featureId` (UUIDs), `ref`, `broadHabitat`, `habitatType`, `condition`,
-     `strategicSignificance` (strings, may be empty), `advanceYears` / `delayYears` (empty,
-     `0`–`30` or `30+`), all required; `returnUrl` and `crumb` optional. A body that fails
-     it is rejected with **400** before the handler runs.
-  2. Fetches the feature; if it is **not a Created area habitat** it throws
-     `Boom.notImplemented` → **501** (every other feature type is still read-only).
-  3. Runs `validateCreatedArea`; on any error it re-renders the form with the entered values
-     kept, an error summary and inline errors (BMD-1048 AC13).
-  4. Otherwise saves through the backend `PUT` and redirects to the area habitats
-     post-intervention page.
-- **Validation (step 3, `validateCreatedArea`):**
-  - Habitat reference blank, whitespace-only or not well-formed UTF-8 → inline "Enter a valid
-    habitat reference.", summary "You have entered an invalid habitat reference."
-  - Habitat reference over 100 characters → "Enter a habitat reference of 100 characters or
-    fewer." (not in the BMD-1048 ACs; matches the BMD-1058 limit)
-  - Advance and Delay both above 0 → inline "Either the advance or delay field must be set at
-    zero.", summary "A habitat cannot be created both in advance and with a delay." (one
-    summary entry for both fields)
-  - A dropdown value that is not one of its options → "Choose a valid broad habitat" /
-    "Choose a habitat type for the selected broad habitat" / "Choose a target condition for
-    the selected habitat type" / "Choose a valid strategic significance"
-  - Duplicate references are allowed. Blank dropdowns are allowed — the habitat saves as
-    Incomplete.
-- **On success:** 302 to `/projects/{projectId}/area-post-intervention` (or the safe
-  `returnUrl`)
-- **On error:** 400 for an invalid payload; 501 for a feature that is not a Created area
-  habitat; the form re-rendered for a field error
+- **Template:** `pi-habitat-details-created-edit.njk` on a field-validation failure
+- **Auth required:** Yes (session, approved BNG Completer role and CSRF protection)
+- **Backend endpoints:** GET the post-intervention feature to check type/retention, load
+  `/reference/area-creation` or `/reference/hedgerow-creation`, then PUT to
+  `/projects/{projectId}/post-intervention/habitats/{featureId}` for areas or
+  `/projects/{projectId}/post-intervention/hedgerows/{featureId}` for hedgerows.
+  The backend validates the edit, uses shared enrichment and saves the feature, units and
+  project totals. Incomplete features keep `units: null` and do not contribute units.
+- **Description:** Both Step 4 and Step 7 forms post here. The handler:
+  1. Validates UUIDs, editable strings and timing selections against the two Joi payload
+     schemas. Timing selections can be blank, 0 to 30, 30+, or unchanged imported values.
+     Areas require a broad habitat field; hedgerows forbid it. Malformed payloads return
+     400 before backend requests; the type-specific missing-area-broad guard runs after
+     fetching the feature and before loading reference data.
+  2. Refuses features other than Created areas or hedgerows with 501.
+  3. Validates choices and mutually exclusive positive advance/delay, resolving unchanged
+     timing from per-feature imported metadata. Errors redisplay entered values, summary
+     links and inline messages, including delay-only errors.
+  4. Sends valid edits to the type-specific backend PUT. Blank fields send null; unchanged
+     timing is omitted. Both backend routes resolve omissions from the locked stored row,
+     retain 30+ metadata and still reject out-of-range newly selected years.
+- **Validation:** References must be nonblank, valid UTF-8 and at most 100 characters.
+  Habitat/condition/significance selections must be offered choices. Positive advance and
+  delay cannot both be selected. Duplicate references and explicit blank dropdowns are
+  allowed; missing calculation inputs leave the feature Incomplete.
+- **On success:** 302 to the area or hedgerow post-intervention list, respecting a safe
+  returnUrl. The reopened row shows persisted selections, recalculated units and status.
+- **On error:** 400 for malformed payloads, 501 for unsupported feature categories,
+  redisplay for field errors, or 503 when hedgerow creation reference data is not deployed.
+  No PUT occurs on invalid input or the rollout-unavailable path.
 
 ---
 

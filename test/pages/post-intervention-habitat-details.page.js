@@ -76,10 +76,13 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     // beforeContent, which GOV.UK's template places *outside* <main>, as does
     // the back link. Without this scope every index is shifted by the chrome.
     this.stackedValues = page.getByRole('main').getByRole('paragraph')
-    // Size is the second row on both stacked retained pages (after
-    // Intervention), and the "View baseline details" paragraph sorts after
-    // every row, so nth(1) is stable.
+    // Read-only stacked pages put Size after Intervention, with the baseline
+    // link after the section. Created forms put the baseline link before those
+    // rows, so use the text-based Created length locator on their edit form.
     this.stackedSizeValue = this.stackedValues.nth(1)
+    this.createdLengthValue = page
+      .getByRole('main')
+      .getByText(/^\s*[\d.]+km\s*$/)
 
     // Shown only when a baseline feature shares the parcel ref (the baseline
     // and post-intervention uploads have independent featureIds).

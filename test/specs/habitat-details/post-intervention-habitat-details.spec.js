@@ -1388,7 +1388,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           significance: 'Low'
         })
         await expect(detailsPage.lengthKey).toBeVisible()
-        await expect(detailsPage.stackedSizeValue).toHaveText(LENGTH_KM_PATTERN)
+        await expect(detailsPage.createdLengthValue).toHaveText(
+          LENGTH_KM_PATTERN
+        )
         await expect(detailsPage.broadHabitatSelect).toBeHidden()
 
         // AC1 asks for labels *and* values. The edit-form helper pins the six
@@ -1458,7 +1460,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           significance: 'High'
         })
         await expect(detailsPage.lengthKey).toBeVisible()
-        await expect(detailsPage.stackedSizeValue).toHaveText(LENGTH_KM_PATTERN)
+        await expect(detailsPage.createdLengthValue).toHaveText(
+          LENGTH_KM_PATTERN
+        )
         await expect(detailsPage.broadHabitatKey).toBeHidden()
         // This fixture has no explicit stored parent, so there is no baseline link.
         await expect(detailsPage.viewBaselineLink).toBeHidden()
