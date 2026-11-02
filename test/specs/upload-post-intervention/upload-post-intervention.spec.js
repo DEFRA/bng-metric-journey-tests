@@ -136,6 +136,31 @@ const KM_PRECISION = 2
 const METRIC_TOOL_URL =
   'https://www.gov.uk/government/publications/statutory-biodiversity-metric-tools-and-guides'
 const ERROR_FILE_URL = '/error-file'
+// BMD-1182 (harness PR#200). Each file trips one rule, through one offender.
+// The area and hedgerow files also hold a valid Enhanced row (H002, HG003), so
+// a table that listed every enhancement would fail on its row count.
+const UNENHANCEABLE_AREA_FILE =
+  'invalid-area-medium-good-enhanced-post-intervention.gpkg'
+const UNENHANCEABLE_TREE_FILE =
+  'invalid-tree-good-enhanced-post-intervention.gpkg'
+const UNENHANCEABLE_WATERCOURSE_FILE =
+  'invalid-watercourse-medium-good-enhanced-post-intervention.gpkg'
+const UNENHANCEABLE_VERY_LOW_HEDGEROW_FILE =
+  'invalid-hedgerow-very-low-enhanced-post-intervention.gpkg'
+// 5.67 area units, against 641.73 for the refused file's matching baseline
+// file, so a refused file that replaced the baseline should change the tile.
+const UNENHANCEABLE_EXISTING_BASELINE_FILE =
+  'Baseline - complete with area refs.gpkg'
+const UNENHANCEABLE_COLUMNS = [
+  'Reference',
+  'Feature',
+  'Baseline habitat',
+  'Baseline condition',
+  'Proposed habitat',
+  'Proposed condition'
+]
+const NEUTRAL_GRASSLAND = 'Grassland - Other neutral grassland'
+const RURAL_TREE = 'Individual trees - Rural tree'
 
 // ─── E2E happy path ─────────────────────────────────────────────────────────
 
@@ -391,9 +416,10 @@ function describeLinearAndTreeSplit() {
 // post-intervention rejection in this file starts from an empty project, so
 // none of them could tell a no-op from a wipe.
 //
-// Sole witness that a rejected post-intervention upload writes neither
-// document, and the only journey test that reaches BASELINE_TYPE_MISSING. A PI
-// upload replaces the baseline and the post-intervention document together
+// Sole witness that a post-intervention upload rejected at this step writes
+// neither document, and the only journey test that reaches
+// BASELINE_TYPE_MISSING. The unenhanceable baseline area test covers the same
+// outcome for a refusal later in the import. A PI upload replaces the baseline and the post-intervention document together
 // (setProjectBaselineAndPostIntervention), so a validation step moved after
 // that write would silently destroy the stored baseline. That is a different
 // path from the baseline equivalent in upload-baseline.spec.js. The backend
@@ -813,6 +839,148 @@ function describeDistinctivenessError() {
   )
 }
 
+// ─── Unenhanceable baseline ──────────────────────────────────────────────────
+
+async function assertUnenhanceableDropout(errorFilePage, row) {
+  await expect(errorFilePage.unenhanceableHeading).toBeVisible()
+  await expect(errorFilePage.serviceEligibilityHeading).toBeVisible()
+  await expect(errorFilePage.unenhanceableHelpText).toBeVisible()
+  await expect(errorFilePage.metricToolLink).toHaveAttribute(
+    'href',
+    METRIC_TOOL_URL
+  )
+  await expect(errorFilePage.unenhanceableColumnHeaders).toHaveText(
+    UNENHANCEABLE_COLUMNS
+  )
+  await expect(errorFilePage.unenhanceableRows).toHaveCount(1)
+  await expect(
+    errorFilePage.unenhanceableRowCells(errorFilePage.unenhanceableRows)
+  ).toHaveText(row)
+}
+
+// Sole witness for BASELINE_NOT_ENHANCEABLE from a real GeoPackage, and for the
+// backend's details.sample reaching the frontend's table. The backend's
+// refuse-unenhanceable-baselines tests hand-build their documents and no
+// integration test mentions the code; single-error-copy.test.js is handed a
+// fabricated error. Break a layer's extraction and both keep passing; rename a
+// sample field in the backend and the frontend's tests keep passing. Either way
+// this page breaks. Do not delete without an integration test that uploads these
+// fixtures and asserts the offenders.
+//
+// One test per extraction path, not per rule: AC2 and AC5 share the hedgerow
+// path and this page with the Very Low test, and the backend's tests run their
+// rules with real bng-library data. The Very Low rule is the only permanent one.
+// When the MVS rules are removed, the area, tree and watercourse tests go with
+// them and this one keeps the page covered.
+function describeUnenhanceableBaseline() {
+  const cases = [
+    {
+      name: 'an individual tree in Good condition',
+      file: UNENHANCEABLE_TREE_FILE,
+      row: ['T001', 'Individual tree', RURAL_TREE, 'Good', RURAL_TREE, 'Good']
+    },
+    {
+      name: 'a Medium distinctiveness watercourse in Good condition',
+      file: UNENHANCEABLE_WATERCOURSE_FILE,
+      row: ['R001', 'Watercourse', 'Ditches', 'Good', 'Ditches', 'Moderate']
+    },
+    {
+      name: 'a Very Low distinctiveness hedgerow',
+      file: UNENHANCEABLE_VERY_LOW_HEDGEROW_FILE,
+      row: [
+        'HG001',
+        'Hedgerow',
+        'Non-native and ornamental hedgerow',
+        'Poor',
+        'Native hedgerow',
+        'Good'
+      ]
+    }
+  ]
+
+  test.describe(
+    'Upload post-intervention — unenhanceable baseline',
+    { tag: '@regression' },
+    () => {
+      // Refused at a later step than BASELINE_TYPE_MISSING, so the failed
+      // replacement test above would not notice this check moving after the
+      // write that replaces both documents. The backend's "saves neither
+      // document" unit test mocks persistence.
+      test('a file enhancing a Medium area habitat in Good condition is refused and leaves the existing baseline intact', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        uploadPostInterventionFileFlow,
+        projectSummaryPage,
+        errorFilePage,
+        page
+      }) => {
+        // Two real uploads back this test.
+        test.setTimeout(UPLOAD_TIMEOUT * 2)
+
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
+        )
+        await uploadBaselineFileFlow.uploadFileAndWaitForSummary(
+          id,
+          UNENHANCEABLE_EXISTING_BASELINE_FILE
+        )
+        const baselineUnits = await projectSummaryPage.tileValue(
+          AREA_HABITATS,
+          TILE_BASELINE
+        )
+
+        await uploadPostInterventionFileFlow.uploadFile(
+          id,
+          UNENHANCEABLE_AREA_FILE
+        )
+        await page.waitForURL(ERROR_FILE_URL, { timeout: UPLOAD_TIMEOUT })
+
+        await assertUnenhanceableDropout(errorFilePage, [
+          'H001',
+          'Area habitat',
+          NEUTRAL_GRASSLAND,
+          'Good',
+          NEUTRAL_GRASSLAND,
+          'Good'
+        ])
+
+        await projectSummaryPage.open(id)
+        expect(
+          await projectSummaryPage.tileValue(AREA_HABITATS, TILE_BASELINE)
+        ).toBe(baselineUnits)
+        await expect(
+          projectSummaryPage.uploadPostInterventionLink(AREA_HABITATS)
+        ).toBeVisible()
+      })
+
+      for (const { name, file, row } of cases) {
+        test(`a file enhancing ${name} is refused and lists only that habitat`, async ({
+          createProjectFlow,
+          projectDashboardPage,
+          uploadPostInterventionFileFlow,
+          errorFilePage,
+          page
+        }) => {
+          await uploadToErrorFile(
+            {
+              createProjectFlow,
+              projectDashboardPage,
+              uploadPostInterventionFileFlow,
+              page
+            },
+            file
+          )
+
+          await assertUnenhanceableDropout(errorFilePage, row)
+        })
+      }
+    }
+  )
+}
+
 // ─── Cross-user access ───────────────────────────────────────────────────────
 
 // The GET on the upload form does not check project ownership — it renders for
@@ -948,6 +1116,7 @@ test.describe(
     describeContentValidationErrors()
     describeConflictingTiming()
     describeDistinctivenessError()
+    describeUnenhanceableBaseline()
     describeCrossUserAccess()
     describeUploaderRejection()
     describeUploadTimeout()
