@@ -35,6 +35,30 @@ export class ErrorFilePage extends BasePage {
     this.metricToolLink = page.getByRole('link', {
       name: /metric tool \(spreadsheet\)/
     })
+    // BMD-1182 layout for a baseline the service cannot enhance
+    this.unenhanceableHeading = page.getByRole('heading', {
+      name: 'There is a problem with your project'
+    })
+    this.serviceEligibilityHeading = page.getByRole('heading', {
+      name: 'Service eligibility'
+    })
+    this.unenhanceableHelpText = page.getByText(
+      'Your project contains habitats that have been enhanced to a level which is not yet included in this service.'
+    )
+    this.unenhanceableTable = page.getByRole('table', {
+      name: 'Habitats that cannot be enhanced'
+    })
+    this.unenhanceableColumnHeaders =
+      this.unenhanceableTable.getByRole('columnheader')
+    // Filtered on a data cell, so the header row is not counted.
+    this.unenhanceableRows = this.unenhanceableTable
+      .getByRole('row')
+      .filter({ has: page.getByRole('cell') })
+  }
+
+  // The row's first cell is a row header, so it is not a `cell` to ARIA.
+  unenhanceableRowCells(row) {
+    return row.getByRole('rowheader').or(row.getByRole('cell'))
   }
 
   singleErrorHeading(name) {
