@@ -13,10 +13,14 @@ export class BaselineHabitatDetailsPage extends BasePage {
     this.baselineDetailsHeading = page.getByRole('heading', {
       name: 'Baseline Details'
     })
+    this.habitatReferenceInput = page.getByRole('textbox', {
+      name: 'Habitat reference',
+      exact: true
+    })
     this.broadHabitatSelect = page.getByLabel('Broad habitat')
     this.habitatTypeSelect = page.getByLabel('Habitat type')
     this.conditionSelect = page.getByLabel('Condition')
-    // Read-only dropdowns rendered only for watercourse features.
+    // Encroachment controls rendered only for watercourse features.
     this.watercourseEncroachmentSelect = page.getByLabel(
       'Watercourse encroachment'
     )
@@ -25,12 +29,12 @@ export class BaselineHabitatDetailsPage extends BasePage {
     this.cancelLink = page.getByRole('link', { name: 'Cancel' })
     this.backLink = page.getByRole('link', { name: 'Back' })
 
-    // Read-only summary rows. The page renders these inside a GOV.UK summary
-    // list (a <dl>, not a table), so the keys are matched by their visible
-    // text. Strategic Significance is a fixed "Low (1)" in MVS.
+    // Baseline values use stacked fields. Keep the old Reference label locator
+    // for read-only post-intervention assertions; baseline refs use the input.
     this.referenceKey = page.getByText('Reference', { exact: true })
     this.distinctivenessKey = page.getByText('Distinctiveness', { exact: true })
-    this.strategicSignificanceKey = page.getByText('Strategic Significance', {
+    this.strategicSignificanceKey = page.getByRole('heading', {
+      name: 'Strategic significance',
       exact: true
     })
     this.strategicSignificanceValue = page.getByText('Low (1)', { exact: true })

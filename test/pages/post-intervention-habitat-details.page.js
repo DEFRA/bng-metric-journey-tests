@@ -117,8 +117,7 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     this.enhancedAreaKey = page.getByText('Area', { exact: true })
     this.enhancedLengthKey = page.getByText('Length', { exact: true })
     // Lower-case on every stacked page; the retained hedgerow summary list is
-    // the only page still using the title-case "Strategic Significance"
-    // inherited from the baseline page object.
+    // the only page still using the title-case "Strategic Significance".
     this.stackedStrategicSignificanceKey = page.getByText(
       'Strategic significance',
       { exact: true }
@@ -181,7 +180,6 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     // pi-habitat-details-created-edit.njk keeps the two section headings and
     // the units row, but its editable fields are form controls and two
     // derived labels name their multiplier.
-    this.habitatReferenceInput = page.getByLabel('Habitat reference')
     this.strategicSignificanceSelect = page.getByLabel('Strategic significance')
     this.targetConditionSelect = page.getByLabel('Target condition')
     this.advanceYearsSelect = page.getByLabel(

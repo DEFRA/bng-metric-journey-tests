@@ -865,7 +865,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     // "#baselineHabitatDetails - GET"); this test's distinct job is to prove the
     // rows render from a *real* uploaded GeoPackage.
     test(
-      'AC2–AC11 — renders every summary row and saved value',
+      'AC2–AC11 — renders every field and saved value',
       { tag: '@smoke' },
       async ({
         createProjectFlow,
@@ -900,16 +900,19 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           .soft(baselineHabitatDetailsPage.baselineDetailsHeading)
           .toBeVisible()
 
-        // AC3 — reference label + saved value. Exact match scopes this to the
-        // Reference row value, not the "Habitat {ref}" page heading.
-        await expect.soft(baselineHabitatDetailsPage.referenceKey).toBeVisible()
+        // AC3 — the labelled reference input contains the saved value.
         await expect
-          .soft(page.getByText(areaRef, { exact: true }))
+          .soft(baselineHabitatDetailsPage.habitatReferenceInput)
           .toBeVisible()
+        await expect
+          .soft(baselineHabitatDetailsPage.habitatReferenceInput)
+          .toHaveValue(areaRef)
 
         // AC4 — area label + value carried from the baseline grid
         await expect
-          .soft(page.getByText('Area (hectares)', { exact: true }))
+          .soft(
+            page.getByRole('heading', { name: 'Size (hectares)', exact: true })
+          )
           .toBeVisible()
         await expect
           .soft(page.getByText(areaSize, { exact: true }))
@@ -1307,7 +1310,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     // omitted Broad row, conditions source, back/cancel), all against mocked
     // backend data; this test proves the rows render from a real GeoPackage.
     test(
-      'AC2–AC11 — renders every summary row and saved value',
+      'AC2–AC11 — renders every field and saved value',
       { tag: '@smoke' },
       async ({
         createProjectFlow,
@@ -1342,11 +1345,13 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           .soft(baselineHabitatDetailsPage.baselineDetailsHeading)
           .toBeVisible()
 
-        // AC3 — reference label + saved value
-        await expect.soft(baselineHabitatDetailsPage.referenceKey).toBeVisible()
+        // AC3 — the labelled reference input contains the saved value
         await expect
-          .soft(page.getByText(hedgerowRef, { exact: true }))
+          .soft(baselineHabitatDetailsPage.habitatReferenceInput)
           .toBeVisible()
+        await expect
+          .soft(baselineHabitatDetailsPage.habitatReferenceInput)
+          .toHaveValue(hedgerowRef)
 
         // AC4 — length label + value carried from the baseline grid
         await expect
@@ -1733,7 +1738,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       // (../bng-metric-frontend/src/server/baseline-habitat-details/controller.test.js
       // has GET describes for area and hedgerow only), so this test is the sole
       // witness for the whole page — keep it exhaustive.
-      test('AC2–AC13 — renders every summary row, saved value and control', async ({
+      test('AC2–AC13 — renders every field, saved value and control', async ({
         baselineHabitatDetailsPage,
         page
       }) => {
@@ -1749,11 +1754,13 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           .soft(baselineHabitatDetailsPage.baselineDetailsHeading)
           .toBeVisible()
 
-        // AC3 — reference label + saved value
-        await expect.soft(baselineHabitatDetailsPage.referenceKey).toBeVisible()
+        // AC3 — the labelled reference input contains the saved value
         await expect
-          .soft(page.getByText(watercourseRef, { exact: true }))
+          .soft(baselineHabitatDetailsPage.habitatReferenceInput)
           .toBeVisible()
+        await expect
+          .soft(baselineHabitatDetailsPage.habitatReferenceInput)
+          .toHaveValue(watercourseRef)
 
         // AC4 — length label + value carried from the baseline grid
         await expect
@@ -1806,12 +1813,14 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           .soft(baselineHabitatDetailsPage.habitatUnitsKey)
           .toBeVisible()
 
-        // Encroachment rows appear, watercourse before riparian
-        const rowKeys = (await page.getByRole('term').allTextContents()).map(
-          (t) => t.trim()
+        // The stacked form's controls appear watercourse before riparian.
+        const controlNames = await Promise.all(
+          (await page.getByRole('combobox').all()).map((select) =>
+            select.getAttribute('name')
+          )
         )
-        const watercourseIdx = rowKeys.indexOf('Watercourse encroachment')
-        const riparianIdx = rowKeys.indexOf('Riparian encroachment')
+        const watercourseIdx = controlNames.indexOf('watercourseEncroachment')
+        const riparianIdx = controlNames.indexOf('riparianEncroachment')
         expect.soft(watercourseIdx).toBeGreaterThan(-1)
         expect.soft(riparianIdx).toBeGreaterThan(-1)
         expect.soft(watercourseIdx).toBeLessThan(riparianIdx)
