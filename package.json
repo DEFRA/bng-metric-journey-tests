@@ -14,6 +14,7 @@
     "test:github": "CI=true RUN_MODE=github playwright test",
     "test:e2e": "RUN_MODE=e2e playwright test",
     "test:evidence": "RUN_MODE=local playwright test --config=playwright.evidence.config.js --reporter=list",
+    "test:resilience": "CI=true RUN_MODE=github playwright test --config=playwright.resilience.config.js",
     "screenshots": "RUN_MODE=local playwright test --config=playwright.screenshots.config.js",
     "format": "prettier --write 'test/**/*.js' '**/*.{js,md,json,config.js}'",
     "format:check": "prettier --check 'test/**/*.js' '**/*.{js,md,json,config.js}'",

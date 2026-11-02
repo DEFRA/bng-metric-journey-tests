@@ -428,6 +428,19 @@ PROFILE=@project-management npm run test:github
 | `PROFILE=@project-management npm run test:github` | Run tests for the `project-management` domain                                                                                                |
 | `npm run test:evidence`                           | Run the `/validate-ac-manual` evidence spec (screenshots + per-AC demo videos) — never part of the normal suite                              |
 | `npm run recalc:workbook -- <file>`               | Recalculate a metric workbook (`.xlsx`) or a post-intervention GeoPackage with LibreOffice in Docker — see **Metric workbook recalculation** |
+| `npm run test:resilience`                         | Downstream-failure tests through Toxiproxy, against the stack with `compose.resilience.yml` applied — see **Resilience tests**               |
+
+### Resilience tests
+
+`test/specs/resilience/` proves the service shows an error page rather than hanging, and recovers, when a dependency fails. Faults are injected by Toxiproxy (the `toxiproxy` fixture), so these tests are excluded from the main suite and never run on CDP: a fault applies to the whole stack and would break any test running alongside it. They run in their own workflow, `.github/workflows/resilience-tests.yml`. See [`test/flows/resilience/downstream-failures.flow.md`](test/flows/resilience/downstream-failures.flow.md).
+
+```sh
+docker compose -f compose.yml -f compose.resilience.yml up --wait -d
+npm run test:resilience
+docker compose up --wait -d --remove-orphans   # put the normal stack back
+```
+
+The override recreates the backend with its Postgres connection going through Toxiproxy. Put the normal stack back before running the main suite.
 
 ### Metric workbook recalculation
 

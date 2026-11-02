@@ -1,0 +1,103 @@
+name: Run Resilience Tests on GitHub
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      frontend-branch:
+        description: Branch of bng-metric-frontend to build
+        required: false
+        default: main
+      backend-branch:
+        description: Branch of bng-metric-backend to build
+        required: false
+        default: main
+
+  # TEMPORARY, remove before merging. GitHub only allows workflow_dispatch once
+  # a workflow file exists on the default branch, so the BMD-1189 proof of
+  # concept can only run from its own branch through a push trigger.
+  push:
+    branches:
+      - BMD-1189-service-resilience-on-downstream-systems
+
+jobs:
+  run-tests:
+    name: Run Resilience Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out journey-tests
+        uses: actions/checkout@v7.0.1
+
+      - name: Check out bng-metric-frontend
+        uses: actions/checkout@v7.0.1
+        with:
+          repository: DEFRA/bng-metric-frontend
+          ref: ${{ inputs.frontend-branch || 'main' }}
+          path: bng-metric-frontend
+
+      - name: Check out bng-metric-backend
+        uses: actions/checkout@v7.0.1
+        with:
+          repository: DEFRA/bng-metric-backend
+          ref: ${{ inputs.backend-branch || 'main' }}
+          path: bng-metric-backend
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install test dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Build frontend image
+        run: |
+          docker build \
+            --platform linux/amd64 \
+            -t defradigital/bng-metric-frontend:${{ github.sha }} \
+            ./bng-metric-frontend
+
+      - name: Build backend image
+        run: |
+          docker build \
+            --platform linux/amd64 \
+            -t defradigital/bng-metric-backend:${{ github.sha }} \
+            ./bng-metric-backend
+
+      - name: Start Docker Compose stack with Toxiproxy
+        env:
+          BNG_METRIC_FRONTEND_TAG: ${{ github.sha }}
+          BNG_METRIC_BACKEND_TAG: ${{ github.sha }}
+          BNG_METRIC_BACKEND_PATH: ./bng-metric-backend
+        run: docker compose -f compose.yml -f compose.resilience.yml up --wait --wait-timeout 120 -d
+
+      - name: Add host entries for identity stub
+        run: echo "127.0.0.1 cdp-defra-id-stub" | sudo tee -a /etc/hosts
+
+      - name: Run resilience tests
+        run: npm run test:resilience
+
+      - name: Collect Docker Compose logs
+        if: always()
+        run: docker compose -f compose.yml -f compose.resilience.yml logs > logs.txt
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: ./playwright-report
+
+      - name: Upload Docker Compose logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: docker-compose-logs
+          path: ./logs.txt

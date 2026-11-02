@@ -140,6 +140,7 @@ export class CreateProjectFlow {
 | habitat-details / habitat-details                        | `habitat-details/habitat-details.flow.md`                        | —                                                                | `[IMPLEMENTED]`  |
 | habitat-details / post-intervention-habitat-details      | `habitat-details/post-intervention-habitat-details.flow.md`      | —                                                                | `[IMPLEMENTED]`  |
 | happy-path / capture-happy-path                          | `happy-path/capture-happy-path.flow.md`                          | — (screenshots spec)                                             | `[IMPLEMENTED]`† |
+| resilience / downstream-failures                         | `resilience/downstream-failures.flow.md`                         | —                                                                | `[IMPLEMENTED]`  |
 
 \* Session-expired's interactive redirect trigger is `[BLOCKED: shared server-side session]`; coverage is via the directly reachable `/auth/session-expired` page render (`session-expired.spec.js`).
 † Not a regression journey — a local-only UCD screenshot export run via `npm run screenshots` (`playwright.screenshots.config.js`), excluded from `test:local`/`test:github`/`test:e2e`.

@@ -1,0 +1,37 @@
+################################################################################
+# Override for the resilience tests (npm run test:resilience): routes the
+# backend's Postgres connection through Toxiproxy so a test can fail it without
+# touching anything else in the stack.
+#
+# Run:
+#   docker compose -f compose.yml -f compose.resilience.yml up --wait -d
+#   npm run test:resilience
+#
+# Put the normal stack back afterwards:
+#   docker compose up --wait -d --remove-orphans
+################################################################################
+services:
+  toxiproxy:
+    image: ghcr.io/shopify/toxiproxy:2.12.0@sha256:9378ed52a28bc50edc1350f936f518f31fa95f0d15917d6eb40b8e376d1a214e
+    networks:
+      - bng-journey-tests
+    command: ['-host=0.0.0.0', '-config=/config/proxies.json']
+    volumes:
+      - ./docker/toxiproxy/proxies.json:/config/proxies.json:ro
+    ports:
+      - '8474:8474'
+    healthcheck:
+      test: ['CMD', '/toxiproxy-cli', 'list']
+      interval: 5s
+      start_period: 2s
+      retries: 5
+
+  bng-metric-backend:
+    environment:
+      - DB_HOST=toxiproxy
+      - DB_PORT=15432
+    # The backend exits at startup if it cannot reach Postgres, so the proxy has
+    # to be serving before the backend starts.
+    depends_on:
+      toxiproxy:
+        condition: service_healthy
