@@ -153,9 +153,9 @@ const CREATED_WATERCOURSE_REF = 'WC3'
 const ENHANCED_UPLIFT_WATERCOURSE_REF = 'R007'
 const ENHANCED_UPLIFT_WATERCOURSE_TIME = 'Fairly Poor to Fairly Good - 4 years'
 const STALE_TIME_TO_TARGET_TEXT = 'Baseline condition to target condition'
-// Created/Enhanced pages put the unit on the value (formatLengthDisplay), so
-// the length reads "0.1774495km" under a bare "Length" label — the retained
-// watercourse page does the opposite (bare value, "Size (kilometres)" label).
+// formatLengthDisplay appends km on Created/Enhanced linear pages. The Created
+// hedgerow form labels this "Length (km)"; other stacked linear pages use
+// "Length". Retained watercourses use a bare value with "Size (kilometres)".
 const LENGTH_KM_PATTERN = /^\s*[\d.]+km\s*$/
 
 // H2-2's size in COMPLETE_PI_FILE, as formatAreaHectaresValue renders it: the
@@ -1450,7 +1450,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           timeToTarget: CREATED_LINEAR_HEDGEROW_TIME_TO_TARGET,
           units: shared.createdLinearHedgerowUnits
         })
-        // Hedgerows label the size row "Length" (unit on the value) and have no
+        // Created hedgerows label the size field "Length (km)" and have no
         // broad-habitat dimension.
         await expectCreatedHedgerowSelections(detailsPage, {
           habitatType: 'Native hedgerow with trees',
