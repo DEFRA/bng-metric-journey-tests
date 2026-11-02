@@ -473,5 +473,6 @@ import/resync. Created reference edits preserve the baseline parent separately.
 
 Coverage: frontend unit tests cover dropdown previews, nulls, validation and the
 rollout fallback; backend tests cover calculations and persistence. The two existing
-HR3/HG013 journeys must witness the new form with real uploaded data; a dedicated
+HR3/HG013 journeys must witness the new form with real uploaded data and assert
+the fixture lengths (24 m = 0.024km; 175.1389248737094 m geometry = 0.1751389km); a dedicated
 project witnesses reference save/reload without mutating shared read-only fixtures.

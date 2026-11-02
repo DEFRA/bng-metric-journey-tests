@@ -1388,9 +1388,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           significance: 'Low'
         })
         await expect(detailsPage.lengthKey).toBeVisible()
-        await expect(detailsPage.createdLengthValue).toHaveText(
-          LENGTH_KM_PATTERN
-        )
+        await expect(detailsPage.createdLengthValue).toHaveText('0.024km')
         await expect(detailsPage.broadHabitatSelect).toBeHidden()
 
         // AC1 asks for labels *and* values. The edit-form helper pins the six
@@ -1460,9 +1458,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           significance: 'High'
         })
         await expect(detailsPage.lengthKey).toBeVisible()
-        await expect(detailsPage.createdLengthValue).toHaveText(
-          LENGTH_KM_PATTERN
-        )
+        // HG013 geometry is 175.1389248737094 m; the Length column is rounded.
+        await expect(detailsPage.createdLengthValue).toHaveText('0.1751389km')
         await expect(detailsPage.broadHabitatKey).toBeHidden()
         // This fixture has no explicit stored parent, so there is no baseline link.
         await expect(detailsPage.viewBaselineLink).toBeHidden()
