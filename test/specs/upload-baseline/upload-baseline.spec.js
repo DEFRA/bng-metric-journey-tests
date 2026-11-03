@@ -3,7 +3,8 @@ import {
   STORAGE_STATE,
   NO_PROJECTS_STORAGE_STATE,
   skipInE2e,
-  baseUrl
+  baseUrl,
+  runMode
 } from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
 import { noBaselineSummaryRedirectHref } from '@utils/upload-file-navigation.js'
@@ -25,6 +26,9 @@ const PROJECT_LABEL = 'Upload baseline flow test'
 // CDP Uploader must be running; meta-refresh polling can take up to 120 s in the
 // worst case (esp. the real uploader in e2e), so allow the full window.
 const UPLOAD_TIMEOUT = 120_000
+const UPLOADER_REJECTION_FILE = 'Uploader rejected - virus.gpkg'
+const UPLOADER_REJECTION_SKIP_REASON =
+  'Relies on the mock uploader rejecting filenames containing "virus" — CDP runs the real scanner'
 const COMPLETE_BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
 const COMPLETE_POST_INTERVENTION_FILE = 'Post-intervention - complete.gpkg'
 // A second valid baseline whose hedgerow refs differ from COMPLETE_BASELINE_FILE
@@ -1066,14 +1070,33 @@ function describeUploaderRejection() {
       // session, stores an empty error array, redirects to /error-file with the
       // generic "We couldn't accept your file" message) for files the CDP
       // Uploader itself rejects — a different code path from a `ready` status
-      // followed by our backend's own GPKG/content validation. No fixture or
-      // technique in this repo currently drives that branch (not a virus-scan
-      // test file, not an oversized file). To enable:
-      //   1. confirm what makes the CDP Uploader return `rejected` (virus scan?
-      //      MIME/size limit at the uploader layer specifically) and whether
-      //      it's reproducible against the local/github stub
-      //   2. add the fixture/technique and remove this test.skip
-      test.skip('a file rejected by the CDP Uploader shows the generic error-file message', async () => {})
+      // followed by our backend's own GPKG/content validation. The mock uploader
+      // in the stack rejects any filename matching `.*virus.*`; the file's
+      // content never reaches the backend.
+      test.skip(runMode === 'e2e', UPLOADER_REJECTION_SKIP_REASON)
+
+      test('a file rejected by the CDP Uploader shows the generic error-file message', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            page
+          },
+          UPLOADER_REJECTION_FILE
+        )
+
+        await expect(errorFilePage.genericHeading).toBeVisible()
+        await expect(
+          page.getByText("We couldn't accept your file. Please try again.")
+        ).toBeVisible()
+      })
     }
   )
 }

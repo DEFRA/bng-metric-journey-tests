@@ -203,20 +203,21 @@ test.describe('Feature — role enforcement', () => {
 
 `skipInE2e(profile)` returns `true` only in e2e mode for a non-completer profile. Unauthenticated describes (no `storageState`) must **not** receive `test.skip`.
 
-**Expected skipped counts differ by mode — this is by design.** A clean run skips far more tests on CDP (e2e) than locally. Snapshot at 2026-10-23 (416 tests collected), re-derived with the commands below:
+**Expected skipped counts differ by mode — this is by design.** A clean run skips far more tests on CDP (e2e) than locally. Snapshot at 2026-11-03 (421 tests collected), re-derived with the commands below:
 
-- **local / github (stub): 16 skipped** — every one is an unconditional placeholder for a scenario that is not yet built or not reachable from a browser (`test.skip('…', …)` / `test.skip(true, …)` / `test.fixme`), each carrying its unblock steps in a comment. Currently: 4 authentication placeholders (failed login initiation, approved role in another relationship, session-expired redirect, interactive sign-out), the server-side backend-error (≥ 400) path ×3 (project dashboard, project summary, and the `upload-file` selection page), the expired session on the report PDF route, the watercourses trading summary's "not calculated" inset, 2 post-intervention habitat-details tests parked under `FIXME(BMD-1043)`, and 5 upload placeholders shared across both upload flows (CDP Uploader rejection ×2, 120s timeout ×2, irreplaceable habitat).
-- **e2e (CDP): 66 skipped** — those same 16 placeholders **plus 50 tests that cannot run against the real service**:
+- **local / github (stub): 14 skipped** — every one is an unconditional placeholder for a scenario that is not yet built or not reachable from a browser (`test.skip('…', …)` / `test.skip(true, …)` / `test.fixme`), each carrying its unblock steps in a comment. Currently: 4 authentication placeholders (failed login initiation, approved role in another relationship, session-expired redirect, interactive sign-out), the server-side backend-error (≥ 400) path ×3 (project dashboard, project summary, and the `upload-file` selection page), the expired session on the report PDF route, the watercourses trading summary's "not calculated" inset, 2 post-intervention habitat-details tests parked under `FIXME(BMD-1043)`, and 3 upload placeholders (120s timeout ×2, irreplaceable habitat).
+- **e2e (CDP): 66 skipped** — those same 14 placeholders **plus 52 tests that cannot run against the real service**:
   - **22** — habitat-detail tests whose real CDP upload exceeds the frontend's 120s budget under e2e load; covered in github against the stub uploader.
   - **21** — `no-role` / `no-projects` profile tests (role enforcement → `/auth/forbidden`, empty state) that only the stub can mint.
   - **3** — cross-user (IDOR) tests needing a _second_ stub profile.
   - **3** — OIDC callback-failure tests that would record a `LoginFailed` CloudWatch metric against the real login dashboards.
+  - **2** — CDP Uploader rejection, which relies on the mock uploader rejecting a filename; CDP runs the real scanner.
   - **1** — org-reselection, which depends on stub-controlled token claims.
 
 So the extra CDP skips are the stub-only profiles **plus** the upload-heavy detail specs — not just role enforcement and empty state.
 
 The e2e figures come from the skip **reason** strings, not from counting files by hand: each
-of the five groups above is one distinct `test.skip(…)` message, so grouping the annotation
+of the six groups above is one distinct `test.skip(…)` message, so grouping the annotation
 descriptions reproduces the split exactly.
 
 Counts shift as placeholders are implemented or tests are added. To re-derive them rather than guess, list the collected tests and count the `skip` annotations per mode:

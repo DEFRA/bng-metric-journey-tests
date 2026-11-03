@@ -12,9 +12,11 @@ const BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
 const MAX_ERROR_PAGE_MS = 45_000
 const TEST_TIMEOUT_MS = 120_000
 
-// The backend only reads S3 during the file check, so the fault can land before
-// the upload page opens. The uploader keeps its own S3 connection, so the upload
-// itself still succeeds and only the backend's read of the file fails.
+// While handling a request, the backend only reads S3 during the file check, so
+// the fault can land before the upload page opens. (It may also read report fonts
+// at startup, and falls back to bundled ones.) The uploader keeps its own S3
+// connection, so the upload itself still succeeds and only the backend's read of
+// the file fails.
 async function assertHandlesOutage({
   injectFault,
   toxiproxy,
