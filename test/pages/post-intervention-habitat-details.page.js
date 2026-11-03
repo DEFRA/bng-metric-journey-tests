@@ -5,25 +5,10 @@ import { BaselineHabitatDetailsPage } from './baseline-habitat-details.page.js'
 // Habitat units render to 2 decimal places (BMD-608 AC1).
 export const UNITS_TWO_DP_PATTERN = /^\s*\d+\.\d{2}\s*$/
 
-// The /post-intervention-habitat-details route renders a read-only page for
-// every feature, picked by feature type *and* retention category, plus an
-// unsupported-feature placeholder for individual trees — except a Created
-// area habitat or Created hedgerow, which renders an edit form (BMD-1048, frontend PR#418). POST
-// saves that form and answers 501 for any other feature. Two read-only layout
-// families:
-//
-//   - stacked sections (layouts/pi-view-only-sections-page.njk) — <h3> label
-//     over <p> value, feature ref as the H1, a "Habitat units delivered"
-//     summary row. Used by every page except the retained hedgerow, since
-//     BMD-608 (PR#191) and BMD-724 (PR#192) moved the retained area and
-//     retained watercourse pages across.
-//   - summary list (layouts/pi-view-only-page.njk) — the original <dl>, now
-//     only the retained hedgerow page (BMD-723).
-//
-// Extending the baseline page object inherits its select/save locators: the
-// read-only pages assert them hidden, and the Created edit forms assert
-// them visible. The locators added here cover the view-only pages and the
-// edit form's own controls.
+// Created areas, hedgerows and watercourses use the shared edit form.
+// Retained features use stacked details with a reference input and Save/Cancel;
+// Enhanced features keep read-only stacked details. Trees use a placeholder.
+// The baseline page object supplies shared select, reference and save locators.
 export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPage {
   constructor(page) {
     super(page)
@@ -48,8 +33,7 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     this.sizeKilometresKey = page.getByText('Size (kilometres)', {
       exact: true
     })
-    // "Length (km)" labels the retained hedgerow summary row and the
-    // Created linear edit forms' size field.
+    // "Length (km)" labels the Created linear edit forms' size field.
     this.lengthKey = page.getByText('Length (km)', { exact: true })
     this.broadHabitatKey = page.getByText('Broad habitat', { exact: true })
     this.habitatTypeKey = page.getByText('Habitat type', { exact: true })
@@ -61,11 +45,6 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     this.riparianEncroachmentKey = page.getByText('Riparian encroachment', {
       exact: true
     })
-
-    // Retained hedgerow page only (the last summary-list page): Length is the
-    // third row after Reference and Intervention, so its value is the third
-    // <dd>.
-    this.lengthValue = page.getByRole('definition').nth(2)
 
     // Stacked (sections) pages render each row as an <h3> label followed by a
     // <p> value, so the values are paragraphs rather than <dd>s. Playwright has
@@ -314,28 +293,5 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     await expect(this.createdTimeToTargetValue).toHaveText(timeToTarget)
     await expect(this.habitatUnitsValue).toHaveText(UNITS_TWO_DP_PATTERN)
     await expect(this.habitatUnitsValue).toHaveText(units)
-  }
-
-  /**
-   * Assert the shape a Created feature with no usable baseline condition
-   * shares across the hedgerow and watercourse read-only pages: the
-   * two-section layout plus assertCreatedAbsentBaselineValues.
-   * Feature-specific rows (size label, encroachments) and the "View baseline
-   * details" expectation differ per page, so they stay with the caller.
-   *
-   * @param {{ ref: string, projectName: string, timeToTarget: string, units: string }} expected
-   */
-  async assertCreatedAbsentBaselinePage({
-    ref,
-    projectName,
-    timeToTarget,
-    units
-  }) {
-    await this.assertTwoSectionLayout({ ref, intervention: 'Created' })
-    await this.assertCreatedAbsentBaselineValues({
-      projectName,
-      timeToTarget,
-      units
-    })
   }
 }
