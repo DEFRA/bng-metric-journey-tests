@@ -5,9 +5,9 @@
 A BNG Completer opens a feature from its unit-type post-intervention page —
 `area-post-intervention`, `hedgerows-post-intervention` or `watercourses-post-intervention`
 (BMD-1043, frontend PR#352; it was the post-intervention habitat list, now removed) — and
-views its details. **Every post-intervention feature renders a read-only page except a
-Created area habitat, Created hedgerow or Created watercourse**, which renders an **editable form** (BMD-1048, frontend PR#418 /
-backend PR#539, 2026-10-28) — area, hedgerow and watercourse features each get a page
+views its details. **Created area habitats, hedgerows and watercourses render the
+shared editable form** (BMD-1048/BMD-1049/BMD-1050), while Retained features offer
+reference editing and Enhanced features remain read-only. These features each get a page
 specific to their type _and_ their intervention (retention) category; individual trees
 render an unsupported-feature placeholder. `POST /post-intervention-habitat-details` saves
 the Created form (Step 11) or a Retained reference form; unsupported features return **501 Not Implemented**.
@@ -363,6 +363,8 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
   Cancel and Upload discard unsaved changes.
 - **On error:** redisplay field errors with all selections retained. A reference endpoint
   404 during rollout retains the old read-only Created page; other backend failures surface.
+  Stored watercourse types absent from the creation reference also remain read-only,
+  preserving their imported type and condition instead of offering blank save values.
 
 ---
 

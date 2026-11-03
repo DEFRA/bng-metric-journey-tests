@@ -205,11 +205,11 @@ async function expectReturnLinksToPiDetails(
   page,
   baselineHabitatDetailsPage,
   postInterventionHabitatDetailsPage,
-  { projectId, featureId, ref }
+  { projectId, featureId, ref, heading = ref }
 ) {
   const expectedHref = `/post-intervention-habitat-details?featureId=${featureId}&projectId=${projectId}`
   const expectedUrl = new URL(expectedHref, baseUrl).toString()
-  const piHeading = page.getByRole('heading', { name: ref, exact: true })
+  const piHeading = page.getByRole('heading', { name: heading, exact: true })
 
   await expect(baselineHabitatDetailsPage.backLink).toHaveAttribute(
     'href',
@@ -762,7 +762,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           // H2-2: Grassland / Modified grassland / Moderate (fixture values);
           // "Low (2)" and "Moderate (2)" are the engine's reference
           // distinctiveness and condition for that habitat type.
-          await expect(page.getByText('H2-2', { exact: true })).toBeVisible()
+          await expect(
+            postInterventionHabitatDetailsPage.habitatReferenceInput
+          ).toHaveValue('H2-2')
           // The "Size (hectares)" label carries the unit, so the value renders
           // bare (10 significant figures) — formatAreaHectaresValue, not
           // formatAreaHectares.
@@ -852,7 +854,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             {
               projectId: shared.id,
               featureId: shared.retainedWithBaseline,
-              ref: 'H1'
+              ref: 'H1',
+              heading: 'Habitat H1'
             }
           )
         }
@@ -1572,8 +1575,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           shared.name
         )
         await expect(
-          page.getByText(RETAINED_WATERCOURSE_REF, { exact: true })
-        ).toBeVisible()
+          postInterventionHabitatDetailsPage.habitatReferenceInput
+        ).toHaveValue(RETAINED_WATERCOURSE_REF)
         // WC1: Ditches / Moderate / 90 m (fixture values); "Medium (n)" and
         // "Moderate (n)" are the engine's reference distinctiveness and
         // condition for that river type. The "Size (kilometres)" label carries
@@ -2051,7 +2054,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await unitPage.refLink(label, name).click()
 
         expect(await postInterventionHabitatDetailsPage.rawHeadingText()).toBe(
-          LONG_PADDED_REFS.nonAscii
+          `Habitat ${LONG_PADDED_REFS.nonAscii}`
         )
         await expect(
           postInterventionHabitatDetailsPage.viewBaselineLink
