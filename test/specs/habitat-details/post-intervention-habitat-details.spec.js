@@ -205,11 +205,11 @@ async function expectReturnLinksToPiDetails(
   page,
   baselineHabitatDetailsPage,
   postInterventionHabitatDetailsPage,
-  { projectId, featureId, ref }
+  { projectId, featureId, ref, heading = ref }
 ) {
   const expectedHref = `/post-intervention-habitat-details?featureId=${featureId}&projectId=${projectId}`
   const expectedUrl = new URL(expectedHref, baseUrl).toString()
-  const piHeading = page.getByRole('heading', { name: ref, exact: true })
+  const piHeading = page.getByRole('heading', { name: heading, exact: true })
 
   await expect(baselineHabitatDetailsPage.backLink).toHaveAttribute(
     'href',
@@ -538,10 +538,10 @@ function getAllTypesProject(browser) {
 // Baseline + PI watercourse uploads in one project: retained watercourses
 // for the view-only page, with WC1 ref-matched to a baseline watercourse so
 // the "View baseline details" link renders (BMD-724 AC1/AC3).
-function getWatercoursesProject(browser) {
+function getWatercoursesProject(browser, key = 'watercourses') {
   return getSharedProject(
     browser,
-    'watercourses',
+    key,
     { baselineFile: WATERCOURSE_BASELINE_FILE, piFile: WATERCOURSES_FILE },
     async (page, id) => {
       const retained = await harvestPiFeature(
@@ -706,7 +706,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
       test(
-        'retained area habitat renders the read-only page with every summary row and no form controls',
+        'retained area habitat keeps its details and offers reference editing',
         { tag: '@smoke' },
         async ({ browser, postInterventionHabitatDetailsPage, page }) => {
           const shared = await getCompleteProject(browser)
@@ -722,7 +722,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           // label carries the unit, and the units row is the bordered
           // "Habitat units delivered" summary row.
           await expect(
-            page.getByRole('heading', { name: 'H2-2', exact: true })
+            page.getByRole('heading', { name: 'Habitat H2-2', exact: true })
           ).toBeVisible()
           await expect(detailsPage.viewOnlyHeading).toBeVisible()
           await expect(detailsPage.caption).toHaveText(shared.name)
@@ -738,13 +738,13 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           ).toBeVisible()
           await expect(detailsPage.habitatUnitsDeliveredKey).toBeVisible()
 
-          // Read-only: no dropdowns, no Save, and no trading-rules row
+          // Only the reference is editable; no dropdowns or trading-rules row
           // (dropped relative to the baseline details page).
           await expect(detailsPage.broadHabitatSelect).toBeHidden()
           await expect(detailsPage.habitatTypeSelect).toBeHidden()
           await expect(detailsPage.conditionSelect).toBeHidden()
-          await expect(detailsPage.saveButton).toBeHidden()
-          await expect(detailsPage.cancelLink).toBeHidden()
+          await expect(detailsPage.saveButton).toBeVisible()
+          await expect(detailsPage.cancelLink).toBeVisible()
           await expect(detailsPage.tradingRulesKey).toBeHidden()
         }
       )
@@ -762,7 +762,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           // H2-2: Grassland / Modified grassland / Moderate (fixture values);
           // "Low (2)" and "Moderate (2)" are the engine's reference
           // distinctiveness and condition for that habitat type.
-          await expect(page.getByText('H2-2', { exact: true })).toBeVisible()
+          await expect(
+            postInterventionHabitatDetailsPage.habitatReferenceInput
+          ).toHaveValue('H2-2')
           // The "Size (hectares)" label carries the unit, so the value renders
           // bare (10 significant figures) — formatAreaHectaresValue, not
           // formatAreaHectares.
@@ -816,16 +818,13 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             shared.retainedWithBaseline
           )
 
-          // Read-only on this second retained record too (H2-2 is the only
-          // one checked above) — a BMD-608 QA bounce found some PI pages
-          // rendering editable, not all, so more than one retained record
-          // needs the no-form-controls assertion.
+          // Retained references are editable; habitat attributes stay fixed.
           const detailsPage = postInterventionHabitatDetailsPage
           await expect(detailsPage.broadHabitatSelect).toBeHidden()
           await expect(detailsPage.habitatTypeSelect).toBeHidden()
           await expect(detailsPage.conditionSelect).toBeHidden()
-          await expect(detailsPage.saveButton).toBeHidden()
-          await expect(detailsPage.cancelLink).toBeHidden()
+          await expect(detailsPage.saveButton).toBeVisible()
+          await expect(detailsPage.cancelLink).toBeVisible()
 
           await expect(
             postInterventionHabitatDetailsPage.viewBaselineLink
@@ -855,7 +854,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             {
               projectId: shared.id,
               featureId: shared.retainedWithBaseline,
-              ref: 'H1'
+              ref: 'H1',
+              heading: 'Habitat H1'
             }
           )
         }
@@ -1134,7 +1134,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
     test(
-      'retained hedgerow renders the read-only page without a Broad habitat row',
+      'retained hedgerow keeps fixed attributes and offers reference editing',
       { tag: '@smoke' },
       async ({ browser, postInterventionHabitatDetailsPage, page }) => {
         const shared = await getHedgerowsProject(browser)
@@ -1146,7 +1146,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         const detailsPage = postInterventionHabitatDetailsPage
         await expect(detailsPage.viewOnlyHeading).toBeVisible()
         await expect(detailsPage.interventionKey).toBeVisible()
-        await expect(detailsPage.lengthKey).toBeVisible()
+        await expect(detailsPage.sizeKilometresKey).toBeVisible()
         await expect(detailsPage.habitatTypeKey).toBeVisible()
         // Hedgerows have no broad-habitat dimension and no area size row.
         await expect(detailsPage.broadHabitatKey).toBeHidden()
@@ -1154,7 +1154,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(
           page.getByText('Native hedgerow', { exact: true })
         ).toBeVisible()
-        await expect(detailsPage.saveButton).toBeHidden()
+        await expect(detailsPage.saveButton).toBeVisible()
         await expect(detailsPage.habitatTypeSelect).toBeHidden()
 
         // The back-link witness for every hedgerow page (BMD-723, BMD-733 and
@@ -1184,16 +1184,16 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           shared.name
         )
         await expect(
-          page.getByText(RETAINED_HEDGEROW_REF, { exact: true })
-        ).toBeVisible()
+          postInterventionHabitatDetailsPage.habitatReferenceInput
+        ).toHaveValue(RETAINED_HEDGEROW_REF)
         // HR1: Native hedgerow / Moderate / 90 m (fixture values); "Low (2)"
         // and "Moderate (2)" are the engine's reference distinctiveness and
         // condition for that habitat type. Length renders in km with
         // trailing zeros trimmed.
         await expect(page.getByText('Retained', { exact: true })).toBeVisible()
-        await expect(postInterventionHabitatDetailsPage.lengthValue).toHaveText(
-          /^\s*0\.09\s*$/
-        )
+        await expect(
+          postInterventionHabitatDetailsPage.stackedSizeValue
+        ).toHaveText(/^\s*0\.09\s*$/)
         await expect(page.getByText('Low (2)', { exact: true })).toBeVisible()
         await expect(
           page.getByText('Moderate (2)', { exact: true })
@@ -1201,7 +1201,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(
           postInterventionHabitatDetailsPage.strategicSignificanceValue
         ).toBeVisible()
-        // "Units in this habitat" matches the Units cell of the same
+        // "Habitat units delivered" matches the Units cell of the same
         // hedgerow's grid row.
         await expect(
           postInterventionHabitatDetailsPage.habitatUnitsValue
@@ -1539,11 +1539,11 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(
           page.getByText(/^\s*No Encroachment\/No Encroachment( \(.+\))?\s*$/)
         ).toBeVisible()
-        // Read-only: no dropdowns (including the watercourse-only
-        // encroachment selects) and no Save.
+        // Only the reference is editable: no dropdowns (including the watercourse-only
+        // encroachment selects).
         await expect(detailsPage.watercourseEncroachmentSelect).toBeHidden()
         await expect(detailsPage.riparianEncroachmentSelect).toBeHidden()
-        await expect(detailsPage.saveButton).toBeHidden()
+        await expect(detailsPage.saveButton).toBeVisible()
         // Baseline WC1 shares the parcel ref, so the link renders.
         await expect(detailsPage.viewBaselineLink).toBeVisible()
 
@@ -1575,8 +1575,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           shared.name
         )
         await expect(
-          page.getByText(RETAINED_WATERCOURSE_REF, { exact: true })
-        ).toBeVisible()
+          postInterventionHabitatDetailsPage.habitatReferenceInput
+        ).toHaveValue(RETAINED_WATERCOURSE_REF)
         // WC1: Ditches / Moderate / 90 m (fixture values); "Medium (n)" and
         // "Moderate (n)" are the engine's reference distinctiveness and
         // condition for that river type. The "Size (kilometres)" label carries
@@ -1634,7 +1634,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
   // ─── Enhanced watercourse — values, navigation and baseline link (BMD-735) ──
   // The Enhanced watercourse page's *structure* is asserted in the parametrised
-  // "non-retained watercourse habitats are read-only" block below, which reads
+  // "Created and Enhanced watercourse details" block below, which reads
   // the mixed-retention fixture. That fixture cannot reach the rest of BMD-735's
   // ACs: its Enhanced watercourse (WC2) is Moderate→Moderate, so the
   // time-to-target section renders blank, and its baseline file carries only
@@ -1706,8 +1706,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
   })
 
   // ─── Created / Enhanced watercourses (BMD-739, BMD-735) ─────────────────────
-  // Both render their own two-section template (pi-watercourse-details-created
-  // / -enhanced, frontend PR#187/#188) rather than the retained watercourse's
+  // Created watercourses use the shared edit form (BMD-1050); Enhanced
+  // watercourses retain their two-section template, rather than the retained watercourse's
   // single-section page. They carry the same rows, in an order that differs
   // from the retained page: Strategic significance sits *above* the two
   // encroachment rows. Their encroachment values are read from `proposed`,
@@ -1716,7 +1716,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
   // does: click the Ref link in the watercourses post-intervention grid.
 
   test.describe(
-    'non-retained watercourse habitats are read-only',
+    'Created and Enhanced watercourse details',
     { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
@@ -1728,7 +1728,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       ]) {
         const intervention = label === 'an Enhanced' ? 'Enhanced' : 'Created'
 
-        test(`${label} watercourse renders the two-section read-only page`, async ({
+        test(`${label} watercourse renders its details ${intervention === 'Created' ? 'edit form' : 'read-only page'}`, async ({
           browser,
           postInterventionHabitatDetailsPage,
           page
@@ -1738,7 +1738,24 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
           const detailsPage = postInterventionHabitatDetailsPage
-          await detailsPage.assertTwoSectionLayout({ ref, intervention })
+          if (intervention === 'Created') {
+            await detailsPage.assertCreatedWatercourseEditForm({ ref })
+            await expect(detailsPage.habitatTypeSelect).toHaveValue('Ditches')
+            await expect(detailsPage.targetConditionSelect).toHaveValue(
+              'Moderate'
+            )
+            await expect(detailsPage.strategicSignificanceSelect).toHaveValue(
+              'High'
+            )
+            await expect(detailsPage.watercourseEncroachmentSelect).toHaveValue(
+              'No Encroachment'
+            )
+            await expect(detailsPage.riparianEncroachmentSelect).toHaveValue(
+              'No Encroachment/No Encroachment'
+            )
+          } else {
+            await detailsPage.assertTwoSectionLayout({ ref, intervention })
+          }
           // Page chrome (BMD-735 AC1): the back link and the project-name
           // caption sit outside the two sections, so assertTwoSectionLayout
           // does not reach them.
@@ -1749,17 +1766,79 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           // BMD-735/739 AC1 ask for the length "expressed in km", so assert
           // the km-suffixed value too — the label alone would survive a
           // regression that rendered hectares against it.
-          await expect(detailsPage.enhancedLengthKey).toBeVisible()
-          await expect(detailsPage.stackedSizeValue).toHaveText(
-            LENGTH_KM_PATTERN
-          )
+          if (intervention === 'Created') {
+            await expect(detailsPage.createdLengthValue).toHaveText('0.024km')
+          } else {
+            await expect(detailsPage.enhancedLengthKey).toBeVisible()
+            await expect(detailsPage.stackedSizeValue).toHaveText(
+              LENGTH_KM_PATTERN
+            )
+          }
           await expect(detailsPage.watercourseEncroachmentKey).toBeVisible()
           await expect(detailsPage.riparianEncroachmentKey).toBeVisible()
           await expect(detailsPage.broadHabitatKey).toBeHidden()
-          await expect(detailsPage.watercourseEncroachmentSelect).toBeHidden()
-          await expect(detailsPage.riparianEncroachmentSelect).toBeHidden()
+          if (intervention === 'Enhanced') {
+            await expect(detailsPage.watercourseEncroachmentSelect).toBeHidden()
+            await expect(detailsPage.riparianEncroachmentSelect).toBeHidden()
+          }
         })
       }
+
+      // Backend integration checks the rules; this is the real browser-to-service
+      // witness for both encroachment selections and an explicit blank timing save.
+      test(
+        'saves Created watercourse encroachments and keeps cleared timing blank after reload',
+        { tag: '@happy-path' },
+        async ({
+          browser,
+          page,
+          postInterventionHabitatDetailsPage: details
+        }) => {
+          const shared = await getWatercoursesProject(
+            browser,
+            'watercourses-edit-save'
+          )
+          await openPiFeatureDetails(
+            page,
+            shared.id,
+            'watercourse',
+            CREATED_WATERCOURSE_REF
+          )
+          const ref = `${CREATED_WATERCOURSE_REF} edited`
+          await details.habitatReferenceInput.fill(ref)
+          await details.watercourseEncroachmentSelect.selectOption('Minor')
+          await details.riparianEncroachmentSelect.selectOption('Minor/Minor')
+          await details.saveButton.click()
+          await expectOnPiPage(page, shared.id, 'watercourse')
+          // 0.024 km Ditches, Moderate, High significance, zero timing, 0.8/0.95 encroachment multipliers.
+          expect(await unitsByRef(page, shared.id, 'watercourse', ref)).toBe(
+            '0.09'
+          )
+          await openPiFeatureDetails(page, shared.id, 'watercourse', ref)
+          await expect(details.habitatReferenceInput).toHaveValue(ref)
+          await expect(details.watercourseEncroachmentSelect).toHaveValue(
+            'Minor'
+          )
+          await expect(details.riparianEncroachmentSelect).toHaveValue(
+            'Minor/Minor'
+          )
+          await expect(details.habitatUnitsValue).toHaveText('0.09')
+          await details.delayYearsSelect.selectOption('')
+          await details.saveButton.click()
+          await expectOnPiPage(page, shared.id, 'watercourse')
+          expect(await unitsByRef(page, shared.id, 'watercourse', ref)).toBe('')
+          await openPiFeatureDetails(page, shared.id, 'watercourse', ref)
+          await expect(details.delayYearsSelect).toHaveValue('')
+          await expect(details.advanceYearsSelect).toHaveValue('0')
+          await expect(details.habitatUnitsValue).toHaveText(/^\s*$/)
+          await expect(details.watercourseEncroachmentSelect).toHaveValue(
+            'Minor'
+          )
+          await expect(details.riparianEncroachmentSelect).toHaveValue(
+            'Minor/Minor'
+          )
+        }
+      )
 
       // BMD-739 AC1 asks for labels *and* values. The loop above pins the
       // labels for both refs; the section-2 values can only be asserted on the
@@ -1831,25 +1910,34 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         // regression BMD-739 was re-worked for: a blank row leaves the locator
         // unresolved, and so does a reappearing transition prefix. It also
         // proves the sentinel itself never reaches the page.
-        await detailsPage.assertCreatedAbsentBaselinePage({
-          ref: CREATED_LINEAR_WATERCOURSE_REF,
+        await detailsPage.assertCreatedWatercourseEditForm({
+          ref: CREATED_LINEAR_WATERCOURSE_REF
+        })
+        await detailsPage.assertCreatedAbsentBaselineValues({
           projectName: shared.name,
           timeToTarget: CREATED_LINEAR_WATERCOURSE_TIME_TO_TARGET,
           units: shared.createdLinearWatercourseUnits
         })
-        // Watercourse specifics: the size row is "Length" (unit on the value),
-        // plus the two encroachment rows, and no broad-habitat dimension.
-        await expect(detailsPage.enhancedLengthKey).toBeVisible()
-        await expect(detailsPage.stackedSizeValue).toHaveText(LENGTH_KM_PATTERN)
+        // Created watercourses keep fixed Length (km), both encroachment
+        // controls and no broad-habitat dimension.
+        await expect(detailsPage.lengthKey).toBeVisible()
+        await expect(detailsPage.createdLengthValue).toHaveText('0.1789861km')
+        await expect(detailsPage.habitatTypeSelect).toHaveValue('Canals')
+        await expect(detailsPage.targetConditionSelect).toHaveValue(
+          'Fairly Poor'
+        )
+        await expect(detailsPage.watercourseEncroachmentSelect).toHaveValue(
+          'Minor'
+        )
+        await expect(detailsPage.riparianEncroachmentSelect).toHaveValue(
+          'Major/Major'
+        )
         await expect(detailsPage.watercourseEncroachmentKey).toBeVisible()
         await expect(detailsPage.riparianEncroachmentKey).toBeVisible()
         await expect(detailsPage.broadHabitatKey).toBeHidden()
-        // No "View baseline details" assertion here, unlike the Created area
-        // and hedgerow tests. The baseline half of this pair carries R003, so a
-        // ref match exists and the link *does* render — Created watercourses do
-        // not suppress it the way Created hedgerows do (flow doc Step 8). The
-        // product decision on whether that is correct is still open, so
-        // asserting either way would cement it.
+        // The PI upload derives its baseline from non-Created rows, so R003
+        // has no parent in the stored project despite the baseline file's ref.
+        await expect(detailsPage.viewBaselineLink).toBeHidden()
       })
     }
   )
@@ -1894,8 +1982,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
   )
 
   // ─── Save is not implemented for read-only features ─────────────────────────
-  // Created area and hedgerow edit forms post here. The route answers
-  // 501 for every other feature, so a stale page or client gets an explicit
+  // Created details and Retained reference forms post here. The route answers
+  // 501 for Enhanced features, so a stale page or client gets an explicit
   // "not implemented" response rather than a save. The handler validates the
   // payload first (400 for a malformed body), so the request must be a
   // well-formed save aimed at a read-only feature to reach that branch.
@@ -1907,7 +1995,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      test('POST /post-intervention-habitat-details for a Retained area habitat returns 501 Not Implemented', async ({
+      test('POST /post-intervention-habitat-details for an Enhanced area habitat returns 501 Not Implemented', async ({
         browser,
         page
       }) => {
@@ -1926,7 +2014,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           {
             data: {
               projectId: shared.id,
-              featureId: shared.retainedWithBaseline,
+              featureId: shared.enhancedWithBaseline,
               ref: 'H1',
               broadHabitat: '',
               habitatType: '',
@@ -1966,7 +2054,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await unitPage.refLink(label, name).click()
 
         expect(await postInterventionHabitatDetailsPage.rawHeadingText()).toBe(
-          LONG_PADDED_REFS.nonAscii
+          `Habitat ${LONG_PADDED_REFS.nonAscii}`
         )
         await expect(
           postInterventionHabitatDetailsPage.viewBaselineLink
