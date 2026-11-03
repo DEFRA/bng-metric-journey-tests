@@ -5,31 +5,31 @@ import { BaselineHabitatDetailsPage } from './baseline-habitat-details.page.js'
 // Habitat units render to 2 decimal places (BMD-608 AC1).
 export const UNITS_TWO_DP_PATTERN = /^\s*\d+\.\d{2}\s*$/
 
-// The /post-intervention-habitat-details route renders a read-only page for
-// every feature, picked by feature type *and* retention category, plus an
-// unsupported-feature placeholder for individual trees — except a Created
-// area habitat or Created hedgerow, which renders an edit form (BMD-1048, frontend PR#418). POST
-// saves that form and answers 501 for any other feature. Two read-only layout
-// families:
+// The /post-intervention-habitat-details route renders a page for every
+// feature, picked by feature type *and* retention category, plus an
+// unsupported-feature placeholder for individual trees. Three kinds of page:
 //
-//   - stacked sections (layouts/pi-view-only-sections-page.njk) — <h3> label
-//     over <p> value, feature ref as the H1, a "Habitat units delivered"
-//     summary row. Used by every page except the retained hedgerow, since
-//     BMD-608 (PR#191) and BMD-724 (PR#192) moved the retained area and
-//     retained watercourse pages across.
-//   - summary list (layouts/pi-view-only-page.njk) — the original <dl>, now
-//     only the retained hedgerow page (BMD-723).
+//   - read-only (Enhanced features and Created watercourses).
+//   - reference form (Retained area habitats, hedgerows and watercourses,
+//     BMD-1180, frontend PR#423) — the read-only page plus a "Habitat reference"
+//     input and Save / Cancel.
+//   - edit form (Created area habitats and hedgerows, BMD-1048, frontend PR#418).
+//
+// POST saves either form and answers 501 for any other feature. The read-only
+// and reference-form pages share layouts/pi-view-only-sections-page.njk: <h3>
+// label over <p> value, and a "Habitat units delivered" summary row. The H1 is
+// the feature ref, prefixed on a Retained page.
 //
 // Extending the baseline page object inherits its select/save locators: the
-// read-only pages assert them hidden, and the Created edit forms assert
-// them visible. The locators added here cover the view-only pages and the
-// edit form's own controls.
+// read-only pages assert the save controls hidden, and the forms assert them
+// visible. The locators added here cover the view-only pages and the edit
+// form's own controls.
 export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPage {
   constructor(page) {
     super(page)
-    // "Post-intervention habitat details" — the H1 on the summary-list and
-    // placeholder pages, and the first section's <h2> on the stacked pages
-    // (whose H1 is the feature ref instead). getByRole matches either.
+    // "Post-intervention habitat details" — the H1 on the placeholder page, and
+    // the first section's <h2> on the stacked pages (whose H1 is the feature ref
+    // instead). getByRole matches either.
     this.viewOnlyHeading = page.getByRole('heading', {
       name: 'Post-intervention habitat details'
     })
@@ -38,18 +38,16 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     })
     this.caption = page.getByTestId('app-heading-caption')
 
-    // Row labels, matched by visible text — a <dt> on the summary-list page and
-    // an <h3> on the stacked pages, so getByText covers both.
+    // Row labels, matched by visible text — an <h3> on the stacked pages.
     this.interventionKey = page.getByText('Intervention', { exact: true })
-    // Stacked (sections) size labels — the retained area page (BMD-608) and the
-    // retained watercourse page (BMD-724) name the unit in the label, so their
-    // values render bare.
+    // Stacked (sections) size labels — the retained area (BMD-608), hedgerow
+    // (BMD-1180) and watercourse (BMD-724) pages name the unit in the label, so
+    // their values render bare.
     this.sizeHectaresKey = page.getByText('Size (hectares)', { exact: true })
     this.sizeKilometresKey = page.getByText('Size (kilometres)', {
       exact: true
     })
-    // "Length (km)" labels the retained hedgerow summary row and the
-    // Created hedgerow edit form's size field.
+    // "Length (km)" labels the Created hedgerow edit form's size field.
     this.lengthKey = page.getByText('Length (km)', { exact: true })
     this.broadHabitatKey = page.getByText('Broad habitat', { exact: true })
     this.habitatTypeKey = page.getByText('Habitat type', { exact: true })
@@ -61,11 +59,6 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     this.riparianEncroachmentKey = page.getByText('Riparian encroachment', {
       exact: true
     })
-
-    // Retained hedgerow page only (the last summary-list page): Length is the
-    // third row after Reference and Intervention, so its value is the third
-    // <dd>.
-    this.lengthValue = page.getByRole('definition').nth(2)
 
     // Stacked (sections) pages render each row as an <h3> label followed by a
     // <p> value, so the values are paragraphs rather than <dd>s. Playwright has
@@ -96,16 +89,15 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     )
 
     // ─── Stacked "sections" pages ───────────────────────────────────────────
-    // Every page on this route except the retained hedgerow now extends
+    // Every read-only and reference-form page on this route extends
     // layouts/pi-view-only-sections-page.njk: stacked label-over-value fields
     // under one or two <h2> sections, plus a "Habitat units delivered" summary
     // row. Created/Enhanced pages add the second "Time to target / difficulty"
-    // section; the retained area (BMD-608) and retained watercourse (BMD-724)
-    // pages have the first section only. The page heading is the feature ref
-    // (assert that in the spec via getByRole). The first section's heading
-    // reuses viewOnlyHeading's "Post-intervention habitat details" text; the
-    // second section heading is added here. Labels are <h3> headings, so
-    // getByText matches them.
+    // section; the retained pages have the first section only. The page heading
+    // carries the feature ref (assert that in the spec via getByRole). The first
+    // section's heading reuses viewOnlyHeading's "Post-intervention habitat
+    // details" text; the second section heading is added here. Labels are <h3>
+    // headings, so getByText matches them.
     this.timeToTargetSectionHeading = page.getByText(
       'Time to target / difficulty',
       { exact: true }
@@ -116,8 +108,7 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     // "Size (hectares)".
     this.enhancedAreaKey = page.getByText('Area', { exact: true })
     this.enhancedLengthKey = page.getByText('Length', { exact: true })
-    // Lower-case on every stacked page; the retained hedgerow summary list is
-    // the only page still using the title-case "Strategic Significance".
+    // Lower-case on every stacked page.
     this.stackedStrategicSignificanceKey = page.getByText(
       'Strategic significance',
       { exact: true }
@@ -168,9 +159,8 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     this.createdTimeToTargetValue = page.getByText(
       /^(?!.* to )(?!Advance - )(?!Delay - ).+ - \d+(\.\d+)? years$/
     )
-    // The enhanced page's units row is labelled "Habitat units delivered"
-    // (distinct from the single-list "Units in this habitat"). It is the only
-    // summary-list on the page, so its value is the sole <dd> and
+    // The stacked pages' units row is labelled "Habitat units delivered". It is
+    // the only summary-list on the page, so its value is the sole <dd> and
     // habitatUnitsValue (getByRole('definition').last()) still resolves it.
     this.habitatUnitsDeliveredKey = page.getByText('Habitat units delivered', {
       exact: true
@@ -239,6 +229,17 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
 
     await expect(this.saveButton).toBeHidden()
     await expect(this.cancelLink).toBeHidden()
+  }
+
+  /**
+   * Assert what BMD-1180 adds to a Retained page: the reference input pre-filled
+   * with the saved ref, and Save / Cancel. Every other value stays read-only,
+   * which the caller asserts for the rows its feature type has.
+   */
+  async assertRetainedRefForm({ ref }) {
+    await expect(this.habitatReferenceInput).toHaveValue(ref)
+    await expect(this.saveButton).toBeVisible()
+    await expect(this.cancelLink).toBeVisible()
   }
 
   /**
