@@ -49,7 +49,7 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
       exact: true
     })
     // "Length (km)" labels the retained hedgerow summary row and the
-    // Created hedgerow edit form's size field.
+    // Created linear edit forms' size field.
     this.lengthKey = page.getByText('Length (km)', { exact: true })
     this.broadHabitatKey = page.getByText('Broad habitat', { exact: true })
     this.habitatTypeKey = page.getByText('Habitat type', { exact: true })
@@ -253,6 +253,12 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
 
   async assertCreatedHedgerowEditForm({ ref }) {
     await this.assertCreatedEditForm({ ref, kind: 'hedgerow' })
+  }
+
+  async assertCreatedWatercourseEditForm({ ref }) {
+    await this.assertCreatedEditForm({ ref, kind: 'watercourse' })
+    await expect(this.watercourseEncroachmentSelect).toBeVisible()
+    await expect(this.riparianEncroachmentSelect).toBeVisible()
   }
 
   async assertCreatedEditForm({ ref, kind = 'area' }) {

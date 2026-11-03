@@ -345,36 +345,30 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
 
 ---
 
-### Step 8 — View Created watercourse details (read-only, two-section) `[IMPLEMENTED]`
+### Step 8 — Edit Created watercourse details (BMD-1050) `[IMPLEMENTED]`
 
-- **Route:** shared GET contract (watercourse feature whose normalised `retentionCategory === "Created"`)
-- **Template:** `src/server/habitat-details/pi-watercourse-details-created.njk` (extends `layouts/pi-view-only-sections-page.njk`; BMD-739, frontend PR#187)
-- **Backend endpoint:** shared GET contract
-- **Description:** Two-section stacked page, H1 = feature ref.
-  - **Section 1 — "Post-intervention habitat details":** Intervention, **Length**, Habitat
-    type, Distinctiveness, Condition, **Strategic significance**, **Watercourse
-    encroachment**, **Riparian encroachment**. Note the order differs from the retained
-    watercourse page in Step 3 — here Strategic significance sits **above** the two
-    encroachment rows. Length carries its own `km` suffix (`formatLengthDisplay`).
-  - **"View baseline details"** link after the first section, resolved by ref when a
-    matching baseline exists. Created hedgerow edit forms use the parent rules in Step 7.
-  - **Section 2 — "Time to target / difficulty":** the same six rows as Step 4.
-  - Then the bordered "Habitat units delivered" row.
-  - **Encroachment values read from `proposed`**, not baseline-first — for a created or
-    enhanced watercourse the engine takes its encroachment inputs from the proposed side.
-    This is the opposite of the retained watercourse page (Step 3).
-  - Back link to the watercourses post-intervention page.
-
-  Fixture note: the `created linear features` pair supplies the `N/A`-sentinel
-  time-to-target case for watercourses (see Step 4's coverage note) through **R003** —
-  Created, `Baseline Condition = "N/A"`, target `Fairly Poor`, so the row reads the short
-  form `Fairly Poor - 2 years` (BMD-739 re-work). WC3 in `watercourses mixed retention`
-  cannot stand in: it is Created _with_ a real baseline condition (`Moderate`), so it takes
-  the transition branch and never reaches that code.
-
-- **Validation:** shared GET contract
-- **On success:** Renders the Created two-section read-only watercourse details page
-- **On error:** shared GET contract
+- **Route:** shared GET contract for a Created watercourse.
+- **Template:** `src/server/habitat-details/pi-habitat-details-created-edit.njk`.
+- **Backend endpoints:** GET `/reference/watercourse-creation` and PUT
+  `/projects/{projectId}/post-intervention/watercourses/{featureId}`.
+- **Description:** Shared Created form with fixed imported Length (km), no broad habitat,
+  watercourse-only habitat/condition options and separate Watercourse encroachment and
+  Riparian encroachment dropdowns. Each has its own Choose default and can be cleared
+  independently. Changes do not reset other inputs or recalculate displayed units.
+  WC3 keeps its baseline-to-target wording; R003 keeps the absent-baseline short form.
+  The imported lengths are pinned: WC3 is 24 m (0.024km), R003's geometry is
+  178.98607010841465 m (0.1789861km), rather than its rounded 179 m attribute.
+  Saved values populate the form; unsupported imported timing, condition and encroachment
+  values have an explicit unchanged option. Explicit clearing sends null.
+  Baseline links follow the same stored-parent rules as Created hedgerows.
+- **Validation:** shared Created validation; positive advance and delay together fail on
+  Save. Error text reuses the existing Created editor wording, pending Jack's final copy
+  for invalid references and conflicting timing (BMD-1050 Open Points).
+- **On success:** Save recalculates watercourse units, status and totals and returns to
+  the watercourses list. Incomplete units remain null with zero aggregate contribution.
+  Cancel and Upload discard unsaved changes.
+- **On error:** redisplay field errors with all selections retained. A reference endpoint
+  404 during rollout retains the old read-only Created page; other backend failures surface.
 
 ---
 
@@ -409,21 +403,22 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
 
 ---
 
-### Step 11 — Save Created area or hedgerow details (BMD-1048/BMD-1049) `[IMPLEMENTED]`
+### Step 11 — Save Created area, hedgerow or watercourse details (BMD-1048/BMD-1049/BMD-1050) `[IMPLEMENTED]`
 
 - **Route:** `POST /post-intervention-habitat-details`
 - **Template:** `pi-habitat-details-created-edit.njk` on a field-validation failure
 - **Auth required:** Yes (session, approved BNG Completer role and CSRF protection)
 - **Backend endpoints:** GET the post-intervention feature to check type/retention, load
-  `/reference/area-creation` or `/reference/hedgerow-creation`, then PUT to
+  `/reference/area-creation`, `/reference/hedgerow-creation` or `/reference/watercourse-creation`, then PUT to
   `/projects/{projectId}/post-intervention/habitats/{featureId}` for areas or
-  `/projects/{projectId}/post-intervention/hedgerows/{featureId}` for hedgerows.
+  `/projects/{projectId}/post-intervention/hedgerows/{featureId}` for hedgerows, or
+  `/projects/{projectId}/post-intervention/watercourses/{featureId}` for watercourses.
   The backend validates the edit, uses shared enrichment and saves the feature, units and
   project totals. Incomplete features keep `units: null` and do not contribute units.
-- **Description:** Both Step 4 and Step 7 forms post here. The handler:
-  1. Validates UUIDs, editable strings and timing selections against the two Joi payload
+- **Description:** The Step 4, Step 7 and Step 8 forms post here. The handler:
+  1. Validates UUIDs, editable strings and timing selections against the three Joi payload
      schemas. Timing selections can be blank, 0 to 30, 30+, or unchanged imported values.
-     Areas require a broad habitat field; hedgerows forbid it. Malformed payloads return
+     Areas require a broad habitat field; hedgerows and watercourses forbid it. Watercourses require both encroachment controls. Malformed payloads return
      400 before backend requests; the type-specific missing-area-broad guard runs after
      fetching the feature and before loading reference data.
   2. Refuses features other than Created areas or hedgerows with 501.
@@ -476,3 +471,16 @@ rollout fallback; backend tests cover calculations and persistence. The two exis
 HR3/HG013 journeys must witness the new form with real uploaded data and assert
 the fixture lengths (24 m = 0.024km; 175.1389248737094 m geometry = 0.1751389km); a dedicated
 project witnesses reference save/reload without mutating shared read-only fixtures.
+
+## BMD-1050 approved coverage update
+
+The existing WC3/R003 witnesses cover the real watercourse form, saved selections,
+exact geometry lengths and both time-to-target display branches. Backend tests cover
+calculator combinations, ownership, validation and null persistence; frontend tests
+cover rendered controls and accessible validation, with the backend mocked.
+
+The approved additional browser witness uses its own uploaded watercourse project.
+It renames WC3, changes both encroachments, saves and checks the recalculated 0.09 units
+in the grid and reopened details. It then clears delay, saves and verifies blank units,
+a blank saved delay and unchanged advance and encroachments after reopening. This
+connects browser null submission to real persistence and rendering across both services.

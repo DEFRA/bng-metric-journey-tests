@@ -538,10 +538,10 @@ function getAllTypesProject(browser) {
 // Baseline + PI watercourse uploads in one project: retained watercourses
 // for the view-only page, with WC1 ref-matched to a baseline watercourse so
 // the "View baseline details" link renders (BMD-724 AC1/AC3).
-function getWatercoursesProject(browser) {
+function getWatercoursesProject(browser, key = 'watercourses') {
   return getSharedProject(
     browser,
-    'watercourses',
+    key,
     { baselineFile: WATERCOURSE_BASELINE_FILE, piFile: WATERCOURSES_FILE },
     async (page, id) => {
       const retained = await harvestPiFeature(
@@ -1634,7 +1634,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
   // ─── Enhanced watercourse — values, navigation and baseline link (BMD-735) ──
   // The Enhanced watercourse page's *structure* is asserted in the parametrised
-  // "non-retained watercourse habitats are read-only" block below, which reads
+  // "Created and Enhanced watercourse details" block below, which reads
   // the mixed-retention fixture. That fixture cannot reach the rest of BMD-735's
   // ACs: its Enhanced watercourse (WC2) is Moderate→Moderate, so the
   // time-to-target section renders blank, and its baseline file carries only
@@ -1706,8 +1706,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
   })
 
   // ─── Created / Enhanced watercourses (BMD-739, BMD-735) ─────────────────────
-  // Both render their own two-section template (pi-watercourse-details-created
-  // / -enhanced, frontend PR#187/#188) rather than the retained watercourse's
+  // Created watercourses use the shared edit form (BMD-1050); Enhanced
+  // watercourses retain their two-section template, rather than the retained watercourse's
   // single-section page. They carry the same rows, in an order that differs
   // from the retained page: Strategic significance sits *above* the two
   // encroachment rows. Their encroachment values are read from `proposed`,
@@ -1716,7 +1716,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
   // does: click the Ref link in the watercourses post-intervention grid.
 
   test.describe(
-    'non-retained watercourse habitats are read-only',
+    'Created and Enhanced watercourse details',
     { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
@@ -1728,7 +1728,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       ]) {
         const intervention = label === 'an Enhanced' ? 'Enhanced' : 'Created'
 
-        test(`${label} watercourse renders the two-section read-only page`, async ({
+        test(`${label} watercourse renders its details ${intervention === 'Created' ? 'edit form' : 'read-only page'}`, async ({
           browser,
           postInterventionHabitatDetailsPage,
           page
@@ -1738,7 +1738,24 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
           const detailsPage = postInterventionHabitatDetailsPage
-          await detailsPage.assertTwoSectionLayout({ ref, intervention })
+          if (intervention === 'Created') {
+            await detailsPage.assertCreatedWatercourseEditForm({ ref })
+            await expect(detailsPage.habitatTypeSelect).toHaveValue('Ditches')
+            await expect(detailsPage.targetConditionSelect).toHaveValue(
+              'Moderate'
+            )
+            await expect(detailsPage.strategicSignificanceSelect).toHaveValue(
+              'High'
+            )
+            await expect(detailsPage.watercourseEncroachmentSelect).toHaveValue(
+              'No Encroachment'
+            )
+            await expect(detailsPage.riparianEncroachmentSelect).toHaveValue(
+              'No Encroachment/No Encroachment'
+            )
+          } else {
+            await detailsPage.assertTwoSectionLayout({ ref, intervention })
+          }
           // Page chrome (BMD-735 AC1): the back link and the project-name
           // caption sit outside the two sections, so assertTwoSectionLayout
           // does not reach them.
@@ -1749,17 +1766,79 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           // BMD-735/739 AC1 ask for the length "expressed in km", so assert
           // the km-suffixed value too — the label alone would survive a
           // regression that rendered hectares against it.
-          await expect(detailsPage.enhancedLengthKey).toBeVisible()
-          await expect(detailsPage.stackedSizeValue).toHaveText(
-            LENGTH_KM_PATTERN
-          )
+          if (intervention === 'Created') {
+            await expect(detailsPage.createdLengthValue).toHaveText('0.024km')
+          } else {
+            await expect(detailsPage.enhancedLengthKey).toBeVisible()
+            await expect(detailsPage.stackedSizeValue).toHaveText(
+              LENGTH_KM_PATTERN
+            )
+          }
           await expect(detailsPage.watercourseEncroachmentKey).toBeVisible()
           await expect(detailsPage.riparianEncroachmentKey).toBeVisible()
           await expect(detailsPage.broadHabitatKey).toBeHidden()
-          await expect(detailsPage.watercourseEncroachmentSelect).toBeHidden()
-          await expect(detailsPage.riparianEncroachmentSelect).toBeHidden()
+          if (intervention === 'Enhanced') {
+            await expect(detailsPage.watercourseEncroachmentSelect).toBeHidden()
+            await expect(detailsPage.riparianEncroachmentSelect).toBeHidden()
+          }
         })
       }
+
+      // Backend integration checks the rules; this is the real browser-to-service
+      // witness for both encroachment selections and an explicit blank timing save.
+      test(
+        'saves Created watercourse encroachments and keeps cleared timing blank after reload',
+        { tag: '@happy-path' },
+        async ({
+          browser,
+          page,
+          postInterventionHabitatDetailsPage: details
+        }) => {
+          const shared = await getWatercoursesProject(
+            browser,
+            'watercourses-edit-save'
+          )
+          await openPiFeatureDetails(
+            page,
+            shared.id,
+            'watercourse',
+            CREATED_WATERCOURSE_REF
+          )
+          const ref = `${CREATED_WATERCOURSE_REF} edited`
+          await details.habitatReferenceInput.fill(ref)
+          await details.watercourseEncroachmentSelect.selectOption('Minor')
+          await details.riparianEncroachmentSelect.selectOption('Minor/Minor')
+          await details.saveButton.click()
+          await expectOnPiPage(page, shared.id, 'watercourse')
+          // 0.024 km Ditches, Moderate, High significance, zero timing, 0.8/0.95 encroachment multipliers.
+          expect(await unitsByRef(page, shared.id, 'watercourse', ref)).toBe(
+            '0.09'
+          )
+          await openPiFeatureDetails(page, shared.id, 'watercourse', ref)
+          await expect(details.habitatReferenceInput).toHaveValue(ref)
+          await expect(details.watercourseEncroachmentSelect).toHaveValue(
+            'Minor'
+          )
+          await expect(details.riparianEncroachmentSelect).toHaveValue(
+            'Minor/Minor'
+          )
+          await expect(details.habitatUnitsValue).toHaveText('0.09')
+          await details.delayYearsSelect.selectOption('')
+          await details.saveButton.click()
+          await expectOnPiPage(page, shared.id, 'watercourse')
+          expect(await unitsByRef(page, shared.id, 'watercourse', ref)).toBe('')
+          await openPiFeatureDetails(page, shared.id, 'watercourse', ref)
+          await expect(details.delayYearsSelect).toHaveValue('')
+          await expect(details.advanceYearsSelect).toHaveValue('0')
+          await expect(details.habitatUnitsValue).toHaveText(/^\s*$/)
+          await expect(details.watercourseEncroachmentSelect).toHaveValue(
+            'Minor'
+          )
+          await expect(details.riparianEncroachmentSelect).toHaveValue(
+            'Minor/Minor'
+          )
+        }
+      )
 
       // BMD-739 AC1 asks for labels *and* values. The loop above pins the
       // labels for both refs; the section-2 values can only be asserted on the
@@ -1831,25 +1910,32 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         // regression BMD-739 was re-worked for: a blank row leaves the locator
         // unresolved, and so does a reappearing transition prefix. It also
         // proves the sentinel itself never reaches the page.
-        await detailsPage.assertCreatedAbsentBaselinePage({
-          ref: CREATED_LINEAR_WATERCOURSE_REF,
+        await detailsPage.assertCreatedWatercourseEditForm({
+          ref: CREATED_LINEAR_WATERCOURSE_REF
+        })
+        await detailsPage.assertCreatedAbsentBaselineValues({
           projectName: shared.name,
           timeToTarget: CREATED_LINEAR_WATERCOURSE_TIME_TO_TARGET,
           units: shared.createdLinearWatercourseUnits
         })
-        // Watercourse specifics: the size row is "Length" (unit on the value),
-        // plus the two encroachment rows, and no broad-habitat dimension.
-        await expect(detailsPage.enhancedLengthKey).toBeVisible()
-        await expect(detailsPage.stackedSizeValue).toHaveText(LENGTH_KM_PATTERN)
+        // Created watercourses keep fixed Length (km), both encroachment
+        // controls and no broad-habitat dimension.
+        await expect(detailsPage.lengthKey).toBeVisible()
+        await expect(detailsPage.createdLengthValue).toHaveText('0.1789861km')
+        await expect(detailsPage.habitatTypeSelect).toHaveValue('Canals')
+        await expect(detailsPage.targetConditionSelect).toHaveValue(
+          'Fairly Poor'
+        )
+        await expect(detailsPage.watercourseEncroachmentSelect).toHaveValue(
+          'Minor'
+        )
+        await expect(detailsPage.riparianEncroachmentSelect).toHaveValue(
+          'Major/Major'
+        )
         await expect(detailsPage.watercourseEncroachmentKey).toBeVisible()
         await expect(detailsPage.riparianEncroachmentKey).toBeVisible()
         await expect(detailsPage.broadHabitatKey).toBeHidden()
-        // No "View baseline details" assertion here, unlike the Created area
-        // and hedgerow tests. The baseline half of this pair carries R003, so a
-        // ref match exists and the link *does* render — Created watercourses do
-        // not suppress it the way Created hedgerows do (flow doc Step 8). The
-        // product decision on whether that is correct is still open, so
-        // asserting either way would cement it.
+        // Baseline linkage follows the shared Created parent rules in flow Step 8.
       })
     }
   )
@@ -1894,7 +1980,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
   )
 
   // ─── Save is not implemented for read-only features ─────────────────────────
-  // Created area and hedgerow edit forms post here. The route answers
+  // Created area, hedgerow and watercourse edit forms post here. The route answers
   // 501 for every other feature, so a stale page or client gets an explicit
   // "not implemented" response rather than a save. The handler validates the
   // payload first (400 for a malformed body), so the request must be a
