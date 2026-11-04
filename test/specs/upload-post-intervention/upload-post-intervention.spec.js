@@ -151,16 +151,6 @@ const UNENHANCEABLE_VERY_LOW_HEDGEROW_FILE =
 // file, so a refused file that replaced the baseline should change the tile.
 const UNENHANCEABLE_EXISTING_BASELINE_FILE =
   'Baseline - complete with area refs.gpkg'
-const UNENHANCEABLE_COLUMNS = [
-  'Reference',
-  'Feature',
-  'Baseline habitat',
-  'Baseline condition',
-  'Proposed habitat',
-  'Proposed condition'
-]
-const NEUTRAL_GRASSLAND = 'Grassland - Other neutral grassland'
-const RURAL_TREE = 'Individual trees - Rural tree'
 
 // ─── E2E happy path ─────────────────────────────────────────────────────────
 
@@ -841,7 +831,7 @@ function describeDistinctivenessError() {
 
 // ─── Unenhanceable baseline ──────────────────────────────────────────────────
 
-async function assertUnenhanceableDropout(errorFilePage, row) {
+async function assertUnenhanceableDropout(errorFilePage) {
   await expect(errorFilePage.unenhanceableHeading).toBeVisible()
   await expect(errorFilePage.serviceEligibilityHeading).toBeVisible()
   await expect(errorFilePage.unenhanceableHelpText).toBeVisible()
@@ -849,23 +839,24 @@ async function assertUnenhanceableDropout(errorFilePage, row) {
     'href',
     METRIC_TOOL_URL
   )
-  await expect(errorFilePage.unenhanceableColumnHeaders).toHaveText(
-    UNENHANCEABLE_COLUMNS
+  // Unlike the other metric-tool pages, this link opens in the same tab and
+  // says nothing about a new one.
+  await expect(errorFilePage.metricToolLink).toHaveText(
+    'metric tool (spreadsheet)'
   )
-  await expect(errorFilePage.unenhanceableRows).toHaveCount(1)
-  await expect(
-    errorFilePage.unenhanceableRowCells(errorFilePage.unenhanceableRows)
-  ).toHaveText(row)
+  await expect(errorFilePage.metricToolLink).not.toHaveAttribute(
+    'target',
+    '_blank'
+  )
 }
 
-// Sole witness for BASELINE_NOT_ENHANCEABLE from a real GeoPackage, and for the
-// backend's details.sample reaching the frontend's table. The backend's
+// Sole witness for BASELINE_NOT_ENHANCEABLE from a real GeoPackage. The backend's
 // refuse-unenhanceable-baselines tests hand-build their documents and no
-// integration test mentions the code; single-error-copy.test.js is handed a
-// fabricated error. Break a layer's extraction and both keep passing; rename a
-// sample field in the backend and the frontend's tests keep passing. Either way
-// this page breaks. Do not delete without an integration test that uploads these
-// fixtures and asserts the offenders.
+// integration test mentions the code. Break a layer's extraction and they keep
+// passing, but that layer's file stops being refused and this page never shows.
+// The page names no habitat (frontend PR #447), so these tests prove the file is
+// refused, not which habitat caused it. Do not delete without an integration test
+// that uploads these fixtures.
 //
 // One test per extraction path, not per rule: AC2 and AC5 share the hedgerow
 // path and this page with the Very Low test, and the backend's tests run their
@@ -876,25 +867,15 @@ function describeUnenhanceableBaseline() {
   const cases = [
     {
       name: 'an individual tree in Good condition',
-      file: UNENHANCEABLE_TREE_FILE,
-      row: ['T001', 'Individual tree', RURAL_TREE, 'Good', RURAL_TREE, 'Good']
+      file: UNENHANCEABLE_TREE_FILE
     },
     {
       name: 'a Medium distinctiveness watercourse in Good condition',
-      file: UNENHANCEABLE_WATERCOURSE_FILE,
-      row: ['R001', 'Watercourse', 'Ditches', 'Good', 'Ditches', 'Moderate']
+      file: UNENHANCEABLE_WATERCOURSE_FILE
     },
     {
       name: 'a Very Low distinctiveness hedgerow',
-      file: UNENHANCEABLE_VERY_LOW_HEDGEROW_FILE,
-      row: [
-        'HG001',
-        'Hedgerow',
-        'Non-native and ornamental hedgerow',
-        'Poor',
-        'Native hedgerow',
-        'Good'
-      ]
+      file: UNENHANCEABLE_VERY_LOW_HEDGEROW_FILE
     }
   ]
 
@@ -938,14 +919,7 @@ function describeUnenhanceableBaseline() {
         )
         await page.waitForURL(ERROR_FILE_URL, { timeout: UPLOAD_TIMEOUT })
 
-        await assertUnenhanceableDropout(errorFilePage, [
-          'H001',
-          'Area habitat',
-          NEUTRAL_GRASSLAND,
-          'Good',
-          NEUTRAL_GRASSLAND,
-          'Good'
-        ])
+        await assertUnenhanceableDropout(errorFilePage)
 
         await projectSummaryPage.open(id)
         expect(
@@ -956,8 +930,8 @@ function describeUnenhanceableBaseline() {
         ).toBeVisible()
       })
 
-      for (const { name, file, row } of cases) {
-        test(`a file enhancing ${name} is refused and lists only that habitat`, async ({
+      for (const { name, file } of cases) {
+        test(`a file enhancing ${name} is refused`, async ({
           createProjectFlow,
           projectDashboardPage,
           uploadPostInterventionFileFlow,
@@ -974,7 +948,7 @@ function describeUnenhanceableBaseline() {
             file
           )
 
-          await assertUnenhanceableDropout(errorFilePage, row)
+          await assertUnenhanceableDropout(errorFilePage)
         })
       }
     }
