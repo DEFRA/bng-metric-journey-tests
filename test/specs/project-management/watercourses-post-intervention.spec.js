@@ -144,6 +144,7 @@ const FIXED_STRATEGIC_SIGNIFICANCE = 'Low (1)'
 // Difficulty".
 const RETAINED_COLUMNS = [
   'Ref',
+  'Status',
   'Units',
   'Size',
   'Habitat type',
@@ -155,6 +156,7 @@ const RETAINED_COLUMNS = [
 ]
 const TARGET_COLUMNS = [
   'Ref',
+  'Status',
   'Units',
   'Size',
   'Habitat type',

@@ -103,6 +103,7 @@ const ENHANCED_REJECTED_REF = 'H086'
 // Difficulty".
 const RETAINED_COLUMNS = [
   'Ref',
+  'Status',
   'Units',
   'Size',
   'Broad habitat',
@@ -113,6 +114,7 @@ const RETAINED_COLUMNS = [
 ]
 const TARGET_COLUMNS = [
   'Ref',
+  'Status',
   'Units',
   'Size',
   'Broad habitat',
