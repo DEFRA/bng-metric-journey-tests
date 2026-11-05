@@ -41,10 +41,11 @@ const INVALID_BASELINE_FILE = 'Baseline - overlapping parcels.gpkg'
 // name is the strict case for the widened rule: it both STARTS with punctuation
 // and contains round brackets.
 const PUNCTUATED_BASELINE_FILE = '(Baseline) - complete with area refs.gpkg'
-// BMD-1058. Interim copy from frontend single-error-copy.js, pending UCD.
-const HABITAT_REF_MISSING_COPY = 'All habitats must have a reference'
+// BMD-1058. Copy from the BMD-1110 dropout spreadsheet (frontend PR #452).
+const HABITAT_REF_MISSING_COPY =
+  'Your file contains a habitat with no habitat reference'
 const HABITAT_REF_INVALID_CHARACTERS_COPY =
-  'One or more habitat references contain characters that are not allowed'
+  'This habitat reference contains characters that are not allowed'
 // Two parcels share the ref DUP-1. Accepted since BMD-1058.
 const DUPLICATE_REF_FILE = 'Baseline - duplicate habitat ref.gpkg'
 const DUPLICATE_REF = 'DUP-1'
@@ -776,19 +777,22 @@ function describeFieldValidation() {
       })
 
       // BMD-1058 AC1/AC2: one collated error for every habitat it applies to,
-      // on the single-error page. The copy is the frontend's interim wording,
-      // pending UCD. Nothing from the file is saved.
+      // on the single-error page, in its text layout: no inline upload link,
+      // but the upload button stays. Nothing from the file is saved.
       async function expectHabitatRefDropout(fixtures, fixture, copy) {
         const { errorFilePage, projectSummaryPage, page } = fixtures
         const id = await uploadToErrorFile(fixtures, fixture)
 
-        await expect(errorFilePage.geopackageErrorHeading).toBeVisible()
+        await expect(errorFilePage.projectProblemHeading).toBeVisible()
+        await expect(errorFilePage.habitatParcelsHeading).toBeVisible()
         await expect(errorFilePage.errorSummary).not.toBeVisible()
         await expect(page.getByText(copy)).toHaveCount(1)
-        await expect(errorFilePage.uploadNewFileLink).toHaveAttribute(
+        await expect(errorFilePage.uploadNewFileLink).not.toBeVisible()
+        await expect(errorFilePage.uploadDifferentFileLink).toHaveAttribute(
           'href',
           `/projects/${id}/upload-baseline-file`
         )
+        await expect(errorFilePage.backToProjectLink).toBeVisible()
 
         // Nothing was saved, so the summary still redirects the project to the
         // upload-type page (BMD-1076).

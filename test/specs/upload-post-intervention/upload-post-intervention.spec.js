@@ -78,9 +78,11 @@ const DISTINCTIVENESS_FILE =
   'Post-intervention - habitat distinctiveness out of scope.gpkg'
 const NATURAL_ENGLAND_MISMATCH_COPY =
   'The layer names and column names do not match what is required by Natural England'
-// BMD-1058. One habitat's Parcel Ref is SQL NULL. Interim copy, pending UCD.
+// BMD-1058. One habitat's Parcel Ref is SQL NULL. Copy from the BMD-1110
+// dropout spreadsheet (frontend PR #452).
 const MISSING_HABITAT_REF_FILE = 'Post-intervention - missing habitat ref.gpkg'
-const HABITAT_REF_MISSING_COPY = 'All habitats must have a reference'
+const HABITAT_REF_MISSING_COPY =
+  'Your file contains a habitat with no habitat reference'
 // BMD-1066 (harness PR#161). The valid all-types post-intervention file with
 // the Baseline type cleared on five Retained or Enhanced rows: H002 (blank),
 // H004 (N/A), HG011 ((no selection)), R003 (Null), T002 (blank).
@@ -589,8 +591,9 @@ function describeContentValidationErrors() {
   // that surfaces on the shared error-file dropout page. Expected copy is
   // confirmed by uploading and inspecting the rendered page: fixtures that
   // surface exactly one backend error render the BMD-405 single-error layout
-  // (`layout: 'single'` — no error summary); fixtures with several errors
-  // keep the grouped multi-error layout (`layout: 'multi'`).
+  // (`layout: 'single'` — no error summary), or its plain text form with the
+  // upload button kept (`layout: 'text'`, frontend PR #452); fixtures with
+  // several errors keep the grouped multi-error layout (`layout: 'multi'`).
   //
   // DO NOT DELETE any of these as "covered by the backend". Checked in full
   // during the integration-overlap workshop (workshop/integration-overlap-ledger.md,
@@ -636,11 +639,11 @@ function describeContentValidationErrors() {
     {
       // BMD-1058 AC2. The post-intervention case of HABITAT_REF_MISSING: the
       // check is the same as for a baseline, so this proves the code reaches
-      // the post-intervention page and its upload link. The invalid-characters
+      // the post-intervention page and its upload button. The invalid-characters
       // code runs through the same check and page, so it is not repeated.
       name: 'a habitat with no reference',
       file: MISSING_HABITAT_REF_FILE,
-      layout: 'single',
+      layout: 'text',
       expected: HABITAT_REF_MISSING_COPY
     }
   ]
@@ -685,6 +688,16 @@ function describeContentValidationErrors() {
               errorFilePage.uploadDifferentFileLink
             ).not.toBeVisible()
             await expect(errorFilePage.backToProjectLink).not.toBeVisible()
+          } else if (layout === 'text') {
+            await expect(errorFilePage.projectProblemHeading).toBeVisible()
+            await expect(errorFilePage.habitatParcelsHeading).toBeVisible()
+            await expect(errorFilePage.errorSummary).not.toBeVisible()
+            await expect(errorFilePage.uploadNewFileLink).not.toBeVisible()
+            await expect(errorFilePage.uploadDifferentFileLink).toHaveAttribute(
+              'href',
+              `/projects/${id}/upload-post-intervention-file`
+            )
+            await expect(errorFilePage.backToProjectLink).toBeVisible()
           } else {
             await expect(
               errorFilePage.postInterventionRejectedHeading
@@ -832,7 +845,7 @@ function describeDistinctivenessError() {
 // ─── Unenhanceable baseline ──────────────────────────────────────────────────
 
 async function assertUnenhanceableDropout(errorFilePage) {
-  await expect(errorFilePage.unenhanceableHeading).toBeVisible()
+  await expect(errorFilePage.projectProblemHeading).toBeVisible()
   await expect(errorFilePage.serviceEligibilityHeading).toBeVisible()
   await expect(errorFilePage.unenhanceableHelpText).toBeVisible()
   await expect(errorFilePage.metricToolLink).toHaveAttribute(

@@ -35,9 +35,12 @@ export class ErrorFilePage extends BasePage {
     this.metricToolLink = page.getByRole('link', {
       name: /metric tool \(spreadsheet\)/
     })
-    // BMD-1182 layout for a baseline the service cannot enhance
-    this.unenhanceableHeading = page.getByRole('heading', {
+    // Shared by BMD-1182 and the BMD-1086 habitat reference errors
+    this.projectProblemHeading = page.getByRole('heading', {
       name: 'There is a problem with your project'
+    })
+    this.habitatParcelsHeading = page.getByRole('heading', {
+      name: 'Habitat parcels'
     })
     this.serviceEligibilityHeading = page.getByRole('heading', {
       name: 'Service eligibility'
