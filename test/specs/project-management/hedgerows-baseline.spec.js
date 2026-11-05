@@ -52,6 +52,7 @@ const TILE_HEADINGS = [
 // case rather than the AC's title case.
 const COLUMN_HEADINGS = [
   'Ref',
+  'Status',
   'Units',
   'Size',
   'Habitat type',
@@ -223,7 +224,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     }) => {
       await hedgerowsBaselinePage.open(project.id)
 
-      const unitsHeader = hedgerowsBaselinePage.columnHeaders().nth(1)
+      const unitsHeader = hedgerowsBaselinePage.columnHeader('units')
       const sortButton = hedgerowsBaselinePage.sortButton('units')
 
       await sortButton.click()
