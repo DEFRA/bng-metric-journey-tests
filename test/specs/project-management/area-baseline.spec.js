@@ -68,6 +68,7 @@ const LABEL_AND_SCORE = /^[^()]+ \(-?\d+(\.\d+)?\)$/
 
 const COLUMN_HEADINGS = [
   'Ref',
+  'Status',
   'Units',
   'Size',
   'Broad habitat',

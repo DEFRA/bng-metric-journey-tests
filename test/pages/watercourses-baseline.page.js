@@ -14,12 +14,13 @@ import { WATERCOURSES } from '@utils/unit-type-labels.js'
 // because the field does not apply to watercourses.
 const COLUMN = {
   ref: 0,
-  units: 1,
-  size: 2,
-  habitatType: 3,
-  distinctiveness: 4,
-  condition: 5,
-  strategicSignificance: 6
+  status: 1,
+  units: 2,
+  size: 3,
+  habitatType: 4,
+  distinctiveness: 5,
+  condition: 6,
+  strategicSignificance: 7
 }
 
 /**

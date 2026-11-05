@@ -68,6 +68,7 @@ const TILE_HEADINGS = [
 // case rather than the AC's title case.
 const COLUMN_HEADINGS = [
   'Ref',
+  'Status',
   'Units',
   'Size',
   'Habitat type',
