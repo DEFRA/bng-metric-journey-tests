@@ -21,12 +21,30 @@ PROTOTYPE="$WORKSPACE/bng-metric-digital-prototype"
 
 info() { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
 
+# Retries with backoff (about 2.5 minutes in total). During a GitHub incident,
+# valid SSH keys can intermittently fail with "Permission denied (publickey)".
+retry() {
+  local attempt=1 max_attempts=6 delay=5
+  until "$@"; do
+    if [ "$attempt" -eq "$max_attempts" ]; then
+      printf 'Giving up after %d attempts: %s\n' "$max_attempts" "$*" >&2
+      return 1
+    fi
+    printf 'Attempt %d/%d failed, retrying in %ds\n' "$attempt" "$max_attempts" "$delay" >&2
+    sleep "$delay"
+    attempt=$((attempt + 1))
+    delay=$((delay * 2))
+  done
+}
+
 pull_main() {
   local dir="$1" name
   name="$(basename "$dir")"
   info "Pulling main in $name"
   git -C "$dir" checkout main
-  git -C "$dir" pull --ff-only origin main
+  # Only the network step is retried; a diverged branch still fails immediately.
+  retry git -C "$dir" fetch origin main
+  git -C "$dir" merge --ff-only origin/main
 }
 
 # ---- Step 1: git pull main across the sibling repos ----

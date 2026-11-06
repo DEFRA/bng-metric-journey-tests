@@ -115,7 +115,11 @@ but a test that navigates the **UI** now passes through the selection page first
   one of three layouts depending on the error array:
   1. **Exactly one error (BMD-405):** a dedicated single-error page whose H1 and body copy are
      resolved per error code (`error-file/single-error-copy.js`, copy verbatim from the BMD-405
-     ACs). Three variants:
+     ACs). Four variants:
+     - `text` — `HABITAT_REF_MISSING`, `HABITAT_REF_INVALID_CHARACTERS` and, with the
+       service-template flag on, `LEGACY_TEMPLATE_NOT_ACCEPTED`: H1 + H2 + one sentence, no inline
+       link; keeps the "Upload a different file" button and "Back to project" link (frontend
+       PR #452).
      - `standard` — H1 (personalised with the offending feature ref(s) for
        `AREA_PARCELS_INVALID_GEOMETRY`, `PARCEL_OVERLAPS`, `AREA_PARCELS_TOO_SMALL`,
        `AREA_PARCELS_OUTSIDE_REDLINE`, `HEDGEROWS_OUTSIDE_REDLINE`,
@@ -327,15 +331,15 @@ Backend PR#475 and frontend PR#375 (2026-10-09) changed how the Parcel Ref is ha
 the area habitat, hedgerow and watercourse layers. Urban trees keep their own Tree Ref and
 are not checked. The rules are the same for a post-intervention file.
 
-| Rule                             | Outcome                                                                                                                                                                                                                                            |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `HABITAT_REF_MISSING`            | Dropout. A ref that is NULL, empty or only spaces. **One** collated error for every such habitat, on every layer. Single-error page, generic H1, body "All habitats must have a reference. Add a reference to every habitat and upload a new file" |
-| `HABITAT_REF_INVALID_CHARACTERS` | Dropout. A ref that is not valid UTF-8, or holds U+FFFD. One collated error. Body "One or more habitat references contain characters that are not allowed. Change the references…"                                                                 |
-| Trim                             | Leading and trailing spaces are removed before the ref is saved (`cleanHabitatRef`)                                                                                                                                                                |
-| Truncate                         | A ref over 100 characters is saved as its first 100                                                                                                                                                                                                |
-| Duplicates                       | **Allowed.** `DUPLICATE_HABITAT_REF` was deleted, so habitats may share a ref                                                                                                                                                                      |
+| Rule                             | Outcome                                                                                                                                                                                                                                                                              |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `HABITAT_REF_MISSING`            | Dropout. A ref that is NULL, empty or only spaces. **One** collated error for every such habitat, on every layer. Single-error page, `text` variant: H1 "There is a problem with your project", H2 "Habitat parcels", body "Your file contains a habitat with no habitat reference." |
+| `HABITAT_REF_INVALID_CHARACTERS` | Dropout. A ref that is not valid UTF-8, or holds U+FFFD. One collated error. `text` variant: same H1 and H2, body "This habitat reference contains characters that are not allowed."                                                                                                 |
+| Trim                             | Leading and trailing spaces are removed before the ref is saved (`cleanHabitatRef`)                                                                                                                                                                                                  |
+| Truncate                         | A ref over 100 characters is saved as its first 100                                                                                                                                                                                                                                  |
+| Duplicates                       | **Allowed.** `DUPLICATE_HABITAT_REF` was deleted, so habitats may share a ref                                                                                                                                                                                                        |
 
-The copy for both dropouts is interim, pending UCD (Jack / Kyle).
+The copy for both dropouts comes from the BMD-1110 dropout spreadsheet (frontend PR #452).
 
 **Where this is tested.**
 
