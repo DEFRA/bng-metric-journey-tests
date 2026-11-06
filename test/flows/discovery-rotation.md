@@ -70,6 +70,8 @@ frontend/backend since then, not strictly in table order.
 
 - [capture-happy-path](happy-path/capture-happy-path.flow.md) — a local-only UCD screenshot
   export, not a regression journey.
+- [downstream-failures](resilience/downstream-failures.flow.md) — fault-injection tests in
+  their own suite and workflow, not a user journey.
 - `*.ac.md` files — AC-coverage companions, not flow docs; no command reads them.
 
 `/analyse-user-flow` adds a new flow doc to the **Flows** table (or renames/removes its row)

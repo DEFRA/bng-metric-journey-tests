@@ -239,9 +239,9 @@ after uploading `Not a valid geopackage.gpkg`).
 - **Rejected upload** (uploader `numberOfRejectedFiles > 0`): ✅ unit — frontend
   `post-intervention-upload-received/controller.test.js` ("redirects to dropout page when
   post-intervention upload is rejected") + backend `upload.test.js`. Redirects to `/error-file`
-  with empty errors → the generic dropout, covered above. Not browser-triggerable (client JS
-  blocks a non-`.gpkg` submit), so no journey test — tracked as a documented `test.skip`
-  placeholder ("Upload post-intervention — CDP Uploader rejection") carrying its unblock steps.
+  with empty errors → the generic dropout, covered above. ✅ journey ("Upload post-intervention —
+  CDP Uploader rejection"): the mock uploader rejects filenames matching `.*virus.*`, so this runs
+  on the stub stack only.
 
 **Deferred / not mirrorable:**
 
