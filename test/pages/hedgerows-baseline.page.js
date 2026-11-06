@@ -14,12 +14,13 @@ import { HEDGEROWS } from '@utils/unit-type-labels.js'
 // the field does not apply to hedgerows.
 const COLUMN = {
   ref: 0,
-  units: 1,
-  size: 2,
-  habitatType: 3,
-  distinctiveness: 4,
-  condition: 5,
-  strategicSignificance: 6
+  status: 1,
+  units: 2,
+  size: 3,
+  habitatType: 4,
+  distinctiveness: 5,
+  condition: 6,
+  strategicSignificance: 7
 }
 
 /**
@@ -113,9 +114,13 @@ export class HedgerowsBaselinePage extends BasePage {
     return this.table().locator('thead th')
   }
 
+  columnHeader(column) {
+    return this.columnHeaders().nth(COLUMN[column])
+  }
+
   /** A column heading's sort button, injected by the MOJ component. */
   sortButton(column) {
-    return this.columnHeaders().nth(COLUMN[column]).getByRole('button')
+    return this.columnHeader(column).getByRole('button')
   }
 
   featureRows() {

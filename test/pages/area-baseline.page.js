@@ -14,13 +14,14 @@ import {
 // Column order is fixed by COLUMNS in area-baseline/controller.js.
 const COLUMN = {
   ref: 0,
-  units: 1,
-  size: 2,
-  broadHabitat: 3,
-  habitatType: 4,
-  distinctiveness: 5,
-  condition: 6,
-  strategicSignificance: 7
+  status: 1,
+  units: 2,
+  size: 3,
+  broadHabitat: 4,
+  habitatType: 5,
+  distinctiveness: 6,
+  condition: 7,
+  strategicSignificance: 8
 }
 
 /**
