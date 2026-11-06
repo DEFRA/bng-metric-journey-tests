@@ -93,19 +93,38 @@ export async function signInThrowawayUser(label) {
   }
 }
 
-/**
- * Make a session's sign-in expire and fail to renew: the access token is past
- * its expiry and the refresh token is rejected by the identity provider. The
- * session keeps its time to live in Redis.
- */
-export async function expireSession(sessionKey) {
+async function editSignIn(sessionKey, edit) {
   const redis = new Redis(REDIS)
   try {
     const session = JSON.parse(await redis.get(sessionKey))
-    session.item.auth.user.exp = 1
-    session.item.auth.refreshToken = 'invalid'
+    edit(session.item.auth)
     await redis.set(sessionKey, JSON.stringify(session), 'KEEPTTL')
   } finally {
     redis.disconnect()
   }
+}
+
+/**
+ * Make a session's sign-in expire and fail to renew: the token is past its
+ * expiry and the identity provider rejects the refresh token. The frontend's
+ * auth scheme catches this before any route handler runs.
+ */
+export async function expireSession(sessionKey) {
+  await editSignIn(sessionKey, (auth) => {
+    auth.user.exp = 1
+    auth.refreshToken = 'invalid'
+  })
+}
+
+/**
+ * Leave a session's sign-in in date but make the backend reject its token, and
+ * make the refresh fail too. The auth scheme lets the request through, so this
+ * reaches a route handler's backend call (backend-request.js), which finds the
+ * session dead and flags it as expired.
+ */
+export async function breakBackendToken(sessionKey) {
+  await editSignIn(sessionKey, (auth) => {
+    auth.idToken = 'invalid'
+    auth.refreshToken = 'invalid'
+  })
 }

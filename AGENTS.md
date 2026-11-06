@@ -206,7 +206,7 @@ test.describe('Feature — role enforcement', () => {
 **Expected skipped counts differ by mode — this is by design.** A clean run skips far more tests on CDP (e2e) than locally. Snapshot at 2026-11-06 (418 tests collected), re-derived with the commands below:
 
 - **local / github (stub): 11 skipped** — every one is an unconditional placeholder for a scenario that is not yet built or not reachable from a browser (`test.skip('…', …)` / `test.skip(true, …)` / `test.fixme`), each carrying its unblock steps in a comment. Currently: 3 authentication placeholders (failed login initiation, approved role in another relationship, interactive sign-out), the backend failure on the `upload-file` selection page, the watercourses trading summary's "not calculated" inset, 4 post-intervention habitat-details tests (2 parked under `FIXME(BMD-1043)`, 2 under `FIXME(BMD-1180)`), and 2 upload placeholders (the post-intervention 120s timeout, irreplaceable habitat). Placeholders covered by the resilience suite were removed and point to it.
-- **e2e (CDP): 66 skipped** — those same 11 placeholders **plus 52 tests that cannot run against the real service**:
+- **e2e (CDP): 63 skipped** — those same 11 placeholders **plus 52 tests that cannot run against the real service**:
   - **22** — habitat-detail tests whose real CDP upload exceeds the frontend's 120s budget under e2e load; covered in github against the stub uploader.
   - **21** — `no-role` / `no-projects` profile tests (role enforcement → `/auth/forbidden`, empty state) that only the stub can mint.
   - **3** — cross-user (IDOR) tests needing a _second_ stub profile.
@@ -433,7 +433,7 @@ PROFILE=@project-management npm run test:github
 
 ### Resilience tests
 
-`test/specs/resilience/` proves the service shows an error page rather than hanging, and recovers, when a dependency fails. Faults are injected by Toxiproxy (the `toxiproxy` fixture), so these tests are excluded from the main suite and never run on CDP: a fault applies to the whole stack and would break any test running alongside it. They run in their own workflow, `.github/workflows/resilience-tests.yml`: nightly against frontend and backend `main`, on manual dispatch, and on PRs that change the suite. It is not a required check. See [`test/flows/resilience/downstream-failures.flow.md`](test/flows/resilience/downstream-failures.flow.md).
+`test/specs/resilience/` proves the service shows an error page rather than hanging, and recovers, when a dependency fails. Faults are injected by Toxiproxy (the `toxiproxy` fixture), so these tests are excluded from the main suite and never run on CDP: a fault applies to the whole stack and would break any test running alongside it. They run in their own workflow, `.github/workflows/resilience-tests.yml`: nightly against frontend and backend `main`, on manual dispatch, and on PRs that change the suite's own files. It is not a required check. A PR that changes a shared file the suite uses (fixtures, page objects, flows, `auth.setup.js`, `package.json`) does not start it, so a break there shows up in the next nightly run; that delay is accepted to keep the 20-minute suite off most PRs. See [`test/flows/resilience/downstream-failures.flow.md`](test/flows/resilience/downstream-failures.flow.md).
 
 ```sh
 docker compose -f compose.yml -f compose.resilience.yml up --wait -d

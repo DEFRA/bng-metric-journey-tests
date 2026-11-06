@@ -207,9 +207,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
   // of paying for a context of its own.
 
   // ─── Session lifecycle ──────────────────────────────────────────────────────
-  // An expired session on the PDF route is covered in
-  // test/specs/resilience/session-expiry.spec.js, which expires a throwaway
-  // user's session rather than the shared one.
+  // A dead session on the PDF route (the backend rejects the token and the
+  // refresh fails, so fetchSiteReport rethrows) is covered in
+  // test/specs/resilience/session-expiry.spec.js, on a throwaway user's session
+  // rather than the shared one.
 
   // ─── Access control ─────────────────────────────────────────────────────────
 

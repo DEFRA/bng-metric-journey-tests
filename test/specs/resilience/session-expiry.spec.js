@@ -2,17 +2,21 @@ import { randomUUID } from 'node:crypto'
 import { test, expect } from '@fixtures'
 import { baseUrl, runMode } from '@utils/env.js'
 import { reportPdfPath } from '@utils/report-navigation.js'
-import { expireSession, signInThrowawayUser } from '@utils/stack-access.js'
+import {
+  breakBackendToken,
+  expireSession,
+  signInThrowawayUser
+} from '@utils/stack-access.js'
 import { SessionExpiredPage } from '@pages/session-expired.page.js'
 
 const SESSION_EXPIRED_URL = /\/auth\/session-expired$/
 
-// Each test signs in its own user and expires that user's session in Redis, so
+// Each test signs in its own user and breaks that user's session in Redis, so
 // the shared STORAGE_STATE session is never touched.
-async function openWithExpiredSession(browser, path) {
+async function openWithDeadSession(browser, path, killSession) {
   const { storageState, sessionKey } =
     await signInThrowawayUser('resilience-expiry')
-  await expireSession(sessionKey)
+  await killSession(sessionKey)
 
   const context = await browser.newContext({ baseURL: baseUrl, storageState })
   const page = await context.newPage()
@@ -33,9 +37,10 @@ test.describe('resilience', { tag: '@resilience' }, () => {
       test('an expired session on a protected page is sent to the signed-out page', async ({
         browser
       }) => {
-        const { context, page } = await openWithExpiredSession(
+        const { context, page } = await openWithDeadSession(
           browser,
-          '/manage-projects'
+          '/manage-projects',
+          expireSession
         )
         const sessionExpiredPage = new SessionExpiredPage(page)
 
@@ -50,12 +55,18 @@ test.describe('resilience', { tag: '@resilience' }, () => {
         }
       })
 
-      test('an expired session on the report PDF route is sent to the signed-out page', async ({
+      // The PDF route's service (report.js) is the only one that must rethrow a
+      // dead session rather than report a backend failure. The sign-in is left
+      // in date, so the request gets past the auth scheme and the backend's
+      // rejection of the token reaches that rethrow. The backend rejects the
+      // token before looking up the project, so any project id will do.
+      test('a session the backend rejects on the report PDF route is sent to the signed-out page', async ({
         browser
       }) => {
-        const { context, page } = await openWithExpiredSession(
+        const { context, page } = await openWithDeadSession(
           browser,
-          reportPdfPath(randomUUID())
+          reportPdfPath(randomUUID()),
+          breakBackendToken
         )
 
         try {
