@@ -1,6 +1,9 @@
 import { test } from '@fixtures'
 import { STORAGE_STATE, runMode } from '@utils/env.js'
-import { assertHandlesOutage } from '@utils/resilience-checks.js'
+import {
+  assertHandlesOutage,
+  TOXIPROXY_SKIP_REASON
+} from '@utils/resilience-checks.js'
 
 const BACKEND = 'backend'
 
@@ -10,10 +13,7 @@ test.describe('resilience', { tag: '@resilience' }, () => {
     { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
-      test.skip(
-        runMode === 'e2e',
-        'Requires Toxiproxy in the Docker Compose stack — not available on CDP'
-      )
+      test.skip(runMode === 'e2e', TOXIPROXY_SKIP_REASON)
 
       test('backend refusing connections shows the error page, then recovers', async ({
         toxiproxy,

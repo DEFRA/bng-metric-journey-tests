@@ -1,5 +1,6 @@
 import { test, expect } from '@fixtures'
 import { STORAGE_STATE, runMode } from '@utils/env.js'
+import { TOXIPROXY_SKIP_REASON } from '@utils/resilience-checks.js'
 import { setupProject } from '@utils/project-helpers.js'
 
 const PROJECT_LABEL = 'Resilience file check'
@@ -57,10 +58,7 @@ test.describe('resilience', { tag: '@resilience' }, () => {
     { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
-      test.skip(
-        runMode === 'e2e',
-        'Requires Toxiproxy in the Docker Compose stack — not available on CDP'
-      )
+      test.skip(runMode === 'e2e', TOXIPROXY_SKIP_REASON)
       test.describe.configure({ timeout: TEST_TIMEOUT_MS })
 
       test('a file check still running after 2 minutes shows the timed-out message, then the file can be uploaded again', async ({

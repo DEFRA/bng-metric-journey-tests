@@ -1,7 +1,11 @@
 import { test } from '@fixtures'
 import { STORAGE_STATE, runMode } from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
-import { assertErrorPage, assertRecovers } from '@utils/resilience-checks.js'
+import {
+  assertErrorPage,
+  assertRecovers,
+  TOXIPROXY_SKIP_REASON
+} from '@utils/resilience-checks.js'
 
 const CDP_UPLOADER = 'cdp-uploader'
 const PROJECT_LABEL = 'Resilience Uploader'
@@ -15,10 +19,7 @@ const FILE_CHECK_TEST_TIMEOUT_MS = 300_000
 test.describe('resilience', { tag: '@resilience' }, () => {
   test.describe('CDP Uploader outage', { tag: '@regression' }, () => {
     test.use({ storageState: STORAGE_STATE })
-    test.skip(
-      runMode === 'e2e',
-      'Requires Toxiproxy in the Docker Compose stack — not available on CDP'
-    )
+    test.skip(runMode === 'e2e', TOXIPROXY_SKIP_REASON)
 
     async function assertUploadPageHandlesOutage({
       injectFault,

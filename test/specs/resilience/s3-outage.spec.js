@@ -1,7 +1,10 @@
 import { test } from '@fixtures'
 import { STORAGE_STATE, runMode } from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
-import { assertErrorPage } from '@utils/resilience-checks.js'
+import {
+  assertErrorPage,
+  TOXIPROXY_SKIP_REASON
+} from '@utils/resilience-checks.js'
 
 const S3 = 's3'
 const PROJECT_LABEL = 'Resilience S3'
@@ -45,10 +48,7 @@ async function assertHandlesOutage({
 test.describe('resilience', { tag: '@resilience' }, () => {
   test.describe('S3 outage — file check', { tag: '@regression' }, () => {
     test.use({ storageState: STORAGE_STATE })
-    test.skip(
-      runMode === 'e2e',
-      'Requires Toxiproxy in the Docker Compose stack — not available on CDP'
-    )
+    test.skip(runMode === 'e2e', TOXIPROXY_SKIP_REASON)
     test.describe.configure({ timeout: TEST_TIMEOUT_MS })
 
     test('S3 refusing connections shows the error page, then the file can be uploaded again', async ({

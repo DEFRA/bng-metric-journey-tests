@@ -4,7 +4,8 @@ import { setupProject } from '@utils/project-helpers.js'
 import {
   assertErrorPage,
   assertHandlesOutage,
-  assertRecovers
+  assertRecovers,
+  TOXIPROXY_SKIP_REASON
 } from '@utils/resilience-checks.js'
 
 const POSTGRES = 'postgres'
@@ -119,10 +120,7 @@ async function assertFileCheckHandlesOutage({
 test.describe('resilience', { tag: '@resilience' }, () => {
   test.describe('Postgres outage', { tag: '@regression' }, () => {
     test.use({ storageState: STORAGE_STATE })
-    test.skip(
-      runMode === 'e2e',
-      'Requires Toxiproxy in the Docker Compose stack — not available on CDP'
-    )
+    test.skip(runMode === 'e2e', TOXIPROXY_SKIP_REASON)
 
     test.describe('project dashboard', () => {
       test('Postgres refusing connections shows the error page, then recovers', async ({

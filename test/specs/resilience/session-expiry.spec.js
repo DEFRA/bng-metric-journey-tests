@@ -39,12 +39,15 @@ test.describe('resilience', { tag: '@resilience' }, () => {
         )
         const sessionExpiredPage = new SessionExpiredPage(page)
 
-        await expect(page).toHaveURL(SESSION_EXPIRED_URL)
-        await expect(sessionExpiredPage.heading).toBeVisible()
-        await expect(sessionExpiredPage.body).toBeVisible()
-        await expect(sessionExpiredPage.signInAgainButton).toBeVisible()
-        await expect(sessionExpiredPage.returnHomeLink).toBeVisible()
-        await context.close()
+        try {
+          await expect(page).toHaveURL(SESSION_EXPIRED_URL)
+          await expect(sessionExpiredPage.heading).toBeVisible()
+          await expect(sessionExpiredPage.body).toBeVisible()
+          await expect(sessionExpiredPage.signInAgainButton).toBeVisible()
+          await expect(sessionExpiredPage.returnHomeLink).toBeVisible()
+        } finally {
+          await context.close()
+        }
       })
 
       test('an expired session on the report PDF route is sent to the signed-out page', async ({
@@ -55,8 +58,11 @@ test.describe('resilience', { tag: '@resilience' }, () => {
           reportPdfPath(randomUUID())
         )
 
-        await expect(page).toHaveURL(SESSION_EXPIRED_URL)
-        await context.close()
+        try {
+          await expect(page).toHaveURL(SESSION_EXPIRED_URL)
+        } finally {
+          await context.close()
+        }
       })
     }
   )

@@ -2,6 +2,9 @@ import { expect } from '@fixtures'
 import { ServiceErrorPage } from '@pages/service-error.page.js'
 import { setupProject } from './project-helpers.js'
 
+export const TOXIPROXY_SKIP_REASON =
+  'Requires Toxiproxy in the Docker Compose stack — not available on CDP'
+
 const PROJECT_LABEL = 'Resilience'
 const MAX_RECOVERY_MS = 15_000
 // Must stay well under MAX_RECOVERY_MS: each attempt has to give up on an error
