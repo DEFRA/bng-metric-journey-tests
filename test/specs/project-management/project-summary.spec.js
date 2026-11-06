@@ -1606,12 +1606,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       await expect(projectSummaryPage.heading).toBeHidden()
     })
 
-    // Unblock: needs a way to force a non-404 backend failure (a fault-injection
-    // hook or a stubbed backend). Same blocker as the equivalent placeholders on
-    // the project dashboard and the upload-file selection page. Once available,
-    // drive the request with the backend returning 500 and assert the global
-    // error page renders 502 without leaking project data.
-    test.skip('backend failure renders the 502 error page', async () => {})
+    // A non-404 backend failure on this page is covered in
+    // test/specs/resilience/postgres-outage.spec.js ("project summary").
   })
 
   // ─── Cross-user visibility ───────────────────────────────────────────────────

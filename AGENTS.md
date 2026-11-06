@@ -203,10 +203,10 @@ test.describe('Feature — role enforcement', () => {
 
 `skipInE2e(profile)` returns `true` only in e2e mode for a non-completer profile. Unauthenticated describes (no `storageState`) must **not** receive `test.skip`.
 
-**Expected skipped counts differ by mode — this is by design.** A clean run skips far more tests on CDP (e2e) than locally. Snapshot at 2026-11-03 (421 tests collected), re-derived with the commands below:
+**Expected skipped counts differ by mode — this is by design.** A clean run skips far more tests on CDP (e2e) than locally. Snapshot at 2026-11-06 (418 tests collected), re-derived with the commands below:
 
-- **local / github (stub): 14 skipped** — every one is an unconditional placeholder for a scenario that is not yet built or not reachable from a browser (`test.skip('…', …)` / `test.skip(true, …)` / `test.fixme`), each carrying its unblock steps in a comment. Currently: 4 authentication placeholders (failed login initiation, approved role in another relationship, session-expired redirect, interactive sign-out), the server-side backend-error (≥ 400) path ×3 (project dashboard, project summary, and the `upload-file` selection page), the expired session on the report PDF route, the watercourses trading summary's "not calculated" inset, 2 post-intervention habitat-details tests parked under `FIXME(BMD-1043)`, and 3 upload placeholders (120s timeout ×2, irreplaceable habitat).
-- **e2e (CDP): 66 skipped** — those same 14 placeholders **plus 52 tests that cannot run against the real service**:
+- **local / github (stub): 11 skipped** — every one is an unconditional placeholder for a scenario that is not yet built or not reachable from a browser (`test.skip('…', …)` / `test.skip(true, …)` / `test.fixme`), each carrying its unblock steps in a comment. Currently: 3 authentication placeholders (failed login initiation, approved role in another relationship, interactive sign-out), the backend failure on the `upload-file` selection page, the watercourses trading summary's "not calculated" inset, 4 post-intervention habitat-details tests (2 parked under `FIXME(BMD-1043)`, 2 under `FIXME(BMD-1180)`), and 2 upload placeholders (the post-intervention 120s timeout, irreplaceable habitat). Placeholders covered by the resilience suite were removed and point to it.
+- **e2e (CDP): 66 skipped** — those same 11 placeholders **plus 52 tests that cannot run against the real service**:
   - **22** — habitat-detail tests whose real CDP upload exceeds the frontend's 120s budget under e2e load; covered in github against the stub uploader.
   - **21** — `no-role` / `no-projects` profile tests (role enforcement → `/auth/forbidden`, empty state) that only the stub can mint.
   - **3** — cross-user (IDOR) tests needing a _second_ stub profile.
@@ -441,7 +441,7 @@ npm run test:resilience
 docker compose up --wait -d --remove-orphans   # put the normal stack back
 ```
 
-The override recreates the backend and the frontend with their Postgres, S3, CDP Uploader and Redis connections going through Toxiproxy. Put the normal stack back before running the main suite.
+The override recreates the backend and the frontend with their Postgres, S3, CDP Uploader, Redis and backend connections going through Toxiproxy. It also adds a backend that is always too busy to check files and an uploader that never finishes scanning, which a test reaches with `toxiproxy.pointAt()`, plus `test-postgres` and `test-redis` proxies that give tests their own way into Postgres and Redis (`test/utils/stack-access.js`). Put the normal stack back before running the main suite.
 
 ### Metric workbook recalculation
 

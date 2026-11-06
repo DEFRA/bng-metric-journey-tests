@@ -16,7 +16,7 @@ on:
         default: main
 
   # Nightly, against frontend and backend main. Not a required check: the suite
-  # takes about 13 minutes, on top of the main journey-tests workflow.
+  # takes about 20 minutes, on top of the main journey-tests workflow.
   schedule:
     - cron: '0 2 * * *'
 
@@ -26,16 +26,18 @@ on:
       - .github/workflows/resilience-tests.yml
       - compose.resilience.yml
       - docker/toxiproxy/**
+      - docker/uploader-stub/**
       - playwright.resilience.config.js
       - test/specs/resilience/**
       - test/utils/resilience-checks.js
+      - test/utils/stack-access.js
       - test/utils/toxiproxy.js
 
 jobs:
   run-tests:
     name: Run Resilience Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Check out journey-tests
         uses: actions/checkout@v7.0.1

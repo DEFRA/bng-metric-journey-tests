@@ -1,8 +1,13 @@
 ################################################################################
 # Override for the resilience tests (npm run test:resilience): routes the
 # backend's Postgres, S3 and CDP Uploader connections and the frontend's Redis
-# connection through Toxiproxy, so a test can fail one of them without touching
-# anything else in the stack.
+# and backend connections through Toxiproxy, so a test can fail one of them
+# without touching anything else in the stack.
+#
+# It also adds two services a test can point a proxy at: a backend that is
+# always too busy to check files, and an uploader that never finishes scanning.
+# The test-postgres and test-redis proxies give the tests their own way into
+# Postgres and Redis, and are never faulted.
 #
 # Only those connections go through the proxy. The uploader and the identity stub
 # keep their own Redis connections, the uploader keeps its own S3 and SQS
@@ -26,6 +31,8 @@ services:
       - ./docker/toxiproxy/proxies.json:/config/proxies.json:ro
     ports:
       - '8474:8474'
+      - '25432:25432'
+      - '26379:26379'
     healthcheck:
       test: ['CMD', '/toxiproxy-cli', 'list']
       interval: 5s
@@ -48,6 +55,37 @@ services:
     environment:
       # The Redis port is hardcoded to 6379 in the frontend's redis-client.js.
       - REDIS_HOST=toxiproxy
+      - BACKEND_URL=http://toxiproxy:13001
     depends_on:
       toxiproxy:
+        condition: service_healthy
+
+  # Answers every file check with "busy", for the frontend's "service is busy"
+  # message. Reached by pointing the backend proxy at it.
+  bng-metric-backend-busy:
+    extends:
+      file: compose.yml
+      service: bng-metric-backend
+    environment:
+      - VALIDATION_ADMISSION_LIMIT=0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+      db-migrations:
+        condition: service_completed_successfully
+
+  # Reports every upload as still scanning, for the frontend's "file check timed
+  # out" message. Reached by pointing the cdp-uploader proxy at it. Runs on the
+  # uploader's own image, which already has Node.
+  cdp-uploader-pending:
+    image: defradigital/cdp-uploader:${CDP_UPLOADER_VERSION:-1.16.0@sha256:eb1627b60690ec24d41a17ed82e80c28d009aaaeb19dc179c6a3887da7e6a5bd}
+    networks:
+      - bng-journey-tests
+    entrypoint: ['node', '/stub/pending-status.mjs']
+    volumes:
+      - ./docker/uploader-stub:/stub:ro
+    depends_on:
+      cdp-uploader:
         condition: service_healthy

@@ -222,20 +222,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
   })
 
   // ─── Backend error ───────────────────────────────────────────────────────────
-
-  test.describe(
-    'Project dashboard — backend error',
-    { tag: '@regression' },
-    () => {
-      test.use({ storageState: STORAGE_STATE })
-
-      test.skip('backend error ≥ 400 on GET /users/{userId}/projects renders an error page', async () => {
-        // The frontend calls GET /users/{userId}/projects server-side via wreck.
-        // Playwright page.route() only intercepts browser-initiated requests, so
-        // this backend call cannot be mocked at the E2E layer. A network-level
-        // proxy or a test-specific backend stub endpoint is needed to reproduce
-        // this path reliably.
-      })
-    }
-  )
+  // Covered in test/specs/resilience/ (backend-outage.spec.js and
+  // postgres-outage.spec.js), which fail the backend and Postgres through
+  // Toxiproxy. page.route() can't reach the frontend's server-side backend call.
 })

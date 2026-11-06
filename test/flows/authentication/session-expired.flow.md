@@ -11,7 +11,13 @@ user who never signed in.
 
 ## Steps
 
-### Step 1 — Session-expired redirect triggers `[BLOCKED: shared server-side session]`
+### Step 1 — Session-expired redirect triggers `[IMPLEMENTED]`
+
+- **Tests:** the first case (tokens expired, refresh fails) is covered in
+  `test/specs/resilience/session-expiry.spec.js`, on a protected page and on the
+  report PDF route. It runs only in the resilience suite, because it signs in a
+  throwaway user and edits that user's session in Redis; expiring the shared
+  session would sign out every later test. The other two cases are not covered.
 
 - **Route:** Redirect to `GET /auth/session-expired`, triggered by the session
   auth scheme (`auth-scheme.js`) on a protected route in one of three cases:

@@ -1,4 +1,12 @@
+import { readFileSync } from 'node:fs'
+
 const TOXIPROXY_URL = process.env.TOXIPROXY_URL ?? 'http://localhost:8474'
+const PROXIES = JSON.parse(
+  readFileSync(
+    new URL('../../docker/toxiproxy/proxies.json', import.meta.url),
+    'utf8'
+  )
+)
 
 // Client for Toxiproxy's HTTP API, built on a Playwright APIRequestContext.
 // Proxy names come from docker/toxiproxy/proxies.json.
@@ -37,8 +45,18 @@ export class Toxiproxy {
     }
   }
 
-  // Re-enables every proxy and removes every toxic.
+  // Sends the proxy's traffic to another service, such as the busy backend or
+  // the pending uploader in compose.resilience.yml, until reset().
+  async pointAt(proxy, upstream) {
+    await this.#post(`/proxies/${proxy}`, { upstream })
+  }
+
+  // Re-enables every proxy, removes every toxic and points every proxy back at
+  // its upstream in proxies.json. Toxiproxy's own reset leaves upstreams alone.
   async reset() {
     await this.#post('/reset')
+    for (const { name, upstream } of PROXIES) {
+      await this.#post(`/proxies/${name}`, { upstream })
+    }
   }
 }

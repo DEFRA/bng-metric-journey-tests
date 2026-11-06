@@ -1105,25 +1105,10 @@ function describeUploaderRejection() {
   )
 }
 
-// ─── Upload timeout (impractical without a fast-forward hook) ─────────────────
-
-function describeUploadTimeout() {
-  test.describe(
-    'Upload baseline — upload check timeout',
-    { tag: '@regression' },
-    () => {
-      // Elapsed > MAX_WAIT_SECONDS (120s, hardcoded in
-      // habitat-upload-received-controller.js) clears the session, sets the
-      // "The file check timed out. Please try again." flash, and redirects to
-      // the upload form. A real 2-minute wait isn't viable in this suite. To
-      // enable:
-      //   1. make MAX_WAIT_SECONDS env-overridable in the frontend (test-only)
-      //   2. drive a `pending` status for longer than the shortened window and
-      //      assert the flash + redirect, then remove this test.skip
-      test.skip('an upload stuck pending for over 120s shows the timeout flash on the upload form', async () => {})
-    }
-  )
-}
+// ─── Upload timeout ───────────────────────────────────────────────────────────
+// The 120s "file check timed out" message is covered in
+// test/specs/resilience/file-check-messages.spec.js, where a stub uploader keeps
+// reporting the upload as still scanning.
 
 // ─── Irreplaceable habitat (not yet built) ────────────────────────────────────
 
@@ -1193,6 +1178,5 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
   describeGeometricGateErrors()
   describeSingleErrorDropout()
   describeUploaderRejection()
-  describeUploadTimeout()
   describeIrreplaceableHabitat()
 })

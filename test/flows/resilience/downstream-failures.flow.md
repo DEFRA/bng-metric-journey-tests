@@ -85,12 +85,42 @@ The file check is the only time the backend reads S3 while handling a request. I
 
 The browser talks to the uploader directly, so the service can't answer for this path. In a throwaway lab, a browser got its own error page when the uploader was down, and no feedback by a 60s cap when it hung. Those results would not carry over to CDP, where the platform sits between them.
 
-### Step 11 — Backend failing `[PLANNED]`
+### Step 11 — Backend failing `[IMPLEMENTED]`
 
-Frontend → backend. The ticket does not name it, and it is awaiting the outcome of the BMD-1189 proof of concept.
+- **Route:** `GET /manage-projects`
+- **Fault:** frontend → backend `down` and `hang`
+- **On error:** generic error page, immediately or at the frontend's 10s backend timeout
+- **Recovery:** dashboard lists the user's project once the fault clears
+
+### Step 12 — File check still running after 2 minutes `[IMPLEMENTED]`
+
+- **Route:** `GET /projects/{id}/upload-received`, after submitting a baseline file
+- **Setup:** the backend's uploader proxy points at `cdp-uploader-pending`, which passes everything to the real uploader except status checks, which always answer "pending". Nothing fails.
+- **Result:** after the frontend's 120s limit, the upload page with "The file check timed out. Please try again."
+- **Recovery:** the same file uploads successfully once the proxy points back
+
+### Step 13 — File checker still busy after 2 minutes `[IMPLEMENTED]`
+
+- **Route:** `GET /projects/{id}/upload-received`, after submitting a baseline file
+- **Setup:** the frontend's backend proxy points at `bng-metric-backend-busy`, which has `VALIDATION_ADMISSION_LIMIT=0`, so it answers every file check with "busy"
+- **Result:** after the frontend's 120s limit, the upload page with "The service is busy checking other files. Please try again in a few moments."
+- **Recovery:** the same file uploads successfully once the proxy points back
+
+### Step 14 — Saving while another edit holds the project `[IMPLEMENTED]`
+
+- **Route:** `POST` from the baseline habitat details form
+- **Setup:** the test holds the project's row lock through `test-postgres`, as another user's save would. The backend gives up after its 5s `lock_timeout`.
+- **Result:** the error page with "Another user is editing this. Please try again." (409). Reachable since backend PR #591; an upload conflict is not covered yet.
+- **Recovery:** the save works once the lock is released
+
+### Step 15 — Sign-in expired and can't be renewed `[IMPLEMENTED]`
+
+- **Routes:** `GET /manage-projects` and the report PDF route
+- **Setup:** a throwaway user signs in through the stub, then the test edits that user's session through `test-redis`: the access token is expired and the refresh token is rejected. The shared session is never touched.
+- **Result:** a redirect to `/auth/session-expired`, with its "Sign in again" button and "Return to the home page" link
 
 ## Ticket scenarios outside this suite
 
 A file rejected by the CDP Uploader needs no fault, so it runs in the main suite, in the upload specs ("CDP Uploader rejection"), on the stub stack only.
 
-The rest of the ticket's list is not automated yet: the two 2-minute messages ("file check timed out" with a healthy uploader, and "service is busy"), the 409 conflict and the expired-session redirect. They need a stub uploader, a second backend or a direct client for Postgres or Redis, and are awaiting the outcome of the BMD-1189 proof of concept.
+"Unable to start file upload" (ticket scenario 5) has no test: reading the code, it can't realistically be reached.

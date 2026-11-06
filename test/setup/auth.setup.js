@@ -17,7 +17,7 @@ import { DefraIdLoginFlow } from '../flows/authentication/defra-id-login.flow.js
 // Unauthenticated state: used in e2e mode where the stub is not available.
 const EMPTY_STATE = JSON.stringify({ cookies: [], origins: [] })
 
-async function registerAndLogin(
+export async function registerAndLogin(
   page,
   email,
   { withBngCompleterRole, roleStatus = '3' }
