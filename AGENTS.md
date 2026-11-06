@@ -433,7 +433,7 @@ PROFILE=@project-management npm run test:github
 
 ### Resilience tests
 
-`test/specs/resilience/` proves the service shows an error page rather than hanging, and recovers, when a dependency fails. Faults are injected by Toxiproxy (the `toxiproxy` fixture), so these tests are excluded from the main suite and never run on CDP: a fault applies to the whole stack and would break any test running alongside it. They run in their own workflow, `.github/workflows/resilience-tests.yml`. See [`test/flows/resilience/downstream-failures.flow.md`](test/flows/resilience/downstream-failures.flow.md).
+`test/specs/resilience/` proves the service shows an error page rather than hanging, and recovers, when a dependency fails. Faults are injected by Toxiproxy (the `toxiproxy` fixture), so these tests are excluded from the main suite and never run on CDP: a fault applies to the whole stack and would break any test running alongside it. They run in their own workflow, `.github/workflows/resilience-tests.yml`: nightly against frontend and backend `main`, on manual dispatch, and on PRs that change the suite. It is not a required check. See [`test/flows/resilience/downstream-failures.flow.md`](test/flows/resilience/downstream-failures.flow.md).
 
 ```sh
 docker compose -f compose.yml -f compose.resilience.yml up --wait -d

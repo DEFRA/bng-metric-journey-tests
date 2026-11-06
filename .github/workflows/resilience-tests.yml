@@ -15,12 +15,21 @@ on:
         required: false
         default: main
 
-  # TEMPORARY, remove before merging. GitHub only allows workflow_dispatch once
-  # a workflow file exists on the default branch, so the BMD-1189 proof of
-  # concept can only run from its own branch through a push trigger.
-  push:
-    branches:
-      - BMD-1189-service-resilience-on-downstream-systems
+  # Nightly, against frontend and backend main. Not a required check: the suite
+  # takes about 13 minutes, on top of the main journey-tests workflow.
+  schedule:
+    - cron: '0 2 * * *'
+
+  # Changes to the suite itself are checked on their PR, as a non-required check.
+  pull_request:
+    paths:
+      - .github/workflows/resilience-tests.yml
+      - compose.resilience.yml
+      - docker/toxiproxy/**
+      - playwright.resilience.config.js
+      - test/specs/resilience/**
+      - test/utils/resilience-checks.js
+      - test/utils/toxiproxy.js
 
 jobs:
   run-tests:
