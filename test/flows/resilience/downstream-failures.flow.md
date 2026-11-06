@@ -56,7 +56,7 @@ Tests assert three things: an error page is rendered, it arrives within a bound,
 
 - **Route:** `GET /manage-projects`, signed in
 - **Fault:** frontend → Redis `hang`
-- **On error:** should be the generic error page, but the page currently never responds. The test is marked `test.fail`, so it goes red once the defect is fixed.
+- **On error:** should be the generic error page, but the page currently never responds. The test is marked `test.fail` under `FIXME(BMD-1200)`, so it goes red once the defect is fixed.
 
 ### Step 7 — S3 failing during the file check `[IMPLEMENTED]`
 
@@ -78,7 +78,7 @@ The file check is the only time the backend reads S3 while handling a request. I
 
 - **Route:** `GET /projects/{id}/upload-received`, after submitting a baseline file
 - **Fault:** backend → CDP Uploader `down` and `hang`. The browser posts the file to the uploader directly, so the upload itself succeeds.
-- **On error:** "Checking your file" until the frontend's 120s limit (`MAX_WAIT_SECONDS`), then the generic error page. The "file check timed out" message is lost, because the upload page clears it and then fails to load. This is a known defect, which the tests do not assert.
+- **On error:** "Checking your file" until the frontend's 120s limit (`MAX_WAIT_SECONDS`), then the generic error page. The "file check timed out" message is lost, because the upload page clears it and then fails to load. This is a known defect (BMD-1200), which the tests do not assert.
 - **Recovery:** the same file uploads successfully once the fault clears
 
 ### Step 10 — Browser posting a file to a failing CDP Uploader `[BLOCKED: not reachable through the proxy]`

@@ -32,7 +32,7 @@ test.describe('resilience', { tag: '@resilience' }, () => {
         })
       })
 
-      // FIXME(BMD-1189): swap for the defect ticket once raised. Known defect: a
+      // FIXME(BMD-1200): known defect 1 on that ticket. A
       // signed-in page never responds while Redis is not answering, because the
       // frontend's redis-client.js sets no command timeout. It currently fails
       // at the navigation timeout. test.fail rather than test.fixme so it keeps

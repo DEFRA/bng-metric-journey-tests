@@ -94,7 +94,7 @@ test.describe('resilience', { tag: '@resilience' }, () => {
     //
     // These assert the user is not left waiting forever, which holds today. They
     // do not cover the "file check timed out" message, which is lost in this
-    // scenario (BMD-1189 defect 3): the upload page clears the message and then
+    // scenario (BMD-1200 defect 3): the upload page clears the message and then
     // fails to load, because it needs the uploader too. A fix may end this
     // journey somewhere other than the error page, so expect to update these
     // tests alongside it.
