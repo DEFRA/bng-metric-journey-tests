@@ -55,7 +55,10 @@ async function assertProjectSummaryHandlesOutage({
 
 // Opening the name page doesn't read the database, so the fault lands on the
 // save. The user then retries with the same name, as they would in real use,
-// and must end up with exactly one project.
+// and must end up with exactly one project. If the insert held during a hang
+// were completed once the fault cleared, the retry would make a second one and
+// the count would fail: that duplicate is a real defect, so the count stays.
+// Measured on 2026-11-06, the held insert never landed (3 runs, 25s each).
 async function assertSaveHandlesOutage({
   injectFault,
   toxiproxy,

@@ -55,10 +55,10 @@ test.describe('resilience', { tag: '@resilience' }, () => {
         }
       })
 
-      // The PDF route's service (report.js) is the only one that must rethrow a
-      // dead session rather than report a backend failure. The sign-in is left
-      // in date, so the request gets past the auth scheme and the backend's
-      // rejection of the token reaches that rethrow. The backend rejects the
+      // Proves the PDF route's own service (report.js) passes a dead session on
+      // to catchAll instead of turning it into a 502. The sign-in is left in
+      // date, so the request gets past the auth scheme and the backend's
+      // rejection of the token reaches the service. The backend rejects the
       // token before looking up the project, so any project id will do.
       test('a session the backend rejects on the report PDF route is sent to the signed-out page', async ({
         browser
