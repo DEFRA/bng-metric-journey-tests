@@ -19,9 +19,14 @@ async function openWithDeadSession(browser, path, killSession) {
   await killSession(sessionKey)
 
   const context = await browser.newContext({ baseURL: baseUrl, storageState })
-  const page = await context.newPage()
-  await page.goto(path)
-  return { context, page }
+  try {
+    const page = await context.newPage()
+    await page.goto(path)
+    return { context, page }
+  } catch (error) {
+    await context.close()
+    throw error
+  }
 }
 
 test.describe('resilience', { tag: '@resilience' }, () => {
