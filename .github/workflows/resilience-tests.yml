@@ -15,23 +15,11 @@ on:
         required: false
         default: main
 
-  # Nightly, against frontend and backend main. Not a required check: the suite
-  # takes about 20 minutes, on top of the main journey-tests workflow.
+  # Nightly, against frontend and backend main. Deliberately not run on PRs or
+  # in the merge queue: the suite takes about 20 minutes and must never hold up
+  # the main journey-tests run. Use workflow_dispatch to check a change early.
   schedule:
     - cron: '0 2 * * *'
-
-  # Changes to the suite itself are checked on their PR, as a non-required check.
-  pull_request:
-    paths:
-      - .github/workflows/resilience-tests.yml
-      - compose.resilience.yml
-      - docker/toxiproxy/**
-      - docker/uploader-stub/**
-      - playwright.resilience.config.js
-      - test/specs/resilience/**
-      - test/utils/resilience-checks.js
-      - test/utils/stack-access.js
-      - test/utils/toxiproxy.js
 
 jobs:
   run-tests:
