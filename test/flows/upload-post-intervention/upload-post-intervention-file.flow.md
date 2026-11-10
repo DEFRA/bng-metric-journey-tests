@@ -161,6 +161,7 @@ Two behaviours worth testing explicitly:
 - **Validation:**
   - Session error array absent or empty → generic fallback message
   - Exactly one visible error → renders the BMD-405 personalised `singleError` copy instead of the multi-error summary/blocks; no "Upload a different file"/"Back to project" action shown on this layout, except the `text` variant
+  - `HABITAT_REF_MISSING` among several errors → the multi-error list heads its block "Your file contains a habitat with no habitat reference" and lists no habitats under it (`listsHabitats: false` in `error-text.yaml`, BMD-1086 AC7) `[COVERED]`
   - `projectId` absent → project-specific action links replaced with a "Back to start" root link, and any inline single-error upload link is dropped
 - **On success:** Renders the error dropout page
 - **On error:** N/A

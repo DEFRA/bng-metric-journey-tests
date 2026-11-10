@@ -141,6 +141,40 @@ def build_distinctiveness_fixture():
         con.close()
 
 
+def build_distinctiveness_and_missing_ref_fixture():
+    """`habitat distinctiveness out of scope and missing habitat ref.gpkg`.
+
+    Copy of the distinctiveness fixture above with H2-1's Parcel Ref set to SQL
+    NULL, as `missing habitat ref.gpkg` has it. Both are data-quality checks, so
+    the backend reports HABITAT_REF_MISSING beside the distinctiveness error and
+    the page renders the multi-error list, where the blank ref is a heading with
+    no rows under it (BMD-1086 AC7).
+
+    Used by upload-post-intervention.spec.js (content validation errors).
+    """
+    src = EX / "Post-intervention - habitat distinctiveness out of scope.gpkg"
+    dst = EX / (
+        "Post-intervention - habitat distinctiveness out of scope and missing"
+        " habitat ref.gpkg"
+    )
+    shutil.copyfile(src, dst)
+    con = sqlite3.connect(dst)
+    try:
+        update_attr(
+            con, "Habitats", '"Parcel Ref"=NULL WHERE "Parcel Ref"=?', ("H2-1",)
+        )
+        con.commit()
+        print("\nhabitat distinctiveness out of scope and missing habitat ref:")
+        for row in con.execute(
+            'SELECT fid, "Parcel Ref", "Proposed Habitat Type" FROM "Habitats" '
+            'WHERE "Parcel Ref" IS NULL OR "Parcel Ref"=?',
+            ("H1",),
+        ):
+            print(f"  Habitats: {row}")
+    finally:
+        con.close()
+
+
 def build_created_area_fixture():
     """`created area habitat.gpkg`: copy of complete, H2-7 -> genuinely Created.
 
@@ -611,6 +645,7 @@ if __name__ == "__main__":
     recut_mixed_fixture()
     build_lost_tree_fixture()
     build_distinctiveness_fixture()
+    build_distinctiveness_and_missing_ref_fixture()
     build_created_area_fixture()
     build_watercourse_wc3_baseline_fixture()
     recut_all_unit_types_hg032()
