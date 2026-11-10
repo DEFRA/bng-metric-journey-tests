@@ -38,6 +38,9 @@ const COLUMN = {
  *    the section locator must be `exact`; a substring match resolves to both.
  */
 export class HedgerowsBaselinePage extends BasePage {
+  /** Grid column indexes, for specs that read cells by column name. */
+  static COLUMN = COLUMN
+
   constructor(page) {
     super(page)
     this.heading = page.getByRole('heading', {

@@ -69,6 +69,8 @@ const OUT_OF_SCOPE_WATERCOURSE_TYPES = [
 const IN_SCOPE_WATERCOURSE_TYPES = ['Canals', 'Culvert', 'Ditches']
 const COMPLETE_BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
 const PROJECT_LABEL = 'Habitat details test'
+const STATUS_COMPLETE = 'Complete'
+const STATUS_INCOMPLETE = 'Incomplete'
 
 // BMD-1112 — the habitat's comment, shown as "Supporting information". Harness
 // valid/ (BMD-1100). Only Retained and Lost rows put the file's comment on the
@@ -96,25 +98,22 @@ const COMMENT_INVALID_INLINE =
 
 // BMD-1043 (frontend PR#352) removed the baseline habitat list. Each feature
 // type's grid now lives on its own unit-type baseline page, and that page is
-// where the details page's Back, Cancel and Save all lead. Column indexes follow
-// buildBaselineHabitatGrid: ref, units, size, [broad habitat — area only],
-// habitat type, distinctiveness, condition, strategic significance. The grid
-// has no Status column, so Complete/Incomplete is not observable there.
+// where the details page's Back, Cancel and Save all lead. Cells are read by
+// column name through each page object's COLUMN map, so the grid's column
+// order lives in one place. The Status column (BMD-1101) shows whether a save
+// left the habitat Complete or Incomplete.
 const BASELINE_PAGES = {
   area: {
     path: 'area-baseline',
-    Page: AreaBaselinePage,
-    columns: { units: 1, size: 2, distinctiveness: 5, condition: 6 }
+    Page: AreaBaselinePage
   },
   hedgerow: {
     path: 'hedgerows-baseline',
-    Page: HedgerowsBaselinePage,
-    columns: { units: 1, size: 2, distinctiveness: 4, condition: 5 }
+    Page: HedgerowsBaselinePage
   },
   watercourse: {
     path: 'watercourses-baseline-summary',
-    Page: WatercoursesBaselinePage,
-    columns: { units: 1, size: 2, distinctiveness: 4, condition: 5 }
+    Page: WatercoursesBaselinePage
   }
 }
 
@@ -145,7 +144,7 @@ function gridRow(page, type, ref) {
 function gridCell(page, type, ref, column) {
   return gridRow(page, type, ref)
     .locator('td')
-    .nth(BASELINE_PAGES[type].columns[column])
+    .nth(BASELINE_PAGES[type].Page.COLUMN[column])
 }
 
 // The grid renders condition as label and score — "Good (3)" — where the
@@ -259,7 +258,7 @@ async function expectDerivedValuesHidden(detailsPage) {
 // so strip it to compare like-for-like; area size reads "1.36ha" on both.
 async function readGridFeatures(page, projectId, type) {
   const grid = await openBaselineGrid(page, projectId, type)
-  const { columns } = BASELINE_PAGES[type]
+  const columns = BASELINE_PAGES[type].Page.COLUMN
   const features = []
   for (const row of await grid.featureRows().all()) {
     const link = row.getByRole('link').first()
@@ -584,8 +583,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     // AC6 (Scenario A — all options selected): saving a changed selection
     // persists it, recalculates the habitat units, and returns to the area
     // habitats baseline with the row and the grid total reflecting the new
-    // calculation. The grid has no Status column (BMD-1043), so "Complete" is
-    // evidenced by the recalculated units rather than a status cell.
+    // calculation, and its Status cell showing Complete (BMD-1101).
     test(
       'AC6 Scenario A — saving with all options selected recalculates units',
       { tag: '@smoke' },
@@ -630,6 +628,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         )
         await expect(gridUnitsTotal(page, 'area')).toHaveText(
           HABITAT_UNITS_PATTERN
+        )
+        await expect(gridCell(page, 'area', areaRef, 'status')).toHaveText(
+          STATUS_COMPLETE
         )
       }
     )
@@ -818,13 +819,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     )
 
     // AC6 (Scenario B — not all options selected): saving with a dropdown
-    // deselected clears the units — null + Incomplete since BMD-1070 (the
-    // grid has no Status column to show Incomplete — BMD-1043). Runs last in
-    // the serial block because it leaves the shared habitat Incomplete.
-    // FIXME(BMD-1101): parked 2026-11-11. Frontend PR #449 added a Status
-    // column after Ref on the baseline grids, so this test's column positions
-    // and headings are out of date. Restore when BMD-1101 is validated.
-    test.fixme(
+    // deselected clears the units — null + Incomplete since BMD-1070, shown
+    // in the Status column (BMD-1101). Runs last in the serial block because
+    // it leaves the shared habitat Incomplete.
+    test(
       'AC6 Scenario B — saving with a deselected dropdown clears units',
       { tag: '@regression' },
       async ({ baselineHabitatDetailsPage, page }) => {
@@ -835,6 +833,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
         await expect(gridCell(page, 'area', areaRef, 'units')).toHaveText(
           NO_UNITS
+        )
+        await expect(gridCell(page, 'area', areaRef, 'status')).toHaveText(
+          STATUS_INCOMPLETE
         )
       }
     )
@@ -1116,7 +1117,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     // AC6 (Scenario A — all options selected): saving a changed selection
     // persists it, recalculates the hedgerow units, and returns to the
     // hedgerows baseline with the row and the grid total reflecting the new
-    // calculation. The grid has no Status column (BMD-1043).
+    // calculation, and its Status cell showing Complete (BMD-1101).
     test(
       'AC6 Scenario A — saving with all options selected recalculates units',
       { tag: '@smoke' },
@@ -1158,6 +1159,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(gridUnitsTotal(page, 'hedgerow')).toHaveText(
           HABITAT_UNITS_PATTERN
         )
+        await expect(
+          gridCell(page, 'hedgerow', hedgerowRef, 'status')
+        ).toHaveText(STATUS_COMPLETE)
       }
     )
 
@@ -1292,13 +1296,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     )
 
     // AC6 (Scenario B — not all options selected): saving with the condition
-    // deselected clears the units — null + Incomplete since BMD-1070 (no
-    // Status column — BMD-1043). Runs last in the serial block because it
-    // leaves the shared hedgerow Incomplete.
-    // FIXME(BMD-1101): parked 2026-11-11. Frontend PR #449 added a Status
-    // column after Ref on the baseline grids, so this test's column positions
-    // and headings are out of date. Restore when BMD-1101 is validated.
-    test.fixme(
+    // deselected clears the units — null + Incomplete since BMD-1070, shown
+    // in the Status column (BMD-1101). Runs last in the serial block because
+    // it leaves the shared hedgerow Incomplete.
+    test(
       'AC6 Scenario B — saving with a deselected dropdown clears units',
       { tag: '@regression' },
       async ({ baselineHabitatDetailsPage, page }) => {
@@ -1310,6 +1311,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(
           gridCell(page, 'hedgerow', hedgerowRef, 'units')
         ).toHaveText(NO_UNITS)
+        await expect(
+          gridCell(page, 'hedgerow', hedgerowRef, 'status')
+        ).toHaveText(STATUS_INCOMPLETE)
       }
     )
   })
@@ -1516,8 +1520,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       // AC8/AC8c (Scenario A — all options selected): saving with habitat type,
       // condition and both encroachments set persists them, recalculates the
       // watercourse units, and returns to the watercourses baseline with the
-      // row and the grid total reflecting the new calculation. The grid has no
-      // Status column (BMD-1043).
+      // row and the grid total reflecting the new calculation, and its Status
+      // cell showing Complete (BMD-1101).
       test('Scenario A — saving with all options selected recalculates units', async ({
         createProjectFlow,
         projectDashboardPage,
@@ -1586,6 +1590,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(gridUnitsTotal(page, 'watercourse')).toHaveText(
           HABITAT_UNITS_PATTERN
         )
+        await expect(
+          gridCell(page, 'watercourse', watercourseRef, 'status')
+        ).toHaveText(STATUS_COMPLETE)
       })
 
       // AC (change condition): changing the condition shows the new value as
@@ -1729,13 +1736,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       })
 
       // AC8 (Scenario B — not all options selected): saving with the condition
-      // deselected clears the units — null + Incomplete since BMD-1070 (no
-      // Status column — BMD-1043). Runs last in the serial block because it
-      // leaves the shared watercourse Incomplete.
-      // FIXME(BMD-1101): parked 2026-11-11. Frontend PR #449 added a Status
-      // column after Ref on the baseline grids, so this test's column positions
-      // and headings are out of date. Restore when BMD-1101 is validated.
-      test.fixme('Scenario B — saving with a deselected dropdown clears units', async ({
+      // deselected clears the units — null + Incomplete since BMD-1070, shown
+      // in the Status column (BMD-1101). Runs last in the serial block because
+      // it leaves the shared watercourse Incomplete.
+      test('Scenario B — saving with a deselected dropdown clears units', async ({
         baselineHabitatDetailsPage,
         page
       }) => {
@@ -1747,6 +1751,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(
           gridCell(page, 'watercourse', watercourseRef, 'units')
         ).toHaveText(NO_UNITS)
+        await expect(
+          gridCell(page, 'watercourse', watercourseRef, 'status')
+        ).toHaveText(STATUS_INCOMPLETE)
       })
     }
   )
