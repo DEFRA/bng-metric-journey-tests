@@ -2,9 +2,9 @@
 
 ## Overview
 
-A BNG Completer views and edits the dropdown fields for a single baseline feature
-(area habitat, hedgerow, or watercourse). On save the backend recomputes derived
-values (distinctiveness, condition score, habitat units, status) and the user is
+A BNG Completer views and edits the habitat reference and dropdown fields for a single
+baseline feature (area habitat, vertical area habitat, hedgerow, or watercourse). On save
+the backend recomputes derived values (distinctiveness, condition score, habitat units, status) and the user is
 returned to the feature type's unit-type baseline page — `area-baseline`,
 `hedgerows-baseline` or `watercourses-baseline-summary` (BMD-1043, frontend PR#352; it was
 the baseline habitat list, anchored to the edited row or tab, now removed). Watercourse
@@ -34,11 +34,13 @@ recompute units from the engine's encroachment multipliers (BMD-597).
     - `GET /reference/trading-rules?featureType=watercourse` — watercourse trading rules (cached in-process)
     - `GET /reference/watercourse-encroachments` — watercourse + riparian encroachment option lists (cached in-process)
     - `GET /reference/conditions?habitatType={type}&featureType=watercourse` — watercourse condition options (only when type is set)
-- **Description:** Feature type is resolved by the backend; the page renders via a strategy (area, hedgerow, or watercourse). Read-only rows: Reference, Size (Area (ha) for habitats / Length (km) for hedgerows / watercourses), Distinctiveness (updated by client JS), Strategic Significance (fixed "Low (1)"), Required action to meet trading rules (updated by client JS), Units in this habitat. Editable rows: Broad habitat (select; area habitats only), Habitat type (select), Condition (select). Watercourse features additionally render editable Watercourse and Riparian encroachment dropdowns, filtered by habitat type (culverts show only "N/A - Culvert"; other types exclude it) (BMD-597). A JSON script tag (`#bhd-reference-data`) embeds static reference data for client-side JS. Both the Back and the Cancel link are conditional — see below.
+- **Description:** Feature type is resolved by the backend; the area (also used for individual trees), vertical area, hedgerow and watercourse strategies render the shared stacked-field form. The editable **Habitat reference** input starts with the saved ref and stops at 100 characters (`maxlength`). A vertical area habitat is sized in square metres and its habitat type list is narrowed to vertical habitats. Size is read-only: **Size (hectares)** for areas and **Length (km)** for linear features. Other read-only fields are Distinctiveness, **Strategic significance** (fixed "Low (1)"), Required action to meet trading rules, and the final Units in this habitat summary row. Broad habitat (areas only), Habitat type and Condition are editable selects. Watercourses also show editable Watercourse encroachment followed by Riparian encroachment; these are form controls, not summary-list terms. Their options remain culvert-aware (BMD-597). The JSON reference script supports client-side preview updates. Back and Cancel targets are described below. `[IMPLEMENTED]`
+
 - **The heading shows the ref as saved (BMD-1058) `[IMPLEMENTED]`:** the `<h1>` is `"{Habitat|Hedgerow|Watercourse} {ref}"`, built in `habitat-details-controller.js` from the stored ref with no trimming of its own. The grids do trim refs when they display them, which hides what was saved. So the details heading is where the journey suite checks the backend's clean (`cleanHabitatRef`): the raw `textContent` of the `<h1>` must be exactly `"Habitat H001"` for the file's `"␣␣H001␣␣"` (trimmed), and `"Habitat "` plus exactly 100 characters for a 115-character ref (truncated). `toHaveText` would normalise whitespace and hide a failure, so the tests compare the raw text. See `baseline-habitat-details.spec.js` › _habitat reference cleaning_.
 - **Back and Cancel link targets (BMD-878, frontend PR#199; BMD-935, frontend PR#226) `[IMPLEMENTED]`:** both links are chosen from the request's `Referer` header by `postInterventionBackHref` in `src/server/common/helpers/habitat-details-controller.js`. BMD-878 introduced the rule for Back; BMD-935 applied the identical rule to Cancel, which until then always went to the baseline habitat list.
   - If the referrer is **same-host**, has pathname **`/post-intervention-habitat-details`**, carries the **same `projectId`**, and a **valid UUID `featureId`** — both links point at `/post-intervention-habitat-details?featureId={refererFeatureId}&projectId={projectId}`, returning the user to the post-intervention habitat details page they clicked "View baseline details" on. They resolve to one shared value (`piBackHref`), so in this case Back and Cancel are byte-identical hrefs.
   - Otherwise (no referrer, malformed referrer, cross-host, a different path such as the feature's own baseline grid, or a mismatched `projectId`) both fall back to the feature type's baseline page, with no anchor: `/projects/{projectId}/area-baseline`, `/projects/{projectId}/hedgerows-baseline` or `/projects/{projectId}/watercourses-baseline-summary` (set by each strategy's `backHref` / `cancelHref`). **Changed by BMD-1043 (frontend PR#352):** the fallback was the baseline habitat list, where Cancel carried the area row anchor (`#habitat-{featureId}`) and Back did not, and linear features used the tab anchors `#hedgerows` / `#watercourses`.
+  - **After a refused save (BMD-1061):** the POST's referrer is the baseline page itself, so the origin travels in the hidden `returnUrl` field. A refused save keeps the post-intervention Back and Cancel targets. Only a same-site path to that project's post-intervention details page is accepted.
   - **Testing note:** because the target is derived from `Referer`, a test that reaches this page with `page.goto()` sends no referrer and will always exercise the fallback. Exercising the post-intervention branch requires a real **click** on the "View baseline details" link from `/post-intervention-habitat-details`.
   - **Testing note (BMD-935):** in the matched-referrer case the two links render the same href twice on one page, so an assertion that merely looks for that string in the markup is satisfied by whichever link still carries it. Assert Back and Cancel separately — the frontend's own unit test for the Cancel case does not, and cannot fail if `cancelHref` regresses.
 - **Where each strategy is tested `[IMPORTANT]`:** the frontend controller unit tests
@@ -79,13 +81,15 @@ recompute units from the engine's encroachment multipliers (BMD-597).
 ### Step 2 — Save habitat details `[IMPLEMENTED]`
 
 - **Route:** `POST /baseline-habitat-details`
-- **Template:** None (redirect only)
+- **Template:** None on success (redirect). A refused reference re-renders `src/server/habitat-details/habitat-details.njk`.
 - **Auth required:** Yes (session + BNG Completer role)
-- **Backend endpoint:** `PUT /projects/{projectId}/features/{featureId}` — persists broadType / habitatType / condition (plus watercourseEncroachment / riparianEncroachment from the watercourse form); recomputes distinctiveness, condition score, habitat units, and Complete/Incomplete status; uses row-level locking with a 5 s timeout; returns `{ type, feature }`. Watercourse saves persist the encroachment selections and recompute units from the engine's encroachment multipliers (BMD-597).
-- **Description:** Submits the dropdown selections. Empty strings are coerced to null by the backend. A save that leaves any required input empty (a deselected dropdown, or a watercourse encroachment) cannot be priced, so the feature is saved with `units: null` and status `Incomplete` (BMD-1070, backend PR #498 — it used to save `0`). Its Units cell on the baseline grid is then blank. The redirect anchor is determined by the feature type returned in the backend response.
+- **Backend endpoint:** `PUT /projects/{projectId}/features/{featureId}` — persists ref (optional; left out, the stored ref is kept) and broadType / habitatType / condition (plus watercourseEncroachment / riparianEncroachment from the watercourse form); recomputes distinctiveness, condition score, habitat units, and Complete/Incomplete status; uses row-level locking with a 5 s timeout; returns `{ type, feature }`. Watercourse saves persist the encroachment selections and recompute units from the engine's encroachment multipliers (BMD-597).
+- **Description:** Submits the habitat reference and dropdown selections. Only a reference the user changed is checked and sent, trimmed, so a habitat imported before BMD-1058 can still have its dropdowns saved. Empty dropdowns are sent as null by the frontend. A rename is carried onto the post-intervention rows joined to the feature and onto its stored geometry rows. A save that leaves any required input empty (a deselected dropdown, or a watercourse encroachment) cannot be priced, so the feature is saved with `units: null` and status `Incomplete` (BMD-1070, backend PR #498 — it used to save `0`). Its Units cell on the baseline grid is then blank. The redirect anchor is determined by the feature type returned in the backend response.
 - **Validation (payload):**
   - `projectId` required UUID
   - `featureId` required UUID
+  - `habitatRef` optional string, allow empty string
+  - `returnUrl` optional string, allow empty string
   - `broadHabitat` optional string, allow empty string
   - `habitatType` optional string, allow empty string
   - `condition` optional string, allow empty string
@@ -96,7 +100,11 @@ recompute units from the engine's encroachment multipliers (BMD-597).
   - Area habitat or tree: Redirects to `/projects/{projectId}/area-baseline`
   - Hedgerow: Redirects to `/projects/{projectId}/hedgerows-baseline`
   - Watercourse: Redirects to `/projects/{projectId}/watercourses-baseline-summary`
-- **On error:** Backend 4xx/5xx → 502 Bad Gateway; backend 409 (lock timeout on concurrent edit) → 409 Conflict
+- **On error:**
+  - **Invalid reference** (blank, whitespace only, U+FFFD or a lone surrogate) → 400. The page re-renders with the summary "You have entered an invalid habitat reference." and inline "Enter a valid habitat reference.", title prefixed `Error:`. The heading keeps the saved ref, the input and dropdowns keep what was submitted, nothing is saved.
+  - **More than 100 characters** is not an error: the backend trims and truncates to 100 (BMD-1058 rules).
+  - **Rename onto a ref already in use** → backend 422 `HABITAT_REF_IN_USE`, shown as 400 with "You have entered a habitat reference that is already in use." and "Enter a habitat reference that is not already in use." Area habitats are checked within their layer; hedgerows and watercourses are checked together. Keeping a ref never clashes, and imports may still repeat one. Open: the PO allowed duplicates on BMD-1180 (2026-11-03), and BMD-1061's AC5 doesn't exclude them.
+  - **Other backend refusals:** 400 with a ref sent shows the invalid-reference page; 400 without one is an error page; 404 → 404; 409 (lock timeout) → 409; anything else, including 422 out-of-scope distinctiveness → 502. An expired session passes through to sign-in.
 
 ---
 

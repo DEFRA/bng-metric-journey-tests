@@ -37,8 +37,9 @@ const REPO_ROOT = path.resolve(
 const PLAYWRIGHT_CLI = path.join(
   REPO_ROOT,
   'node_modules',
-  '.bin',
-  'playwright'
+  '@playwright',
+  'test',
+  'cli.js'
 )
 
 // Describe titles (any ancestor) that mark a scenario as unhappy.

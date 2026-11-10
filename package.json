@@ -14,9 +14,10 @@
     "test:github": "CI=true RUN_MODE=github playwright test",
     "test:e2e": "RUN_MODE=e2e playwright test",
     "test:evidence": "RUN_MODE=local playwright test --config=playwright.evidence.config.js --reporter=list",
+    "test:resilience": "CI=true RUN_MODE=github playwright test --config=playwright.resilience.config.js",
     "screenshots": "RUN_MODE=local playwright test --config=playwright.screenshots.config.js",
-    "format": "prettier --write 'test/**/*.js' '**/*.{js,md,json,config.js}'",
-    "format:check": "prettier --check 'test/**/*.js' '**/*.{js,md,json,config.js}'",
+    "format": "prettier --write \"test/**/*.js\" \"**/*.{js,md,json,config.js}\"",
+    "format:check": "prettier --check \"test/**/*.js\" \"**/*.{js,md,json,config.js}\"",
     "git:pre-commit-hook": "npm run format:check && npm run lint && npm run check:happy-path-tags",
     "lint": "eslint .",
     "check:happy-path-tags": "node test/utils/check-happy-path-tags.js",
@@ -33,7 +34,9 @@
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-prettier": "5.5.7",
     "husky": "9.1.7",
+    "ioredis": "6.0.0",
     "neostandard": "0.14.1",
+    "pg": "8.23.1",
     "prettier": "3.9.10"
   }
 }

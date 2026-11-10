@@ -26,8 +26,11 @@ export class ErrorFilePage extends BasePage {
     this.distinctivenessHeading = page.getByRole('heading', {
       name: 'Very high and high distinctiveness habitats are not yet included in this service'
     })
-    this.placeholderHeading = page.getByRole('heading', {
-      name: 'PLACEHOLDER (AWAITING UCD)'
+    // A problem the user cannot fix in the file (BMD-1204, frontend PR#483):
+    // GOV.UK's wording for a service problem, above "Try again later."
+    this.serviceProblemHeading = page.getByRole('heading', {
+      name: 'Sorry, there is a problem with the service',
+      exact: true
     })
     this.uploadNewFileLink = page.getByRole('link', {
       name: 'upload a new file'
@@ -35,9 +38,12 @@ export class ErrorFilePage extends BasePage {
     this.metricToolLink = page.getByRole('link', {
       name: /metric tool \(spreadsheet\)/
     })
-    // BMD-1182 layout for a baseline the service cannot enhance
-    this.unenhanceableHeading = page.getByRole('heading', {
+    // Shared by BMD-1182 and the BMD-1086 habitat reference errors
+    this.projectProblemHeading = page.getByRole('heading', {
       name: 'There is a problem with your project'
+    })
+    this.habitatParcelsHeading = page.getByRole('heading', {
+      name: 'Habitat parcels'
     })
     this.serviceEligibilityHeading = page.getByRole('heading', {
       name: 'Service eligibility'
@@ -45,20 +51,6 @@ export class ErrorFilePage extends BasePage {
     this.unenhanceableHelpText = page.getByText(
       'Your project contains habitats that have been enhanced to a level which is not yet included in this service.'
     )
-    this.unenhanceableTable = page.getByRole('table', {
-      name: 'Habitats that cannot be enhanced'
-    })
-    this.unenhanceableColumnHeaders =
-      this.unenhanceableTable.getByRole('columnheader')
-    // Filtered on a data cell, so the header row is not counted.
-    this.unenhanceableRows = this.unenhanceableTable
-      .getByRole('row')
-      .filter({ has: page.getByRole('cell') })
-  }
-
-  // The row's first cell is a row header, so it is not a `cell` to ARIA.
-  unenhanceableRowCells(row) {
-    return row.getByRole('rowheader').or(row.getByRole('cell'))
   }
 
   singleErrorHeading(name) {

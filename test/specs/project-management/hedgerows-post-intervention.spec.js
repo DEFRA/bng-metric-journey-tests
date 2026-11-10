@@ -1002,7 +1002,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
             // The ref identifies WHICH hedgerow was opened — without it the
             // assertions above pass on any of the three.
             await expect(
-              page.getByText(reference, { exact: true }).first()
+              page.getByRole('heading', {
+                name: new RegExp(`(^|\\s)${reference}$`),
+                level: 1
+              })
             ).toBeVisible()
           }
         }

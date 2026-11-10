@@ -3,7 +3,8 @@ import {
   STORAGE_STATE,
   NO_PROJECTS_STORAGE_STATE,
   skipInE2e,
-  baseUrl
+  baseUrl,
+  runMode
 } from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
 import { CreateProjectFlow } from '@flows/project-management/create-project.flow.js'
@@ -24,6 +25,9 @@ const PROJECT_LABEL = 'Upload post-intervention flow test'
 // CDP Uploader must be running; meta-refresh polling can take up to 120 s in the
 // worst case (esp. the real uploader in e2e), so allow the full window.
 const UPLOAD_TIMEOUT = 120_000
+const UPLOADER_REJECTION_FILE = 'Uploader rejected - virus.gpkg'
+const UPLOADER_REJECTION_SKIP_REASON =
+  'Relies on the mock uploader rejecting filenames containing "virus" — CDP runs the real scanner'
 const COMPLETE_FILE = 'Post-intervention - complete.gpkg'
 // BMD-850 AC6 replacement pair: HEDGEROWS_FILE adds a Hedgerows layer
 // (HR1-HR3, all Retained) that COMPLETE_FILE does not have.
@@ -64,10 +68,14 @@ const CONFLICTING_TIMING_BASELINE_FILE =
   'invalid-timing-conflicting-created-enhanced-baseline.gpkg'
 const CONFLICTING_TIMING_PI_FILE =
   'invalid-timing-conflicting-created-enhanced-post-intervention.gpkg'
-const CONFLICTING_TIMING_UNPRICED = [
+// Unpriced Created areas and hedgerows show 0.00 (BMD-1048, frontend PR #465);
+// every other unpriced feature, Created watercourses included, shows blank.
+const CONFLICTING_TIMING_ZERO_UNITS = [
   ['area', 'H001'],
+  ['hedgerow', 'HG001']
+]
+const CONFLICTING_TIMING_BLANK_UNITS = [
   ['area', 'H002'],
-  ['hedgerow', 'HG001'],
   ['hedgerow', 'HG002'],
   ['watercourse', 'R001'],
   ['watercourse', 'R002']
@@ -78,9 +86,11 @@ const DISTINCTIVENESS_FILE =
   'Post-intervention - habitat distinctiveness out of scope.gpkg'
 const NATURAL_ENGLAND_MISMATCH_COPY =
   'The layer names and column names do not match what is required by Natural England'
-// BMD-1058. One habitat's Parcel Ref is SQL NULL. Interim copy, pending UCD.
+// BMD-1058. One habitat's Parcel Ref is SQL NULL. Copy from the BMD-1110
+// dropout spreadsheet (frontend PR #452).
 const MISSING_HABITAT_REF_FILE = 'Post-intervention - missing habitat ref.gpkg'
-const HABITAT_REF_MISSING_COPY = 'All habitats must have a reference'
+const HABITAT_REF_MISSING_COPY =
+  'Your file contains a habitat with no habitat reference'
 // BMD-1066 (harness PR#161). The valid all-types post-intervention file with
 // the Baseline type cleared on five Retained or Enhanced rows: H002 (blank),
 // H004 (N/A), HG011 ((no selection)), R003 (Null), T002 (blank).
@@ -151,16 +161,6 @@ const UNENHANCEABLE_VERY_LOW_HEDGEROW_FILE =
 // file, so a refused file that replaced the baseline should change the tile.
 const UNENHANCEABLE_EXISTING_BASELINE_FILE =
   'Baseline - complete with area refs.gpkg'
-const UNENHANCEABLE_COLUMNS = [
-  'Reference',
-  'Feature',
-  'Baseline habitat',
-  'Baseline condition',
-  'Proposed habitat',
-  'Proposed condition'
-]
-const NEUTRAL_GRASSLAND = 'Grassland - Other neutral grassland'
-const RURAL_TREE = 'Individual trees - Rural tree'
 
 // ─── E2E happy path ─────────────────────────────────────────────────────────
 
@@ -599,8 +599,9 @@ function describeContentValidationErrors() {
   // that surfaces on the shared error-file dropout page. Expected copy is
   // confirmed by uploading and inspecting the rendered page: fixtures that
   // surface exactly one backend error render the BMD-405 single-error layout
-  // (`layout: 'single'` — no error summary); fixtures with several errors
-  // keep the grouped multi-error layout (`layout: 'multi'`).
+  // (`layout: 'single'` — no error summary), or its plain text form with the
+  // upload button kept (`layout: 'text'`, frontend PR #452); fixtures with
+  // several errors keep the grouped multi-error layout (`layout: 'multi'`).
   //
   // DO NOT DELETE any of these as "covered by the backend". Checked in full
   // during the integration-overlap workshop (workshop/integration-overlap-ledger.md,
@@ -646,11 +647,11 @@ function describeContentValidationErrors() {
     {
       // BMD-1058 AC2. The post-intervention case of HABITAT_REF_MISSING: the
       // check is the same as for a baseline, so this proves the code reaches
-      // the post-intervention page and its upload link. The invalid-characters
+      // the post-intervention page and its upload button. The invalid-characters
       // code runs through the same check and page, so it is not repeated.
       name: 'a habitat with no reference',
       file: MISSING_HABITAT_REF_FILE,
-      layout: 'single',
+      layout: 'text',
       expected: HABITAT_REF_MISSING_COPY
     }
   ]
@@ -695,6 +696,16 @@ function describeContentValidationErrors() {
               errorFilePage.uploadDifferentFileLink
             ).not.toBeVisible()
             await expect(errorFilePage.backToProjectLink).not.toBeVisible()
+          } else if (layout === 'text') {
+            await expect(errorFilePage.projectProblemHeading).toBeVisible()
+            await expect(errorFilePage.habitatParcelsHeading).toBeVisible()
+            await expect(errorFilePage.errorSummary).not.toBeVisible()
+            await expect(errorFilePage.uploadNewFileLink).not.toBeVisible()
+            await expect(errorFilePage.uploadDifferentFileLink).toHaveAttribute(
+              'href',
+              `/projects/${id}/upload-post-intervention-file`
+            )
+            await expect(errorFilePage.backToProjectLink).toBeVisible()
           } else {
             await expect(
               errorFilePage.postInterventionRejectedHeading
@@ -731,7 +742,9 @@ function describeConflictingTiming() {
       // BMD-883 ADVANCE_AND_DELAY_BOTH_SET check is gone): the upload is
       // accepted and both values are saved as null. Without timing the
       // feature cannot be priced, so it is saved with null units and status
-      // Incomplete, and its Units cell is blank.
+      // Incomplete. Its Units cell shows 0.00 on a Created area or hedgerow
+      // (BMD-1048 PO ruling, frontend PR #465, display only) and is blank on
+      // everything else.
       //
       // Sole journey witness that a real GeoPackage with conflicting timing is
       // accepted and left unpriced on every linear and area layer. The rule is
@@ -763,7 +776,13 @@ function describeConflictingTiming() {
           CONFLICTING_TIMING_PI_FILE
         )
 
-        for (const [type, ref] of CONFLICTING_TIMING_UNPRICED) {
+        for (const [type, ref] of CONFLICTING_TIMING_ZERO_UNITS) {
+          await expect(
+            await piUnitsCell(page, id, type, ref),
+            `${type} ${ref}`
+          ).toHaveText('0.00')
+        }
+        for (const [type, ref] of CONFLICTING_TIMING_BLANK_UNITS) {
           await expect(
             await piUnitsCell(page, id, type, ref),
             `${type} ${ref}`
@@ -841,31 +860,32 @@ function describeDistinctivenessError() {
 
 // ─── Unenhanceable baseline ──────────────────────────────────────────────────
 
-async function assertUnenhanceableDropout(errorFilePage, row) {
-  await expect(errorFilePage.unenhanceableHeading).toBeVisible()
+async function assertUnenhanceableDropout(errorFilePage) {
+  await expect(errorFilePage.projectProblemHeading).toBeVisible()
   await expect(errorFilePage.serviceEligibilityHeading).toBeVisible()
   await expect(errorFilePage.unenhanceableHelpText).toBeVisible()
   await expect(errorFilePage.metricToolLink).toHaveAttribute(
     'href',
     METRIC_TOOL_URL
   )
-  await expect(errorFilePage.unenhanceableColumnHeaders).toHaveText(
-    UNENHANCEABLE_COLUMNS
+  // Unlike the other metric-tool pages, this link opens in the same tab and
+  // says nothing about a new one.
+  await expect(errorFilePage.metricToolLink).toHaveText(
+    'metric tool (spreadsheet)'
   )
-  await expect(errorFilePage.unenhanceableRows).toHaveCount(1)
-  await expect(
-    errorFilePage.unenhanceableRowCells(errorFilePage.unenhanceableRows)
-  ).toHaveText(row)
+  await expect(errorFilePage.metricToolLink).not.toHaveAttribute(
+    'target',
+    '_blank'
+  )
 }
 
-// Sole witness for BASELINE_NOT_ENHANCEABLE from a real GeoPackage, and for the
-// backend's details.sample reaching the frontend's table. The backend's
+// Sole witness for BASELINE_NOT_ENHANCEABLE from a real GeoPackage. The backend's
 // refuse-unenhanceable-baselines tests hand-build their documents and no
-// integration test mentions the code; single-error-copy.test.js is handed a
-// fabricated error. Break a layer's extraction and both keep passing; rename a
-// sample field in the backend and the frontend's tests keep passing. Either way
-// this page breaks. Do not delete without an integration test that uploads these
-// fixtures and asserts the offenders.
+// integration test mentions the code. Break a layer's extraction and they keep
+// passing, but that layer's file stops being refused and this page never shows.
+// The page names no habitat (frontend PR #447), so these tests prove the file is
+// refused, not which habitat caused it. Do not delete without an integration test
+// that uploads these fixtures.
 //
 // One test per extraction path, not per rule: AC2 and AC5 share the hedgerow
 // path and this page with the Very Low test, and the backend's tests run their
@@ -876,25 +896,15 @@ function describeUnenhanceableBaseline() {
   const cases = [
     {
       name: 'an individual tree in Good condition',
-      file: UNENHANCEABLE_TREE_FILE,
-      row: ['T001', 'Individual tree', RURAL_TREE, 'Good', RURAL_TREE, 'Good']
+      file: UNENHANCEABLE_TREE_FILE
     },
     {
       name: 'a Medium distinctiveness watercourse in Good condition',
-      file: UNENHANCEABLE_WATERCOURSE_FILE,
-      row: ['R001', 'Watercourse', 'Ditches', 'Good', 'Ditches', 'Moderate']
+      file: UNENHANCEABLE_WATERCOURSE_FILE
     },
     {
       name: 'a Very Low distinctiveness hedgerow',
-      file: UNENHANCEABLE_VERY_LOW_HEDGEROW_FILE,
-      row: [
-        'HG001',
-        'Hedgerow',
-        'Non-native and ornamental hedgerow',
-        'Poor',
-        'Native hedgerow',
-        'Good'
-      ]
+      file: UNENHANCEABLE_VERY_LOW_HEDGEROW_FILE
     }
   ]
 
@@ -938,14 +948,7 @@ function describeUnenhanceableBaseline() {
         )
         await page.waitForURL(ERROR_FILE_URL, { timeout: UPLOAD_TIMEOUT })
 
-        await assertUnenhanceableDropout(errorFilePage, [
-          'H001',
-          'Area habitat',
-          NEUTRAL_GRASSLAND,
-          'Good',
-          NEUTRAL_GRASSLAND,
-          'Good'
-        ])
+        await assertUnenhanceableDropout(errorFilePage)
 
         await projectSummaryPage.open(id)
         expect(
@@ -956,8 +959,8 @@ function describeUnenhanceableBaseline() {
         ).toBeVisible()
       })
 
-      for (const { name, file, row } of cases) {
-        test(`a file enhancing ${name} is refused and lists only that habitat`, async ({
+      for (const { name, file } of cases) {
+        test(`a file enhancing ${name} is refused`, async ({
           createProjectFlow,
           projectDashboardPage,
           uploadPostInterventionFileFlow,
@@ -974,7 +977,7 @@ function describeUnenhanceableBaseline() {
             file
           )
 
-          await assertUnenhanceableDropout(errorFilePage, row)
+          await assertUnenhanceableDropout(errorFilePage)
         })
       }
     }
@@ -987,9 +990,11 @@ function describeUnenhanceableBaseline() {
 // any authenticated completer, because the projectId is only a path segment
 // used to build the upload session. Ownership is enforced at validation time:
 // the backend scopes the project to the caller's org context, so the save can't
-// find it and the frontend surfaces the misleading catch-all error. Verified
-// directly against the running stack (not inferred) before writing these
-// assertions.
+// find it and the frontend surfaces a misleading error page. Since frontend
+// PR#483 (BMD-1204, 2026-11-10) that page is the service problem ("Sorry, there
+// is a problem with the service"), as on the baseline upload; before, it was
+// the Natural England catch-all. Verified directly against the running stack
+// (not inferred) before writing these assertions.
 function describeCrossUserAccess() {
   test.describe(
     'Upload post-intervention — cross-user access',
@@ -1000,7 +1005,7 @@ function describeCrossUserAccess() {
         'Requires a second stub-auth profile — not available in e2e mode'
       )
 
-      test('uploading a valid file against another user’s project id reaches the misleading catch-all error page, and nothing is persisted', async ({
+      test('uploading a valid file against another user’s project id reaches the misleading service-problem page, and nothing is persisted', async ({
         browser
       }) => {
         const ownerContext = await browser.newContext({
@@ -1038,10 +1043,10 @@ function describeCrossUserAccess() {
             timeout: UPLOAD_TIMEOUT
           })
 
-          await expect(otherErrorFilePage.geopackageErrorHeading).toBeVisible()
+          await expect(otherErrorFilePage.serviceProblemHeading).toBeVisible()
           await expect(
             otherPage.getByText(NATURAL_ENGLAND_MISMATCH_COPY)
-          ).toBeVisible()
+          ).toHaveCount(0)
         } finally {
           await otherContext.close()
         }
@@ -1062,14 +1067,33 @@ function describeUploaderRejection() {
       // array, redirects to /error-file with the generic "We couldn't accept
       // your file" message) for files the CDP Uploader itself rejects — a
       // different code path from a `ready` status followed by our backend's own
-      // GPKG/content validation. No fixture or technique in this repo currently
-      // drives that branch (not a virus-scan test file, not an oversized file);
-      // the client-side JS also blocks a non-.gpkg submit. To enable:
-      //   1. confirm what makes the CDP Uploader return `rejected` (virus scan?
-      //      MIME/size limit at the uploader layer specifically) and whether
-      //      it's reproducible against the local/github stub
-      //   2. add the fixture/technique and remove this test.skip
-      test.skip('a file rejected by the CDP Uploader shows the generic error-file message', async () => {})
+      // GPKG/content validation. The mock uploader in the stack rejects any
+      // filename matching `.*virus.*`; the file's content never reaches the
+      // backend.
+      test.skip(runMode === 'e2e', UPLOADER_REJECTION_SKIP_REASON)
+
+      test('a file rejected by the CDP Uploader shows the generic error-file message', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadPostInterventionFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadPostInterventionFileFlow,
+            page
+          },
+          UPLOADER_REJECTION_FILE
+        )
+
+        await expect(errorFilePage.genericHeading).toBeVisible()
+        await expect(
+          page.getByText("We couldn't accept your file. Please try again.")
+        ).toBeVisible()
+      })
     }
   )
 }
