@@ -82,6 +82,7 @@ const DISTINCTIVENESS_FILE =
   'Post-intervention - habitat distinctiveness out of scope.gpkg'
 const NATURAL_ENGLAND_MISMATCH_COPY =
   'The layer names and column names do not match what is required by Natural England'
+const SERVICE_PROBLEM_COPY = 'Try again later.'
 // BMD-1058. One habitat's Parcel Ref is SQL NULL. Copy from the BMD-1110
 // dropout spreadsheet (frontend PR #452).
 const MISSING_HABITAT_REF_FILE = 'Post-intervention - missing habitat ref.gpkg'
@@ -978,7 +979,8 @@ function describeUnenhanceableBaseline() {
 // any authenticated completer, because the projectId is only a path segment
 // used to build the upload session. Ownership is enforced at validation time:
 // the backend scopes the project to the caller's org context, so the save can't
-// find it and the frontend surfaces the misleading catch-all error. Verified
+// find it and the frontend surfaces VALIDATION_FAILED as the "there is a
+// problem with the service" page, not an access error. Verified
 // directly against the running stack (not inferred) before writing these
 // assertions.
 function describeCrossUserAccess() {
@@ -991,7 +993,7 @@ function describeCrossUserAccess() {
         'Requires a second stub-auth profile — not available in e2e mode'
       )
 
-      test('uploading a valid file against another user’s project id reaches the misleading catch-all error page, and nothing is persisted', async ({
+      test('uploading a valid file against another user’s project id reaches the service problem page, and nothing is persisted', async ({
         browser
       }) => {
         const ownerContext = await browser.newContext({
@@ -1029,9 +1031,9 @@ function describeCrossUserAccess() {
             timeout: UPLOAD_TIMEOUT
           })
 
-          await expect(otherErrorFilePage.geopackageErrorHeading).toBeVisible()
+          await expect(otherErrorFilePage.serviceProblemHeading).toBeVisible()
           await expect(
-            otherPage.getByText(NATURAL_ENGLAND_MISMATCH_COPY)
+            otherPage.getByText(SERVICE_PROBLEM_COPY, { exact: true })
           ).toBeVisible()
         } finally {
           await otherContext.close()

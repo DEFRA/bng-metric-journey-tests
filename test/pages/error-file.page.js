@@ -26,8 +26,11 @@ export class ErrorFilePage extends BasePage {
     this.distinctivenessHeading = page.getByRole('heading', {
       name: 'Very high and high distinctiveness habitats are not yet included in this service'
     })
-    this.placeholderHeading = page.getByRole('heading', {
-      name: 'PLACEHOLDER (AWAITING UCD)'
+    // The single-error page for a problem where the service failed, not the
+    // file, such as VALIDATION_FAILED.
+    this.serviceProblemHeading = page.getByRole('heading', {
+      name: 'Sorry, there is a problem with the service',
+      exact: true
     })
     this.uploadNewFileLink = page.getByRole('link', {
       name: 'upload a new file'

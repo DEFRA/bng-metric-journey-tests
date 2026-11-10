@@ -244,7 +244,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await projectDetailsPage.submit()
 
         await projectDetailsPage.assertFieldError(
-          '"surveyCompleters" length must be less than or equal to 500 characters long'
+          'Survey completer(s) must be 500 characters or fewer'
         )
       }
     )
@@ -268,7 +268,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await projectDetailsPage.submit()
 
         await projectDetailsPage.assertFieldError(
-          '"applicant" length must be less than or equal to 500 characters long'
+          'Applicant must be 500 characters or fewer'
         )
       }
     )

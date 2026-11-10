@@ -55,6 +55,7 @@ const DUPLICATE_REF_FILE = 'Baseline - duplicate habitat ref.gpkg'
 const DUPLICATE_REF = 'DUP-1'
 const NATURAL_ENGLAND_MISMATCH_COPY =
   'The layer names and column names do not match what is required by Natural England'
+const SERVICE_PROBLEM_COPY = 'Try again later.'
 
 // ─── E2E happy path ─────────────────────────────────────────────────────────
 
@@ -344,11 +345,10 @@ function describeNoPendingUpload() {
 // but the frontend doesn't propagate that: the GET step silently falls back to
 // a generic "Project" caption, and the POST /baseline/validate/{uploadId} 404
 // is caught by validateHabitatUpload's generic 4xx handler and surfaces as a
-// VALIDATION_FAILED error — which has no dedicated single-error copy, so it
-// falls through to the AC1 Natural England catch-all. A different user
-// uploading a fully VALID file against someone else's project id therefore
-// reaches a misleading "your file is invalid" page rather than any access
-// error, even though nothing is persisted. Verified directly against the
+// VALIDATION_FAILED error — which shows the single-error "there is a problem
+// with the service" page. A different user uploading a fully VALID file
+// against someone else's project id therefore reaches a service problem page
+// rather than any access error, even though nothing is persisted. Verified directly against the
 // running stack (not inferred) before writing these assertions.
 function describeCrossUserAccess() {
   test.describe(
@@ -360,7 +360,7 @@ function describeCrossUserAccess() {
         'Requires a second stub-auth profile — not available in e2e mode'
       )
 
-      test('uploading a valid file against another user’s project id reaches the misleading catch-all error page, and nothing is persisted', async ({
+      test('uploading a valid file against another user’s project id reaches the service problem page, and nothing is persisted', async ({
         browser
       }) => {
         const ownerContext = await browser.newContext({
@@ -398,9 +398,9 @@ function describeCrossUserAccess() {
             timeout: UPLOAD_TIMEOUT
           })
 
-          await expect(otherErrorFilePage.geopackageErrorHeading).toBeVisible()
+          await expect(otherErrorFilePage.serviceProblemHeading).toBeVisible()
           await expect(
-            otherPage.getByText(NATURAL_ENGLAND_MISMATCH_COPY)
+            otherPage.getByText(SERVICE_PROBLEM_COPY, { exact: true })
           ).toBeVisible()
         } finally {
           await otherContext.close()
@@ -930,8 +930,7 @@ const GEOPACKAGE_ERROR_H1 = 'Your Geopackage (.gpkg) file contains an error'
 // uploading and inspecting the rendered page), so the error-file page renders
 // the BMD-405 single-error layout. `heading` is the expected H1 (string =
 // substring match, regex for ref-personalised headings); `body` is the copy
-// asserted in the paragraph. `placeholder: true` marks AC14 codes whose
-// finalised copy is pending BMD-592.
+// asserted in the paragraph.
 //
 // One case per rendered variant, not one per error code. The code → copy map
 // itself is a pure function, unit-tested exhaustively over all 20 codes in
@@ -986,24 +985,10 @@ const SINGLE_ERROR_CASES = [
     fixture: 'Baseline - only bowtie parcel.gpkg',
     heading: /This parcel .+ contains an error/,
     body: 'This parcel is overlapping itself. Draw the parcel again and'
-  },
-  {
-    // Placeholder variant — AC14 codes with no finalised copy (BMD-592).
-    title: 'redline outside England alone shows the placeholder page',
-    fixture: 'Baseline - only redline not in england.gpkg',
-    placeholder: true,
-    body: 'Redline boundary is outside England'
   }
 ]
 
-function singleErrorTest({
-  title,
-  fixture,
-  heading,
-  body,
-  placeholder,
-  assertNavigation
-}) {
+function singleErrorTest({ title, fixture, heading, body, assertNavigation }) {
   test(
     title,
     async ({
@@ -1026,15 +1011,11 @@ function singleErrorTest({
       // The single-error layout renders no GOV.UK error summary.
       await expect(errorFilePage.errorSummary).not.toBeVisible()
       await expect(page.getByText(body)).toBeVisible()
-      if (placeholder) {
-        await expect(errorFilePage.placeholderHeading).toBeVisible()
-      } else {
-        await expect(errorFilePage.singleErrorHeading(heading)).toBeVisible()
-        await expect(errorFilePage.uploadNewFileLink).toHaveAttribute(
-          'href',
-          `/projects/${id}/upload-baseline-file`
-        )
-      }
+      await expect(errorFilePage.singleErrorHeading(heading)).toBeVisible()
+      await expect(errorFilePage.uploadNewFileLink).toHaveAttribute(
+        'href',
+        `/projects/${id}/upload-baseline-file`
+      )
       // QA fix (frontend PR#175): the single-error layout no longer shows
       // the "Upload a different file" button or "Back to project" link.
       await expect(errorFilePage.uploadDifferentFileLink).not.toBeVisible()
@@ -1059,6 +1040,36 @@ function describeSingleErrorDropout() {
       for (const singleErrorCase of SINGLE_ERROR_CASES) {
         singleErrorTest(singleErrorCase)
       }
+
+      // A problem with no copy of its own shows its list heading
+      // even alone (whenAlone: list), which says what is wrong, rather than a
+      // page that cannot.
+      test('redline outside England alone shows its list heading', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            page
+          },
+          'Baseline - only redline not in england.gpkg'
+        )
+
+        await expect(errorFilePage.genericHeading).toBeVisible()
+        await expect(errorFilePage.errorSummary).toBeVisible()
+        await expect(
+          errorFilePage.errorSummary.getByText(
+            'Redline boundary is outside England'
+          )
+        ).toBeVisible()
+        await expect(page.getByText('PLACEHOLDER')).toHaveCount(0)
+      })
     }
   )
 }

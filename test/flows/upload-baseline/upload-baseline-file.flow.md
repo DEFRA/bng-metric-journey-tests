@@ -134,9 +134,16 @@ but a test that navigates the **UI** now passes through the selection page first
      - `distinctiveness` — `HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE` renders H1 "Very high and high
        distinctiveness habitats are not yet included in this service" and a link to the statutory
        biodiversity metric tool on GOV.UK (opens in a new tab).
-     - `placeholder` — `REDLINE_OUTSIDE_ENGLAND`, `REDLINE_AREA_TOO_LARGE`,
-       `IGGIS_OUTSIDE_REDLINE`, `TREES_OUTSIDE_REDLINE`, `AREA_SUM_MISMATCH` render
-       "PLACEHOLDER (AWAITING UCD)" + the raw backend message, pending BMD-592.
+     - shown as their list — `REDLINE_OUTSIDE_ENGLAND`, `REDLINE_AREA_TOO_LARGE`,
+       `IGGIS_OUTSIDE_REDLINE`, `TREES_OUTSIDE_REDLINE`, `AREA_SUM_MISMATCH` have no copy of
+       their own, so even alone they render the multiple-errors layout (error summary and
+       their list heading, e.g. "Redline boundary is outside England"). There is no
+       placeholder page.
+     - `service problem` — `VALIDATION_FAILED`, `VALIDATION_UNAVAILABLE`, `VALIDATION_BUSY`,
+       `SIZING_FAILED`, `INVALID_FILE_METADATA` render H1 "Sorry, there is a problem with the
+       service" + "Try again later.", with no inline link: the service failed, not the file.
+     - `file problem` — the unreadable or wrong geometry codes, and any code with no entry,
+       render the shared H1 + "Check the habitats in your file and…" + the inline link.
      - `INVALID_FILENAME` (**BMD-958**, frontend PR#236 / backend PR#280, 2026-08-24) — the
        uploaded file's _own name_ was rejected. Copy: "The file name contains characters we
        cannot accept. Rename the file using letters, numbers, spaces, hyphens, underscores or
@@ -183,7 +190,7 @@ but a test that navigates the **UI** now passes through the selection page first
        `IGGIS_OUTSIDE_REDLINE`, `TREES_OUTSIDE_REDLINE`, `REDLINE_AREA_TOO_LARGE`,
        `AREA_PARCELS_TOO_SMALL`) and the `PARCEL_OVERLAPS` missing-ref fallback above.
        The journey suite therefore carries **one upload per rendered variant**
-       (standard, catch-all, personalised, placeholder) to prove the resolver is wired
+       (standard, catch-all, personalised, and a code shown as its list) to prove the resolver is wired
        into the page, not one per code. Do not add a fixture-backed journey test for a
        code purely to assert its copy — extend the unit test instead.
   2. **Multiple errors:** GOV.UK error summary plus error blocks grouped by error code; each block
