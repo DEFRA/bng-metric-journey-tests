@@ -68,10 +68,14 @@ const CONFLICTING_TIMING_BASELINE_FILE =
   'invalid-timing-conflicting-created-enhanced-baseline.gpkg'
 const CONFLICTING_TIMING_PI_FILE =
   'invalid-timing-conflicting-created-enhanced-post-intervention.gpkg'
-const CONFLICTING_TIMING_UNPRICED = [
+// Unpriced Created areas and hedgerows show 0.00 (BMD-1048, frontend PR #465);
+// every other unpriced feature, Created watercourses included, shows blank.
+const CONFLICTING_TIMING_ZERO_UNITS = [
   ['area', 'H001'],
+  ['hedgerow', 'HG001']
+]
+const CONFLICTING_TIMING_BLANK_UNITS = [
   ['area', 'H002'],
-  ['hedgerow', 'HG001'],
   ['hedgerow', 'HG002'],
   ['watercourse', 'R001'],
   ['watercourse', 'R002']
@@ -738,7 +742,9 @@ function describeConflictingTiming() {
       // BMD-883 ADVANCE_AND_DELAY_BOTH_SET check is gone): the upload is
       // accepted and both values are saved as null. Without timing the
       // feature cannot be priced, so it is saved with null units and status
-      // Incomplete, and its Units cell is blank.
+      // Incomplete. Its Units cell shows 0.00 on a Created area or hedgerow
+      // (BMD-1048 PO ruling, frontend PR #465, display only) and is blank on
+      // everything else.
       //
       // Sole journey witness that a real GeoPackage with conflicting timing is
       // accepted and left unpriced on every linear and area layer. The rule is
@@ -770,7 +776,13 @@ function describeConflictingTiming() {
           CONFLICTING_TIMING_PI_FILE
         )
 
-        for (const [type, ref] of CONFLICTING_TIMING_UNPRICED) {
+        for (const [type, ref] of CONFLICTING_TIMING_ZERO_UNITS) {
+          await expect(
+            await piUnitsCell(page, id, type, ref),
+            `${type} ${ref}`
+          ).toHaveText('0.00')
+        }
+        for (const [type, ref] of CONFLICTING_TIMING_BLANK_UNITS) {
           await expect(
             await piUnitsCell(page, id, type, ref),
             `${type} ${ref}`
