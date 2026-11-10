@@ -367,7 +367,7 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
 
 > **Since frontend PR#444 (BMD-1050, 2026-11-10)** a Created watercourse renders the shared
 > Created edit form, `pi-habitat-details-created-edit.njk` (Step 4). The read-only page
-> described below is now only the rollout fallback. It has a **Length (km)** row, no Broad habitat, and **Watercourse
+> described below is now only the rollout fallback. The form has a **Length (km)** row, no Broad habitat, and **Watercourse
 > encroachment** and **Riparian encroachment** dropdowns after Strategic significance. Save
 > goes through Step 11. The read-only description below is kept as the BMD-739 record: the
 > same values (km length, proposed-side encroachments, the short-form time to target)
