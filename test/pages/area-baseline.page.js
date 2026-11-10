@@ -38,6 +38,9 @@ const COLUMN = {
  * by `aria-label`, not by a heading locator.
  */
 export class AreaBaselinePage extends BasePage {
+  /** Grid column indexes, for specs that read cells by column name. */
+  static COLUMN = COLUMN
+
   constructor(page) {
     super(page)
     this.heading = page.getByRole('heading', {

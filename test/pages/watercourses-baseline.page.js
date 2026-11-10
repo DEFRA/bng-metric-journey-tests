@@ -41,6 +41,9 @@ const COLUMN = {
  * and left this one alone.
  */
 export class WatercoursesBaselinePage extends BasePage {
+  /** Grid column indexes, for specs that read cells by column name. */
+  static COLUMN = COLUMN
+
   constructor(page) {
     super(page)
     this.heading = page.getByRole('heading', {
