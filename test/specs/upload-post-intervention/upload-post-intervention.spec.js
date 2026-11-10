@@ -990,9 +990,11 @@ function describeUnenhanceableBaseline() {
 // any authenticated completer, because the projectId is only a path segment
 // used to build the upload session. Ownership is enforced at validation time:
 // the backend scopes the project to the caller's org context, so the save can't
-// find it and the frontend surfaces the misleading catch-all error. Verified
-// directly against the running stack (not inferred) before writing these
-// assertions.
+// find it and the frontend surfaces a misleading error page. Since frontend
+// PR#483 (BMD-1204, 2026-11-10) that page is the service problem ("Sorry, there
+// is a problem with the service"), as on the baseline upload; before, it was
+// the Natural England catch-all. Verified directly against the running stack
+// (not inferred) before writing these assertions.
 function describeCrossUserAccess() {
   test.describe(
     'Upload post-intervention — cross-user access',
@@ -1003,7 +1005,7 @@ function describeCrossUserAccess() {
         'Requires a second stub-auth profile — not available in e2e mode'
       )
 
-      test('uploading a valid file against another user’s project id reaches the misleading catch-all error page, and nothing is persisted', async ({
+      test('uploading a valid file against another user’s project id reaches the misleading service-problem page, and nothing is persisted', async ({
         browser
       }) => {
         const ownerContext = await browser.newContext({
@@ -1041,10 +1043,10 @@ function describeCrossUserAccess() {
             timeout: UPLOAD_TIMEOUT
           })
 
-          await expect(otherErrorFilePage.geopackageErrorHeading).toBeVisible()
+          await expect(otherErrorFilePage.serviceProblemHeading).toBeVisible()
           await expect(
             otherPage.getByText(NATURAL_ENGLAND_MISMATCH_COPY)
-          ).toBeVisible()
+          ).toHaveCount(0)
         } finally {
           await otherContext.close()
         }

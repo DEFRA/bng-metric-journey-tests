@@ -926,13 +926,13 @@ function describeGeometricGateErrors() {
 // ─── Single validation error dropout pages (BMD-405) ──────────────────────────
 
 const GEOPACKAGE_ERROR_H1 = 'Your Geopackage (.gpkg) file contains an error'
+const REDLINE_OUTSIDE_ENGLAND_COPY = 'Redline boundary is outside England'
 
 // Each fixture below trips exactly one backend validation error (verified by
 // uploading and inspecting the rendered page), so the error-file page renders
 // the BMD-405 single-error layout. `heading` is the expected H1 (string =
 // substring match, regex for ref-personalised headings); `body` is the copy
-// asserted in the paragraph. `placeholder: true` marks AC14 codes whose
-// finalised copy is pending BMD-592.
+// asserted in the paragraph.
 //
 // One case per rendered variant, not one per error code. The code → copy map
 // itself is a pure function, unit-tested exhaustively over all 20 codes in
@@ -987,24 +987,10 @@ const SINGLE_ERROR_CASES = [
     fixture: 'Baseline - only bowtie parcel.gpkg',
     heading: /This parcel .+ contains an error/,
     body: 'This parcel is overlapping itself. Draw the parcel again and'
-  },
-  {
-    // Placeholder variant — AC14 codes with no finalised copy (BMD-592).
-    title: 'redline outside England alone shows the placeholder page',
-    fixture: 'Baseline - only redline not in england.gpkg',
-    placeholder: true,
-    body: 'Redline boundary is outside England'
   }
 ]
 
-function singleErrorTest({
-  title,
-  fixture,
-  heading,
-  body,
-  placeholder,
-  assertNavigation
-}) {
+function singleErrorTest({ title, fixture, heading, body, assertNavigation }) {
   test(
     title,
     async ({
@@ -1027,15 +1013,11 @@ function singleErrorTest({
       // The single-error layout renders no GOV.UK error summary.
       await expect(errorFilePage.errorSummary).not.toBeVisible()
       await expect(page.getByText(body)).toBeVisible()
-      if (placeholder) {
-        await expect(errorFilePage.placeholderHeading).toBeVisible()
-      } else {
-        await expect(errorFilePage.singleErrorHeading(heading)).toBeVisible()
-        await expect(errorFilePage.uploadNewFileLink).toHaveAttribute(
-          'href',
-          `/projects/${id}/upload-baseline-file`
-        )
-      }
+      await expect(errorFilePage.singleErrorHeading(heading)).toBeVisible()
+      await expect(errorFilePage.uploadNewFileLink).toHaveAttribute(
+        'href',
+        `/projects/${id}/upload-baseline-file`
+      )
       // QA fix (frontend PR#175): the single-error layout no longer shows
       // the "Upload a different file" button or "Back to project" link.
       await expect(errorFilePage.uploadDifferentFileLink).not.toBeVisible()
@@ -1060,6 +1042,40 @@ function describeSingleErrorDropout() {
       for (const singleErrorCase of SINGLE_ERROR_CASES) {
         singleErrorTest(singleErrorCase)
       }
+
+      // REDLINE_OUTSIDE_ENGLAND had no finalised single-error copy (BMD-592),
+      // so it alone showed a placeholder page. Frontend PR#483 (BMD-1204)
+      // removed the placeholder: an error without single-error copy now
+      // renders in the list layout even when it is the only one.
+      test('redline outside England alone shows the list layout', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            page
+          },
+          'Baseline - only redline not in england.gpkg'
+        )
+
+        await expect(errorFilePage.errorSummary).toContainText(
+          'There is a problem with your file'
+        )
+        await expect(errorFilePage.errorSummary).toContainText(
+          REDLINE_OUTSIDE_ENGLAND_COPY
+        )
+        await expect(errorFilePage.baselineRejectedHeading).toBeVisible()
+        await expect(
+          page.getByRole('heading', { name: REDLINE_OUTSIDE_ENGLAND_COPY })
+        ).toBeVisible()
+        await expect(errorFilePage.uploadDifferentFileLink).toBeVisible()
+      })
     }
   )
 }

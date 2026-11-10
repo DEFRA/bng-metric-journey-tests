@@ -32,9 +32,6 @@ export class ErrorFilePage extends BasePage {
       name: 'Sorry, there is a problem with the service',
       exact: true
     })
-    this.placeholderHeading = page.getByRole('heading', {
-      name: 'PLACEHOLDER (AWAITING UCD)'
-    })
     this.uploadNewFileLink = page.getByRole('link', {
       name: 'upload a new file'
     })
