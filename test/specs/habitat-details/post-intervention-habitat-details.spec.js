@@ -1570,9 +1570,25 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         }) => {
           const shared = await openSharedCreatedArea(browser, page)
           const details = postInterventionHabitatDetailsPage
+          // AC13: every value entered or selected survives the refusal, not
+          // only the two fields that fail.
+          const entered = {
+            broad: 'Grassland',
+            type: 'Other neutral grassland',
+            significance: 'High',
+            condition: 'Moderate',
+            advance: '2',
+            delay: '3'
+          }
           await details.habitatReferenceInput.fill('')
-          await details.advanceYearsSelect.selectOption('2')
-          await details.delayYearsSelect.selectOption('3')
+          await details.broadHabitatSelect.selectOption(entered.broad)
+          await details.habitatTypeSelect.selectOption(entered.type)
+          await details.strategicSignificanceSelect.selectOption(
+            entered.significance
+          )
+          await details.targetConditionSelect.selectOption(entered.condition)
+          await details.advanceYearsSelect.selectOption(entered.advance)
+          await details.delayYearsSelect.selectOption(entered.delay)
 
           await details.saveButton.click()
 
@@ -1588,10 +1604,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             details.inlineError(TIMING_CONFLICT_INLINE)
           ).toBeVisible()
           await expect(details.habitatReferenceInput).toHaveValue('')
-          await expectCreatedAreaSelections(details, {
-            advance: '2',
-            delay: '3'
-          })
+          await expectCreatedAreaSelections(details, entered)
 
           await openPiFeatureDetails(page, shared.id, 'area', CREATED_AREA_REF)
           await expectCreatedAreaSelections(details, CREATED_AREA_SELECTIONS)
