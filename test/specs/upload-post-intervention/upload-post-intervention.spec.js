@@ -68,10 +68,14 @@ const CONFLICTING_TIMING_BASELINE_FILE =
   'invalid-timing-conflicting-created-enhanced-baseline.gpkg'
 const CONFLICTING_TIMING_PI_FILE =
   'invalid-timing-conflicting-created-enhanced-post-intervention.gpkg'
-const CONFLICTING_TIMING_UNPRICED = [
+// Unpriced Created areas and hedgerows show 0.00 (BMD-1048, frontend PR #465);
+// every other unpriced feature, Created watercourses included, shows blank.
+const CONFLICTING_TIMING_ZERO_UNITS = [
   ['area', 'H001'],
+  ['hedgerow', 'HG001']
+]
+const CONFLICTING_TIMING_BLANK_UNITS = [
   ['area', 'H002'],
-  ['hedgerow', 'HG001'],
   ['hedgerow', 'HG002'],
   ['watercourse', 'R001'],
   ['watercourse', 'R002']
@@ -738,7 +742,9 @@ function describeConflictingTiming() {
       // BMD-883 ADVANCE_AND_DELAY_BOTH_SET check is gone): the upload is
       // accepted and both values are saved as null. Without timing the
       // feature cannot be priced, so it is saved with null units and status
-      // Incomplete, and its Units cell is blank.
+      // Incomplete. Its Units cell shows 0.00 on a Created area or hedgerow
+      // (BMD-1048 PO ruling, frontend PR #465, display only) and is blank on
+      // everything else.
       //
       // Sole journey witness that a real GeoPackage with conflicting timing is
       // accepted and left unpriced on every linear and area layer. The rule is
@@ -770,7 +776,13 @@ function describeConflictingTiming() {
           CONFLICTING_TIMING_PI_FILE
         )
 
-        for (const [type, ref] of CONFLICTING_TIMING_UNPRICED) {
+        for (const [type, ref] of CONFLICTING_TIMING_ZERO_UNITS) {
+          await expect(
+            await piUnitsCell(page, id, type, ref),
+            `${type} ${ref}`
+          ).toHaveText('0.00')
+        }
+        for (const [type, ref] of CONFLICTING_TIMING_BLANK_UNITS) {
           await expect(
             await piUnitsCell(page, id, type, ref),
             `${type} ${ref}`
@@ -978,9 +990,11 @@ function describeUnenhanceableBaseline() {
 // any authenticated completer, because the projectId is only a path segment
 // used to build the upload session. Ownership is enforced at validation time:
 // the backend scopes the project to the caller's org context, so the save can't
-// find it and the frontend surfaces the misleading catch-all error. Verified
-// directly against the running stack (not inferred) before writing these
-// assertions.
+// find it and the frontend surfaces a misleading error page. Since frontend
+// PR#483 (BMD-1204, 2026-11-10) that page is the service problem ("Sorry, there
+// is a problem with the service"), as on the baseline upload; before, it was
+// the Natural England catch-all. Verified directly against the running stack
+// (not inferred) before writing these assertions.
 function describeCrossUserAccess() {
   test.describe(
     'Upload post-intervention — cross-user access',
@@ -991,7 +1005,7 @@ function describeCrossUserAccess() {
         'Requires a second stub-auth profile — not available in e2e mode'
       )
 
-      test('uploading a valid file against another user’s project id reaches the misleading catch-all error page, and nothing is persisted', async ({
+      test('uploading a valid file against another user’s project id reaches the misleading service-problem page, and nothing is persisted', async ({
         browser
       }) => {
         const ownerContext = await browser.newContext({
@@ -1029,10 +1043,10 @@ function describeCrossUserAccess() {
             timeout: UPLOAD_TIMEOUT
           })
 
-          await expect(otherErrorFilePage.geopackageErrorHeading).toBeVisible()
+          await expect(otherErrorFilePage.serviceProblemHeading).toBeVisible()
           await expect(
             otherPage.getByText(NATURAL_ENGLAND_MISMATCH_COPY)
-          ).toBeVisible()
+          ).toHaveCount(0)
         } finally {
           await otherContext.close()
         }

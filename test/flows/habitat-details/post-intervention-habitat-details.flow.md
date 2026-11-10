@@ -1,12 +1,13 @@
-# Post-Intervention Habitat Details User Flow (read-only view; Retained reference and Created area and hedgerow edits)
+# Post-Intervention Habitat Details User Flow (read-only view; Retained reference and Created area, hedgerow and watercourse edits)
 
 ## Overview
 
 A BNG Completer opens a feature from its unit-type post-intervention page —
 `area-post-intervention`, `hedgerows-post-intervention` or `watercourses-post-intervention`
 (BMD-1043, frontend PR#352; it was the post-intervention habitat list, now removed) — and
-views its details. **A Created area habitat or Created hedgerow** renders an **editable form**
-(BMD-1048, frontend PR#418 / backend PR#539, 2026-10-28). **A Retained area habitat, hedgerow or
+views its details. **A Created area habitat, hedgerow or watercourse** renders an **editable
+form** (BMD-1048, frontend PR#418 / backend PR#539, 2026-10-28; watercourses since BMD-1050,
+frontend PR#444, 2026-11-10). **A Retained area habitat, hedgerow or
 watercourse** renders its details read-only with an editable **Habitat reference** and Save /
 Cancel (BMD-1180, frontend PR#423 / backend PR#552, 2026-11-03). **Every other feature renders
 a read-only page.** Area, hedgerow and watercourse features each get a page specific to their
@@ -354,12 +355,21 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
 
 ---
 
-### Step 8 — View Created watercourse details (read-only, two-section) `[IMPLEMENTED]`
+### Step 8 — Edit Created watercourse details (form, BMD-1050) `[IMPLEMENTED]`
+
+> **Since frontend PR#444 (BMD-1050, 2026-11-10)** a Created watercourse renders the shared
+> Created edit form, `pi-habitat-details-created-edit.njk` (Step 4). The read-only page
+> described below is now only the rollout fallback. It has a **Length (km)** row, no Broad habitat, and **Watercourse
+> encroachment** and **Riparian encroachment** dropdowns after Strategic significance. Save
+> goes through Step 11. The read-only description below is kept as the BMD-739 record: the
+> same values (km length, proposed-side encroachments, the short-form time to target)
+> still show on the form. Journey coverage: `post-intervention-habitat-details.spec.js`,
+> "non-retained watercourse habitats" (WC3 form shape, WC3 transition values, R003 short form).
 
 - **Route:** shared GET contract (watercourse feature whose normalised `retentionCategory === "Created"`)
-- **Template:** `src/server/habitat-details/pi-watercourse-details-created.njk` (extends `layouts/pi-view-only-sections-page.njk`; BMD-739, frontend PR#187)
-- **Backend endpoint:** shared GET contract
-- **Description:** Two-section stacked page, H1 = feature ref.
+- **Template (read-only fallback):** `src/server/habitat-details/pi-watercourse-details-created.njk` (extends `layouts/pi-view-only-sections-page.njk`; BMD-739, frontend PR#187). Since PR#444 it renders only during rollout, when `GET /reference/watercourse-creation` answers 404 (`CREATED_EDIT_KINDS.watercourse.readOnlyTemplate`), the same fallback Created hedgerows use
+- **Backend endpoints:** shared GET contract, plus `GET /reference/watercourse-creation` for the dropdowns
+- **Description (read-only fallback):** Two-section stacked page, H1 = feature ref.
   - **Section 1 — "Post-intervention habitat details":** Intervention, **Length**, Habitat
     type, Distinctiveness, Condition, **Strategic significance**, **Watercourse
     encroachment**, **Riparian encroachment**. Note the order differs from the retained
@@ -382,7 +392,7 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
   the transition branch and never reaches that code.
 
 - **Validation:** shared GET contract
-- **On success:** Renders the Created two-section read-only watercourse details page
+- **On success:** Renders the Created watercourse edit form
 - **On error:** shared GET contract
 
 ---
@@ -451,6 +461,13 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
 - **On error:** 400 for malformed payloads, 501 for unsupported feature categories,
   redisplay for field errors, or 503 when hedgerow creation reference data is not deployed.
   No PUT occurs on invalid input or the rollout-unavailable path.
+- **Created watercourses (BMD-1050, frontend PR#444):** the Step 8 form posts here as well.
+  Its edit also carries the **Watercourse encroachment** and **Riparian encroachment**
+  choices, and has no broad habitat. It loads `/reference/watercourse-creation`, PUTs to
+  `/projects/{projectId}/post-intervention/watercourses/{featureId}`, and on success
+  returns to the watercourses post-intervention list. The rules above that name only areas
+  and hedgerows predate BMD-1050. Journey coverage of the watercourse save is pending
+  journey-tests PR #238.
 
 ---
 

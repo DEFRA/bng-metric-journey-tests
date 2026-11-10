@@ -9,11 +9,12 @@ export const UNITS_TWO_DP_PATTERN = /^\s*\d+\.\d{2}\s*$/
 // feature, picked by feature type *and* retention category, plus an
 // unsupported-feature placeholder for individual trees. Three kinds of page:
 //
-//   - read-only (Enhanced features and Created watercourses).
+//   - read-only (Enhanced features).
 //   - reference form (Retained area habitats, hedgerows and watercourses,
 //     BMD-1180, frontend PR#423) — the read-only page plus a "Habitat reference"
 //     input and Save / Cancel.
-//   - edit form (Created area habitats and hedgerows, BMD-1048, frontend PR#418).
+//   - edit form (Created area habitats and hedgerows, BMD-1048, frontend PR#418;
+//     Created watercourses, BMD-1050, frontend PR#444).
 //
 // POST saves either form and answers 501 for any other feature. The read-only
 // and reference-form pages share layouts/pi-view-only-sections-page.njk: <h3>
@@ -256,6 +257,17 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     await this.assertCreatedEditForm({ ref, kind: 'hedgerow' })
   }
 
+  /**
+   * The Created watercourse edit form (BMD-1050, frontend PR#444): the shared
+   * Created form with Length (km), no broad habitat, and a dropdown for each
+   * encroachment.
+   */
+  async assertCreatedWatercourseEditForm({ ref }) {
+    await this.assertCreatedEditForm({ ref, kind: 'watercourse' })
+    await expect(this.watercourseEncroachmentSelect).toBeVisible()
+    await expect(this.riparianEncroachmentSelect).toBeVisible()
+  }
+
   async assertCreatedEditForm({ ref, kind = 'area' }) {
     await expect(
       this.page.getByRole('heading', { name: ref, exact: true })
@@ -309,28 +321,5 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     await expect(this.createdTimeToTargetValue).toHaveText(timeToTarget)
     await expect(this.habitatUnitsValue).toHaveText(UNITS_TWO_DP_PATTERN)
     await expect(this.habitatUnitsValue).toHaveText(units)
-  }
-
-  /**
-   * Assert the shape a Created feature with no usable baseline condition
-   * shares across the hedgerow and watercourse read-only pages: the
-   * two-section layout plus assertCreatedAbsentBaselineValues.
-   * Feature-specific rows (size label, encroachments) and the "View baseline
-   * details" expectation differ per page, so they stay with the caller.
-   *
-   * @param {{ ref: string, projectName: string, timeToTarget: string, units: string }} expected
-   */
-  async assertCreatedAbsentBaselinePage({
-    ref,
-    projectName,
-    timeToTarget,
-    units
-  }) {
-    await this.assertTwoSectionLayout({ ref, intervention: 'Created' })
-    await this.assertCreatedAbsentBaselineValues({
-      projectName,
-      timeToTarget,
-      units
-    })
   }
 }
