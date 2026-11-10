@@ -493,6 +493,111 @@ def build_null_proposed_encroachment_fixture():
         con.close()
 
 
+_CREATED_AREA_SIGNIFICANCE = "Proposed Strategic Significance"
+_CREATED_AREA_NO_TARGET = {
+    "Proposed Condition": None,
+    "Habitat created in advance/years": None,
+    "Delay in starting habitat creation/years": None,
+}
+
+# BMD-1048 (Created area edit form). Each file is `created area habitat.gpkg`
+# with H2-7's attributes changed as listed. Only `partly blank` has a journey
+# test (post-intervention-habitat-details.spec.js, AC2); the rest back the
+# /validate-ac-manual demos named in each entry.
+_BMD1048_CREATED_AREA_VARIANTS = [
+    # AC2a and AC2e: no target condition or timing; the legacy significance
+    # label the file already carries maps to Low (frontend PR#448).
+    ("Post-intervention - created area partly blank.gpkg", _CREATED_AREA_NO_TARGET),
+    # AC2b: no dropdown value at all.
+    (
+        "Post-intervention - created area all blank.gpkg",
+        {
+            **_CREATED_AREA_NO_TARGET,
+            "Proposed Broad Habitat Type": None,
+            "Proposed Habitat Type": None,
+            "Proposed Distinctiveness": None,
+            _CREATED_AREA_SIGNIFICANCE: None,
+        },
+    ),
+    # AC2c: no reference, which the upload refuses.
+    ("Post-intervention - created area blank reference.gpkg", {"Parcel Ref": None}),
+    # AC2d: the legacy label for High.
+    (
+        "Post-intervention - created area partly blank high significance.gpkg",
+        {
+            **_CREATED_AREA_NO_TARGET,
+            _CREATED_AREA_SIGNIFICANCE: "Formally identified in local strategy",
+        },
+    ),
+    # AC2f: the legacy Medium label, rejected at import (BMD-1051).
+    (
+        "Post-intervention - created area partly blank unsupported significance.gpkg",
+        {
+            **_CREATED_AREA_NO_TARGET,
+            _CREATED_AREA_SIGNIFICANCE: (
+                "Location ecologically desirable but not in local strategy"
+            ),
+        },
+    ),
+]
+
+# BMD-1048 flag-on demos. `service-template/area-created.gpkg` is a verbatim
+# copy of the harness's
+# example-files/service-template/permutations/intervention/area-created.gpkg;
+# these cut its Created habitat H001.
+_BMD1048_SERVICE_TEMPLATE_VARIANTS = [
+    # AC2a-flag-on: no target condition or timing.
+    (
+        "service-template/area-created-no-condition-or-timing.gpkg",
+        _CREATED_AREA_NO_TARGET,
+    ),
+    # AC2c-flag-on: no broad habitat or type, which the upload refuses.
+    (
+        "service-template/area-created-no-habitat-type.gpkg",
+        {
+            "Proposed Broad Habitat Type": None,
+            "Proposed Habitat Type": None,
+            "Proposed Distinctiveness": None,
+        },
+    ),
+]
+
+
+def _build_attribute_variant(src_name, dst_name, table, ref_col, ref, values):
+    shutil.copyfile(EX / src_name, EX / dst_name)
+    con = sqlite3.connect(EX / dst_name)
+    try:
+        (matches,) = con.execute(
+            f'SELECT count(*) FROM "{table}" WHERE "{ref_col}"=?', (ref,)
+        ).fetchone()
+        if matches != 1:
+            raise SystemExit(f"{dst_name}: expected 1 {ref} row, found {matches}")
+        assignments = ", ".join(f'"{column}"=?' for column in values)
+        update_attr(
+            con, table, f'{assignments} WHERE "{ref_col}"=?',
+            (*values.values(), ref),
+        )
+        con.commit()
+        print(f"  {dst_name}: {ref} {sorted(values)}")
+    finally:
+        con.close()
+
+
+def build_bmd1048_created_area_fixtures():
+    """BMD-1048 Created area fixtures: see the two variant lists above."""
+    print("\nBMD-1048 created area variants:")
+    for dst_name, values in _BMD1048_CREATED_AREA_VARIANTS:
+        _build_attribute_variant(
+            "Post-intervention - created area habitat.gpkg", dst_name,
+            "Habitats", "Parcel Ref", "H2-7", values,
+        )
+    for dst_name, values in _BMD1048_SERVICE_TEMPLATE_VARIANTS:
+        _build_attribute_variant(
+            "service-template/area-created.gpkg", dst_name,
+            "Area Habitats Post-Intervention", "Habitat Ref", "H001", values,
+        )
+
+
 def _report(con, label, layers):
     print(f"\n{label}:")
     for table, ref in layers:
@@ -515,4 +620,5 @@ if __name__ == "__main__":
     build_watercourses_uplift_fixture()
     build_unrecognised_riparian_fixture()
     build_null_proposed_encroachment_fixture()
+    build_bmd1048_created_area_fixtures()
     print("\nDone.")

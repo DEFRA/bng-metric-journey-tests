@@ -23,6 +23,7 @@ import {
   getLongPaddedRefsProject
 } from '@utils/summary-projects.js'
 import { gridRefName } from '@utils/habitat-ref-display.js'
+import { readTileUnits } from '@utils/tile-value.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const HTTP_BAD_REQUEST = 400
@@ -118,6 +119,66 @@ const CREATED_MODERATE_TIME = 'Moderate to Moderate - 5 years'
 const CREATED_AREA_PI_FILE = 'Post-intervention - created area habitat.gpkg'
 const CREATED_AREA_REF = 'H2-7'
 const CREATED_AREA_TIME_TO_TARGET = 'Good - 5 years'
+// BMD-1048. H2-7's saved selections and read-only values, as imported: a pond
+// created to Good over 5 years, with zero timing.
+const CREATED_AREA_SELECTIONS = {
+  broad: 'Lakes',
+  type: 'Ponds (non-priority habitat)',
+  significance: 'Low',
+  condition: 'Good',
+  advance: '0',
+  delay: '0'
+}
+const CREATED_AREA_VALUES = {
+  distinctiveness: 'Medium (4)',
+  standardTime: CREATED_AREA_TIME_TO_TARGET,
+  difficulty: 'Low',
+  finalTime: '5 years (0.8368287006)',
+  applied: '1'
+}
+// H2-7's unrounded units: 0.02428732997 ha x 4 x 3 x 1 x 0.8368287006 x 1.
+// The tile rounds to 2 dp, so tile arithmetic allows TILE_ROUNDING either way.
+const CREATED_AREA_EXACT_UNITS = 0.2439
+const TILE_ROUNDING = 0.011
+const POST_INTERVENTION_TILE = 'On-site post-intervention'
+const LAKES_TYPES = [
+  'Choose habitat type',
+  'Ornamental lake or pond',
+  'Ponds (non-priority habitat)',
+  'Reservoirs'
+]
+const GRASSLAND_TYPES = [
+  'Choose habitat type',
+  'Bracken',
+  'Modified grassland',
+  'Other lowland acid grassland',
+  'Other neutral grassland',
+  'Upland acid grassland'
+]
+const AREA_CREATION_CONDITIONS = [
+  'Choose target condition',
+  'Good (3)',
+  'Fairly Good (2.5)',
+  'Moderate (2)',
+  'Fairly Poor (1.5)',
+  'Poor (1)'
+]
+const TIMING_YEARS = [
+  ...Array.from({ length: 31 }, (_, year) => String(year)),
+  '30+'
+]
+// A copy of CREATED_AREA_PI_FILE whose H2-7 has no Proposed Condition, advance
+// or delay, and the legacy significance label "Area/compensation not in local
+// strategy/ no local strategy", which the form maps to Low (frontend PR#448).
+// Built by build_bmd1048_created_area_fixtures in fixture-mutations.py.
+const CREATED_AREA_PARTLY_BLANK_PI_FILE =
+  'Post-intervention - created area partly blank.gpkg'
+const INVALID_REF_SUMMARY = 'You have entered an invalid habitat reference.'
+const INVALID_REF_INLINE = 'Enter a valid habitat reference.'
+const TIMING_CONFLICT_SUMMARY =
+  'A habitat cannot be created both in advance and with a delay.'
+const TIMING_CONFLICT_INLINE =
+  'Either the advance or delay field must be set at zero.'
 // The hedgerow equivalent, and the *other* flavour of absent baseline. H2-7
 // above has its Baseline* columns cleared; these hedgerows carry the GeoPackage
 // sentinel "N/A" instead, which frontend PR#206 (BMD-706) made count as absent
@@ -374,6 +435,38 @@ function getCreatedAreaProject(browser) {
   )
 }
 
+// BMD-1048 AC2: the same pair with H2-7 left incomplete on import (see
+// CREATED_AREA_PARTLY_BLANK_PI_FILE).
+function getCreatedAreaPartlyBlankProject(browser) {
+  return getSharedProject(
+    browser,
+    'created-area-partly-blank',
+    { baselineFile: BASELINE_FILE, piFile: CREATED_AREA_PARTLY_BLANK_PI_FILE },
+    async () => ({})
+  )
+}
+
+// BMD-1048 AC11. A save mutates its project, so each save test gets its own
+// copy of a created-area pair instead of a read-only one above.
+function getCreatedAreaSaveProject(
+  browser,
+  key,
+  piFile = CREATED_AREA_PI_FILE
+) {
+  return getSharedProject(
+    browser,
+    key,
+    { baselineFile: BASELINE_FILE, piFile },
+    async () => ({})
+  )
+}
+
+async function openSharedCreatedArea(browser, page) {
+  const shared = await getCreatedAreaProject(browser)
+  await openPiFeatureDetails(page, shared.id, 'area', CREATED_AREA_REF)
+  return shared
+}
+
 // Baseline + PI "created linear features" uploads in one project: the linear
 // counterpart of getCreatedAreaProject. HG013 and R003 are both Created with an
 // "N/A" baseline condition (the short-form time-to-target branch). Neither has
@@ -454,6 +547,42 @@ async function expectCreatedHedgerowSelections(
     'Moderate (2)',
     'Poor (1)'
   ])
+}
+
+const CREATED_AREA_SELECTS = {
+  broad: 'broadHabitatSelect',
+  type: 'habitatTypeSelect',
+  significance: 'strategicSignificanceSelect',
+  condition: 'targetConditionSelect',
+  advance: 'advanceYearsSelect',
+  delay: 'delayYearsSelect'
+}
+
+async function expectCreatedAreaSelections(details, expected) {
+  for (const [name, value] of Object.entries(expected)) {
+    await expect(details[CREATED_AREA_SELECTS[name]], name).toHaveValue(value)
+  }
+}
+
+async function expectCreatedAreaValues(details, expected) {
+  for (const [name, value] of Object.entries(expected)) {
+    await expect(details.createdFormValue(name), name).toHaveText(value)
+  }
+}
+
+// The area post-intervention tile, read from the page already open.
+function areaPostInterventionUnits(page) {
+  return readTileUnits(
+    piPage(page, 'area').unitSection(),
+    POST_INTERVENTION_TILE
+  )
+}
+
+// Opens the area post-intervention page on the tab holding `ref`, and returns
+// that row's cells keyed by column heading.
+async function areaRowByRef(page, projectId, ref) {
+  const { unitPage, label } = await openPiTabFor(page, projectId, 'area', ref)
+  return unitPage.rowByRef(label, ref)
 }
 
 // Baseline + PI hedgerow uploads in one project: retained hedgerows for the
@@ -1004,6 +1133,35 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           // A created habitat has no baseline counterpart, and H2-7 shares its
           // ref with none of the baseline parcels (H1/H2/H3).
           await expect(detailsPage.viewBaselineLink).toBeHidden()
+
+          // BMD-1048 AC1: each dropdown holds the saved value, and the option
+          // lists come from the real /reference/area-creation. Habitat type
+          // lists only the Lakes types, and Target condition only the
+          // conditions with a creation time for a pond.
+          await expectCreatedAreaSelections(
+            detailsPage,
+            CREATED_AREA_SELECTIONS
+          )
+          await expectCreatedAreaValues(detailsPage, CREATED_AREA_VALUES)
+          await expect(
+            detailsPage.habitatTypeSelect.getByRole('option')
+          ).toHaveText(LAKES_TYPES)
+          await expect(
+            detailsPage.strategicSignificanceSelect.getByRole('option')
+          ).toHaveText([
+            'Choose strategic significance',
+            'High (1.15)',
+            'Low (1)'
+          ])
+          await expect(
+            detailsPage.targetConditionSelect.getByRole('option')
+          ).toHaveText(AREA_CREATION_CONDITIONS)
+          await expect(
+            detailsPage.advanceYearsSelect.getByRole('option')
+          ).toHaveText(['Choose advance', ...TIMING_YEARS])
+          await expect(
+            detailsPage.delayYearsSelect.getByRole('option')
+          ).toHaveText(['Choose delay', ...TIMING_YEARS])
         })
 
         // BMD-736 AC2, and the back-link witness for every area habitat page.
@@ -1031,6 +1189,458 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             await expectOnPiPage(page, shared.id, 'area')
           }
         )
+      }
+    )
+
+    // ─── Created area habitats — editing (BMD-1048) ──────────────────────────
+    // The previews (AC4–AC10) run in the browser against the real
+    // /reference/area-creation. The frontend's created-area-details.test.js
+    // covers the same rules against made-up reference data, so these tests are
+    // the only proof the real reference reaches the page. AC3, AC5, AC7 and
+    // AC9 add no data the tests below do not already render, so they are left
+    // to that unit test. Only the AC11 saves change a project. Every other test
+    // here reuses the read-only created-area project and never saves.
+
+    test.describe(
+      'Created area habitats — editing',
+      { tag: '@regression' },
+      () => {
+        test.use({ storageState: STORAGE_STATE })
+        test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+        // AC2. Sole real-data witness for an import-incomplete Created area's
+        // 0.00 units on the form, and for the list's Distinctiveness and
+        // Strategic significance, filled from the habitat type and the saved
+        // value (frontend PR#465, the PO ruling of 2026-11-06). The list's
+        // 0.00 is also witnessed by upload-post-intervention.spec.js
+        // (conflicting timing, H001). Frontend
+        // created-area-list-display.test.js covers the rule on made-up rows.
+        test('an incomplete Created area shows its saved values, default options and zero units', async ({
+          browser,
+          page,
+          postInterventionHabitatDetailsPage
+        }) => {
+          const { id } = await getCreatedAreaPartlyBlankProject(browser)
+          expect(await areaRowByRef(page, id, CREATED_AREA_REF)).toMatchObject({
+            Units: '0.00',
+            Distinctiveness: 'Medium (4)',
+            'Strategic significance': 'Low (1)'
+          })
+
+          await openPiFeatureDetails(page, id, 'area', CREATED_AREA_REF)
+          const details = postInterventionHabitatDetailsPage
+          await expectCreatedAreaSelections(details, {
+            broad: 'Lakes',
+            type: 'Ponds (non-priority habitat)',
+            // The file's legacy label, mapped to Low (frontend PR#448).
+            significance: 'Low',
+            condition: '',
+            advance: '',
+            delay: ''
+          })
+          await expectCreatedAreaValues(details, {
+            distinctiveness: 'Medium (4)',
+            standardTime: '',
+            difficulty: 'Low',
+            finalTime: '',
+            applied: '1'
+          })
+          await expect(details.standardTimeToTargetKey).toBeVisible()
+          await expect(details.finalTimeToTargetMultiplierKey).toBeVisible()
+          await expect(details.habitatUnitsValue).toHaveText('0.00')
+          await expect(details.saveButton).toBeVisible()
+        })
+
+        // AC4. Broad habitat resets the choices that depend on it.
+        test('choosing a new broad habitat resets the habitat type and target condition, and keeps the rest', async ({
+          browser,
+          page,
+          postInterventionHabitatDetailsPage
+        }) => {
+          const shared = await openSharedCreatedArea(browser, page)
+          const details = postInterventionHabitatDetailsPage
+          await details.strategicSignificanceSelect.selectOption('High')
+          await details.advanceYearsSelect.selectOption('2')
+
+          await details.broadHabitatSelect.selectOption('Grassland')
+
+          await expect(
+            details.habitatTypeSelect.getByRole('option')
+          ).toHaveText(GRASSLAND_TYPES)
+          await expectCreatedAreaSelections(details, {
+            type: '',
+            condition: '',
+            significance: 'High',
+            advance: '2',
+            delay: '0'
+          })
+          await expectCreatedAreaValues(details, {
+            distinctiveness: '',
+            standardTime: '',
+            difficulty: '',
+            finalTime: '',
+            applied: ''
+          })
+          await expect(details.habitatUnitsValue).toHaveText(
+            shared.createdAreaUnits
+          )
+        })
+
+        // AC6. Habitat type drives the type-only values, and a type's
+        // "Not Possible" conditions are left out of Target condition.
+        test('choosing a habitat type shows its values and offers only its possible conditions', async ({
+          browser,
+          page,
+          postInterventionHabitatDetailsPage
+        }) => {
+          const shared = await openSharedCreatedArea(browser, page)
+          const details = postInterventionHabitatDetailsPage
+
+          await details.habitatTypeSelect.selectOption('Reservoirs')
+
+          await expect(details.targetConditionSelect).toHaveValue('')
+          await expectCreatedAreaValues(details, {
+            distinctiveness: 'Medium (4)',
+            standardTime: '',
+            difficulty: 'Medium',
+            finalTime: '',
+            applied: '0.67'
+          })
+          await expect(details.habitatUnitsValue).toHaveText(
+            shared.createdAreaUnits
+          )
+
+          await details.broadHabitatSelect.selectOption('Cropland')
+          await details.habitatTypeSelect.selectOption('Cereal crops')
+          await expect(
+            details.targetConditionSelect.getByRole('option')
+          ).toHaveText([
+            'Choose target condition',
+            'Condition Assessment N/A (1)'
+          ])
+        })
+
+        // AC8. Target condition drives both time-to-target rows only.
+        test('choosing and clearing the target condition updates only the time to target', async ({
+          browser,
+          page,
+          postInterventionHabitatDetailsPage
+        }) => {
+          const shared = await openSharedCreatedArea(browser, page)
+          const details = postInterventionHabitatDetailsPage
+
+          await details.targetConditionSelect.selectOption('Moderate')
+          await expectCreatedAreaValues(details, {
+            ...CREATED_AREA_VALUES,
+            standardTime: 'Moderate - 3 years',
+            finalTime: '3 years (0.898632125)'
+          })
+
+          await details.targetConditionSelect.selectOption({
+            label: 'Choose target condition'
+          })
+          await expectCreatedAreaValues(details, {
+            ...CREATED_AREA_VALUES,
+            standardTime: '',
+            finalTime: ''
+          })
+          await expectCreatedAreaSelections(details, {
+            ...CREATED_AREA_SELECTIONS,
+            condition: ''
+          })
+          await expect(details.habitatUnitsValue).toHaveText(
+            shared.createdAreaUnits
+          )
+        })
+
+        // AC10. Final time is standard time + delay - advance, floored at 0,
+        // and blank when both are above zero.
+        test('advance and delay recalculate the final time to target', async ({
+          browser,
+          page,
+          postInterventionHabitatDetailsPage
+        }) => {
+          const shared = await openSharedCreatedArea(browser, page)
+          const details = postInterventionHabitatDetailsPage
+          const finalTime = details.createdFormValue('finalTime')
+
+          await details.delayYearsSelect.selectOption('3')
+          await expect(finalTime).toHaveText('8 years (0.7520011535)')
+          await details.advanceYearsSelect.selectOption('2')
+          await expect(finalTime).toHaveText('')
+          await expect(details.errorSummary).toBeHidden()
+
+          await details.delayYearsSelect.selectOption('0')
+          await expect(finalTime).toHaveText('3 years (0.898632125)')
+          await details.advanceYearsSelect.selectOption('30')
+          await expect(finalTime).toHaveText('0 years (1)')
+
+          await details.advanceYearsSelect.selectOption('0')
+          await details.delayYearsSelect.selectOption('30+')
+          await expect(finalTime).toHaveText('30+ years (0.3197967361)')
+          await expectCreatedAreaValues(details, {
+            ...CREATED_AREA_VALUES,
+            finalTime: '30+ years (0.3197967361)'
+          })
+          await expect(details.habitatUnitsValue).toHaveText(
+            shared.createdAreaUnits
+          )
+        })
+
+        // AC11 Scenario A. Backend integration-tests/habitats.test.js
+        // ("persists complete and incomplete edits") covers the stored
+        // result; this proves the list and the tile show it.
+        test('saving a complete edit recalculates the row, the units and the total', async ({
+          browser,
+          page,
+          postInterventionHabitatDetailsPage
+        }) => {
+          const { id } = await getCreatedAreaSaveProject(
+            browser,
+            'created-area-save-complete'
+          )
+          const editedRef = `${CREATED_AREA_REF}-new`
+          await openPiTabFor(page, id, 'area', CREATED_AREA_REF)
+          const totalBefore = await areaPostInterventionUnits(page)
+          await openPiFeatureDetails(page, id, 'area', CREATED_AREA_REF)
+          const details = postInterventionHabitatDetailsPage
+
+          await details.habitatReferenceInput.fill(editedRef)
+          await details.broadHabitatSelect.selectOption('Grassland')
+          await details.habitatTypeSelect.selectOption(
+            'Other neutral grassland'
+          )
+          await details.strategicSignificanceSelect.selectOption('High')
+          await details.targetConditionSelect.selectOption('Good')
+          await details.delayYearsSelect.selectOption('2')
+          await details.saveButton.click()
+
+          await expectOnPiPage(page, id, 'area')
+          // 0.02428732997 ha x 4 x 3 x 1.15 x 0.6521203607 x 1 = 0.2186
+          const totalAfter = await areaPostInterventionUnits(page)
+          expect(
+            Math.abs(
+              totalAfter - (totalBefore - CREATED_AREA_EXACT_UNITS + 0.2186)
+            )
+          ).toBeLessThan(TILE_ROUNDING)
+          expect(await areaRowByRef(page, id, editedRef)).toMatchObject({
+            Units: '0.22',
+            'Broad habitat': 'Grassland',
+            'Habitat type': 'Other neutral grassland',
+            Distinctiveness: 'Medium (4)',
+            'Strategic significance': 'High (1.15)',
+            'Target condition': 'Good (3)',
+            Delay: '2 years',
+            'Final time to target': '12 years (0.6521203607)'
+          })
+
+          await openPiFeatureDetails(page, id, 'area', editedRef)
+          await expect(details.habitatReferenceInput).toHaveValue(editedRef)
+          await expectCreatedAreaSelections(details, {
+            broad: 'Grassland',
+            type: 'Other neutral grassland',
+            significance: 'High',
+            condition: 'Good',
+            advance: '0',
+            delay: '2'
+          })
+          await expect(details.habitatUnitsValue).toHaveText('0.22')
+        })
+
+        // AC11 Scenario B. Sole real-data witness that a saved incomplete
+        // Created area shows 0.00 with its type-derived Distinctiveness and
+        // saved significance on the list (frontend PR#465, the PO ruling of
+        // 2026-11-06). Backend habitats.test.js covers the stored zero.
+        test('saving with the target condition cleared shows zero units and leaves the habitat out of the total', async ({
+          browser,
+          page,
+          postInterventionHabitatDetailsPage
+        }) => {
+          const { id } = await getCreatedAreaSaveProject(
+            browser,
+            'created-area-save-incomplete'
+          )
+          await openPiTabFor(page, id, 'area', CREATED_AREA_REF)
+          const totalBefore = await areaPostInterventionUnits(page)
+          await openPiFeatureDetails(page, id, 'area', CREATED_AREA_REF)
+          const details = postInterventionHabitatDetailsPage
+
+          await details.targetConditionSelect.selectOption({
+            label: 'Choose target condition'
+          })
+          await details.saveButton.click()
+
+          await expectOnPiPage(page, id, 'area')
+          const totalAfter = await areaPostInterventionUnits(page)
+          expect(
+            Math.abs(totalAfter - (totalBefore - CREATED_AREA_EXACT_UNITS))
+          ).toBeLessThan(TILE_ROUNDING)
+          expect(await areaRowByRef(page, id, CREATED_AREA_REF)).toMatchObject({
+            Units: '0.00',
+            Distinctiveness: 'Medium (4)',
+            'Strategic significance': 'Low (1)',
+            'Target condition': ''
+          })
+
+          await openPiFeatureDetails(page, id, 'area', CREATED_AREA_REF)
+          await expectCreatedAreaSelections(details, {
+            ...CREATED_AREA_SELECTIONS,
+            condition: ''
+          })
+          await expect(details.habitatUnitsValue).toHaveText('0.00')
+        })
+
+        // AC11 Scenario A from an import-incomplete habitat: the stored units
+        // go from null to calculated, and the legacy significance label the
+        // form mapped to Low (frontend PR#448) is saved without being touched.
+        // That untouched-significance save is the path the BMD-1048 QA round 2
+        // defect broke.
+        test('completing an imported incomplete habitat prices it and adds it to the total', async ({
+          browser,
+          page,
+          postInterventionHabitatDetailsPage
+        }) => {
+          const { id } = await getCreatedAreaSaveProject(
+            browser,
+            'created-area-save-from-incomplete',
+            CREATED_AREA_PARTLY_BLANK_PI_FILE
+          )
+          await openPiTabFor(page, id, 'area', CREATED_AREA_REF)
+          const totalBefore = await areaPostInterventionUnits(page)
+          await openPiFeatureDetails(page, id, 'area', CREATED_AREA_REF)
+          const details = postInterventionHabitatDetailsPage
+
+          await details.targetConditionSelect.selectOption('Good')
+          await details.advanceYearsSelect.selectOption('0')
+          await details.delayYearsSelect.selectOption('0')
+          await details.saveButton.click()
+
+          await expectOnPiPage(page, id, 'area')
+          const totalAfter = await areaPostInterventionUnits(page)
+          expect(
+            Math.abs(totalAfter - (totalBefore + CREATED_AREA_EXACT_UNITS))
+          ).toBeLessThan(TILE_ROUNDING)
+          expect(await areaRowByRef(page, id, CREATED_AREA_REF)).toMatchObject({
+            Units: '0.24',
+            'Strategic significance': 'Low (1)',
+            'Target condition': 'Good (3)'
+          })
+
+          await openPiFeatureDetails(page, id, 'area', CREATED_AREA_REF)
+          await expectCreatedAreaSelections(details, CREATED_AREA_SELECTIONS)
+          await expect(details.habitatUnitsValue).toHaveText('0.24')
+        })
+
+        // AC12.
+        test('Cancel discards the changes and returns to the area page', async ({
+          browser,
+          page,
+          postInterventionHabitatDetailsPage
+        }) => {
+          const shared = await openSharedCreatedArea(browser, page)
+          const details = postInterventionHabitatDetailsPage
+          await details.habitatReferenceInput.fill('Not saved')
+          await details.broadHabitatSelect.selectOption('Grassland')
+          await details.strategicSignificanceSelect.selectOption('High')
+
+          await details.cancelLink.click()
+
+          await expectOnPiPage(page, shared.id, 'area')
+          expect(
+            await areaRowByRef(page, shared.id, CREATED_AREA_REF)
+          ).toMatchObject({
+            Units: shared.createdAreaUnits,
+            'Broad habitat': 'Lakes',
+            'Strategic significance': 'Low (1)'
+          })
+          await openPiFeatureDetails(page, shared.id, 'area', CREATED_AREA_REF)
+          await expect(details.habitatReferenceInput).toHaveValue(
+            CREATED_AREA_REF
+          )
+          await expectCreatedAreaSelections(details, CREATED_AREA_SELECTIONS)
+        })
+
+        // AC13. Frontend controller-created-area.test.js covers each rule on
+        // its own against a mocked backend. This proves both errors render
+        // together, as UCD worded them, and that nothing is saved.
+        test('a save breaking both rules shows one error per rule, keeps the input and saves nothing', async ({
+          browser,
+          page,
+          postInterventionHabitatDetailsPage
+        }) => {
+          const shared = await openSharedCreatedArea(browser, page)
+          const details = postInterventionHabitatDetailsPage
+          // AC13: every value entered or selected survives the refusal, not
+          // only the two fields that fail.
+          const entered = {
+            broad: 'Grassland',
+            type: 'Other neutral grassland',
+            significance: 'High',
+            condition: 'Moderate',
+            advance: '2',
+            delay: '3'
+          }
+          await details.habitatReferenceInput.fill('')
+          await details.broadHabitatSelect.selectOption(entered.broad)
+          await details.habitatTypeSelect.selectOption(entered.type)
+          await details.strategicSignificanceSelect.selectOption(
+            entered.significance
+          )
+          await details.targetConditionSelect.selectOption(entered.condition)
+          await details.advanceYearsSelect.selectOption(entered.advance)
+          await details.delayYearsSelect.selectOption(entered.delay)
+
+          await details.saveButton.click()
+
+          await expect(details.errorSummary.getByRole('link')).toHaveCount(2)
+          await expect(
+            details.errorSummaryLink(INVALID_REF_SUMMARY)
+          ).toHaveAttribute('href', '#ref')
+          await expect(
+            details.errorSummaryLink(TIMING_CONFLICT_SUMMARY)
+          ).toHaveAttribute('href', '#advanceYears')
+          await expect(details.inlineError(INVALID_REF_INLINE)).toBeVisible()
+          await expect(
+            details.inlineError(TIMING_CONFLICT_INLINE)
+          ).toBeVisible()
+          await expect(details.habitatReferenceInput).toHaveValue('')
+          await expectCreatedAreaSelections(details, entered)
+
+          await openPiFeatureDetails(page, shared.id, 'area', CREATED_AREA_REF)
+          await expectCreatedAreaSelections(details, CREATED_AREA_SELECTIONS)
+        })
+
+        // AC14.
+        test('Upload file leaves unsaved changes behind without a prompt', async ({
+          browser,
+          page,
+          postInterventionHabitatDetailsPage,
+          uploadFilePage
+        }) => {
+          const shared = await openSharedCreatedArea(browser, page)
+          const details = postInterventionHabitatDetailsPage
+          let dialogs = 0
+          page.on('dialog', async (dialog) => {
+            dialogs += 1
+            await dialog.dismiss()
+          })
+          await details.habitatReferenceInput.fill('Not saved')
+          await details.strategicSignificanceSelect.selectOption('High')
+
+          await details.uploadFileButton.click()
+
+          await expect(page).toHaveURL(
+            new RegExp(`/projects/${shared.id}/upload-file`)
+          )
+          await expect(uploadFilePage.heading).toBeVisible()
+          expect(dialogs).toBe(0)
+          expect(
+            await areaRowByRef(page, shared.id, CREATED_AREA_REF)
+          ).toMatchObject({
+            Units: shared.createdAreaUnits,
+            'Strategic significance': 'Low (1)'
+          })
+        })
       }
     )
 

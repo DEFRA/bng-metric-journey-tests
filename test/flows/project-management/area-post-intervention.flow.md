@@ -43,22 +43,22 @@ It runs on the same `createHabitatPostInterventionController` factory as its lin
 
 Each panel holds a `moj-sortable-table` inside an MOJ **scrollable pane** — `<div class="moj-scrollable-pane" role="region" aria-label="{Tab} area habitats" tabindex="0">`. Built by `buildPostInterventionHabitatGrid` (`common/helpers/post-intervention-habitat-grid.js`), one row per feature of that intervention type.
 
-| Column                    | Retained | Enhanced | Created | Value                                                                                                                                     |
-| ------------------------- | -------- | -------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `Ref`                     | ✓        | ✓        | ✓       | linked to `/post-intervention-habitat-details?featureId={featureId}&projectId={id}&returnUrl=%2Fprojects%2F{id}%2Farea-post-intervention` |
-| `Units`                   | ✓        | ✓        | ✓       | `formatHabitatUnits` — 2 dp, capped at 7 s.f.                                                                                             |
-| `Size`                    | ✓        | ✓        | ✓       | `formatAreaHectares` — 10 s.f. + `ha`, no space                                                                                           |
-| `Broad habitat`           | ✓        | ✓        | ✓       | `broadType` — baseline for Retained, proposed otherwise                                                                                   |
-| `Habitat type`            | ✓        | ✓        | ✓       | `type` — same source rule                                                                                                                 |
-| `Distinctiveness`         | ✓        | ✓        | ✓       | `"{label} ({score})"`                                                                                                                     |
-| `Condition`               | ✓        | —        | —       | `"{label} ({score})"`                                                                                                                     |
-| `Strategic significance`  | ✓        | ✓        | ✓       | `Low (1)` for Retained; the proposed value otherwise                                                                                      |
-| `Target condition`        | —        | ✓        | ✓       | `"{label} ({score})"` — the **proposed** condition                                                                                        |
-| `Standard time to target` | —        | ✓        | ✓       | `formatYears` — `"1 year"` / `"N years"`                                                                                                  |
-| `Advance`                 | —        | ✓        | ✓       | `formatYears`                                                                                                                             |
-| `Delay`                   | —        | ✓        | ✓       | `formatYears`                                                                                                                             |
-| `Final time to target`    | —        | ✓        | ✓       | the backend's pre-formatted `"N years ({multiplier})"`                                                                                    |
-| `Standard difficulty`     | —        | ✓        | ✓       | `"{label} ({multiplier})"` — the ticket title-cases "Standard Difficulty"; the page renders sentence case                                 |
+| Column                    | Retained | Enhanced | Created | Value                                                                                                                                                                 |
+| ------------------------- | -------- | -------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Ref`                     | ✓        | ✓        | ✓       | linked to `/post-intervention-habitat-details?featureId={featureId}&projectId={id}&returnUrl=%2Fprojects%2F{id}%2Farea-post-intervention`                             |
+| `Units`                   | ✓        | ✓        | ✓       | `formatHabitatUnits` — 2 dp, capped at 7 s.f. Unpriced (null) units are blank, except on a Created row, which shows `0.00` (BMD-1048, frontend PR #465, display only) |
+| `Size`                    | ✓        | ✓        | ✓       | `formatAreaHectares` — 10 s.f. + `ha`, no space                                                                                                                       |
+| `Broad habitat`           | ✓        | ✓        | ✓       | `broadType` — baseline for Retained, proposed otherwise                                                                                                               |
+| `Habitat type`            | ✓        | ✓        | ✓       | `type` — same source rule                                                                                                                                             |
+| `Distinctiveness`         | ✓        | ✓        | ✓       | `"{label} ({score})"`. On an unpriced Created row with a known broad habitat and type, it is filled from `/reference/area-creation` (frontend PR #465)                |
+| `Condition`               | ✓        | —        | —       | `"{label} ({score})"`                                                                                                                                                 |
+| `Strategic significance`  | ✓        | ✓        | ✓       | `Low (1)` for Retained; the proposed value otherwise. On an unpriced Created row, a valid saved value is shown with its multiplier (frontend PR #465)                 |
+| `Target condition`        | —        | ✓        | ✓       | `"{label} ({score})"` — the **proposed** condition                                                                                                                    |
+| `Standard time to target` | —        | ✓        | ✓       | `formatYears` — `"1 year"` / `"N years"`                                                                                                                              |
+| `Advance`                 | —        | ✓        | ✓       | `formatYears`                                                                                                                                                         |
+| `Delay`                   | —        | ✓        | ✓       | `formatYears`                                                                                                                                                         |
+| `Final time to target`    | —        | ✓        | ✓       | the backend's pre-formatted `"N years ({multiplier})"`                                                                                                                |
+| `Standard difficulty`     | —        | ✓        | ✓       | `"{label} ({multiplier})"` — the ticket title-cases "Standard Difficulty"; the page renders sentence case                                                             |
 
 A `<tfoot>` **totals row** closes every grid: `Total` in the Ref column, `formatHabitatUnits` over the summed units, `formatAreaHectares` over the summed size, and an empty cell for every other column. Both sums are computed **server-side from the unrounded feature values** (`sumFinite`), so the Units total can differ from a sum of the displayed 2 dp cells by a few hundredths on a long grid.
 

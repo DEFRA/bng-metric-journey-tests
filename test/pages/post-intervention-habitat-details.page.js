@@ -5,6 +5,22 @@ import { BaselineHabitatDetailsPage } from './baseline-habitat-details.page.js'
 // Habitat units render to 2 decimal places (BMD-608 AC1).
 export const UNITS_TWO_DP_PATTERN = /^\s*\d+\.\d{2}\s*$/
 
+// The Created edit form's read-only values, by position among <main>'s
+// paragraphs (see stackedValues). Index 5 is the "or" between the two timing
+// dropdowns. A resolved "View baseline details" link adds one paragraph ahead
+// of them all. Valid on a clean render only: a refused save adds inline-error
+// paragraphs (the reference error before Intervention, the timing error before
+// "or"), which shift every later index.
+const CREATED_FORM_VALUE_INDEX = {
+  intervention: 0,
+  size: 1,
+  distinctiveness: 2,
+  standardTime: 3,
+  difficulty: 4,
+  finalTime: 6,
+  applied: 7
+}
+
 // The /post-intervention-habitat-details route renders a page for every
 // feature, picked by feature type *and* retention category, plus an
 // unsupported-feature placeholder for individual trees. Three kinds of page:
@@ -188,6 +204,31 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
       { exact: true }
     )
     this.uploadFileButton = page.getByRole('button', { name: 'Upload file' })
+    // Step 11 re-renders the form with a GOV.UK error summary on a refused save.
+    this.errorSummary = page.getByRole('alert')
+  }
+
+  /**
+   * One read-only value on the Created edit form: 'intervention', 'size',
+   * 'distinctiveness', 'standardTime', 'difficulty', 'finalTime' or 'applied'.
+   */
+  createdFormValue(name, { baselineLink = false } = {}) {
+    return this.stackedValues.nth(
+      CREATED_FORM_VALUE_INDEX[name] + (baselineLink ? 1 : 0)
+    )
+  }
+
+  errorSummaryLink(text) {
+    return this.errorSummary.getByRole('link', { name: text })
+  }
+
+  /**
+   * An inline field error. Not exact: GOV.UK prefixes it with a visually
+   * hidden "Error:". Its wording differs from the summary entry's, so the
+   * text alone cannot resolve to the summary link.
+   */
+  inlineError(text) {
+    return this.page.getByRole('main').getByText(text)
   }
 
   async open(projectId, featureId) {
