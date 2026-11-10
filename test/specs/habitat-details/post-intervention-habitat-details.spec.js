@@ -170,7 +170,7 @@ const TIMING_YEARS = [
 // A copy of CREATED_AREA_PI_FILE whose H2-7 has no Proposed Condition, advance
 // or delay, and the legacy significance label "Area/compensation not in local
 // strategy/ no local strategy", which the form maps to Low (frontend PR#448).
-// Hand-edited for BMD-1048: fixture-mutations.py has no builder for it yet.
+// Built by build_bmd1048_created_area_fixtures in fixture-mutations.py.
 const CREATED_AREA_PARTLY_BLANK_PI_FILE =
   'Post-intervention - created area partly blank.gpkg'
 const INVALID_REF_SUMMARY = 'You have entered an invalid habitat reference.'
@@ -447,12 +447,16 @@ function getCreatedAreaPartlyBlankProject(browser) {
 }
 
 // BMD-1048 AC11. A save mutates its project, so each save test gets its own
-// copy of the created-area pair instead of the read-only one above.
-function getCreatedAreaSaveProject(browser, key) {
+// copy of a created-area pair instead of a read-only one above.
+function getCreatedAreaSaveProject(
+  browser,
+  key,
+  piFile = CREATED_AREA_PI_FILE
+) {
   return getSharedProject(
     browser,
     key,
-    { baselineFile: BASELINE_FILE, piFile: CREATED_AREA_PI_FILE },
+    { baselineFile: BASELINE_FILE, piFile },
     async () => ({})
   )
 }
@@ -1484,6 +1488,47 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             condition: ''
           })
           await expect(details.habitatUnitsValue).toHaveText('0.00')
+        })
+
+        // AC11 Scenario A from an import-incomplete habitat: the stored units
+        // go from null to calculated, and the legacy significance label the
+        // form mapped to Low (frontend PR#448) is saved without being touched.
+        // That untouched-significance save is the path the BMD-1048 QA round 2
+        // defect broke.
+        test('completing an imported incomplete habitat prices it and adds it to the total', async ({
+          browser,
+          page,
+          postInterventionHabitatDetailsPage
+        }) => {
+          const { id } = await getCreatedAreaSaveProject(
+            browser,
+            'created-area-save-from-incomplete',
+            CREATED_AREA_PARTLY_BLANK_PI_FILE
+          )
+          await openPiTabFor(page, id, 'area', CREATED_AREA_REF)
+          const totalBefore = await areaPostInterventionUnits(page)
+          await openPiFeatureDetails(page, id, 'area', CREATED_AREA_REF)
+          const details = postInterventionHabitatDetailsPage
+
+          await details.targetConditionSelect.selectOption('Good')
+          await details.advanceYearsSelect.selectOption('0')
+          await details.delayYearsSelect.selectOption('0')
+          await details.saveButton.click()
+
+          await expectOnPiPage(page, id, 'area')
+          const totalAfter = await areaPostInterventionUnits(page)
+          expect(
+            Math.abs(totalAfter - (totalBefore + CREATED_AREA_EXACT_UNITS))
+          ).toBeLessThan(TILE_ROUNDING)
+          expect(await areaRowByRef(page, id, CREATED_AREA_REF)).toMatchObject({
+            Units: '0.24',
+            'Strategic significance': 'Low (1)',
+            'Target condition': 'Good (3)'
+          })
+
+          await openPiFeatureDetails(page, id, 'area', CREATED_AREA_REF)
+          await expectCreatedAreaSelections(details, CREATED_AREA_SELECTIONS)
+          await expect(details.habitatUnitsValue).toHaveText('0.24')
         })
 
         // AC12.

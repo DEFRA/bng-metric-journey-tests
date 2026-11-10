@@ -8,7 +8,9 @@ export const UNITS_TWO_DP_PATTERN = /^\s*\d+\.\d{2}\s*$/
 // The Created edit form's read-only values, by position among <main>'s
 // paragraphs (see stackedValues). Index 5 is the "or" between the two timing
 // dropdowns. A resolved "View baseline details" link adds one paragraph ahead
-// of them all.
+// of them all. Valid on a clean render only: a refused save adds inline-error
+// paragraphs (the reference error before Intervention, the timing error before
+// "or"), which shift every later index.
 const CREATED_FORM_VALUE_INDEX = {
   intervention: 0,
   size: 1,

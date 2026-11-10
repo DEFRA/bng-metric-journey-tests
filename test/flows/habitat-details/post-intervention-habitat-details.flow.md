@@ -480,7 +480,8 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
   and hedgerows predate BMD-1050. Journey coverage of the watercourse save is pending
   journey-tests PR #238.
 - **Journey coverage (BMD-1048, Created area):** `post-intervention-habitat-details.spec.js`,
-  "Created area habitats — editing". It covers a complete save (AC11 Scenario A), a save with
+  "Created area habitats — editing". It covers a complete save (AC11 Scenario A), completing
+  an import-incomplete habitat whose units go from null to calculated, a save with
   Target condition cleared (AC11 Scenario B), Cancel (AC12), both validation rules failing
   together (AC13) and Upload file with unsaved changes (AC14). Each save gets its own project.
   The other tests reuse the read-only `created-area` project and never save.
