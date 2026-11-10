@@ -91,6 +91,15 @@ const NATURAL_ENGLAND_MISMATCH_COPY =
 const MISSING_HABITAT_REF_FILE = 'Post-intervention - missing habitat ref.gpkg'
 const HABITAT_REF_MISSING_COPY =
   'Your file contains a habitat with no habitat reference'
+// BMD-1086 AC7. The distinctiveness file with H2-1's Parcel Ref set to NULL
+// (fixture-mutations.py), so HABITAT_REF_MISSING is one of two errors.
+const DISTINCTIVENESS_AND_MISSING_REF_FILE =
+  'Post-intervention - habitat distinctiveness out of scope and missing habitat ref.gpkg'
+const DISTINCTIVENESS_OUT_OF_SCOPE_COPY =
+  'One or more habitats have a distinctiveness that is out of scope'
+// How the drop-out page lists a habitat that has no ref (`names.feature` in
+// the frontend's error-text.yaml).
+const UNREFERENCED_HABITAT_ROW = /fid \d+|feature #\d+/
 // BMD-1066 (harness PR#161). The valid all-types post-intervention file with
 // the Baseline type cleared on five Retained or Enhanced rows: H002 (blank),
 // H004 (N/A), HG011 ((no selection)), R003 (Null), T002 (blank).
@@ -715,6 +724,47 @@ function describeContentValidationErrors() {
           await expect(page.getByText(expected).first()).toBeVisible()
         })
       }
+
+      // BMD-1086 AC7: a missing ref among several errors is a heading with no
+      // habitats listed under it. Sole witness for HABITAT_REF_MISSING in the
+      // multi-error list: frontend controller.test.js hands the controller a
+      // fabricated error, and the single-error cases above never reach the
+      // list. The copy is the same with the service-template flag on or off,
+      // so this legacy file stands in for both. Do not delete without another
+      // real upload that reports HABITAT_REF_MISSING beside a second error.
+      test('a habitat with no reference among other errors is a heading with no habitats listed', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadPostInterventionFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadPostInterventionFileFlow,
+            page
+          },
+          DISTINCTIVENESS_AND_MISSING_REF_FILE
+        )
+
+        const main = page.getByRole('main')
+        await expect(
+          errorFilePage.postInterventionRejectedHeading
+        ).toBeVisible()
+        await expect(errorFilePage.errorSummary).toBeVisible()
+        await expect(
+          errorFilePage.singleErrorHeading(HABITAT_REF_MISSING_COPY)
+        ).toBeVisible()
+        // The other error still lists its habitat, so the list is rendering;
+        // only the missing ref has nothing to list it by.
+        await expect(
+          errorFilePage.singleErrorHeading(DISTINCTIVENESS_OUT_OF_SCOPE_COPY)
+        ).toBeVisible()
+        await expect(main).toContainText('H1 — Grassland - Lowland meadows')
+        await expect(main).not.toContainText(UNREFERENCED_HABITAT_ROW)
+      })
     }
   )
 }
