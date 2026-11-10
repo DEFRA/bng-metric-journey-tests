@@ -26,6 +26,12 @@ export class ErrorFilePage extends BasePage {
     this.distinctivenessHeading = page.getByRole('heading', {
       name: 'Very high and high distinctiveness habitats are not yet included in this service'
     })
+    // A problem the user cannot fix in the file (BMD-1204, frontend PR#483):
+    // GOV.UK's wording for a service problem, above "Try again later."
+    this.serviceProblemHeading = page.getByRole('heading', {
+      name: 'Sorry, there is a problem with the service',
+      exact: true
+    })
     this.placeholderHeading = page.getByRole('heading', {
       name: 'PLACEHOLDER (AWAITING UCD)'
     })
