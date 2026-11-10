@@ -91,7 +91,7 @@ row showing the raw normalised value.
   when reasoning about a blank row.
 - Distinctiveness and Condition render as `"Value (score)"` via `withMultiplier`; a missing
   score yields the bare value, a missing value yields an empty cell.
-- Strategic significance is the fixed string `"Low (1)"` on the **retained** pages. Created and Enhanced pages show the priced value with its multiplier (`"Low (1)"` / `"High (1.15)"`, BMD-1038) via `proposedStrategicSignificanceDisplay`, and **nothing** when the feature has no `strategicSignificanceCategory` (frontend PR #370, BMD-1051 — it used to fall back to `"Low (1)"`). That covers a value rejected on import (Medium, blank or unrecognised, which the backend leaves unpriced, so units delivered is blank — it was `0.00` before BMD-1070) **and** an uncalculated feature carrying a valid value, which shows blank too, with blank units delivered. No shipped fixture has such a hedgerow any more: all-unit-types HG012 (Good → Good), the old example, is now rejected by BMD-820 (`medium-hedgerow`, backend PR #477), so its whole proposed side is nulled and its units delivered are blank (null since BMD-1070).
+- Strategic significance is the fixed string `"Low (1)"` on the **retained** pages. Created and Enhanced pages show the priced value with its multiplier (`"Low (1)"` / `"High (1.15)"`, BMD-1038) via `proposedStrategicSignificanceDisplay`, and **nothing** when the feature has no `strategicSignificanceCategory` (frontend PR #370, BMD-1051 — it used to fall back to `"Low (1)"`). That covers a value rejected on import (Medium, blank or unrecognised, which the backend leaves unpriced, so units delivered is blank — it was `0.00` before BMD-1070) **and** an uncalculated feature carrying a valid value, which shows blank too, with blank units delivered. No shipped fixture has such a hedgerow any more: all-unit-types HG012 (Good → Good), the old example, is now rejected by BMD-820 (`medium-hedgerow`, backend PR #477), so its whole proposed side is nulled and its units delivered are blank (null since BMD-1070). The exception is a **Created** area or hedgerow: since frontend PR #465 (BMD-1048 PO ruling), its page shows units delivered as `0.00` when the units are null. That is display only, so storage is unchanged.
 - "Habitat units delivered" is `formatHabitatUnits(feature.units)`
   — 2 decimal places, capped at 7 significant figures.
 
@@ -289,6 +289,14 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
   - There is **no separate Condition row** on this page: the proposed condition is the
     Target condition dropdown's selected option (its prefix stripped, no multiplier).
   - Back link and Cancel go to the area habitats post-intervention page (see Back link above).
+- **Journey coverage (BMD-1048):** `post-intervention-habitat-details.spec.js`. The H2-7 test
+  checks the saved selections and every option list (AC1). "Created area habitats — editing"
+  covers an incomplete habitat from `Post-intervention - created area partly blank.gpkg`
+  (AC2, including the list row's `0.00`, Distinctiveness and Strategic significance). It also
+  covers the in-browser previews against the real `/reference/area-creation`: Broad habitat
+  (AC4), Habitat type including a "Not Possible" exclusion (AC6), Target condition (AC8),
+  and Advance / Delay (AC10). AC3, AC5, AC7 and AC9 are left to
+  `src/client/javascripts/created-area-details.test.js` in the frontend.
 - **Validation:** shared GET contract on load; the form's own rules are in Step 11
 - **On success:** Renders the Created area edit form
 - **On error:** shared GET contract
@@ -438,7 +446,10 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
   `/projects/{projectId}/post-intervention/habitats/{featureId}` for areas or
   `/projects/{projectId}/post-intervention/hedgerows/{featureId}` for hedgerows.
   The backend validates the edit, uses shared enrichment and saves the feature, units and
-  project totals. Incomplete features keep `units: null` and do not contribute units.
+  project totals. An incomplete feature does not contribute units. An incomplete Created
+  **area** edit saves `units: 0` (backend PR#614, BMD-1048 AC11 Scenario B); imports and
+  hedgerow edits keep `units: null`. Either way, the Created area and hedgerow lists and
+  the edit form show `0.00` (frontend PR#465, the PO ruling of 2026-11-06).
 - **Description:** Both Step 4 and Step 7 forms post here. The handler:
   1. Validates UUIDs, editable strings and timing selections against the two Joi payload
      schemas. Timing selections can be blank, 0 to 30, 30+, or unchanged imported values.
@@ -468,6 +479,11 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
   returns to the watercourses post-intervention list. The rules above that name only areas
   and hedgerows predate BMD-1050. Journey coverage of the watercourse save is pending
   journey-tests PR #238.
+- **Journey coverage (BMD-1048, Created area):** `post-intervention-habitat-details.spec.js`,
+  "Created area habitats — editing". It covers a complete save (AC11 Scenario A), a save with
+  Target condition cleared (AC11 Scenario B), Cancel (AC12), both validation rules failing
+  together (AC13) and Upload file with unsaved changes (AC14). Each save gets its own project.
+  The other tests reuse the read-only `created-area` project and never save.
 
 ---
 
