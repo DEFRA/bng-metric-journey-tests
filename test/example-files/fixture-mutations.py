@@ -649,6 +649,37 @@ def build_bmd1049_created_hedgerow_fixture():
     )
 
 
+_CREATED_WATERCOURSE_NO_CHOICES = {
+    **_CREATED_AREA_NO_TARGET,
+    "Proposed Strategic Significance": None,
+    "Proposed Encroachment into Watercourse": None,
+    "Proposed Encroachment into riparian zone": None,
+}
+
+
+def build_bmd1050_created_watercourse_fixtures():
+    """BMD-1050 AC2: incomplete Created watercourses, cut from WC3.
+
+    `created watercourses.gpkg` with WC3 losing its target condition,
+    strategic significance, both encroachments and timing. `partly blank`
+    keeps its river type, so it imports Incomplete with type-derived values
+    only; `all blank` loses the river type too. Not cut from R003: since
+    backend #615 (BMD-1175) the `created linear features` pair is refused for
+    its legacy tree types.
+    """
+    print("\nBMD-1050 created watercourse variants:")
+    for dst_name, values in [
+        ("Post-intervention - created watercourse partly blank.gpkg",
+         _CREATED_WATERCOURSE_NO_CHOICES),
+        ("Post-intervention - created watercourse all blank.gpkg",
+         {**_CREATED_WATERCOURSE_NO_CHOICES, "Proposed River Type": None}),
+    ]:
+        _build_attribute_variant(
+            "Post-intervention - created watercourses.gpkg", dst_name,
+            "Rivers", "Parcel Ref", "WC3", values,
+        )
+
+
 def _report(con, label, layers):
     print(f"\n{label}:")
     for table, ref in layers:
@@ -674,4 +705,5 @@ if __name__ == "__main__":
     build_null_proposed_encroachment_fixture()
     build_bmd1048_created_area_fixtures()
     build_bmd1049_created_hedgerow_fixture()
+    build_bmd1050_created_watercourse_fixtures()
     print("\nDone.")
