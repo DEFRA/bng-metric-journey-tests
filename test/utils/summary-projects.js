@@ -179,9 +179,11 @@ export const IGGI_BASELINE_FILE = 'Baseline - IGGI habitat.gpkg'
 export const IGGI_PI_FILE = 'Post-intervention - IGGI habitat.gpkg'
 
 // BMD-1058's pair (harness PR#156). Refs on all three ref layers carry padding,
-// a 115-character ref, non-ASCII text, and refs of exactly 10 and of 16
-// characters. The PI half spells each ref differently (other padding, other
-// characters past the 100th), so each matches its baseline only once cleaned.
+// a 99-character ref, non-ASCII text, and refs of exactly 10 and of 16
+// characters. The PI half pads each ref differently, so each matches its
+// baseline only once cleaned. The long ref was 115 characters until BMD-1175
+// (backend #615) refused a ref over 99; `recut_long_padded_refs()` in
+// test/example-files/fixture-mutations.py cuts it to the limit.
 export const LONG_PADDED_REFS_BASELINE_FILE =
   'Baseline - long and padded habitat refs.gpkg'
 export const LONG_PADDED_REFS_PI_FILE =
@@ -191,8 +193,8 @@ export const LONG_PADDED_REFS_PI_FILE =
 export const LONG_PADDED_REFS = {
   // '  H001  ' in the baseline file, 'H001' in the PI file.
   padded: 'H001',
-  // 115 characters in the file, ending 'VWXYZ'; stored as the first 100.
-  long: `H002-${'ABCDEFGHIJ'.repeat(9)}ABCDE`,
+  // 99 characters, the Habitat Ref limit, so it is stored whole.
+  long: `H002-${'ABCDEFGHIJ'.repeat(9)}ABCD`,
   // 11 characters, so the grids cut it; ' Café–Ω H003' in the PI file.
   nonAscii: 'Café–Ω H003'
 }

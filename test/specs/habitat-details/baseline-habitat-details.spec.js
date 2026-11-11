@@ -1982,14 +1982,15 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
   )
 
   // BMD-1058 AC3/AC5. The backend cleans a ref before it is saved: it trims the
-  // padding and cuts the ref to 100 characters. The grids trim refs when they
-  // display them, so they cannot show what was saved; this page's <h1> can,
-  // because it prints the stored ref as it is.
+  // padding. Since BMD-1175 (backend #615) a ref over 99 characters is refused
+  // at upload instead of cut, so one at the limit is saved whole (AC8). The
+  // grids trim refs when they display them, so they cannot show what was
+  // saved; this page's <h1> can, because it prints the stored ref as it is.
   //
   // The only check that a real upload is cleaned on save. The rule is covered by
   // backend extract-habitat-data.test.js:1339, but only against made-up features,
   // and no integration test reads back a stored ref. Do not delete without a
-  // backend integration test that uploads a padded, over-long ref and asserts
+  // backend integration test that uploads a padded ref and asserts
   // the stored value.
   test.describe(
     'Baseline habitat details — habitat reference cleaning',
@@ -2024,11 +2025,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         )
       })
 
-      test('saves a ref longer than 100 characters as its first 100', async ({
+      test('saves a ref at the 99-character limit whole', async ({
         areaBaselinePage,
         baselineHabitatDetailsPage
       }) => {
-        // 115 characters in the uploaded file, ending 'VWXYZ'.
         await areaBaselinePage.open(projectId)
         await areaBaselinePage
           .refLink(gridRefName(LONG_PADDED_REFS.long))
