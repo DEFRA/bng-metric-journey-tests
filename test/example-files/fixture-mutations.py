@@ -839,6 +839,37 @@ def recut_long_padded_refs():
             con.close()
 
 
+_CREATED_WATERCOURSE_NO_CHOICES = {
+    **_CREATED_AREA_NO_TARGET,
+    "Proposed Strategic Significance": None,
+    "Proposed Encroachment into Watercourse": None,
+    "Proposed Encroachment into riparian zone": None,
+}
+
+
+def build_bmd1050_created_watercourse_fixtures():
+    """BMD-1050 AC2: incomplete Created watercourses, cut from WC3.
+
+    `created watercourses.gpkg` with WC3 losing its target condition,
+    strategic significance, both encroachments and timing. `partly blank`
+    keeps its river type, so it imports Incomplete with type-derived values
+    only; `all blank` loses the river type too. Not cut from R003: backend
+    #615 (BMD-1175) refused the `created linear features` pair for its legacy
+    tree types until rewrite_template_tree_words recut them.
+    """
+    print("\nBMD-1050 created watercourse variants:")
+    for dst_name, values in [
+        ("Post-intervention - created watercourse partly blank.gpkg",
+         _CREATED_WATERCOURSE_NO_CHOICES),
+        ("Post-intervention - created watercourse all blank.gpkg",
+         {**_CREATED_WATERCOURSE_NO_CHOICES, "Proposed River Type": None}),
+    ]:
+        _build_attribute_variant(
+            "Post-intervention - created watercourses.gpkg", dst_name,
+            "Rivers", "Parcel Ref", "WC3", values,
+        )
+
+
 def _report(con, label, layers):
     print(f"\n{label}:")
     for table, ref in layers:
@@ -907,5 +938,6 @@ if __name__ == "__main__":
     recut_long_padded_refs()
     recut_culvert_baseline_conditions()
     build_bmd1195_incomplete_baseline_fixtures()
+    build_bmd1050_created_watercourse_fixtures()
     rewrite_template_tree_words()
     print("\nDone.")
