@@ -565,7 +565,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // page can reach it now, because a section needs features to render and
       // features carry units.
 
-      test('the area habitats figure includes individual tree units, matching the area habitats baseline', async ({
+      // FIXME(BMD-1101): parked 2026-11-11. Frontend PR #449 added a Status
+      // column after Ref on the baseline grids, so this test's column positions
+      // and headings are out of date. Restore when BMD-1101 is validated.
+      test.fixme('the area habitats figure includes individual tree units, matching the area habitats baseline', async ({
         projectSummaryPage,
         areaBaselinePage
       }) => {

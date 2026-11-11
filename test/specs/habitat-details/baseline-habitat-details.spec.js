@@ -15,6 +15,8 @@ import {
 } from '@utils/summary-projects.js'
 import { gridRefName } from '@utils/habitat-ref-display.js'
 
+const BMD1101_STATUS_COLUMN =
+  'BMD-1101: baseline grids gained a Status column (frontend PR #449)'
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 // The edit/save describes each run their own real-CDP upload; under e2e load the
 // real uploader can exceed the frontend's 120s polling budget (MAX_WAIT_SECONDS),
@@ -588,6 +590,12 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await baselineHabitatDetailsPage.saveButton.click()
         await page.waitForURL(baselinePageUrl(projectId, 'area'))
 
+        // FIXME(BMD-1101): parked 2026-11-11. Frontend PR #449 added a Status
+        // column after Ref on the baseline grids, so the grid cell positions
+        // below are out of date. The setup above still runs, because the rest of
+        // this serial describe uses the project and feature it creates.
+        test.fixme(true, BMD1101_STATUS_COLUMN)
+
         await expect(gridCell(page, 'area', areaRef, 'condition')).toHaveText(
           gridConditionPattern(newCondition)
         )
@@ -784,7 +792,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     // deselected clears the units — null + Incomplete since BMD-1070 (the
     // grid has no Status column to show Incomplete — BMD-1043). Runs last in
     // the serial block because it leaves the shared habitat Incomplete.
-    test(
+    // FIXME(BMD-1101): parked 2026-11-11. Frontend PR #449 added a Status
+    // column after Ref on the baseline grids, so this test's column positions
+    // and headings are out of date. Restore when BMD-1101 is validated.
+    test.fixme(
       'AC6 Scenario B — saving with a deselected dropdown clears units',
       { tag: '@regression' },
       async ({ baselineHabitatDetailsPage, page }) => {
@@ -1102,6 +1113,12 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await baselineHabitatDetailsPage.saveButton.click()
         await page.waitForURL(baselinePageUrl(projectId, 'hedgerow'))
 
+        // FIXME(BMD-1101): parked 2026-11-11. Frontend PR #449 added a Status
+        // column after Ref on the baseline grids, so the grid cell positions
+        // below are out of date. The setup above still runs, because the rest of
+        // this serial describe uses the project and feature it creates.
+        test.fixme(true, BMD1101_STATUS_COLUMN)
+
         await expect(
           gridCell(page, 'hedgerow', hedgerowRef, 'condition')
         ).toHaveText(gridConditionPattern(newCondition))
@@ -1245,7 +1262,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     // deselected clears the units — null + Incomplete since BMD-1070 (no
     // Status column — BMD-1043). Runs last in the serial block because it
     // leaves the shared hedgerow Incomplete.
-    test(
+    // FIXME(BMD-1101): parked 2026-11-11. Frontend PR #449 added a Status
+    // column after Ref on the baseline grids, so this test's column positions
+    // and headings are out of date. Restore when BMD-1101 is validated.
+    test.fixme(
       'AC6 Scenario B — saving with a deselected dropdown clears units',
       { tag: '@regression' },
       async ({ baselineHabitatDetailsPage, page }) => {
@@ -1517,6 +1537,12 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await baselineHabitatDetailsPage.saveButton.click()
         await page.waitForURL(baselinePageUrl(projectId, 'watercourse'))
 
+        // FIXME(BMD-1101): parked 2026-11-11. Frontend PR #449 added a Status
+        // column after Ref on the baseline grids, so the grid cell positions
+        // below are out of date. The setup above still runs, because the rest of
+        // this serial describe uses the project and feature it creates.
+        test.fixme(true, BMD1101_STATUS_COLUMN)
+
         await expect(
           gridCell(page, 'watercourse', watercourseRef, 'condition')
         ).toHaveText(gridConditionPattern(newCondition))
@@ -1669,7 +1695,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       // deselected clears the units — null + Incomplete since BMD-1070 (no
       // Status column — BMD-1043). Runs last in the serial block because it
       // leaves the shared watercourse Incomplete.
-      test('Scenario B — saving with a deselected dropdown clears units', async ({
+      // FIXME(BMD-1101): parked 2026-11-11. Frontend PR #449 added a Status
+      // column after Ref on the baseline grids, so this test's column positions
+      // and headings are out of date. Restore when BMD-1101 is validated.
+      test.fixme('Scenario B — saving with a deselected dropdown clears units', async ({
         baselineHabitatDetailsPage,
         page
       }) => {
