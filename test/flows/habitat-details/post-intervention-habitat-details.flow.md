@@ -358,6 +358,14 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
   advance/delay values and strict validation of newly selected years.
 - **On success:** Save persists the edits, recalculated units/status and returns to the
   hedgerow list. Cancel and Upload discard local edits.
+- **Journey coverage (BMD-1049):** `post-intervention-habitat-details.spec.js`. The HG013 test
+  checks the derived values and the Strategic significance, Advance and Delay option lists
+  (AC1, AC7). "Created hedgerow habitats — editing" covers an incomplete hedgerow from
+  `Post-intervention - created hedgerow partly blank.gpkg` (AC2), and the in-browser
+  previews against the real `/reference/hedgerow-creation`: Habitat type including a
+  "Not Possible" exclusion and clearing it (AC4, AC5), Target condition (AC6), and Advance /
+  Delay (AC8). AC3 is covered by the Cancel test. AC2 without a habitat type and AC7's
+  dropdown change are left to `src/client/javascripts/created-hedgerow-details.test.js`.
 - **On error:** Field errors redisplay the form. A 404 from the creation-reference endpoint
   during rollout renders the previous read-only page; other backend failures propagate.
 
@@ -485,6 +493,14 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
   Target condition cleared (AC11 Scenario B), Cancel (AC12), both validation rules failing
   together (AC13) and Upload file with unsaved changes (AC14). Each save gets its own project.
   The other tests reuse the read-only `created-area` project and never save.
+- **Journey coverage (BMD-1049, Created hedgerow):** `post-intervention-habitat-details.spec.js`,
+  "Created hedgerow habitats — editing". It covers a complete save that moves the hedgerow
+  total (AC9 Scenario A), a save with Target condition cleared (AC9 Scenario B, page and
+  total only: the stored `units: null` differs from the AC's "zero is saved" and awaits a
+  ruling), Cancel (AC10, with an AC3 reference change), both validation rules failing
+  together (AC11), a duplicate reference saving (AC11, the only witness) and Upload file
+  with unsaved changes (AC12). Each save gets its own project; the rest reuse the
+  read-only `created-linear` project.
 
 ---
 

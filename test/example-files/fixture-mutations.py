@@ -632,6 +632,23 @@ def build_bmd1048_created_area_fixtures():
         )
 
 
+def build_bmd1049_created_hedgerow_fixture():
+    """`created hedgerow partly blank.gpkg`: BMD-1049 AC2, an incomplete Created hedgerow.
+
+    `created linear features.gpkg` with HG013 keeping its hedge type but losing
+    its target condition, strategic significance and timing, so it imports
+    Incomplete with type-derived values only. Used by
+    post-intervention-habitat-details.spec.js ("Created hedgerow habitats — editing").
+    """
+    print("\nBMD-1049 created hedgerow variant:")
+    _build_attribute_variant(
+        "Post-intervention - created linear features.gpkg",
+        "Post-intervention - created hedgerow partly blank.gpkg",
+        "Hedgerows", "Parcel Ref", "HG013",
+        {**_CREATED_AREA_NO_TARGET, "Proposed Strategic Significance": None},
+    )
+
+
 def _report(con, label, layers):
     print(f"\n{label}:")
     for table, ref in layers:
@@ -656,4 +673,5 @@ if __name__ == "__main__":
     build_unrecognised_riparian_fixture()
     build_null_proposed_encroachment_fixture()
     build_bmd1048_created_area_fixtures()
+    build_bmd1049_created_hedgerow_fixture()
     print("\nDone.")
