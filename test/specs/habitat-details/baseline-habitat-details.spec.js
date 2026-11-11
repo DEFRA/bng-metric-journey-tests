@@ -761,7 +761,11 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     // AC7: changing a dropdown then clicking Cancel discards the change —
     // the user returns to the area habitats baseline and the row's condition
     // + units are unchanged from before the edit (no UI or DB update).
-    test(
+    // FIXME(BMD-1101): parked 2026-11-11. Frontend PR #449 added a Status
+    // column after Ref on the baseline grids, so gridCell reads the wrong cells
+    // here and this test would pass without checking anything. Restore when
+    // BMD-1101 is validated.
+    test.fixme(
       'AC7 — cancelling after a change discards it and leaves the row unchanged',
       { tag: '@regression' },
       async ({ baselineHabitatDetailsPage, page }) => {
@@ -1226,7 +1230,11 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     // AC7: changing a dropdown then clicking Cancel discards the change — the
     // user returns to the hedgerows baseline and the row's condition + units
     // are unchanged from before the edit (no UI or DB update).
-    test(
+    // FIXME(BMD-1101): parked 2026-11-11. Frontend PR #449 added a Status
+    // column after Ref on the baseline grids, so gridCell reads the wrong cells
+    // here and this test would pass without checking anything. Restore when
+    // BMD-1101 is validated.
+    test.fixme(
       'AC7 — cancelling after a change discards it and leaves the row unchanged',
       { tag: '@regression' },
       async ({ baselineHabitatDetailsPage, page }) => {
@@ -1646,7 +1654,11 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       // AC (cancel): changing dropdowns then clicking Cancel discards the
       // changes — the user returns to the watercourses baseline with the row's
       // condition, units and the grid total unchanged.
-      test('cancelling after changes discards them and leaves the row and total unchanged', async ({
+      // FIXME(BMD-1101): parked 2026-11-11. Frontend PR #449 added a Status
+      // column after Ref on the baseline grids, so gridCell reads the wrong cells
+      // here and this test would pass without checking anything. Restore when
+      // BMD-1101 is validated.
+      test.fixme('cancelling after changes discards them and leaves the row and total unchanged', async ({
         baselineHabitatDetailsPage,
         page
       }) => {
