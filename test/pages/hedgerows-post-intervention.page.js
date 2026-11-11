@@ -219,6 +219,15 @@ export class HedgerowsPostInterventionPage extends BasePage {
     return cells.map((cell) => cell.trim())
   }
 
+  /** One feature row's cells, keyed by column heading, found by its Ref. */
+  async rowByRef(label, reference) {
+    const headings = await this.columnHeadings(label)
+    const cells = await this.rowValues(label, reference)
+    return Object.fromEntries(
+      headings.map((heading, index) => [heading, cells[index]])
+    )
+  }
+
   async totalsCell(label, heading) {
     return this.totalsRow(label)
       .locator('td')
