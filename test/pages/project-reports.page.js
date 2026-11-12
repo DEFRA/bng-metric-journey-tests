@@ -2,6 +2,10 @@ import { reportPdfPath } from '@utils/report-navigation.js'
 
 import { BasePage } from './base.page.js'
 
+// Long enough for the backend to build a report with its map, and shorter than
+// the test timeout, so a missing download fails with the message below.
+const DOWNLOAD_TIMEOUT_MS = 45_000
+
 /**
  * The Reports page (`/projects/{id}/reports`, BMD-984) and the site report
  * download it points at (`/projects/{id}/report.pdf`).
@@ -56,10 +60,23 @@ export class ProjectReportsPage extends BasePage {
    *
    * The response is an attachment, so the page does not navigate — waiting on
    * a URL change here would hang until the test timeout.
+   *
+   * The link has no `download` attribute (BMD-1203), so an error response —
+   * a 429 "too many requests", a 500 — shows as a page and no download comes.
+   * That fails here, naming the page the browser showed instead.
    */
   async downloadSiteReport() {
-    const download = this.page.waitForEvent('download')
+    const download = this.page.waitForEvent('download', {
+      timeout: DOWNLOAD_TIMEOUT_MS
+    })
     await this.downloadLink.click()
-    return download
+    try {
+      return await download
+    } catch (error) {
+      throw new Error(
+        `No site report download within ${DOWNLOAD_TIMEOUT_MS} ms. The service may have shown an error page instead: "${await this.page.title()}" at ${this.page.url()}`,
+        { cause: error }
+      )
+    }
   }
 }

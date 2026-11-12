@@ -70,10 +70,11 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           'href',
           reportPdfPath(project.id)
         )
-        // No `download` attribute to check: the frontend dropped it so an
-        // error page, such as "too many requests", shows as a page. The
+        // BMD-1203 drops the `download` attribute from the frontend so an
+        // error page, such as "too many requests", shows as a page; the
         // response's content-disposition still saves the PDF, which the
-        // download test below proves.
+        // download test below proves. Assert the attribute is absent once that
+        // frontend is in `latest`: until then the stack still serves it.
       }
     )
 
