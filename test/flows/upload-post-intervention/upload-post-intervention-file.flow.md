@@ -243,10 +243,34 @@ Journey coverage (`upload-post-intervention.spec.js`, BMD-1056 automated validat
 
 Journey coverage of `BASELINE_HABITATS_INCOMPLETE` (BMD-1195):
 
-- **Refusal, drop-out page and untouched project** `[NOT COVERED]`. No fixture refuses on this
-  rule alone, and the wording is interim. The backend covers it in
-  `refuse-incomplete-baselines.test.js` and the `import-attributes` and `import-combinations`
-  integration tests.
+- **One incomplete habitat: refusal, drop-out page and untouched project** (AC1) `[COVERED]`.
+  See _incomplete baseline_. `Post-intervention - incomplete baseline area habitat.gpkg` is the
+  all-met trading PI file with H002's Baseline Condition blank, uploaded onto
+  `Baseline - complete with area refs.gpkg` (5.67 area units). The page reads "There is a
+  problem with your file", then "Habitat parcels", then "Baseline habitat H002 cannot be
+  processed…". The test then checks that the baseline tile is unchanged and that no
+  post-intervention document was saved.
+- **Several habitats on different layers** (AC1–AC3 "one or more") `[COVERED]`.
+  `Baseline - incomplete habitat on every layer.gpkg` (H002, HG001 and R001 incomplete) uploaded
+  as a post-intervention file shows "Some baseline habitats cannot be processed…" with no layer
+  subheading.
+- **Hedgerow and watercourse refusals** (AC2, AC3) `[NOT COVERED]` here on purpose. They use the
+  same check, page and outcome as the area test, and only the subheading changes. Backend
+  `import-upload-file.test.js` refuses each layer from a real file, and frontend
+  `error-file/controller.test.js` words each layer's subheading. The single-defect fixtures
+  `Post-intervention - incomplete baseline hedgerow.gpkg` and `… watercourse.gpkg` are kept for
+  manual evidence.
+- **`BASELINE_HABITATS_INCOMPLETE` beside another error (the list layout)** `[NOT COVERED]`.
+  There is no fixture, and the wording is interim.
+- **Created rows are not checked** (AC5) `[COVERED]` indirectly. Every shared project built from
+  `created area habitat` or `created linear features` uploads successfully.
+- **A baseline-only upload with incomplete habitats is accepted** (AC6) `[COVERED]` indirectly.
+  The all-unit-types shared project's baseline file keeps R001/R008 Culverts in Good condition,
+  so both are Incomplete (see the note on `ALL_UNIT_TYPES_FILE` in `summary-projects.js`). The
+  Status column that would show them is parked under BMD-1101.
+
+The four BMD-1195 fixtures are built by `build_bmd1195_incomplete_baseline_fixtures()` in
+`fixture-mutations.py`. No harness file has a single incomplete baseline area habitat.
 
 Journey coverage of `BASELINE_NOT_ENHANCEABLE` (`upload-post-intervention.spec.js` › _unenhanceable
 baseline_, BMD-1182 automated validation, 2026-11-02). The check sits apart from `BASELINE_TYPE_MISSING`,

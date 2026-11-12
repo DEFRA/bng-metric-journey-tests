@@ -31,6 +31,12 @@ export const NO_HEDGEROWS_FILE = 'Baseline - no hedgerows.gpkg'
 // 120 habitat parcels, 60 urban trees, 40 hedgerows and 8 rivers — the only
 // baseline fixture that populates every unit type at once, so it is what the
 // hedgerow and watercourse pages need.
+//
+// Its Culverts R001 and R008 stay in Good condition, which a Culvert cannot
+// have, so they are saved Incomplete. That makes this upload the journey
+// witness for BMD-1195 AC6: a BASELINE upload with incomplete habitats is still
+// accepted. Only the PI half was recut to Poor (recut_culvert_baseline_conditions
+// in fixture-mutations.py). Recutting this file too would remove that witness.
 export const ALL_UNIT_TYPES_FILE =
   'Baseline - all unit and intervention types.gpkg'
 

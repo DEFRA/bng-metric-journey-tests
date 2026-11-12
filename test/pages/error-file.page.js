@@ -51,6 +51,23 @@ export class ErrorFilePage extends BasePage {
     this.unenhanceableHelpText = page.getByText(
       'Your project contains habitats that have been enhanced to a level which is not yet included in this service.'
     )
+    // BMD-1195 (frontend PR#487, interim wording). The single-habitat page puts
+    // the habitat's layer above the text; the several-habitats page has a layer
+    // subheading only when they share one.
+    this.layerHeadings = page.getByRole('heading', {
+      name: /^(Habitat parcels|Hedgerows|Watercourses)$/
+    })
+    this.incompleteBaselineHabitatsText = page.getByText(
+      'Some baseline habitats cannot be processed by the service due to a missing or incompatible value.',
+      { exact: true }
+    )
+  }
+
+  incompleteBaselineHabitatText(ref) {
+    return this.page.getByText(
+      `Baseline habitat ${ref} cannot be processed by the service due to a missing or incompatible value.`,
+      { exact: true }
+    )
   }
 
   singleErrorHeading(name) {
