@@ -651,6 +651,48 @@ def build_bmd1049_created_hedgerow_fixture():
     )
 
 
+# BMD-1195 (backend #624): one blanked baseline value per layer, each on a
+# Retained feature of the all-met trading pair, whose baselines are otherwise
+# all Complete. Each blank is one BMD-482 incompleteness rule (AC4/AC5/AC6).
+_BMD1195_BLANKS = [
+    ("Post-intervention - incomplete baseline area habitat.gpkg",
+     "Habitats", "H002", {"Baseline Condition": None}),
+    ("Post-intervention - incomplete baseline hedgerow.gpkg",
+     "Hedgerows", "HG001", {"Baseline Condition": None}),
+    ("Post-intervention - incomplete baseline watercourse.gpkg",
+     "Rivers", "R001", {"Baseline Encroachment into Watercourse": None}),
+]
+
+
+def build_bmd1195_incomplete_baseline_fixtures():
+    """BMD-1195: a post-intervention file whose derived baseline is Incomplete.
+
+    One PI variant per layer (AC1-AC3), each refused with
+    BASELINE_HABITATS_INCOMPLETE naming the one blanked feature, and a Baseline
+    file with all three blanks (AC6), which a baseline upload still accepts and
+    saves as Incomplete.
+    """
+    print("\nBMD-1195 incomplete baseline variants:")
+    for dst_name, table, ref, values in _BMD1195_BLANKS:
+        _build_attribute_variant(
+            "trading-all-met-post-intervention.gpkg", dst_name,
+            table, "Parcel Ref", ref, values,
+        )
+    dst_name = "Baseline - incomplete habitat on every layer.gpkg"
+    shutil.copyfile(EX / "trading-all-met-baseline.gpkg", EX / dst_name)
+    con = sqlite3.connect(EX / dst_name)
+    try:
+        for _, table, ref, values in _BMD1195_BLANKS:
+            (column,) = values
+            update_attr(
+                con, table, f'"{column}"=NULL WHERE "Parcel Ref"=?', (ref,)
+            )
+        con.commit()
+        print(f"  {dst_name}: {[ref for _, _, ref, _ in _BMD1195_BLANKS]}")
+    finally:
+        con.close()
+
+
 # BMD-1175 (backend #615) refuses, at upload, a drop-down value that the
 # template's lists do not offer (VALUE_NOT_ALLOWED) and a text value over its
 # limit (TEXT_TOO_LONG), before any other check. The recuts below keep each
@@ -864,5 +906,6 @@ if __name__ == "__main__":
     recut_placeholder_baseline_types()
     recut_long_padded_refs()
     recut_culvert_baseline_conditions()
+    build_bmd1195_incomplete_baseline_fixtures()
     rewrite_template_tree_words()
     print("\nDone.")

@@ -180,6 +180,14 @@ const UNENHANCEABLE_VERY_LOW_HEDGEROW_FILE =
 // file, so a refused file that replaced the baseline should change the tile.
 const UNENHANCEABLE_EXISTING_BASELINE_FILE =
   'Baseline - complete with area refs.gpkg'
+// BMD-1195 (fixture-mutations.py). The all-met trading PI file with H002's
+// Baseline Condition blank, so its derived baseline has one Incomplete area
+// habitat. The second file blanks H002, HG001 and R001, one per layer.
+const INCOMPLETE_BASELINE_AREA_FILE =
+  'Post-intervention - incomplete baseline area habitat.gpkg'
+const INCOMPLETE_BASELINE_AREA_REF = 'H002'
+const INCOMPLETE_BASELINE_EVERY_LAYER_FILE =
+  'Baseline - incomplete habitat on every layer.gpkg'
 
 // ─── E2E happy path ─────────────────────────────────────────────────────────
 
@@ -1071,6 +1079,101 @@ function describeUnenhanceableBaseline() {
   )
 }
 
+// ─── Incomplete baseline ─────────────────────────────────────────────────────
+
+// Sole witness for BASELINE_HABITATS_INCOMPLETE reaching the error page from a
+// real upload (BMD-1195). Backend import-upload-file.test.js:254 refuses real
+// files on every layer and import-combinations.test.js:62 proves the saved
+// project is unchanged, but neither renders. Frontend error-file
+// controller.test.js:527-597 words made-up errors. Deleting these leaves no
+// check that the backend's `layer` and `feature_ref` still fill the
+// frontend's wording. Hedgerow and watercourse refusals share this check and
+// page, so they are not repeated (see the flow doc).
+function describeIncompleteBaseline() {
+  test.describe(
+    'Upload post-intervention — incomplete baseline',
+    { tag: '@regression' },
+    () => {
+      test('a file whose baseline has an incomplete area habitat is refused, naming it, and leaves the existing project intact', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        uploadPostInterventionFileFlow,
+        projectSummaryPage,
+        errorFilePage,
+        page
+      }) => {
+        // Two real uploads back this test.
+        test.setTimeout(UPLOAD_TIMEOUT * 2)
+
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
+        )
+        // 5.67 area units, unlike the refused file's derived baseline, so a
+        // refused file that replaced the baseline would change the tile.
+        await uploadBaselineFileFlow.uploadFileAndWaitForSummary(
+          id,
+          UNENHANCEABLE_EXISTING_BASELINE_FILE
+        )
+        const baselineUnits = await projectSummaryPage.tileValue(
+          AREA_HABITATS,
+          TILE_BASELINE
+        )
+
+        await uploadPostInterventionFileFlow.uploadFile(
+          id,
+          INCOMPLETE_BASELINE_AREA_FILE
+        )
+        await page.waitForURL(ERROR_FILE_URL, { timeout: UPLOAD_TIMEOUT })
+
+        await expect(errorFilePage.genericHeading).toBeVisible()
+        await expect(errorFilePage.layerHeadings).toHaveText([
+          'Habitat parcels'
+        ])
+        await expect(
+          errorFilePage.incompleteBaselineHabitatText(
+            INCOMPLETE_BASELINE_AREA_REF
+          )
+        ).toBeVisible()
+        await expect(errorFilePage.errorSummary).not.toBeVisible()
+
+        await errorFilePage.backToProjectLink.click()
+        await expect(projectSummaryPage.heading).toBeVisible()
+        expect(
+          await projectSummaryPage.tileValue(AREA_HABITATS, TILE_BASELINE)
+        ).toBe(baselineUnits)
+        await expect(
+          projectSummaryPage.uploadPostInterventionLink(AREA_HABITATS)
+        ).toBeVisible()
+      })
+
+      test('a file whose baseline has incomplete habitats on several layers is refused without naming one', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadPostInterventionFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadPostInterventionFileFlow,
+            page
+          },
+          INCOMPLETE_BASELINE_EVERY_LAYER_FILE
+        )
+
+        await expect(errorFilePage.genericHeading).toBeVisible()
+        await expect(errorFilePage.incompleteBaselineHabitatsText).toBeVisible()
+        await expect(errorFilePage.layerHeadings).toHaveCount(0)
+      })
+    }
+  )
+}
+
 // ─── Cross-user access ───────────────────────────────────────────────────────
 
 // The GET on the upload form does not check project ownership — it renders for
@@ -1228,6 +1331,7 @@ test.describe(
     describeConflictingTiming()
     describeDistinctivenessError()
     describeUnenhanceableBaseline()
+    describeIncompleteBaseline()
     describeCrossUserAccess()
     describeUploaderRejection()
     describeUploadTimeout()
