@@ -154,7 +154,7 @@ Every GET step below shares this contract, so it is stated once rather than repe
 - **Description:** Single-section stacked page. H1 is `Habitat <ref>` (BMD-1180); the project
   name is the caption; the section heading is "Post-intervention habitat details". First in
   the section is the **Habitat reference** input, pre-filled with the saved ref and limited to
-  100 characters. Read-only rows, in order: **Intervention**, **Size (hectares)**, **Broad
+  99 characters (frontend PR#474; was 100). Read-only rows, in order: **Intervention**, **Size (hectares)**, **Broad
   habitat**, **Habitat type**, **Distinctiveness**, **Condition**, **Strategic significance**.
   Then the "View baseline details" link, the bordered **"Habitat units delivered"** row, and
   **Save** and **Cancel** (Step 12). There is **no "Units in this habitat" row** (replaced by the
@@ -243,7 +243,7 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
     recalculated by the backend on Save.
   - Unavailable imported habitat/condition choices show a hint that saving without a new
     selection clears them. Imported timing outside the offered range stays selected as
-    unchanged until explicitly replaced or cleared. A reference over 100 characters shows
+    unchanged until explicitly replaced or cleared. A reference over 99 characters shows
     a "Shorten it" hint.
   - The "View baseline details" link resolves through `parentFeatureId` when the feature
     carries one (BNG Service template, BMD-1083), otherwise by ref as above.
@@ -471,7 +471,7 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
   4. Sends valid edits to the type-specific backend PUT. Blank fields send null; unchanged
      timing is omitted. Both backend routes resolve omissions from the locked stored row,
      retain 30+ metadata and still reject out-of-range newly selected years.
-- **Validation:** References must be nonblank, valid UTF-8 and at most 100 characters.
+- **Validation:** References must be nonblank, valid UTF-8 and at most 99 characters once trimmed (BMD-1175).
   Habitat/condition/significance selections must be offered choices. Positive advance and
   delay cannot both be selected. Duplicate references and explicit blank dropdowns are
   allowed; missing calculation inputs leave the feature Incomplete.
@@ -519,8 +519,9 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
   renamed alone.
 - **Validation:** A blank, whitespace-only or non-UTF-8 reference shows the error summary "You
   have entered an invalid habitat reference." and the inline message "Enter a valid habitat
-  reference.", keeping what was typed. The input stops at 100 characters, and the backend
-  truncates anything longer rather than refusing it.
+  reference.", keeping what was typed. The input stops at 99 characters. A longer changed reference
+  is refused with "Enter a habitat reference of 99 characters or fewer." (frontend PR#474,
+  BMD-1175); until then the backend truncated it.
 - **On success:** 302 to the feature type's post-intervention page, respecting a safe `returnUrl`.
 - **On error:** 400 for a malformed payload or a refused reference.
 - **Open defect (duplicates):** AC7 and the PO's ruling of 2026-11-03 say duplicate references are
