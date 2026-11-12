@@ -95,6 +95,16 @@ const HABITAT_REF_MISSING_COPY =
 // (fixture-mutations.py), so HABITAT_REF_MISSING is one of two errors.
 const DISTINCTIVENESS_AND_MISSING_REF_FILE =
   'Post-intervention - habitat distinctiveness out of scope and missing habitat ref.gpkg'
+// BMD-1100 (harness PR#223). H2-1's comment holds U+FFFD, the replacement
+// character a decoder writes for bad bytes, which the backend refuses as
+// non-UTF-8. In the second file it is 1,152 characters long.
+const COMMENT_INVALID_CHARACTERS_FILE =
+  'Post-intervention - comment has invalid char.gpkg'
+const COMMENT_INVALID_CHARACTERS_COPY =
+  'The file contains a comment that uses non-UTF8 characters. Remove those characters and'
+const COMMENT_TOO_LONG_FILE = 'Post-intervention - comment too long.gpkg'
+const COMMENT_TOO_LONG_COPY =
+  'Habitats, H2-1: Comment has 1,152 characters. The maximum is 999'
 const DISTINCTIVENESS_OUT_OF_SCOPE_COPY =
   'One or more habitats have a distinctiveness that is out of scope'
 // How the drop-out page lists a habitat that has no ref (`names.feature` in
@@ -665,6 +675,30 @@ function describeContentValidationErrors() {
       file: MISSING_HABITAT_REF_FILE,
       layout: 'text',
       expected: HABITAT_REF_MISSING_COPY
+    },
+    {
+      // BMD-1100 AC5/AC7. Sole witness that a real upload's
+      // COMMENT_INVALID_CHARACTERS reaches the error page with its copy.
+      // Backend comment-import.test.js:143 proves the code is emitted and
+      // nothing saved, but never renders; frontend single-error-copy.test.js
+      // and controller.test.js hand the page a made-up error. Do not delete
+      // without a frontend test fed by a real backend response.
+      name: 'a comment that is not valid UTF-8',
+      file: COMMENT_INVALID_CHARACTERS_FILE,
+      layout: 'single',
+      expected: COMMENT_INVALID_CHARACTERS_COPY
+    },
+    {
+      // BMD-1100 AC6/AC7. Sole journey witness for TEXT_TOO_LONG on any
+      // column (BMD-1175): its list item, filled from the error's details with
+      // an en-GB thousands separator. Backend comment-import.test.js:122 proves
+      // a too-long comment emits the code; frontend controller.test.js words a
+      // made-up one. Deleting this leaves no check that the backend's details
+      // and the frontend's wording still agree.
+      name: 'a comment longer than 999 characters',
+      file: COMMENT_TOO_LONG_FILE,
+      layout: 'multi',
+      expected: COMMENT_TOO_LONG_COPY
     }
   ]
 
