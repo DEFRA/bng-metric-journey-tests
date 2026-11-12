@@ -52,11 +52,12 @@ Tests assert three things: an error page is rendered, it arrives within a bound,
 - **On error:** generic error page, immediately (`errorOnCacheNotReady` in the frontend's `session-cache.js`)
 - **Recovery:** dashboard lists the user's project once the fault clears
 
-### Step 6 — Redis not answering `[BLOCKED: known defect, no Redis command timeout]`
+### Step 6 — Redis not answering `[IMPLEMENTED]`
 
 - **Route:** `GET /manage-projects`, signed in
 - **Fault:** frontend → Redis `hang`
-- **On error:** should be the generic error page, but the page currently never responds. The test is marked `test.fail` under `FIXME(BMD-1200)`, so it goes red once the defect is fixed.
+- **On error:** generic error page, when the session read hits the frontend's Redis command timeout (`REDIS_COMMAND_TIMEOUT_MS`, 2s). Before BMD-1200 there was no timeout, and the page never responded.
+- **Recovery:** dashboard lists the user's project once the fault clears. The frontend's Redis socket timeout (`REDIS_SOCKET_TIMEOUT_MS`, 3s) drops the connection that lost its replies, so the client reconnects.
 
 ### Step 7 — S3 failing during the file check `[IMPLEMENTED]`
 
@@ -78,7 +79,7 @@ The file check is the only time the backend reads S3 while handling a request. I
 
 - **Route:** `GET /projects/{id}/upload-received`, after submitting a baseline file
 - **Fault:** backend → CDP Uploader `down` and `hang`. The browser posts the file to the uploader directly, so the upload itself succeeds.
-- **On error:** "Checking your file" until the frontend's 120s limit (`MAX_WAIT_SECONDS`), then the generic error page. The "file check timed out" message is lost, because the upload page clears it and then fails to load. This is a known defect (BMD-1200), which the tests do not assert.
+- **On error:** "Checking your file" until the frontend's 120s limit (`MAX_WAIT_SECONDS`), then the upload page with "The file check timed out. Please try again." The upload page cannot start a new upload while the uploader fails, so it shows "Unable to start file upload. Please try again later." in place of the form. Before BMD-1200 the message was lost, and the user got the generic error page.
 - **Recovery:** the same file uploads successfully once the fault clears
 
 ### Step 10 — Browser posting a file to a failing CDP Uploader `[BLOCKED: not reachable through the proxy]`
@@ -106,12 +107,12 @@ The browser talks to the uploader directly, so the service can't answer for this
 - **Result:** after the frontend's 120s limit, the upload page with "The service is busy checking other files. Please try again in a few moments."
 - **Recovery:** the same file uploads successfully once the proxy points back
 
-### Step 14 — Saving while another edit holds the project `[IMPLEMENTED]`
+### Step 14 — Saving or uploading while another edit holds the project `[IMPLEMENTED]`
 
-- **Route:** `POST` from the baseline habitat details form
+- **Routes:** `POST` from the baseline habitat details form, and `GET /projects/{id}/upload-received` after submitting a baseline file
 - **Setup:** the test holds the project's row lock through `test-postgres`, as another user's save would. The backend gives up after its 5s `lock_timeout`.
-- **Result:** the error page with "Another user is editing this. Please try again." (409). Reachable since backend PR #591; an upload conflict is not covered yet.
-- **Recovery:** the save works once the lock is released
+- **Result:** the error page with "Another user is editing this. Please try again." (409). Reachable for saves since backend PR #591, and for uploads since BMD-1200: before it, the frontend sent an upload conflict to the file error page.
+- **Recovery:** the save, or the upload of the same file, works once the lock is released
 
 ### Step 15 — Sign-in expired and can't be renewed `[IMPLEMENTED]`
 
@@ -123,4 +124,4 @@ The browser talks to the uploader directly, so the service can't answer for this
 
 A file rejected by the CDP Uploader needs no fault, so it runs in the main suite, in the upload specs ("CDP Uploader rejection"), on the stub stack only.
 
-"Unable to start file upload" (ticket scenario 5) has no test: reading the code, it can't realistically be reached.
+"Unable to start file upload" (ticket scenario 5) has no test of its own. Since BMD-1200 Step 9 shows it, with the timed-out message.

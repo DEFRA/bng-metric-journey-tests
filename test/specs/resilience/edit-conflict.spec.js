@@ -10,6 +10,10 @@ const CONFLICT_MESSAGE = 'Another user is editing this. Please try again.'
 // The backend gives up on the lock after 5s (lock_timeout), within the
 // frontend's 10s backend timeout.
 const MAX_CONFLICT_MS = 25_000
+// An upload reaches the lock only once the file check runs, which can take up
+// to the frontend's 120s wait (MAX_WAIT_SECONDS) for the uploader.
+const MAX_UPLOAD_CONFLICT_MS = 150_000
+const UPLOAD_CONFLICT_TEST_TIMEOUT_MS = 300_000
 
 test.describe('resilience', { tag: '@resilience' }, () => {
   test.describe(
@@ -66,6 +70,52 @@ test.describe('resilience', { tag: '@resilience' }, () => {
         await baselineHabitatDetailsPage.saveButton.click()
         await expect(page).toHaveURL(
           new RegExp(`/projects/${id}/area-baseline`)
+        )
+      })
+    }
+  )
+
+  test.describe(
+    'Edit conflict — upload baseline',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(
+        runMode === 'e2e',
+        'Requires direct Postgres access through Toxiproxy — not available on CDP'
+      )
+      test.describe.configure({ timeout: UPLOAD_CONFLICT_TEST_TIMEOUT_MS })
+
+      // The file check saves the upload under the project's row lock, so another
+      // user's save holding it makes the upload wait, then give up. That is not a
+      // problem with the file: the user gets the conflict page, not the file
+      // error page (BMD-1200).
+      test('uploading while another edit holds the project shows the conflict page, then the upload works', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        page
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
+        )
+
+        const release = await lockProject(id)
+        try {
+          await uploadBaselineFileFlow.uploadFile(id, BASELINE_FILE)
+          await expect(page.getByText(CONFLICT_MESSAGE)).toBeVisible({
+            timeout: MAX_UPLOAD_CONFLICT_MS
+          })
+          await expect(page).not.toHaveURL(/\/error-file/)
+        } finally {
+          await release()
+        }
+
+        await uploadBaselineFileFlow.uploadFileAndWaitForSummary(
+          id,
+          BASELINE_FILE
         )
       })
     }
