@@ -70,10 +70,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           'href',
           reportPdfPath(project.id)
         )
-        await expect(projectReportsPage.downloadLink).toHaveAttribute(
-          'download',
-          ''
-        )
+        // No `download` attribute to check: the frontend dropped it so an
+        // error page, such as "too many requests", shows as a page. The
+        // response's content-disposition still saves the PDF, which the
+        // download test below proves.
       }
     )
 
