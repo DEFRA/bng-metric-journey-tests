@@ -1311,9 +1311,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       })
 
       // AC4's OR: the Medium band is Met here and only Low and Very low fail,
-      // so a verdict built from the Medium band alone would read Met. The
-      // watercourse verdict on this project is Met, so a tile mis-wired to the
-      // watercourse function fails too.
+      // so a verdict built from the Medium band alone would read Met. A tile
+      // mis-wired to the watercourse function is caught by the "Met" test
+      // above, whose project has no watercourses. This project's watercourses
+      // read Not met since the BMD-1195 culvert recut, so they cannot.
       test('one failing hedgerow band is enough to show a red "Not met" tag', async ({
         projectSummaryPage,
         browser
@@ -1324,10 +1325,6 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expectStatusTag(
           projectSummaryPage.tradingRulesTag(HEDGEROWS),
           STATUS_NOT_MET
-        )
-        await expectStatusTag(
-          projectSummaryPage.tradingRulesTag(WATERCOURSES),
-          STATUS_MET
         )
       })
 

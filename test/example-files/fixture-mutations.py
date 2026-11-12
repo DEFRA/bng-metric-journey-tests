@@ -806,6 +806,44 @@ def _report(con, label, layers):
         print(f"  {table}: {rows}")
 
 
+_CULVERT_PI_FIXTURES = (
+    "Post-intervention - all unit and intervention types.gpkg",
+    "Post-intervention - net gain met.gpkg",
+    "Post-intervention - IGGI habitat.gpkg",
+    "Post-intervention - created linear features.gpkg",
+    "Post-intervention - long and padded habitat refs.gpkg",
+    "Post-intervention - created hedgerow partly blank.gpkg",
+)
+
+
+def recut_culvert_baseline_conditions():
+    """Culvert Baseline Condition -> "Poor" in the PI files of the shared pairs.
+
+    Poor is a Culvert's only condition. Good or Moderate is nulled on import,
+    so the derived baseline watercourse is Incomplete, and since backend #624
+    (BMD-1195) a post-intervention file with an incomplete baseline is refused.
+    The Baseline files keep their old condition: a baseline-only upload still
+    saves the culvert Incomplete. The negative fixtures are left alone.
+    """
+    for name in _CULVERT_PI_FIXTURES:
+        con = sqlite3.connect(EX / name)
+        try:
+            update_attr(
+                con, "Rivers",
+                '"Baseline Condition"=? WHERE "Baseline River Type"=? '
+                'AND "Baseline Condition"<>?',
+                ("Poor", "Culvert", "Poor"),
+            )
+            con.commit()
+            rows = con.execute(
+                'SELECT "Parcel Ref", "Baseline Condition" FROM "Rivers" '
+                'WHERE "Baseline River Type"=?', ("Culvert",)
+            ).fetchall()
+            print(f"\n{name} culverts: {rows}")
+        finally:
+            con.close()
+
+
 if __name__ == "__main__":
     recut_mixed_fixture()
     build_lost_tree_fixture()
@@ -825,5 +863,6 @@ if __name__ == "__main__":
     build_bmd1049_created_hedgerow_fixture()
     recut_placeholder_baseline_types()
     recut_long_padded_refs()
+    recut_culvert_baseline_conditions()
     rewrite_template_tree_words()
     print("\nDone.")
