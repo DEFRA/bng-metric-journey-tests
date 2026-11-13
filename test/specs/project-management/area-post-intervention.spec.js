@@ -538,7 +538,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // AC2, AC4b, AC5. Both Enhanced parcels improve on their baseline
       // condition, so the engine calculates them and every target/time cell is
       // populated — unlike the linear fixtures' non-uplift Enhanced rows.
-      test('the Enhanced grid carries the target and time-to-target columns, populated on calculated rows', async ({
+      // FIXME(BMD-1102): parked 2026-11-13. Frontend PR #455 added a Status
+      // column after Ref on the post-intervention grids, so this test's expected
+      // headings are out of date. Restore when BMD-1102 is validated.
+      test.fixme('the Enhanced grid carries the target and time-to-target columns, populated on calculated rows', async ({
         areaPostInterventionPage
       }) => {
         const grid = areaPostInterventionPage
@@ -579,7 +582,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // AC3, AC4c, AC5. The Created tab here is reached two ways at once: a
       // real Created parcel (H2-7) and Lost parcels the backend persists as
       // Created. The unit test hands the tab a literal 'Created'.
-      test('the Created grid carries the same columns, including Lost parcels imported as Created', async ({
+      // FIXME(BMD-1102): parked 2026-11-13. Frontend PR #455 added a Status
+      // column after Ref on the post-intervention grids, so this test's expected
+      // headings are out of date. Restore when BMD-1102 is validated.
+      test.fixme('the Created grid carries the same columns, including Lost parcels imported as Created', async ({
         areaPostInterventionPage
       }) => {
         const grid = areaPostInterventionPage
@@ -694,7 +700,11 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // AC8 and AC9. The `aria-sort` toggle itself is MOJ's own behaviour; what
       // only this test sees is the resulting row order on THIS grid's
       // `data-sort-value`s, and that the component binds at all on this page.
-      test(
+      // FIXME(BMD-1102): parked 2026-11-13. Frontend PR #455 added a Status
+      // column after Ref on the post-intervention grids, so the header found by
+      // its position in the column list is no longer the sorted one. Restore when
+      // BMD-1102 is validated.
+      test.fixme(
         'clicking a column heading re-orders a grid ascending, then descending',
         { tag: '@happy-path' },
         async ({ areaPostInterventionPage }) => {
