@@ -252,6 +252,32 @@ async function buildPostInterventionProject(browser, baselineFile, piFile) {
   }
 }
 
+// A post-intervention file uploaded into an empty project. Since BMD-1056
+// (backend PR #478) the upload derives the baseline from the file's own
+// non-Created rows, so one upload gives a project with both. Not cached: the
+// callers edit what it builds.
+async function buildPostInterventionOnlyProject(browser, piFile) {
+  const context = await browser.newContext({
+    storageState: STORAGE_STATE,
+    baseURL: baseUrl
+  })
+  const page = await context.newPage()
+  try {
+    const { id, name } = await setupProject(
+      new CreateProjectFlow(page),
+      new ProjectDashboardPage(page),
+      PROJECT_LABEL
+    )
+    await new UploadPostInterventionFileFlow(page).uploadFileAndWaitForSummary(
+      id,
+      piFile
+    )
+    return { id, name }
+  } finally {
+    await context.close()
+  }
+}
+
 const getOrBuildProject = createProjectCache()
 
 function projectKey(baselineFile, piFile) {
@@ -601,4 +627,8 @@ export function getLongPaddedRefsProject(browser) {
   )
 }
 
-export { buildBaselineOnlyProject, buildPostInterventionProject }
+export {
+  buildBaselineOnlyProject,
+  buildPostInterventionOnlyProject,
+  buildPostInterventionProject
+}
