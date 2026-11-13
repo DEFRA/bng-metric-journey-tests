@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { test, expect } from '@fixtures'
 import { setupProject } from '@utils/project-helpers.js'
 import { AREA_REFS_BASELINE_FILE } from '@utils/summary-projects.js'
@@ -6,6 +7,7 @@ import { SUMMARY } from '@utils/unit-type-labels.js'
 import {
   STORAGE_STATE,
   NO_ROLE_STORAGE_STATE,
+  NO_PROJECTS_STORAGE_STATE,
   baseUrl,
   skipInE2e
 } from '@utils/env.js'
@@ -14,7 +16,8 @@ import { UploadBaselineFileFlow } from '@flows/upload-baseline/upload-baseline-f
 import { ProjectDashboardPage } from '@pages/project-dashboard.page.js'
 import {
   LPA_PLACEHOLDER,
-  PROJECT_DETAILS_NAV_ITEM
+  PROJECT_DETAILS_NAV_ITEM,
+  ProjectDetailsPage
 } from '@pages/project-details.page.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
@@ -58,8 +61,15 @@ const ALL_DETAILS = {
   planningApplicationType: 'Outline planning permission'
 }
 
+// setupProject names a project by the millisecond, and this spec's tests run
+// in parallel under one user, so a random part keeps two projects made in the
+// same millisecond apart.
+function uniqueLabel() {
+  return `${PROJECT_LABEL} ${randomUUID().slice(0, 8)}`
+}
+
 function newProject(createProjectFlow, projectDashboardPage) {
-  return setupProject(createProjectFlow, projectDashboardPage, PROJECT_LABEL)
+  return setupProject(createProjectFlow, projectDashboardPage, uniqueLabel())
 }
 
 // With no returnUrl and no baseline, Save and Cancel go to the project
@@ -254,10 +264,13 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         })
         await projectDetailsPage.submit()
 
-        await projectDetailsPage.assertFieldError('Enter a project name')
-        await projectDetailsPage.assertFieldError(
+        // In the order the page shows the fields.
+        await expect(
+          projectDetailsPage.errorSummary.getByRole('link')
+        ).toHaveText([
+          'Enter a project name',
           'Survey date must include a month'
-        )
+        ])
         await projectDetailsPage.errorSummary
           .getByRole('link', { name: 'Survey date must include a month' })
           .click()
@@ -480,7 +493,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         page
       }) => {
         const first = await newProject(createProjectFlow, projectDashboardPage)
-        await newProject(createProjectFlow, projectDashboardPage)
+        const second = await newProject(createProjectFlow, projectDashboardPage)
         const renamed = `${first.name} renamed`
 
         await fillAndSave(projectDetailsPage, page, first.id, {
@@ -489,9 +502,12 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
         await projectDashboardPage.open()
         await expect(projectDashboardPage.projectLink(renamed)).toBeVisible()
-        await expect(
-          projectDashboardPage.projectsTable.getByRole('link').first()
-        ).toHaveText(renamed)
+        // Other workers share this user and may add projects at any time, so
+        // compare this test's two projects rather than reading the first row.
+        const names = await projectDashboardPage.projectsTable
+          .getByRole('link')
+          .allTextContents()
+        expect(names.indexOf(renamed)).toBeLessThan(names.indexOf(second.name))
       }
     )
   })
@@ -522,7 +538,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           project = await setupProject(
             new CreateProjectFlow(page),
             new ProjectDashboardPage(page),
-            PROJECT_LABEL
+            uniqueLabel()
           )
           await new UploadBaselineFileFlow(page).uploadFileAndWaitForSummary(
             project.id,
@@ -569,6 +585,25 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expect(projectDetailsPage.surveyCompletersInput).toHaveValue('')
       })
 
+      // A returnUrl that leaves the site is ignored: Cancel and Save go to the
+      // project summary instead.
+      for (const offSite of ['https://example.com/', '//example.com']) {
+        test(`an off-site returnUrl (${offSite}) falls back to the project summary`, async ({
+          projectDetailsPage,
+          page
+        }) => {
+          await projectDetailsPage.open(project.id, offSite)
+          await expect(projectDetailsPage.cancelLink).toHaveAttribute(
+            'href',
+            `/projects/${project.id}/project-summary`
+          )
+          await projectDetailsPage.submit()
+          await expect(page).toHaveURL(
+            `${baseUrl}/projects/${project.id}/project-summary`
+          )
+        })
+      }
+
       // Mutating: last in the serial block.
       test('Save returns to the page the link was followed from, with the new name shown', async ({
         areaSummaryPage,
@@ -584,6 +619,75 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expect(page).toHaveURL(`/projects/${project.id}/area-summary`)
         await expect(page.getByText(renamed, { exact: true })).toBeVisible()
         await expect(page.getByRole('alert')).toHaveCount(0)
+      })
+    }
+  )
+
+  // ─── Cross-user visibility ───────────────────────────────────────────────────
+
+  test.describe(
+    'Project details — cross-user visibility',
+    { tag: '@regression' },
+    () => {
+      test.skip(skipInE2e(NO_PROJECTS_STORAGE_STATE), E2E_SKIP_REASON)
+
+      test("a project's details can be neither seen nor changed by a different user", async ({
+        browser
+      }) => {
+        const creatorContext = await browser.newContext({
+          storageState: STORAGE_STATE,
+          baseURL: baseUrl
+        })
+        const otherContext = await browser.newContext({
+          storageState: NO_PROJECTS_STORAGE_STATE,
+          baseURL: baseUrl
+        })
+
+        try {
+          const creatorPage = await creatorContext.newPage()
+          const creatorDetails = new ProjectDetailsPage(creatorPage)
+          const { id, name } = await setupProject(
+            new CreateProjectFlow(creatorPage),
+            new ProjectDashboardPage(creatorPage),
+            uniqueLabel()
+          )
+          await fillAndSave(creatorDetails, creatorPage, id, {
+            localPlanningAuthority: BATH_LPA.name,
+            applicant: 'Isolation Developments Ltd'
+          })
+
+          const otherPage = await otherContext.newPage()
+          const response = await otherPage.goto(`/project-details/${id}`)
+          expect(response.status()).toBe(HTTP_NOT_FOUND)
+          await expect(
+            otherPage.getByText('Isolation Developments Ltd')
+          ).toBeHidden()
+
+          // A save posted straight to the route, with the other user's own
+          // CSRF token, changes nothing.
+          await otherPage.goto('/')
+          const crumb = (await otherContext.cookies()).find(
+            (cookie) => cookie.name === 'crumb'
+          )
+          const post = await otherPage.request.post(`/project-details/${id}`, {
+            form: {
+              crumb: crumb.value,
+              projectName: 'Taken over',
+              applicant: 'Someone else'
+            },
+            maxRedirects: 0
+          })
+          expect(post.status()).toBe(HTTP_NOT_FOUND)
+
+          await creatorDetails.open(id)
+          await assertDetailsMatch(creatorDetails, {
+            projectName: name,
+            applicant: 'Isolation Developments Ltd'
+          })
+        } finally {
+          await creatorContext.close()
+          await otherContext.close()
+        }
       })
     }
   )

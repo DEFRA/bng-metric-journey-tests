@@ -4,7 +4,9 @@ import { BasePage } from './base.page.js'
 // BMD-849 replaced the BMD-276 form: the page sits in the project's left
 // navigation, edits the project name with the other details, and Save and
 // Cancel return to the page its "Project details" link was followed from.
-export const PROJECT_DETAILS_NAV_ITEM = 'Project details'
+// The page's heading, the name of its navigation and its item there.
+const PROJECT_DETAILS = 'Project details'
+export const PROJECT_DETAILS_NAV_ITEM = PROJECT_DETAILS
 export const LPA_PLACEHOLDER = 'Choose local planning authority'
 export const HELP_TEXT =
   'Enter the details for the project. You do not need to add them all straight away, but you will need to complete all of these details before you can export your metric.'
@@ -13,11 +15,13 @@ export class ProjectDetailsPage extends BasePage {
   constructor(page) {
     super(page)
     this.heading = page.getByRole('heading', {
-      name: 'Project details',
+      name: PROJECT_DETAILS,
       level: 1
     })
     this.helpText = page.getByText(HELP_TEXT)
-    this.navigation = page.getByRole('navigation', { name: 'Project details' })
+    this.navigation = page.getByRole('navigation', {
+      name: PROJECT_DETAILS
+    })
     this.currentNavItem = this.navigation.getByText(PROJECT_DETAILS_NAV_ITEM, {
       exact: true
     })
