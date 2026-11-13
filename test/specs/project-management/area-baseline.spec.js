@@ -3,6 +3,7 @@ import { score, unitsTolerance } from '@utils/grid-values.js'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
+  buildBaselineOnlyProject,
   getAllUnitTypesProject,
   getAreaGainProject,
   getBaselineOnlyProject,
@@ -19,6 +20,8 @@ import {
   BASELINE_NAV_CHILD,
   HEDGEROWS,
   POST_INTERVENTION_NAV_CHILD,
+  STATUS_COMPLETE,
+  STATUS_INCOMPLETE,
   SUMMARY,
   TILE_BASELINE,
   TRADING_RULES_NAV_CHILD,
@@ -38,6 +41,12 @@ const SHARED_PAIR_BUILD_TIMEOUT = 180_000
 const UNITS_2DP = /^\d+\.\d{2}$/
 const HECTARES = /^\d+(\.\d+)?ha$/
 const FIXED_STRATEGIC_SIGNIFICANCE = 'Low (1)'
+
+// BMD-1195 mutation (fixture-mutations.py): one habitat per layer has a blank
+// baseline value and is saved Incomplete — H002 and HG001 lose their
+// condition, R001 its watercourse encroachment. The rest are Complete.
+const INCOMPLETE_EVERY_LAYER_FILE =
+  'Baseline - incomplete habitat on every layer.gpkg'
 const REF_SORT_LOCALE = 'en'
 
 // `Baseline - no hedgerows.gpkg` — 50 habitat parcels and 25 urban trees. The
@@ -78,9 +87,10 @@ const COLUMN_HEADINGS = [
   'Strategic significance'
 ]
 
-// Read-only, like every drill-down. The project comes from
+// Read-only, like every drill-down. The feature-table project comes from
 // @utils/summary-projects.js, shared with project-summary.spec.js and
-// area-summary.spec.js, so this file costs no upload of its own in CI.
+// area-summary.spec.js. The Status column describe makes the file's only
+// upload of its own.
 test.describe('project-management', { tag: '@project-management' }, () => {
   test.describe.configure({ mode: 'serial' })
 
@@ -99,10 +109,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     // are rendered as one table — the single most load-bearing claim the page
     // makes, since trees are area habitats for units purposes but a separate
     // collection in the payload.
-    // FIXME(BMD-1101): parked 2026-11-11. Frontend PR #449 added a Status
-    // column after Ref on the baseline grids, so this test's column positions
-    // and headings are out of date. Restore when BMD-1101 is validated.
-    test.fixme(
+    test(
       'lists real habitat parcels and individual trees in one table',
       { tag: ['@smoke', '@happy-path'] },
       async ({ areaBaselinePage }) => {
@@ -123,6 +130,13 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         expect(refs.filter((r) => r.startsWith('T'))).toHaveLength(
           EXPECTED_TREES
         )
+
+        // BMD-1101 AC2: the status the backend saves on upload reaches the
+        // grid, for trees as well as parcels. Every row of this file is valid,
+        // so every row is Complete.
+        const status = await areaBaselinePage.columnValues('status')
+        expect(status).toHaveLength(EXPECTED_ROWS)
+        expect(new Set(status)).toEqual(new Set([STATUS_COMPLETE]))
 
         // Server-side ordering is by ref, ascending, across the combined list —
         // so the trees are interleaved by ref rather than appended.
@@ -162,10 +176,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     // `formatHabitatUnits` (7 s.f. → 2dp), so they can differ in the last
     // place without either being wrong. The bug this guards against — a
     // missing collection or the wrong field — is orders of magnitude larger.
-    // FIXME(BMD-1101): parked 2026-11-11. Frontend PR #449 added a Status
-    // column after Ref on the baseline grids, so this test's column positions
-    // and headings are out of date. Restore when BMD-1101 is validated.
-    test.fixme('the totals row agrees with the backend unit aggregate', async ({
+    test('the totals row agrees with the backend unit aggregate', async ({
       areaBaselinePage
     }) => {
       await areaBaselinePage.open(project.id)
@@ -179,6 +190,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       await expect(areaBaselinePage.totalsCell('ref')).toHaveText('Total')
       await expect(areaBaselinePage.totalsCell('size')).toHaveText(HECTARES)
+      // BMD-1101 AC4: the Status cell is blank in the totals row.
+      await expect(areaBaselinePage.totalsCell('status')).toHaveText('')
       // The five non-numeric columns stay empty in the totals row.
       await expect(areaBaselinePage.totalsCell('broadHabitat')).toHaveText('')
       await expect(
@@ -186,10 +199,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       ).toHaveText('')
     })
 
-    // FIXME(BMD-1101): parked 2026-11-11. Frontend PR #449 added a Status
-    // column after Ref on the baseline grids, so this test's column positions
-    // and headings are out of date. Restore when BMD-1101 is validated.
-    test.fixme('every row renders formatted units, size and the fixed strategic significance', async ({
+    test('every row renders formatted units, size and the fixed strategic significance', async ({
       areaBaselinePage
     }) => {
       await areaBaselinePage.open(project.id)
@@ -239,10 +249,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     // Sole real-data witness: the backend's enrich-baseline-units.test.js
     // proves the ×1 sum only for features carrying NO strategic significance,
     // so nothing else shows an imported High or Medium is dropped.
-    // FIXME(BMD-1101): parked 2026-11-11. Frontend PR #449 added a Status
-    // column after Ref on the baseline grids, so this test's column positions
-    // and headings are out of date. Restore when BMD-1101 is validated.
-    test.fixme('every row is priced at Low (×1) whatever strategic significance the file carried', async ({
+    test('every row is priced at Low (×1) whatever strategic significance the file carried', async ({
       areaBaselinePage
     }) => {
       await areaBaselinePage.open(project.id)
@@ -477,6 +484,83 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           'href',
           tradingSummary
         )
+      })
+    }
+  )
+
+  // BMD-1101. The Status column on real uploaded data, which the frontend's
+  // tests only render from hand-built features (baseline-habitat-grid.test.js,
+  // linear-baseline-page-suite.js) and sort in jsdom
+  // (habitat-details-sortable-table.test.js).
+  test.describe(
+    'Baseline grids — Status column',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      let project
+      test.beforeAll(async ({ browser }) => {
+        project = await buildBaselineOnlyProject(
+          browser,
+          INCOMPLETE_EVERY_LAYER_FILE
+        )
+      })
+
+      // AC3. The backend's integration tests prove a real upload saves the
+      // Incomplete status on every layer (import-combinations.test.js:154,168)
+      // but never render it. This is the only test that shows an Incomplete
+      // saved on upload as the area and hedgerow grids' Status tag; the
+      // watercourse grid is also covered by the blank-encroachment test in
+      // watercourses-baseline.spec.js. Deleting it leaves the area and
+      // hedgerow rendering of an uploaded Incomplete unchecked.
+      test('each grid shows the Incomplete status saved on upload', async ({
+        areaBaselinePage,
+        hedgerowsBaselinePage,
+        watercoursesBaselinePage
+      }) => {
+        const grids = [
+          [areaBaselinePage, ['H001', 'H002', 'H003'], 1],
+          [hedgerowsBaselinePage, ['HG001', 'HG002', 'HG003'], 0],
+          [watercoursesBaselinePage, ['R001', 'R002'], 0]
+        ]
+        for (const [grid, refs, incompleteIndex] of grids) {
+          await grid.open(project.id)
+          expect(await grid.columnValues('ref')).toEqual(refs)
+          const expected = refs.map((_, i) =>
+            i === incompleteIndex ? STATUS_INCOMPLETE : STATUS_COMPLETE
+          )
+          expect(await grid.columnValues('status')).toEqual(expected)
+        }
+      })
+
+      // AC5 and AC6. Sole witness that the tie-by-Ref sort is wired to the
+      // grid: the jsdom tests drive the class directly, not application.js.
+      // The area grid is the one that tells a tie-break from a plain reversal:
+      // descending must read H002, H001, H003, where reversing the ascending
+      // order would give H002, H003, H001.
+      test('clicking Status sorts Complete first, then Incomplete first, with ties in Ref order', async ({
+        areaBaselinePage
+      }) => {
+        await areaBaselinePage.open(project.id)
+        const statusHeader = areaBaselinePage.columnHeader('status')
+        const sortButton = areaBaselinePage.sortButton('status')
+
+        await sortButton.click()
+        await expect(statusHeader).toHaveAttribute('aria-sort', 'ascending')
+        expect(await areaBaselinePage.columnValues('ref')).toEqual([
+          'H001',
+          'H003',
+          'H002'
+        ])
+
+        await sortButton.click()
+        await expect(statusHeader).toHaveAttribute('aria-sort', 'descending')
+        expect(await areaBaselinePage.columnValues('ref')).toEqual([
+          'H002',
+          'H001',
+          'H003'
+        ])
       })
     }
   )

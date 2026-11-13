@@ -13,6 +13,7 @@ import {
   BASELINE_NAV_CHILD,
   HEDGEROWS,
   POST_INTERVENTION_NAV_CHILD,
+  STATUS_COMPLETE,
   SUMMARY,
   TILE_BASELINE,
   TRADING_RULES_NAV_CHILD,
@@ -92,10 +93,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     // hedgerow by hand. This is the sole witness that ref, sizeMetres,
     // distinctiveness and condition survive a real import. Do not delete
     // without adding per-feature assertions to the backend's real-upload test.
-    // FIXME(BMD-1101): parked 2026-11-11. Frontend PR #449 added a Status
-    // column after Ref on the baseline grids, so this test's column positions
-    // and headings are out of date. Restore when BMD-1101 is validated.
-    test.fixme(
+    test(
       'lists every baseline hedgerow, sorted by ref, with formatted values',
       { tag: ['@smoke', '@happy-path'] },
       async ({ hedgerowsBaselinePage }) => {
@@ -156,6 +154,12 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         expect(new Set(significance)).toEqual(
           new Set([FIXED_STRATEGIC_SIGNIFICANCE])
         )
+
+        // BMD-1101 AC2: the status the backend saves on upload reaches the
+        // grid. Every row of this file is valid, so every row is Complete.
+        const status = await hedgerowsBaselinePage.columnValues('status')
+        expect(status).toHaveLength(EXPECTED_HEDGEROWS)
+        expect(new Set(status)).toEqual(new Set([STATUS_COMPLETE]))
       }
     )
 
@@ -170,10 +174,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     // uses `formatUnits` (15 s.f. → 2dp) and the totals cell
     // `formatHabitatUnits` (7 s.f. → 2dp), so they can differ in the last place
     // without either being wrong.
-    // FIXME(BMD-1101): parked 2026-11-11. Frontend PR #449 added a Status
-    // column after Ref on the baseline grids, so this test's column positions
-    // and headings are out of date. Restore when BMD-1101 is validated.
-    test.fixme('the totals row agrees with the backend unit aggregate', async ({
+    test('the totals row agrees with the backend unit aggregate', async ({
       hedgerowsBaselinePage
     }) => {
       await hedgerowsBaselinePage.open(project.id)
@@ -191,6 +192,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       await expect(hedgerowsBaselinePage.totalsCell('size')).toHaveText(
         KILOMETRES
       )
+      // BMD-1101 AC4: the Status cell is blank in the totals row.
+      await expect(hedgerowsBaselinePage.totalsCell('status')).toHaveText('')
       // The four non-numeric columns stay empty in the totals row.
       await expect(hedgerowsBaselinePage.totalsCell('habitatType')).toHaveText(
         ''

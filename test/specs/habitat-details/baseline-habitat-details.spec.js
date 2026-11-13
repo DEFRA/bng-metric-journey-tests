@@ -15,9 +15,8 @@ import {
   getLongPaddedRefsProject
 } from '@utils/summary-projects.js'
 import { gridRefName } from '@utils/habitat-ref-display.js'
+import { STATUS_COMPLETE, STATUS_INCOMPLETE } from '@utils/unit-type-labels.js'
 
-const BMD1101_STATUS_COLUMN =
-  'BMD-1101: baseline grids gained a Status column (frontend PR #449)'
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 // The edit/save describes each run their own real-CDP upload; under e2e load the
 // real uploader can exceed the frontend's 120s polling budget (MAX_WAIT_SECONDS),
@@ -69,8 +68,6 @@ const OUT_OF_SCOPE_WATERCOURSE_TYPES = [
 const IN_SCOPE_WATERCOURSE_TYPES = ['Canals', 'Culvert', 'Ditches']
 const COMPLETE_BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
 const PROJECT_LABEL = 'Habitat details test'
-const STATUS_COMPLETE = 'Complete'
-const STATUS_INCOMPLETE = 'Incomplete'
 
 // BMD-1112 — the habitat's comment, shown as "Supporting information". Harness
 // valid/ (BMD-1100). Only Retained and Lost rows put the file's comment on the
@@ -613,12 +610,6 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await baselineHabitatDetailsPage.saveButton.click()
         await page.waitForURL(baselinePageUrl(projectId, 'area'))
 
-        // FIXME(BMD-1101): parked 2026-11-11. Frontend PR #449 added a Status
-        // column after Ref on the baseline grids, so the grid cell positions
-        // below are out of date. The setup above still runs, because the rest of
-        // this serial describe uses the project and feature it creates.
-        test.fixme(true, BMD1101_STATUS_COLUMN)
-
         await expect(gridCell(page, 'area', areaRef, 'condition')).toHaveText(
           gridConditionPattern(newCondition)
         )
@@ -787,11 +778,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     // AC7: changing a dropdown then clicking Cancel discards the change —
     // the user returns to the area habitats baseline and the row's condition
     // + units are unchanged from before the edit (no UI or DB update).
-    // FIXME(BMD-1101): parked 2026-11-11. Frontend PR #449 added a Status
-    // column after Ref on the baseline grids, so gridCell reads the wrong cells
-    // here and this test would pass without checking anything. Restore when
-    // BMD-1101 is validated.
-    test.fixme(
+    test(
       'AC7 — cancelling after a change discards it and leaves the row unchanged',
       { tag: '@regression' },
       async ({ baselineHabitatDetailsPage, page }) => {
@@ -1143,12 +1130,6 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await baselineHabitatDetailsPage.saveButton.click()
         await page.waitForURL(baselinePageUrl(projectId, 'hedgerow'))
 
-        // FIXME(BMD-1101): parked 2026-11-11. Frontend PR #449 added a Status
-        // column after Ref on the baseline grids, so the grid cell positions
-        // below are out of date. The setup above still runs, because the rest of
-        // this serial describe uses the project and feature it creates.
-        test.fixme(true, BMD1101_STATUS_COLUMN)
-
         await expect(
           gridCell(page, 'hedgerow', hedgerowRef, 'condition')
         ).toHaveText(gridConditionPattern(newCondition))
@@ -1259,11 +1240,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     // AC7: changing a dropdown then clicking Cancel discards the change — the
     // user returns to the hedgerows baseline and the row's condition + units
     // are unchanged from before the edit (no UI or DB update).
-    // FIXME(BMD-1101): parked 2026-11-11. Frontend PR #449 added a Status
-    // column after Ref on the baseline grids, so gridCell reads the wrong cells
-    // here and this test would pass without checking anything. Restore when
-    // BMD-1101 is validated.
-    test.fixme(
+    test(
       'AC7 — cancelling after a change discards it and leaves the row unchanged',
       { tag: '@regression' },
       async ({ baselineHabitatDetailsPage, page }) => {
@@ -1574,12 +1551,6 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await baselineHabitatDetailsPage.saveButton.click()
         await page.waitForURL(baselinePageUrl(projectId, 'watercourse'))
 
-        // FIXME(BMD-1101): parked 2026-11-11. Frontend PR #449 added a Status
-        // column after Ref on the baseline grids, so the grid cell positions
-        // below are out of date. The setup above still runs, because the rest of
-        // this serial describe uses the project and feature it creates.
-        test.fixme(true, BMD1101_STATUS_COLUMN)
-
         await expect(
           gridCell(page, 'watercourse', watercourseRef, 'condition')
         ).toHaveText(gridConditionPattern(newCondition))
@@ -1686,11 +1657,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       // AC (cancel): changing dropdowns then clicking Cancel discards the
       // changes — the user returns to the watercourses baseline with the row's
       // condition, units and the grid total unchanged.
-      // FIXME(BMD-1101): parked 2026-11-11. Frontend PR #449 added a Status
-      // column after Ref on the baseline grids, so gridCell reads the wrong cells
-      // here and this test would pass without checking anything. Restore when
-      // BMD-1101 is validated.
-      test.fixme('cancelling after changes discards them and leaves the row and total unchanged', async ({
+      test('cancelling after changes discards them and leaves the row and total unchanged', async ({
         baselineHabitatDetailsPage,
         page
       }) => {

@@ -133,6 +133,15 @@ export class AreaBaselinePage extends BasePage {
     return this.table().locator('thead th')
   }
 
+  columnHeader(column) {
+    return this.columnHeaders().nth(COLUMN[column])
+  }
+
+  /** A column heading's sort button, injected by the MOJ component. */
+  sortButton(column) {
+    return this.columnHeader(column).getByRole('button')
+  }
+
   featureRows() {
     return this.table().locator('tbody tr')
   }

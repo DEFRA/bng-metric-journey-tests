@@ -14,6 +14,8 @@ import {
   BASELINE_NAV_CHILD,
   HEDGEROWS,
   POST_INTERVENTION_NAV_CHILD,
+  STATUS_COMPLETE,
+  STATUS_INCOMPLETE,
   SUMMARY,
   TILE_BASELINE,
   TRADING_RULES_NAV_CHILD,
@@ -108,10 +110,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     // watercourse by hand. This is the sole witness that ref, sizeMetres,
     // distinctiveness and condition survive a real import. Do not delete
     // without adding per-feature assertions to the backend's real-upload test.
-    // FIXME(BMD-1101): parked 2026-11-11. Frontend PR #449 added a Status
-    // column after Ref on the baseline grids, so this test's column positions
-    // and headings are out of date. Restore when BMD-1101 is validated.
-    test.fixme(
+    test(
       'lists every baseline watercourse, sorted by ref, with formatted values',
       { tag: ['@smoke', '@happy-path'] },
       async ({ watercoursesBaselinePage }) => {
@@ -172,6 +171,12 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         expect(new Set(significance)).toEqual(
           new Set([FIXED_STRATEGIC_SIGNIFICANCE])
         )
+
+        // BMD-1101 AC2: the status the backend saves on upload reaches the
+        // grid. Every row of this file is valid, so every row is Complete.
+        const status = await watercoursesBaselinePage.columnValues('status')
+        expect(status).toHaveLength(EXPECTED_WATERCOURSES)
+        expect(new Set(status)).toEqual(new Set([STATUS_COMPLETE]))
       }
     )
 
@@ -186,10 +191,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     // uses `formatUnits` (15 s.f. → 2dp) and the totals cell
     // `formatHabitatUnits` (7 s.f. → 2dp), so they can differ in the last place
     // without either being wrong.
-    // FIXME(BMD-1101): parked 2026-11-11. Frontend PR #449 added a Status
-    // column after Ref on the baseline grids, so this test's column positions
-    // and headings are out of date. Restore when BMD-1101 is validated.
-    test.fixme('the totals row agrees with the backend unit aggregate', async ({
+    test('the totals row agrees with the backend unit aggregate', async ({
       watercoursesBaselinePage
     }) => {
       await watercoursesBaselinePage.open(project.id)
@@ -209,6 +211,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       await expect(watercoursesBaselinePage.totalsCell('size')).toHaveText(
         KILOMETRES
       )
+      // BMD-1101 AC4: the Status cell is blank in the totals row.
+      await expect(watercoursesBaselinePage.totalsCell('status')).toHaveText('')
       // The four non-numeric columns stay empty in the totals row.
       await expect(
         watercoursesBaselinePage.totalsCell('habitatType')
@@ -530,10 +534,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
   // (backend #615) an unrecognised value is refused at upload, so only a blank
   // one reaches the import.
   // `integration-tests/import-attributes.test.js:103` and `:157` prove the null
-  // and the Incomplete status from a real file, but never render. The frontend
-  // shows no "Incomplete" label anywhere, so what the user sees is only this:
-  // a blank Units cell, a total without it, and an empty select to fix it with.
-  // Sole witness that the cleared units and the nulled field reach the page.
+  // and the Incomplete status from a real file, but never render. What the
+  // user sees is this: an "Incomplete" Status tag (BMD-1101), a blank Units
+  // cell, a total without it, and an empty select to fix it with. Sole witness
+  // that the cleared units and the nulled field reach the page.
   test.describe(
     'Watercourses baseline — blank encroachment on import',
     { tag: '@regression' },
@@ -548,10 +552,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         project = await buildBaselineOnlyProject(browser, BLANK_RIPARIAN_FILE)
       })
 
-      // FIXME(BMD-1101): parked 2026-11-11. Frontend PR #449 added a Status
-      // column after Ref on the baseline grids, so this test's column positions
-      // and headings are out of date. Restore when BMD-1101 is validated.
-      test.fixme('a watercourse with a blank riparian encroachment is listed without units and asks for the value', async ({
+      test('a watercourse with a blank riparian encroachment is listed without units and asks for the value', async ({
         page,
         watercoursesBaselinePage,
         baselineHabitatDetailsPage
@@ -564,6 +565,14 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
         const index = refs.indexOf(BLANK_RIPARIAN_REF)
         expect(units[index].trim()).toBe('')
+        // BMD-1101 AC3: saved Incomplete on upload, and shown as such. The
+        // other two rivers are complete.
+        const status = await watercoursesBaselinePage.columnValues('status')
+        expect(status[index]).toBe(STATUS_INCOMPLETE)
+        expect(status.filter((_, i) => i !== index)).toEqual([
+          STATUS_COMPLETE,
+          STATUS_COMPLETE
+        ])
         const others = units.filter((_, i) => i !== index)
         for (const value of others) {
           expect(value).toMatch(UNITS_2DP)
