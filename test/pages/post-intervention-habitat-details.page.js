@@ -204,8 +204,8 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
       { exact: true }
     )
     this.uploadFileButton = page.getByRole('button', { name: 'Upload file' })
-    // Step 11 re-renders the form with a GOV.UK error summary on a refused save.
-    this.errorSummary = page.getByRole('alert')
+    // Step 11's refused save shows the error summary, errorSummaryLink and
+    // inlineError inherited from the baseline page.
   }
 
   /**
@@ -216,19 +216,6 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     return this.stackedValues.nth(
       CREATED_FORM_VALUE_INDEX[name] + (baselineLink ? 1 : 0)
     )
-  }
-
-  errorSummaryLink(text) {
-    return this.errorSummary.getByRole('link', { name: text })
-  }
-
-  /**
-   * An inline field error. Not exact: GOV.UK prefixes it with a visually
-   * hidden "Error:". Its wording differs from the summary entry's, so the
-   * text alone cannot resolve to the summary link.
-   */
-  inlineError(text) {
-    return this.page.getByRole('main').getByText(text)
   }
 
   async open(projectId, featureId) {
