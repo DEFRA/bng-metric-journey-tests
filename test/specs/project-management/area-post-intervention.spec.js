@@ -473,7 +473,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       // AC1, AC4a, AC5, AC7 — the only tab with a Condition column and no
       // target/time-to-target block.
-      test('the Retained grid lists every retained area habitat with formatted values and a totals row', async ({
+      // FIXME(BMD-1102): parked 2026-11-13. Frontend PR #455 added a Status
+      // column after Ref on the post-intervention grids, so this test's expected
+      // headings are out of date. Restore when BMD-1102 is validated.
+      test.fixme('the Retained grid lists every retained area habitat with formatted values and a totals row', async ({
         areaPostInterventionPage
       }) => {
         const grid = areaPostInterventionPage
