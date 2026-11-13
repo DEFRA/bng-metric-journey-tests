@@ -379,10 +379,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // baseline page's grid total. A baseline tile wired to the
       // post-intervention document fails here: this project's area differs
       // between the two (53.66ha baseline, 53.14ha post-intervention).
-      // FIXME(BMD-1101): parked 2026-11-11. Frontend PR #449 added a Status
-      // column after Ref on the baseline grids, so this test's column positions
-      // and headings are out of date. Restore when BMD-1101 is validated.
-      test.fixme('the size section shows baseline, post-intervention and site area in hectares to 2 dp', async ({
+      test('the size section shows baseline, post-intervention and site area in hectares to 2 dp', async ({
         areaPostInterventionPage,
         areaBaselinePage
       }) => {
