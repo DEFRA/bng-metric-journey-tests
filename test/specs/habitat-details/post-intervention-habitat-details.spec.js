@@ -24,6 +24,7 @@ import {
 } from '@utils/summary-projects.js'
 import { gridRefName } from '@utils/habitat-ref-display.js'
 import { readTileUnits } from '@utils/tile-value.js'
+import { STATUS_COMPLETE, STATUS_INCOMPLETE } from '@utils/unit-type-labels.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const HTTP_BAD_REQUEST = 400
@@ -2468,6 +2469,12 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       // (created-hedgerow-edit.test.js asserts it), and the list then blanks
       // Distinctiveness and Strategic significance; both await a PO ruling, so
       // only the 0.00 and the total are asserted.
+      //
+      // BMD-1102: the row's Status tag follows the save, Complete to
+      // Incomplete. Backend post-intervention-persistence.test.js:140 checks
+      // the stored status after a save; this is the only test that shows the
+      // grid re-reads it. Without it, a grid that kept the upload-time status
+      // would go unnoticed.
       test('saving with the target condition cleared shows zero units and leaves the hedgerow out of the total', async ({
         browser,
         page,
@@ -2477,7 +2484,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           browser,
           'created-hedgerow-save-incomplete'
         )
-        await openPiTabFor(page, id, 'hedgerow', CREATED_LINEAR_HEDGEROW_REF)
+        expect(
+          await hedgerowRowByRef(page, id, CREATED_LINEAR_HEDGEROW_REF)
+        ).toMatchObject({ Status: STATUS_COMPLETE })
         const totalBefore = await hedgerowPostInterventionUnits(page)
         await openCreatedHedgerow(page, id)
         const details = postInterventionHabitatDetailsPage
@@ -2494,7 +2503,11 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         ).toBeLessThan(TILE_ROUNDING)
         expect(
           await hedgerowRowByRef(page, id, CREATED_LINEAR_HEDGEROW_REF)
-        ).toMatchObject({ Units: '0.00', 'Target condition': '' })
+        ).toMatchObject({
+          Status: STATUS_INCOMPLETE,
+          Units: '0.00',
+          'Target condition': ''
+        })
 
         await openCreatedHedgerow(page, id)
         await expectCreatedAreaSelections(details, {

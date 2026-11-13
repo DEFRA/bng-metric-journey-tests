@@ -144,6 +144,7 @@ const FIXED_STRATEGIC_SIGNIFICANCE = 'Low (1)'
 // Difficulty".
 const RETAINED_COLUMNS = [
   'Ref',
+  'Status',
   'Units',
   'Size',
   'Habitat type',
@@ -155,6 +156,7 @@ const RETAINED_COLUMNS = [
 ]
 const TARGET_COLUMNS = [
   'Ref',
+  'Status',
   'Units',
   'Size',
   'Habitat type',
@@ -655,10 +657,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       // AC4a, AC5, AC7 on the Retained grid — the only tab with a Condition
       // column and no target/time-to-target block.
-      // FIXME(BMD-1102): parked 2026-11-13. Frontend PR #455 added a Status
-      // column after Ref on the post-intervention grids, so this test's expected
-      // headings are out of date. Restore when BMD-1102 is validated.
-      test.fixme(
+      test(
         'the Retained grid lists every retained watercourse with formatted values and a totals row',
         { tag: '@happy-path' },
         async ({ watercoursesPostInterventionPage }) => {
@@ -716,12 +715,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         }
       )
 
-      // AC4b, AC5, AC6 on the Enhanced grid — the 14-column shape, with the
+      // AC4b, AC5, AC6 on the Enhanced grid — the 15-column shape, with the
       // target and time-to-target block in place of Condition.
-      // FIXME(BMD-1102): parked 2026-11-13. Frontend PR #455 added a Status
-      // column after Ref on the post-intervention grids, so this test's expected
-      // headings are out of date. Restore when BMD-1102 is validated.
-      test.fixme('the Enhanced grid carries the target columns and sits in a pane that overflows', async ({
+      test('the Enhanced grid carries the target columns and sits in a pane that overflows', async ({
         watercoursesPostInterventionPage
       }) => {
         const grid = watercoursesPostInterventionPage
@@ -763,7 +759,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         // AC6. The unit suite asserts the pane is in the markup with the right
         // aria-label; what it cannot see is whether the pane ever actually
         // overflows, which is the whole point of the requirement. Run on the
-        // 14-column grid — the 9-column Retained one is the narrow case.
+        // 15-column grid — the 10-column Retained one is the narrow case.
         const { scrollWidth, clientWidth, scrollLeft } =
           await grid.scrollPaneToEnd(ENHANCED)
 
@@ -775,10 +771,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // AC4c and AC5 on the Created grid — the same column set as Enhanced,
       // reached through a different retention path, on the only shipped pairing
       // that has a Created tab at all.
-      // FIXME(BMD-1102): parked 2026-11-13. Frontend PR #455 added a Status
-      // column after Ref on the post-intervention grids, so this test's expected
-      // headings are out of date. Restore when BMD-1102 is validated.
-      test.fixme('the Created grid carries the same columns as Enhanced', async ({
+      test('the Created grid carries the same columns as Enhanced', async ({
         watercoursesPostInterventionPage
       }) => {
         const grid = watercoursesPostInterventionPage

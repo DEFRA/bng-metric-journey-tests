@@ -107,6 +107,7 @@ const CREATED_HIGH_REF = 'HG013'
 // "Standard Difficulty".
 const RETAINED_COLUMNS = [
   'Ref',
+  'Status',
   'Units',
   'Size',
   'Habitat type',
@@ -116,6 +117,7 @@ const RETAINED_COLUMNS = [
 ]
 const TARGET_COLUMNS = [
   'Ref',
+  'Status',
   'Units',
   'Size',
   'Habitat type',
@@ -686,10 +688,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       // AC4a, AC5, AC7 on the Retained grid — the only tab with a Condition
       // column and no target/time-to-target block.
-      // FIXME(BMD-1102): parked 2026-11-13. Frontend PR #455 added a Status
-      // column after Ref on the post-intervention grids, so this test's expected
-      // headings are out of date. Restore when BMD-1102 is validated.
-      test.fixme(
+      test(
         'the Retained grid lists every retained hedgerow with formatted values and a totals row',
         { tag: ['@smoke', '@happy-path'] },
         async ({ hedgerowsPostInterventionPage }) => {
@@ -739,12 +738,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         }
       )
 
-      // AC4c, AC5, AC7 on the Created grid — the 12-column shape, with the
+      // AC4c, AC5, AC7 on the Created grid — the 13-column shape, with the
       // target and time-to-target block in place of Condition.
-      // FIXME(BMD-1102): parked 2026-11-13. Frontend PR #455 added a Status
-      // column after Ref on the post-intervention grids, so this test's expected
-      // headings are out of date. Restore when BMD-1102 is validated.
-      test.fixme('the Created grid carries the target and time-to-target columns', async ({
+      test('the Created grid carries the target and time-to-target columns', async ({
         hedgerowsPostInterventionPage
       }) => {
         const grid = hedgerowsPostInterventionPage
@@ -830,10 +826,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // HG018 in the all-unit-types fixture is the only Enhanced hedgerow in
       // any shipped fixture with a real uplift (Poor -> Moderate), so it is the
       // only row that can witness AC4b's column VALUES.
-      // FIXME(BMD-1102): parked 2026-11-13. Frontend PR #455 added a Status
-      // column after Ref on the post-intervention grids, so this test's expected
-      // headings are out of date. Restore when BMD-1102 is validated.
-      test.fixme('the Enhanced grid carries the same columns, populated on a calculated row', async ({
+      test('the Enhanced grid carries the same columns, populated on a calculated row', async ({
         hedgerowsPostInterventionPage
       }) => {
         const grid = hedgerowsPostInterventionPage
@@ -867,10 +860,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // BMD-1070, backend PR #498) the feature saved with null units, so Units
       // is blank. The user's own proposed condition and years survive, which
       // is what sets it apart from a BMD-820 rejection below.
-      // FIXME(BMD-1102): parked 2026-11-13. Frontend PR #455 added a Status
-      // column after Ref on the post-intervention grids, so targetRow reads
-      // every cell one column out. Restore when BMD-1102 is validated.
-      test.fixme('an Enhanced hedgerow with a rejected strategic significance is left unpriced', async ({
+      test('an Enhanced hedgerow with a rejected strategic significance is left unpriced', async ({
         hedgerowsPostInterventionPage
       }) => {
         const grid = hedgerowsPostInterventionPage
@@ -895,10 +885,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // baseline has every proposed field nulled on import. Since BMD-1070
       // (backend PR #498) its units are null too, so only the shape-derived
       // Size renders.
-      // FIXME(BMD-1102): parked 2026-11-13. Frontend PR #455 added a Status
-      // column after Ref on the post-intervention grids, so targetRow reads
-      // every cell one column out. Restore when BMD-1102 is validated.
-      test.fixme('an Enhanced hedgerow that is not a valid enhancement of its baseline is left unpriced with no proposed values', async ({
+      test('an Enhanced hedgerow that is not a valid enhancement of its baseline is left unpriced with no proposed values', async ({
         hedgerowsPostInterventionPage
       }) => {
         const grid = hedgerowsPostInterventionPage
@@ -930,11 +917,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       //    in the service is visible on load. No other suite can see this: the
       //    frontend unit tests parse markup with cheerio and never run the
       //    client-side JS.
-      // FIXME(BMD-1102): parked 2026-11-13. Frontend PR #455 added a Status
-      // column after Ref on the post-intervention grids, so the header found by
-      // its position in the column list is no longer the sorted one. Restore when
-      // BMD-1102 is validated.
-      test.fixme(
+      test(
         'clicking a column heading re-orders a tab grid ascending, then descending',
         { tag: '@happy-path' },
         async ({ hedgerowsPostInterventionPage }) => {
@@ -968,10 +951,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // AC6. The unit suite asserts the pane is in the markup with the right
       // aria-label; what it cannot see is whether the pane ever actually
       // overflows, which is the whole point of the requirement. Run on a
-      // twelve-column grid — the seven-column Retained one is the narrow case,
+      // thirteen-column grid — the eight-column Retained one is the narrow case,
       // and `hedgerows-baseline.spec.js:195` already witnesses that width on
       // its own page.
-      test('a twelve-column grid sits in a pane that overflows horizontally', async ({
+      test('a thirteen-column grid sits in a pane that overflows horizontally', async ({
         hedgerowsPostInterventionPage
       }) => {
         const grid = hedgerowsPostInterventionPage
