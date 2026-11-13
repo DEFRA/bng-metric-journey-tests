@@ -2174,6 +2174,11 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
         await expect(page).toHaveURL(/\/baseline-habitat-details/)
         await expect(page).toHaveTitle(/^Error:/)
+        // Characters first, then length, and nothing else.
+        await expect(baselineHabitatDetailsPage.errorSummaryLinks).toHaveText([
+          COMMENT_INVALID_SUMMARY,
+          COMMENT_TOO_LONG_SUMMARY
+        ])
         for (const summary of [
           COMMENT_INVALID_SUMMARY,
           COMMENT_TOO_LONG_SUMMARY

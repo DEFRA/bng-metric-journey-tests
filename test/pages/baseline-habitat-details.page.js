@@ -64,6 +64,7 @@ export class BaselineHabitatDetailsPage extends BasePage {
 
     // A refused save re-renders the form with a GOV.UK error summary.
     this.errorSummary = page.getByRole('alert')
+    this.errorSummaryLinks = this.errorSummary.getByRole('link')
   }
 
   errorSummaryLink(text) {
