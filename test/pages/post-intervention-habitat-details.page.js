@@ -100,7 +100,8 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
       name: 'View baseline details'
     })
 
-    // Placeholder page for individual trees (and IGGIs).
+    // Placeholder page for a feature type with no details page (trees had it
+    // until BMD-1172, frontend PR#475).
     this.unsupportedFeatureMessage = page.getByText(
       'Individual tree and IGGI features are not yet supported in this view.'
     )
@@ -182,6 +183,21 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     this.habitatUnitsDeliveredKey = page.getByText('Habitat units delivered', {
       exact: true
     })
+
+    // A Retained page's "Supporting information" (BMD-1187): the baseline
+    // habitat's comment, or "No data", as a read-only stacked row. The row
+    // labels are <h3>s, so the label is a heading, not a section heading.
+    // commentInput, inherited, is the text box this row must NOT render.
+    this.stackedFieldLabels = page.locator('.app-stacked-fields__item h3')
+    this.supportingInformationHeading = page.getByRole('heading', {
+      name: 'Supporting information',
+      level: 3,
+      exact: true
+    })
+    this.supportingInformationValue = page
+      .locator('.app-stacked-fields__item')
+      .filter({ has: this.supportingInformationHeading })
+      .getByRole('paragraph')
 
     // ─── Created area edit form (BMD-1048) ──────────────────────────────────
     // pi-habitat-details-created-edit.njk keeps the two section headings and
