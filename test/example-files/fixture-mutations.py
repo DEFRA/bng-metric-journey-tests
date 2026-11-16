@@ -853,9 +853,13 @@ def build_bmd1050_created_watercourse_fixtures():
     `created watercourses.gpkg` with WC3 losing its target condition,
     strategic significance, both encroachments and timing. `partly blank`
     keeps its river type, so it imports Incomplete with type-derived values
-    only; `all blank` loses the river type too. Not cut from R003: backend
-    #615 (BMD-1175) refused the `created linear features` pair for its legacy
-    tree types until rewrite_template_tree_words recut them.
+    only (journey test "an incomplete Created watercourse shows its saved
+    values..."); `all blank` loses the river type too. No journey test uses
+    `all blank`: it backs the /validate-ac-manual AC2b demo (no habitat type),
+    whose rule frontend created-watercourse-details.test.js covers. Not cut
+    from R003: backend #615 (BMD-1175) refused the `created linear features`
+    pair for its legacy tree types until rewrite_template_tree_words recut
+    them.
     """
     print("\nBMD-1050 created watercourse variants:")
     for dst_name, values in [
