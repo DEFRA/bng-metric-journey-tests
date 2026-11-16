@@ -38,6 +38,7 @@ const VALID_UUID_V4 = 'aaaaaaaa-bbbb-4ccc-bddd-eeeeeeeeeeee'
 const SHARED_BUILD_TEST_TIMEOUT = 180_000
 const PROJECT_LABEL = 'PI habitat details test'
 const RETAINED = 'Retained'
+const CREATED = 'Created'
 const DETAILS_URL_PATTERN = /\/post-intervention-habitat-details/
 const BASELINE_DETAILS_URL_PATTERN = /\/baseline-habitat-details/
 
@@ -240,6 +241,60 @@ const CREATED_LINEAR_WATERCOURSE_REF = 'R003'
 const CREATED_LINEAR_WATERCOURSE_TIME_TO_TARGET = 'Fairly Poor - 2 years'
 const ENHANCED_WATERCOURSE_REF = 'WC2'
 const CREATED_WATERCOURSE_REF = 'WC3'
+// BMD-1050. WC3 as imported: a Ditch created to Moderate over 5 years, High
+// significance, no encroachment of either kind, zero timing. The `created
+// watercourses` file the partly-blank variant is cut from has the same WC3.
+const CREATED_WATERCOURSE_SELECTIONS = {
+  type: 'Ditches',
+  significance: 'High',
+  condition: 'Moderate',
+  watercourse: 'No Encroachment',
+  riparian: 'No Encroachment/No Encroachment',
+  advance: '0',
+  delay: '0'
+}
+const CREATED_WATERCOURSE_VALUES = {
+  distinctiveness: 'Medium (4)',
+  standardTime: CREATED_MODERATE_TIME,
+  difficulty: 'Medium',
+  finalTime: '5 years (0.8368287006)',
+  applied: '0.67'
+}
+// 0.024 km x 4 x 2 x 1.15 x 0.8368287006 x 0.67 x 1 x 1
+const CREATED_WATERCOURSE_EXACT_UNITS = 0.1238
+// The AC11 Scenario A edit below: Good, Low, Minor, Minor/Minor, delay 2.
+// 0.024 km x 4 x 3 x 1 x 0.6521203607 x 0.67 x 0.8 x 0.95
+const CREATED_WATERCOURSE_EDITED_UNITS = 0.0956
+const WATERCOURSE_CREATION_TYPES = [
+  'Choose habitat type',
+  'Canals',
+  'Culvert',
+  'Ditches'
+]
+const WATERCOURSE_ENCROACHMENTS = [
+  'Choose watercourse encroachment',
+  'No Encroachment',
+  'Minor',
+  'Major',
+  'N/A - Culvert'
+]
+const RIPARIAN_ENCROACHMENTS = [
+  'Choose riparian encroachment',
+  'Major/Major',
+  'Major/Moderate',
+  'Major/Minor',
+  'Major/No Encroachment',
+  'Moderate/Moderate',
+  'Moderate/Minor',
+  'Moderate/No Encroachment',
+  'Minor/Minor',
+  'Minor/No Encroachment',
+  'No Encroachment/No Encroachment',
+  'N/A - Culvert'
+]
+// WC3 cut by fixture-mutations.py to keep only its river type.
+const CREATED_WATERCOURSE_PARTLY_BLANK_PI_FILE =
+  'Post-intervention - created watercourse partly blank.gpkg'
 // The same fixture pair carries the only Enhanced watercourse that can reach
 // the whole of BMD-735's AC1 — see the Enhanced watercourse describe below.
 // R007 improves Fairly Poor → Fairly Good over 4 years.
@@ -632,7 +687,10 @@ const CREATED_AREA_SELECTS = {
   significance: 'strategicSignificanceSelect',
   condition: 'targetConditionSelect',
   advance: 'advanceYearsSelect',
-  delay: 'delayYearsSelect'
+  delay: 'delayYearsSelect',
+  // Created watercourses only (BMD-1050).
+  watercourse: 'watercourseEncroachmentSelect',
+  riparian: 'riparianEncroachmentSelect'
 }
 
 async function expectCreatedAreaSelections(details, expected) {
@@ -772,6 +830,48 @@ function getWatercoursesProject(browser) {
       }
     }
   )
+}
+
+// BMD-1050. A copy of the watercourses pair under its own key, for a test
+// that saves (and so mutates its project) or uploads a variant PI file.
+function getWatercoursesProjectCopy(browser, key, piFile = WATERCOURSES_FILE) {
+  return getSharedProject(
+    browser,
+    key,
+    { baselineFile: WATERCOURSE_BASELINE_FILE, piFile },
+    async () => ({})
+  )
+}
+
+async function openCreatedWatercourse(
+  page,
+  projectId,
+  ref = CREATED_WATERCOURSE_REF
+) {
+  await openPiFeatureDetails(page, projectId, 'watercourse', ref)
+}
+
+async function openSharedCreatedWatercourse(browser, page) {
+  const shared = await getWatercoursesProject(browser)
+  await openCreatedWatercourse(page, shared.id)
+  return shared
+}
+
+// The watercourse post-intervention tile, read from the page already open.
+function watercoursePostInterventionUnits(page) {
+  return piPage(page, 'watercourse').tileUnits(POST_INTERVENTION_TILE)
+}
+
+// Opens the watercourse post-intervention page on the tab holding `ref`, and
+// returns that row's cells keyed by column heading.
+async function watercourseRowByRef(page, projectId, ref) {
+  const { unitPage, label } = await openPiTabFor(
+    page,
+    projectId,
+    'watercourse',
+    ref
+  )
+  return unitPage.rowByRef(label, ref)
 }
 
 function getTreesProject(browser) {
@@ -2973,6 +3073,39 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(detailsPage.createdLengthValue).toHaveText(
           LENGTH_KM_PATTERN
         )
+        // BMD-1050 AC1: each saved value, and the option lists from the real
+        // /reference/watercourse-creation. The encroachments are two separate
+        // lists, each with its own default.
+        await expectCreatedAreaSelections(
+          detailsPage,
+          CREATED_WATERCOURSE_SELECTIONS
+        )
+        await expectCreatedAreaValues(detailsPage, CREATED_WATERCOURSE_VALUES)
+        await expect(
+          detailsPage.habitatTypeSelect.getByRole('option')
+        ).toHaveText(WATERCOURSE_CREATION_TYPES)
+        await expect(
+          detailsPage.targetConditionSelect.getByRole('option')
+        ).toHaveText(AREA_CREATION_CONDITIONS)
+        await expect(
+          detailsPage.strategicSignificanceSelect.getByRole('option')
+        ).toHaveText([
+          'Choose strategic significance',
+          'High (1.15)',
+          'Low (1)'
+        ])
+        await expect(
+          detailsPage.watercourseEncroachmentSelect.getByRole('option')
+        ).toHaveText(WATERCOURSE_ENCROACHMENTS)
+        await expect(
+          detailsPage.riparianEncroachmentSelect.getByRole('option')
+        ).toHaveText(RIPARIAN_ENCROACHMENTS)
+        await expect(
+          detailsPage.advanceYearsSelect.getByRole('option')
+        ).toHaveText(['Choose advance', ...TIMING_YEARS])
+        await expect(
+          detailsPage.delayYearsSelect.getByRole('option')
+        ).toHaveText(['Choose delay', ...TIMING_YEARS])
       })
 
       // BMD-739 AC1 asks for labels *and* values. The two tests above pin the
@@ -3062,6 +3195,509 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         // not suppress it the way Created hedgerows do (flow doc Step 8). The
         // product decision on whether that is correct is still open, so
         // asserting either way would cement it.
+      })
+    }
+  )
+
+  // BMD-1050 AC2-AC14 on WC3. The previews run in the browser against the real
+  // /reference/watercourse-creation; frontend created-watercourse-details.test.js
+  // covers the same rules on made-up reference data. Only the saves change a
+  // project, so each gets its own copy; every other test reuses the read-only
+  // watercourses project. AC2 without a habitat type is left to that frontend
+  // test, as for Created hedgerows.
+  test.describe(
+    'Created watercourse habitats — editing',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      // AC2. Sole real-data witness for an import-incomplete Created
+      // watercourse on the form and in the list.
+      test('an incomplete Created watercourse shows its saved values, default options and zero units', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage
+      }) => {
+        const { id } = await getWatercoursesProjectCopy(
+          browser,
+          'created-watercourse-partly-blank',
+          CREATED_WATERCOURSE_PARTLY_BLANK_PI_FILE
+        )
+        expect(
+          await watercourseRowByRef(page, id, CREATED_WATERCOURSE_REF)
+        ).toMatchObject({ Status: STATUS_INCOMPLETE, Units: '0.00' })
+
+        await openCreatedWatercourse(page, id)
+        const details = postInterventionHabitatDetailsPage
+        await expect(details.habitatReferenceInput).toHaveValue(
+          CREATED_WATERCOURSE_REF
+        )
+        await expectCreatedAreaSelections(details, {
+          type: CREATED_WATERCOURSE_SELECTIONS.type,
+          significance: '',
+          condition: '',
+          watercourse: '',
+          riparian: '',
+          advance: '',
+          delay: ''
+        })
+        await expectCreatedAreaValues(details, {
+          ...CREATED_WATERCOURSE_VALUES,
+          standardTime: '',
+          finalTime: ''
+        })
+        await expect(details.standardTimeToTargetKey).toBeVisible()
+        await expect(details.finalTimeToTargetMultiplierKey).toBeVisible()
+        await expect(details.habitatUnitsValue).toHaveText('0.00')
+        await expect(details.saveButton).toBeVisible()
+        await expect(details.uploadFileButton).toBeVisible()
+      })
+
+      // AC4 and AC5. A Culvert can only be created to Poor, so its condition
+      // list proves the type's "Not Possible" conditions are left out.
+      test('choosing a habitat type resets the target condition and shows its values, and clearing it blanks them', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage
+      }) => {
+        const shared = await openSharedCreatedWatercourse(browser, page)
+        const details = postInterventionHabitatDetailsPage
+
+        await details.habitatTypeSelect.selectOption('Culvert')
+        await expectCreatedAreaSelections(details, {
+          ...CREATED_WATERCOURSE_SELECTIONS,
+          type: 'Culvert',
+          condition: ''
+        })
+        await expect(
+          details.targetConditionSelect.getByRole('option')
+        ).toHaveText(['Choose target condition', 'Poor (1)'])
+        await expectCreatedAreaValues(details, {
+          distinctiveness: 'Low (2)',
+          standardTime: '',
+          difficulty: 'Medium',
+          finalTime: '',
+          applied: '0.67'
+        })
+
+        await details.habitatTypeSelect.selectOption({
+          label: 'Choose habitat type'
+        })
+        await expect(
+          details.targetConditionSelect.getByRole('option')
+        ).toHaveText(['Choose target condition'])
+        await expectCreatedAreaValues(details, {
+          distinctiveness: '',
+          standardTime: '',
+          difficulty: '',
+          finalTime: '',
+          applied: ''
+        })
+        await expect(details.habitatUnitsValue).toHaveText(
+          shared.createdWatercourseUnits
+        )
+      })
+
+      // AC6. Target condition drives both time-to-target rows only. WC3 has a
+      // baseline condition, so the standard time names the transition.
+      test('choosing and clearing the target condition updates only the time to target', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage
+      }) => {
+        const shared = await openSharedCreatedWatercourse(browser, page)
+        const details = postInterventionHabitatDetailsPage
+
+        await details.targetConditionSelect.selectOption('Good')
+        await expectCreatedAreaValues(details, {
+          ...CREATED_WATERCOURSE_VALUES,
+          standardTime: 'Moderate to Good - 10 years',
+          finalTime: '10 years (0.7002822742)'
+        })
+
+        await details.targetConditionSelect.selectOption({
+          label: 'Choose target condition'
+        })
+        await expectCreatedAreaValues(details, {
+          ...CREATED_WATERCOURSE_VALUES,
+          standardTime: '',
+          finalTime: ''
+        })
+        await expectCreatedAreaSelections(details, {
+          ...CREATED_WATERCOURSE_SELECTIONS,
+          condition: ''
+        })
+        await expect(details.habitatUnitsValue).toHaveText(
+          shared.createdWatercourseUnits
+        )
+      })
+
+      // AC7-AC9. The two encroachments are independent: changing or clearing
+      // one leaves the other, and neither (nor significance) changes a
+      // derived value.
+      test('strategic significance and each encroachment change alone, with no derived value changing', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage
+      }) => {
+        const shared = await openSharedCreatedWatercourse(browser, page)
+        const details = postInterventionHabitatDetailsPage
+
+        await details.strategicSignificanceSelect.selectOption('Low')
+        await details.watercourseEncroachmentSelect.selectOption('Major')
+        await expectCreatedAreaSelections(details, {
+          ...CREATED_WATERCOURSE_SELECTIONS,
+          significance: 'Low',
+          watercourse: 'Major'
+        })
+        await details.riparianEncroachmentSelect.selectOption('Major/Minor')
+        await expect(details.watercourseEncroachmentSelect).toHaveValue('Major')
+
+        await details.watercourseEncroachmentSelect.selectOption({
+          label: 'Choose watercourse encroachment'
+        })
+        await expect(details.riparianEncroachmentSelect).toHaveValue(
+          'Major/Minor'
+        )
+        await details.riparianEncroachmentSelect.selectOption({
+          label: 'Choose riparian encroachment'
+        })
+        await details.strategicSignificanceSelect.selectOption({
+          label: 'Choose strategic significance'
+        })
+        await expectCreatedAreaSelections(details, {
+          ...CREATED_WATERCOURSE_SELECTIONS,
+          significance: '',
+          watercourse: '',
+          riparian: ''
+        })
+        await expectCreatedAreaValues(details, CREATED_WATERCOURSE_VALUES)
+        await expect(details.habitatUnitsValue).toHaveText(
+          shared.createdWatercourseUnits
+        )
+      })
+
+      // AC10. Final time is standard time + delay - advance, floored at 0,
+      // and blank when both are above zero or either is cleared.
+      test('advance and delay recalculate the final time to target', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage
+      }) => {
+        const shared = await openSharedCreatedWatercourse(browser, page)
+        const details = postInterventionHabitatDetailsPage
+        const finalTime = details.createdFormValue('finalTime')
+
+        await details.delayYearsSelect.selectOption('3')
+        await expect(finalTime).toHaveText('8 years (0.7520011535)')
+        await details.advanceYearsSelect.selectOption('2')
+        await expect(finalTime).toHaveText('')
+        await expect(details.errorSummary).toBeHidden()
+
+        await details.delayYearsSelect.selectOption('0')
+        await details.advanceYearsSelect.selectOption('30')
+        await expect(finalTime).toHaveText('0 years (1)')
+
+        await details.advanceYearsSelect.selectOption('0')
+        await details.delayYearsSelect.selectOption('30+')
+        await expect(finalTime).toHaveText('30+ years (0.3197967361)')
+        await details.advanceYearsSelect.selectOption({
+          label: 'Choose advance'
+        })
+        await expectCreatedAreaValues(details, {
+          ...CREATED_WATERCOURSE_VALUES,
+          finalTime: ''
+        })
+        await expect(details.habitatUnitsValue).toHaveText(
+          shared.createdWatercourseUnits
+        )
+      })
+
+      // AC11 Scenario A. Backend integration-tests/habitats.test.js ("BMD-1050
+      // Created watercourse saves") covers the stored result; this proves the
+      // list and the watercourse tile show it, both encroachment multipliers
+      // included.
+      test('saving a complete edit recalculates the row, the units and the total', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage
+      }) => {
+        const { id } = await getWatercoursesProjectCopy(
+          browser,
+          'created-watercourse-save-complete'
+        )
+        const editedRef = `${CREATED_WATERCOURSE_REF}-new`
+        await openPiTabFor(page, id, 'watercourse', CREATED_WATERCOURSE_REF)
+        const totalBefore = await watercoursePostInterventionUnits(page)
+        await openCreatedWatercourse(page, id)
+        const details = postInterventionHabitatDetailsPage
+
+        await details.habitatReferenceInput.fill(editedRef)
+        await details.strategicSignificanceSelect.selectOption('Low')
+        await details.targetConditionSelect.selectOption('Good')
+        await details.watercourseEncroachmentSelect.selectOption('Minor')
+        await details.riparianEncroachmentSelect.selectOption('Minor/Minor')
+        await details.delayYearsSelect.selectOption('2')
+        await details.saveButton.click()
+
+        await expectOnPiPage(page, id, 'watercourse')
+        const totalAfter = await watercoursePostInterventionUnits(page)
+        expect(
+          Math.abs(
+            totalAfter -
+              (totalBefore -
+                CREATED_WATERCOURSE_EXACT_UNITS +
+                CREATED_WATERCOURSE_EDITED_UNITS)
+          )
+        ).toBeLessThan(TILE_ROUNDING)
+        expect(await watercourseRowByRef(page, id, editedRef)).toMatchObject({
+          Status: STATUS_COMPLETE,
+          Units: '0.10',
+          'Habitat type': 'Ditches',
+          Distinctiveness: 'Medium (4)',
+          'Strategic significance': 'Low (1)',
+          'Target condition': 'Good (3)',
+          'Watercourse encroachment': 'Minor (0.8)',
+          'Riparian encroachment': 'Minor/Minor (0.95)',
+          Delay: '2 years',
+          'Final time to target': '12 years (0.6521203607)'
+        })
+
+        await openCreatedWatercourse(page, id, editedRef)
+        await expect(details.habitatReferenceInput).toHaveValue(editedRef)
+        await expectCreatedAreaSelections(details, {
+          ...CREATED_WATERCOURSE_SELECTIONS,
+          significance: 'Low',
+          condition: 'Good',
+          watercourse: 'Minor',
+          riparian: 'Minor/Minor',
+          delay: '2'
+        })
+        await expect(details.habitatUnitsValue).toHaveText('0.10')
+      })
+
+      // AC11 Scenario B. Backend created-watercourse-edit.test.js covers the
+      // stored zero; frontend watercourses-post-intervention controller.test.js
+      // covers the list's 0.00 on a mocked project. This is the only test that
+      // shows the two meet. The save stores the derived values as null, as
+      // Created areas do under the PO ruling of 2026-11-06, so the list's
+      // Distinctiveness is looked up from the type and Standard difficulty is
+      // blank; only the values the ruling asks for are asserted.
+      test('saving with the riparian encroachment cleared shows zero units and leaves the watercourse out of the total', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage
+      }) => {
+        const { id } = await getWatercoursesProjectCopy(
+          browser,
+          'created-watercourse-save-incomplete'
+        )
+        expect(
+          await watercourseRowByRef(page, id, CREATED_WATERCOURSE_REF)
+        ).toMatchObject({ Status: STATUS_COMPLETE })
+        const totalBefore = await watercoursePostInterventionUnits(page)
+        await openCreatedWatercourse(page, id)
+        const details = postInterventionHabitatDetailsPage
+
+        await details.riparianEncroachmentSelect.selectOption({
+          label: 'Choose riparian encroachment'
+        })
+        await details.saveButton.click()
+
+        await expectOnPiPage(page, id, 'watercourse')
+        const totalAfter = await watercoursePostInterventionUnits(page)
+        expect(
+          Math.abs(totalAfter - (totalBefore - CREATED_WATERCOURSE_EXACT_UNITS))
+        ).toBeLessThan(TILE_ROUNDING)
+        expect(
+          await watercourseRowByRef(page, id, CREATED_WATERCOURSE_REF)
+        ).toMatchObject({
+          Status: STATUS_INCOMPLETE,
+          Units: '0.00',
+          Distinctiveness: 'Medium (4)',
+          'Strategic significance': 'High (1.15)',
+          'Watercourse encroachment': 'No Encroachment',
+          'Riparian encroachment': ''
+        })
+
+        await openCreatedWatercourse(page, id)
+        await expectCreatedAreaSelections(details, {
+          ...CREATED_WATERCOURSE_SELECTIONS,
+          riparian: ''
+        })
+        await expect(details.habitatUnitsValue).toHaveText('0.00')
+      })
+
+      // AC12, with AC3: a reference change alters nothing else on the page.
+      test('Cancel discards the changes and returns to the watercourse page', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage
+      }) => {
+        const shared = await getWatercoursesProject(browser)
+        await openPiTabFor(
+          page,
+          shared.id,
+          'watercourse',
+          CREATED_WATERCOURSE_REF
+        )
+        const totalBefore = await watercoursePostInterventionUnits(page)
+        await openCreatedWatercourse(page, shared.id)
+        const details = postInterventionHabitatDetailsPage
+
+        await details.habitatReferenceInput.fill('Not saved')
+        await expectCreatedAreaSelections(
+          details,
+          CREATED_WATERCOURSE_SELECTIONS
+        )
+        await expectCreatedAreaValues(details, CREATED_WATERCOURSE_VALUES)
+        await details.habitatTypeSelect.selectOption('Canals')
+        await details.strategicSignificanceSelect.selectOption('Low')
+        await details.watercourseEncroachmentSelect.selectOption('Major')
+        await details.delayYearsSelect.selectOption('4')
+
+        await details.cancelLink.click()
+
+        await expectOnPiPage(page, shared.id, 'watercourse')
+        expect(await watercoursePostInterventionUnits(page)).toBe(totalBefore)
+        expect(
+          await watercourseRowByRef(page, shared.id, CREATED_WATERCOURSE_REF)
+        ).toMatchObject({
+          Units: shared.createdWatercourseUnits,
+          'Habitat type': CREATED_WATERCOURSE_SELECTIONS.type
+        })
+        await openCreatedWatercourse(page, shared.id)
+        await expect(details.habitatReferenceInput).toHaveValue(
+          CREATED_WATERCOURSE_REF
+        )
+        await expectCreatedAreaSelections(
+          details,
+          CREATED_WATERCOURSE_SELECTIONS
+        )
+      })
+
+      // AC13. Frontend controller-created-watercourse-edit.test.js covers both
+      // rules against a mocked backend. This proves both errors render
+      // together, both encroachments are kept, and nothing is saved.
+      test('a save breaking both rules shows one error per rule, keeps the input and saves nothing', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage
+      }) => {
+        const shared = await openSharedCreatedWatercourse(browser, page)
+        const details = postInterventionHabitatDetailsPage
+        const entered = {
+          type: 'Canals',
+          significance: 'Low',
+          condition: 'Poor',
+          watercourse: 'Major',
+          riparian: 'Moderate/Minor',
+          advance: '2',
+          delay: '3'
+        }
+        await details.habitatReferenceInput.fill('')
+        await details.habitatTypeSelect.selectOption(entered.type)
+        await details.strategicSignificanceSelect.selectOption(
+          entered.significance
+        )
+        await details.targetConditionSelect.selectOption(entered.condition)
+        await details.watercourseEncroachmentSelect.selectOption(
+          entered.watercourse
+        )
+        await details.riparianEncroachmentSelect.selectOption(entered.riparian)
+        await details.advanceYearsSelect.selectOption(entered.advance)
+        await details.delayYearsSelect.selectOption(entered.delay)
+
+        await details.saveButton.click()
+
+        await expect(details.errorSummary.getByRole('link')).toHaveCount(2)
+        await expect(
+          details.errorSummaryLink(INVALID_REF_SUMMARY)
+        ).toHaveAttribute('href', '#ref')
+        await expect(
+          details.errorSummaryLink(TIMING_CONFLICT_SUMMARY)
+        ).toHaveAttribute('href', '#advanceYears')
+        await expect(details.inlineError(INVALID_REF_INLINE)).toBeVisible()
+        await expect(details.inlineError(TIMING_CONFLICT_INLINE)).toBeVisible()
+        await expect(details.habitatReferenceInput).toHaveValue('')
+        await expectCreatedAreaSelections(details, entered)
+
+        await openCreatedWatercourse(page, shared.id)
+        await expectCreatedAreaSelections(
+          details,
+          CREATED_WATERCOURSE_SELECTIONS
+        )
+      })
+
+      // AC13, duplicate references are permitted. Sole witness: no backend or
+      // frontend test saves a post-intervention watercourse under a reference
+      // another feature carries, while the baseline edit refuses one
+      // (HABITAT_REF_IN_USE). Do not delete without adding a duplicate-ref
+      // save to backend src/routes/created-watercourse-edit.test.js first.
+      test('a reference another watercourse already carries is saved', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage
+      }) => {
+        const { id } = await getWatercoursesProjectCopy(
+          browser,
+          'created-watercourse-duplicate-ref'
+        )
+        await openCreatedWatercourse(page, id)
+        const details = postInterventionHabitatDetailsPage
+
+        // WC1 is the Retained watercourse in the same file.
+        await details.habitatReferenceInput.fill(RETAINED_WATERCOURSE_REF)
+        await details.saveButton.click()
+
+        await expectOnPiPage(page, id, 'watercourse')
+        const unitPage = piPage(page, 'watercourse')
+        await unitPage.tab(CREATED).click()
+        await expect(
+          unitPage.refLink(CREATED, RETAINED_WATERCOURSE_REF)
+        ).toHaveCount(1)
+        await expect(
+          unitPage.refLink(CREATED, CREATED_WATERCOURSE_REF)
+        ).toHaveCount(0)
+        await unitPage.tab(RETAINED).click()
+        await expect(
+          unitPage.refLink(RETAINED, RETAINED_WATERCOURSE_REF)
+        ).toHaveCount(1)
+      })
+
+      // AC14.
+      test('Upload file leaves unsaved changes behind without a prompt', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage,
+        uploadFilePage
+      }) => {
+        const shared = await openSharedCreatedWatercourse(browser, page)
+        const details = postInterventionHabitatDetailsPage
+        let dialogs = 0
+        page.on('dialog', async (dialog) => {
+          dialogs += 1
+          await dialog.dismiss()
+        })
+        await details.habitatReferenceInput.fill('Not saved')
+        await details.strategicSignificanceSelect.selectOption('Low')
+        await details.watercourseEncroachmentSelect.selectOption('Major')
+
+        await details.uploadFileButton.click()
+
+        await expect(page).toHaveURL(
+          new RegExp(`/projects/${shared.id}/upload-file`)
+        )
+        await expect(uploadFilePage.heading).toBeVisible()
+        expect(dialogs).toBe(0)
+        expect(
+          await watercourseRowByRef(page, shared.id, CREATED_WATERCOURSE_REF)
+        ).toMatchObject({
+          Units: shared.createdWatercourseUnits,
+          'Strategic significance': 'High (1.15)',
+          'Watercourse encroachment': expect.stringMatching(/^No Encroachment/)
+        })
       })
     }
   )

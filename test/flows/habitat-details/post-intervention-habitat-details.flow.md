@@ -409,7 +409,8 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
 > goes through Step 11. The read-only description below is kept as the BMD-739 record: the
 > same values (km length, proposed-side encroachments, the short-form time to target)
 > still show on the form. Journey coverage: `post-intervention-habitat-details.spec.js`,
-> "non-retained watercourse habitats" (WC3 form shape, WC3 transition values, R003 short form).
+> "non-retained watercourse habitats" (WC3 form shape, saved values and option lists, WC3
+> transition values, R003 short form) and "Created watercourse habitats — editing" (Step 11).
 
 - **Route:** shared GET contract (watercourse feature whose normalised `retentionCategory === "Created"`)
 - **Template (read-only fallback):** `src/server/habitat-details/pi-watercourse-details-created.njk` (extends `layouts/pi-view-only-sections-page.njk`; BMD-739, frontend PR#187). Since PR#444 it renders only during rollout, when `GET /reference/watercourse-creation` answers 404 (`CREATED_EDIT_KINDS.watercourse.readOnlyTemplate`), the same fallback Created hedgerows use
@@ -517,8 +518,10 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
   choices, and has no broad habitat. It loads `/reference/watercourse-creation`, PUTs to
   `/projects/{projectId}/post-intervention/watercourses/{featureId}`, and on success
   returns to the watercourses post-intervention list. The rules above that name only areas
-  and hedgerows predate BMD-1050. Journey coverage of the watercourse save is pending
-  journey-tests PR #238.
+  and hedgerows predate BMD-1050. An incomplete Created watercourse edit saves `units: 0`
+  (backend PR #630) with its derived values null, as a Created area does under the PO ruling
+  of 2026-11-06; the list shows `0.00`, the type's distinctiveness and the saved significance
+  (frontend PR #502), and a blank Standard difficulty.
 - **Journey coverage (BMD-1048, Created area):** `post-intervention-habitat-details.spec.js`,
   "Created area habitats — editing". It covers a complete save (AC11 Scenario A), completing
   an import-incomplete habitat whose units go from null to calculated, a save with
@@ -533,6 +536,16 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
   together (AC11), a duplicate reference saving (AC11, the only witness) and Upload file
   with unsaved changes (AC12). Each save gets its own project; the rest reuse the
   read-only `created-linear` project.
+- **Journey coverage (BMD-1050, Created watercourse):** `post-intervention-habitat-details.spec.js`,
+  "Created watercourse habitats — editing", on WC3. It covers an import-incomplete
+  watercourse (AC2, form and list), type and condition previews (AC4-AC6), the two
+  independent encroachments and significance (AC7-AC9), timing (AC10), a complete save with
+  both encroachment multipliers (AC11 Scenario A), a save with Riparian encroachment cleared
+  (AC11 Scenario B: Incomplete, `0.00`, the total drops), Cancel (AC12, with AC3), both
+  validation rules (AC13), a duplicate reference saving (AC13, the only witness) and Upload
+  file with unsaved changes (AC14). AC1's saved values and option lists are on the "non-retained
+  watercourse habitats" form test. Each save gets its own project; the rest reuse the
+  read-only `watercourses` project.
 
 ---
 

@@ -68,17 +68,14 @@ const CONFLICTING_TIMING_BASELINE_FILE =
   'invalid-timing-conflicting-created-enhanced-baseline.gpkg'
 const CONFLICTING_TIMING_PI_FILE =
   'invalid-timing-conflicting-created-enhanced-post-intervention.gpkg'
-// Unpriced Created areas and hedgerows show 0.00 (BMD-1048, frontend PR #465);
-// every other unpriced feature shows blank, except the Created watercourse
-// (see the FIXME below).
+// Unpriced Created features show 0.00: areas and hedgerows since BMD-1048
+// (frontend PR #465), watercourses since BMD-1050 (frontend PR #502). Every
+// other unpriced feature shows blank.
 const CONFLICTING_TIMING_ZERO_UNITS = [
   ['area', 'H001'],
-  ['hedgerow', 'HG001']
+  ['hedgerow', 'HG001'],
+  ['watercourse', 'R001']
 ]
-// FIXME(BMD-1050): the Created watercourse R001 is left out of both lists.
-// Frontend PR #502 (8147ac0, 2026-11-16) shows an unpriced Created watercourse
-// as 0.00, not blank. Once BMD-1050 is picked up and the team confirms the
-// change, add ['watercourse', 'R001'] to CONFLICTING_TIMING_ZERO_UNITS.
 const CONFLICTING_TIMING_BLANK_UNITS = [
   ['area', 'H002'],
   ['hedgerow', 'HG002'],
@@ -838,9 +835,9 @@ function describeConflictingTiming() {
       // BMD-883 ADVANCE_AND_DELAY_BOTH_SET check is gone): the upload is
       // accepted and both values are saved as null. Without timing the
       // feature cannot be priced, so it is saved with null units and status
-      // Incomplete. Its Units cell shows 0.00 on a Created area or hedgerow
-      // (BMD-1048 PO ruling, frontend PR #465, display only) and is blank on
-      // everything else.
+      // Incomplete. Its Units cell shows 0.00 on a Created area, hedgerow or
+      // watercourse (BMD-1048 PO ruling, frontend PRs #465 and #502, display
+      // only) and is blank on everything else.
       //
       // Sole journey witness that a real GeoPackage with conflicting timing is
       // accepted and left unpriced on every linear and area layer. The rule is

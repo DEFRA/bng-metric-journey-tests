@@ -907,7 +907,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         )
       })
 
-      test('Created and Enhanced watercourses with a null proposed encroachment are listed without units', async ({
+      test('a null proposed encroachment lists an Enhanced watercourse without units and a Created one at zero', async ({
         watercoursesPostInterventionPage
       }) => {
         const grid = watercoursesPostInterventionPage
@@ -929,13 +929,12 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expect(grid.featureRow(ENHANCED, MIX_ENHANCED_REF)).toBeVisible()
         expect(await unitsOf(ENHANCED, MIX_ENHANCED_REF)).toBe('')
 
-        // FIXME(BMD-1050): frontend PR #502 (8147ac0, 2026-11-16) shows a
-        // Created watercourse saved Incomplete with 0.00 units, as BMD-1048
-        // does for areas, so WC3's Units cell is no longer blank. Only its
-        // listing is checked until BMD-1050 is picked up and the team confirms
-        // the change; then assert WC3's units are '0.00'.
+        // An Incomplete Created watercourse lists 0.00, as a Created area does
+        // (BMD-1050 AC11 Scenario B, frontend PR #502); its stored units stay
+        // null, so this is display only.
         await grid.tab(CREATED).click()
         await expect(grid.featureRow(CREATED, MIX_CREATED_REF)).toBeVisible()
+        expect(await unitsOf(CREATED, MIX_CREATED_REF)).toBe('0.00')
       })
     }
   )
