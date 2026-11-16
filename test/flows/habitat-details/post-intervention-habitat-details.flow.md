@@ -11,8 +11,9 @@ frontend PR#444, 2026-11-10). **A Retained area habitat, hedgerow or
 watercourse** renders its details read-only with an editable **Habitat reference** and Save /
 Cancel (BMD-1180, frontend PR#423 / backend PR#552, 2026-11-03). **Every other feature renders
 a read-only page.** Area, hedgerow and watercourse features each get a page specific to their
-type _and_ their intervention (retention) category; individual trees render an
-unsupported-feature placeholder. `POST /post-intervention-habitat-details` saves the Created
+type _and_ their intervention (retention) category; individual trees use the area page with
+two tree rows (BMD-1172, frontend PR#475). Only a feature type with no details page renders
+the unsupported-feature placeholder. `POST /post-intervention-habitat-details` saves the Created
 form (Step 11) or the Retained reference (Step 12); for any other feature it returns **501 Not
 Implemented**.
 
@@ -51,12 +52,13 @@ backend's discriminator (`habitat`, `tree`, `hedgerow`, `watercourse`) and
 `"N. "` list prefix and surrounding whitespace are stripped ("1. Enhanced" → "Enhanced"),
 `null` when there is no usable value.
 
-| Feature type            | `Enhanced`                         | `Created`                                                   | anything else (incl. `Retained`, unrecognised, absent) |
-| ----------------------- | ---------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------ |
-| `habitat`               | `pi-habitat-details-enhanced`      | `pi-habitat-details-created-edit` (Step 4, form)            | `pi-habitat-details` (Step 1)                          |
-| `hedgerow`              | `pi-hedgerow-details-enhanced`     | `pi-habitat-details-created-edit` (hedgerow form, BMD-1049) | `pi-hedgerow-details` (Step 2)                         |
-| `watercourse`           | `pi-watercourse-details-enhanced`  | `pi-watercourse-details-created`                            | `pi-watercourse-details` (Step 3)                      |
-| `tree` / any other type | `pi-feature-unsupported` (Step 10) | —                                                           | —                                                      |
+| Feature type   | `Enhanced`                                       | `Created`                                                   | anything else (incl. `Retained`, unrecognised, absent) |
+| -------------- | ------------------------------------------------ | ----------------------------------------------------------- | ------------------------------------------------------ |
+| `habitat`      | `pi-habitat-details-enhanced`                    | `pi-habitat-details-created-edit` (Step 4, form)            | `pi-habitat-details` (Step 1)                          |
+| `hedgerow`     | `pi-hedgerow-details-enhanced`                   | `pi-habitat-details-created-edit` (hedgerow form, BMD-1049) | `pi-hedgerow-details` (Step 2)                         |
+| `watercourse`  | `pi-watercourse-details-enhanced`                | `pi-watercourse-details-created`                            | `pi-watercourse-details` (Step 3)                      |
+| `tree`         | tree edit page, or area sections page (BMD-1172) | tree edit page (BMD-1172)                                   | `pi-habitat-details` + tree rows (Step 1)              |
+| any other type | `pi-feature-unsupported` (Step 10)               | —                                                           | —                                                      |
 
 The Created **area and hedgerow** cases are checked in the GET handler _before_ `resolveViewOnlyPage` is
 called, so it never reaches the view-only map. A Lost area parcel is persisted as Created
@@ -126,6 +128,31 @@ journey check is in `post-intervention-habitat-details.spec.js` › _habitat ref
 The long-and-padded PI file's `"␣Café–Ω H003"` is headed exactly `"Café–Ω H003"` and shows the
 link, matching the baseline's unpadded ref.
 
+### "Supporting information" on Retained pages (BMD-1187) `[IMPLEMENTED]`
+
+Backend PR#648 / frontend PR#519, 2026-11-13. A Retained habitat has no comment of its own:
+it shows the comment saved on the baseline habitat it is joined to. The backend adds
+`baselineComment` to the GET response for a **Retained** feature only
+(`utilities/features/retained-baseline-comment.js`). It reads only the feature's own baseline
+layer. A legacy upload joins by ref; a BNG Service template upload joins by the parent the row
+names, and the row's own imported comment is not used. The value is `null` when the baseline
+habitat has no comment or no single parcel can be identified.
+
+- **Rendering:** the last read-only row of the first section, after **Strategic significance**
+  and before the "View baseline details" link, labelled **Supporting information** (an `<h3>`
+  row label like the others, not a section heading). Display-only: no text box. The value
+  keeps its line breaks and wraps long words (`app-stacked-fields__value--multiline`,
+  `white-space: pre-line`), with no truncation.
+- **No comment:** the fixed text **"No data"** (also for a blank or whitespace-only comment).
+  It has no effect on the habitat's units or status.
+- **Scope:** the retained area page (trees included), hedgerow page and watercourse page. Created,
+  Enhanced and Lost rows get no `baselineComment`, so the row is left off their pages.
+- **Editing** happens on the baseline habitat details page (BMD-1112), whose save is reflected
+  on the Retained page.
+- **Journey checks:** `baseline-habitat-details.spec.js` › _supporting information_ (imported
+  comment, "No data", line breaks, clearing) and › _supporting information on a tree_ (tree,
+  long watercourse comment).
+
 ### Shared route contract
 
 Every GET step below shares this contract, so it is stated once rather than repeated:
@@ -155,10 +182,12 @@ Every GET step below shares this contract, so it is stated once rather than repe
   name is the caption; the section heading is "Post-intervention habitat details". First in
   the section is the **Habitat reference** input, pre-filled with the saved ref and limited to
   99 characters (frontend PR#474; was 100). Read-only rows, in order: **Intervention**, **Size (hectares)**, **Broad
-  habitat**, **Habitat type**, **Distinctiveness**, **Condition**, **Strategic significance**.
-  Then the "View baseline details" link, the bordered **"Habitat units delivered"** row, and
+  habitat**, **Habitat type**, **Distinctiveness**, **Condition**, **Strategic significance**,
+  **Supporting information** (BMD-1187). Then the "View baseline details" link, the bordered **"Habitat units delivered"** row, and
   **Save** and **Cancel** (Step 12). There is **no "Units in this habitat" row** (replaced by the
-  units summary row) and no trading-rules row. Size uses `formatAreaHectaresValue`
+  units summary row) and no trading-rules row. An individual tree (BMD-1172) adds **Tree size** and
+  **Number of trees** after Size; journey check in `post-intervention-habitat-details.spec.js` ›
+  _retained individual tree_. Size uses `formatAreaHectaresValue`
   (10 significant figures, **no `ha` suffix** — the label carries the unit). Broad habitat
   and habitat type read `proposed.broadType` / `proposed.type`. Back link to
   the area habitats post-intervention page (see Back link above).
@@ -176,8 +205,8 @@ Every GET step below shares this contract, so it is stated once rather than repe
 - **Description:** Single-section stacked page, same chrome and reference form as Step 1. H1 is
   `Hedgerow <ref>` today; the PO's ruling is `Habitat <ref>` (see _Retained H1_). Read-only rows:
   **Intervention**, **Size (kilometres)**, **Habitat type**, **Distinctiveness**, **Condition**,
-  **Strategic significance**. Then the "View baseline details" link, the bordered "Habitat units
-  delivered" row, and **Save** and **Cancel**. There is no Broad habitat row (hedgerows have no
+  **Strategic significance**, **Supporting information** (BMD-1187). Then the "View baseline
+  details" link, the bordered "Habitat units delivered" row, and **Save** and **Cancel**. There is no Broad habitat row (hedgerows have no
   broad-habitat dimension). Size uses `formatLengthKm` (7 significant figures, **no `km` suffix**
   — the label carries the unit). All values including habitat type come from `proposed`. Back
   link to the hedgerows post-intervention page.
@@ -196,7 +225,7 @@ Every GET step below shares this contract, so it is stated once rather than repe
   `Watercourse <ref>` today; the PO's ruling is `Habitat <ref>` (see _Retained H1_). Read-only
   rows: **Intervention**, **Size (kilometres)**, **Habitat type**, **Distinctiveness**,
   **Condition**, **Watercourse encroachment**, **Riparian encroachment**, **Strategic
-  significance**. Then the "View baseline details" link, the bordered "Habitat units delivered"
+  significance**, **Supporting information** (BMD-1187). Then the "View baseline details" link, the bordered "Habitat units delivered"
   row, and **Save** and **Cancel**. Size uses `formatLengthKm` (no `km` suffix).
   **This is the one page that still sources descriptive values baseline-first** (see
   _Value sourcing_): habitat type, condition and both encroachment values read
@@ -428,12 +457,15 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
 
 ---
 
-### Step 10 — Unsupported feature placeholder (individual trees) `[IMPLEMENTED]`
+### Step 10 — Unsupported feature placeholder `[IMPLEMENTED]`
 
-- **Route:** shared GET contract (tree feature, or any type with no view-only page)
+- **Route:** shared GET contract (any feature type with no details page)
 - **Template:** `src/server/habitat-details/pi-feature-unsupported.njk` (extends `layouts/page.njk` directly — neither view-only layout)
 - **Backend endpoint:** shared GET contract
-- **Description:** Individual trees (and IGGIs, if ever reachable) have no details page yet.
+- **Description:** Individual trees rendered this until BMD-1172 (frontend PR#475, 2026-11-09)
+  gave them the area page; the frontend's code comment names IGGIs, but an IGGI is an area
+  habitat type, so no upload reaches this page today. Not journey-covered; frontend controller
+  tests cover it.
   Renders the "Post-intervention habitat details" heading with the project name as caption
   and the message "Individual tree and IGGI features are not yet supported in this view."
   No rows, no baseline link, no units row. Back link to

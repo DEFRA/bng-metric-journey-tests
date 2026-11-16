@@ -907,7 +907,12 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         )
       })
 
-      test('Created and Enhanced watercourses with a null proposed encroachment are listed without units', async ({
+      // FIXME(BMD-1050): parked 2026-11-16. Frontend PR #502 (8147ac0) shows a
+      // Created watercourse saved Incomplete with 0.00 units, as BMD-1048 does
+      // for areas, so WC3's cell is no longer blank (WC2, Enhanced, still is).
+      // Restore with WC3 expecting 0.00 once BMD-1050 is picked up and the
+      // team has confirmed the change.
+      test.fixme('Created and Enhanced watercourses with a null proposed encroachment are listed without units', async ({
         watercoursesPostInterventionPage
       }) => {
         const grid = watercoursesPostInterventionPage

@@ -15,6 +15,8 @@ import {
   getLongPaddedRefsProject
 } from '@utils/summary-projects.js'
 import { gridRefName } from '@utils/habitat-ref-display.js'
+import { openPiTabFor } from '@utils/post-intervention-grid.js'
+import { UNITS_TWO_DP_PATTERN } from '@pages/post-intervention-habitat-details.page.js'
 import { STATUS_COMPLETE, STATUS_INCOMPLETE } from '@utils/unit-type-labels.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
@@ -85,6 +87,23 @@ const AREA_H2_2_COMMENT =
   'This comment has both leading and trailing spaces in the geopackage.'
 const HEDGEROW_H2_COMMENT = 'This hedge needs to be removed.'
 const MAX_COMMENT_LENGTH = 999
+
+// BMD-1187 — a Retained habitat has no comment of its own. Its
+// post-intervention page shows its baseline habitat's comment, read-only,
+// under "Supporting information", or "No data" when there is none.
+const NO_SUPPORTING_INFORMATION = 'No data'
+const RETAINED_SECTION_LABELS = [
+  'Intervention',
+  'Size (hectares)',
+  'Broad habitat',
+  'Habitat type',
+  'Distinctiveness',
+  'Condition',
+  'Strategic significance',
+  'Supporting information'
+]
+const RETAINED = 'Retained'
+const RETAINED_HEDGEROW_REF = 'H5'
 const COMMENT_TOO_LONG_SUMMARY = 'The supporting information is too long.'
 const COMMENT_TOO_LONG_INLINE =
   'Supporting information must be 999 characters or less.'
@@ -130,6 +149,20 @@ function baselineGridPage(page, type) {
 async function openBaselineGrid(page, projectId, type) {
   await page.goto(baselinePagePath(projectId, type))
   return baselineGridPage(page, type)
+}
+
+// A Retained habitat's post-intervention page, reached as a user does: from
+// the Retained tab of its unit-type post-intervention page.
+async function openRetainedPiDetails(page, projectId, type, ref) {
+  const { unitPage, label } = await openPiTabFor(page, projectId, type, ref)
+  expect(label).toBe(RETAINED)
+  await unitPage.refLink(label, ref).click()
+  await expect(page).toHaveURL(/\/post-intervention-habitat-details/)
+}
+
+async function retainedPiRow(page, projectId, type, ref) {
+  const { unitPage } = await openPiTabFor(page, projectId, type, ref)
+  return unitPage.rowByRef(RETAINED, ref)
 }
 
 function gridRow(page, type, ref) {
@@ -2181,6 +2214,115 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           savedCondition
         )
       })
+
+      // BMD-1187. With the two Retained tests in the tree describe below, the
+      // sole witness that a baseline comment reaches a Retained habitat's
+      // page. The backend integration tests (features.test.js, "returns a
+      // Retained hedgerow's baseline comment") seed their documents rather
+      // than upload a file, and the frontend controller tests
+      // (controller-retained-supporting-information.test.js) mock the
+      // backend. Without these, nothing proves an imported or edited comment
+      // shows on the page, or that a habitat without one shows "No data".
+      test("shows a Retained habitat's baseline comment read-only, and No data without one", async ({
+        postInterventionHabitatDetailsPage: details,
+        page
+      }) => {
+        // H2-2's comment was imported onto its baseline habitat (BMD-1100).
+        await openRetainedPiDetails(page, projectId, 'area', 'H2-2')
+        await expect(details.supportingInformationValue).toHaveText(
+          AREA_H2_2_COMMENT
+        )
+        await expect(details.commentInput).toHaveCount(0)
+        // The rest of the page is as BMD-608/BMD-1180 left it, with the new
+        // row last in the section, above the "View baseline details" link.
+        await expect(details.stackedFieldLabels).toHaveText(
+          RETAINED_SECTION_LABELS
+        )
+        await details.assertRetainedRefForm({ ref: 'H2-2' })
+        await expect(details.habitatUnitsValue).toHaveText(UNITS_TWO_DP_PATTERN)
+        const valueBox = await details.supportingInformationValue.boundingBox()
+        const linkBox = await details.viewBaselineLink.boundingBox()
+        expect(valueBox.y).toBeLessThan(linkBox.y)
+
+        await openRetainedPiDetails(page, projectId, 'area', 'H1')
+        await expect(details.supportingInformationValue).toHaveText(
+          NO_SUPPORTING_INFORMATION
+        )
+
+        await openRetainedPiDetails(
+          page,
+          projectId,
+          'hedgerow',
+          RETAINED_HEDGEROW_REF
+        )
+        await expect(details.supportingInformationValue).toHaveText(
+          NO_SUPPORTING_INFORMATION
+        )
+        await expect(details.commentInput).toHaveCount(0)
+      })
+
+      // Ends with H5's comment cleared, so the test above holds whichever
+      // runs first.
+      test('shows an edited comment on the Retained habitat with its line breaks, and No data once cleared', async ({
+        baselineHabitatDetailsPage,
+        postInterventionHabitatDetailsPage: details,
+        page
+      }) => {
+        const comment = [
+          'Hedgerow retained along the northern boundary.',
+          'Gaps to be planted up in winter 2027.',
+          '',
+          'See the landscape plan, drawing LP-04.'
+        ].join('\n')
+        const rowBefore = await retainedPiRow(
+          page,
+          projectId,
+          'hedgerow',
+          RETAINED_HEDGEROW_REF
+        )
+        expect(rowBefore.Status).toBe(STATUS_COMPLETE)
+
+        await openFromGrid(page, 'hedgerow', RETAINED_HEDGEROW_REF)
+        await baselineHabitatDetailsPage.commentInput.fill(comment)
+        await baselineHabitatDetailsPage.saveButton.click()
+        await expect(page).toHaveURL(baselinePageUrl(projectId, 'hedgerow'))
+
+        await openRetainedPiDetails(
+          page,
+          projectId,
+          'hedgerow',
+          RETAINED_HEDGEROW_REF
+        )
+        // innerText follows the rendered white-space, so it holds the line
+        // breaks, blank line included, only if the page shows them.
+        expect(await details.supportingInformationValue.innerText()).toBe(
+          comment
+        )
+
+        await openFromGrid(page, 'hedgerow', RETAINED_HEDGEROW_REF)
+        await baselineHabitatDetailsPage.commentInput.fill('')
+        await baselineHabitatDetailsPage.saveButton.click()
+        await expect(page).toHaveURL(baselinePageUrl(projectId, 'hedgerow'))
+
+        // A comment, or its absence, leaves status and units alone.
+        expect(
+          await retainedPiRow(
+            page,
+            projectId,
+            'hedgerow',
+            RETAINED_HEDGEROW_REF
+          )
+        ).toEqual(rowBefore)
+        await openRetainedPiDetails(
+          page,
+          projectId,
+          'hedgerow',
+          RETAINED_HEDGEROW_REF
+        )
+        await expect(details.supportingInformationValue).toHaveText(
+          NO_SUPPORTING_INFORMATION
+        )
+      })
     }
   )
 
@@ -2208,8 +2350,12 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       // The only journey save of a baseline tree. Until backend PR #629 the
       // backend refused a tree edit as an unknown layer, which the frontend's
       // mocked tests could not see.
-      test("saves an individual tree's comment trimmed", async ({
+      // Also BMD-1187's only witness for the tree layer: backend integration
+      // reads a Retained row's comment from the habitats and hedgerows layers
+      // alone (features.test.js), and the frontend's tree page test mocks it.
+      test("saves an individual tree's comment trimmed, and shows it on the Retained tree", async ({
         baselineHabitatDetailsPage,
+        postInterventionHabitatDetailsPage: details,
         page
       }) => {
         const comment = 'Veteran features noted on the north side.'
@@ -2222,6 +2368,58 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await grid.refLink('T001').click()
         await expect(baselineHabitatDetailsPage.commentInput).toHaveValue(
           comment
+        )
+
+        await openRetainedPiDetails(page, projectId, 'area', 'T001')
+        await expect(details.supportingInformationValue).toHaveText(comment)
+        await expect(details.commentInput).toHaveCount(0)
+      })
+
+      // BMD-1187, the only witness for the watercourse layer (see above) and
+      // for the layout: a long comment wraps inside the content column,
+      // unbroken word included, with nothing cut off. Frontend tests check
+      // the text and the class, and cannot see the layout.
+      test('shows a long comment in full on a Retained watercourse, wrapping within the column, and No data without one', async ({
+        baselineHabitatDetailsPage,
+        postInterventionHabitatDetailsPage: details,
+        page
+      }) => {
+        const longWord = 'Supercalifragilisticexpialidocious'.repeat(4)
+        const comment = `${'The watercourse is retained in full and protected by a ten metre buffer throughout construction. '.repeat(8)}Reference ${longWord} ends here.`
+        expect(comment.length).toBeLessThanOrEqual(MAX_COMMENT_LENGTH)
+
+        const grid = await openBaselineGrid(page, projectId, 'watercourse')
+        await grid.refLink('R003').click()
+        await baselineHabitatDetailsPage.commentInput.fill(comment)
+        await baselineHabitatDetailsPage.saveButton.click()
+        await expect(page).toHaveURL(baselinePageUrl(projectId, 'watercourse'))
+
+        await openRetainedPiDetails(page, projectId, 'watercourse', 'R003')
+        await expect(details.supportingInformationValue).toHaveText(comment)
+        const layout = await details.supportingInformationValue.evaluate(
+          (element) => {
+            const rect = element.getBoundingClientRect()
+            return {
+              overflow: element.scrollWidth - element.clientWidth,
+              right: rect.right,
+              columnRight: element
+                .closest('.govuk-grid-column-two-thirds')
+                .getBoundingClientRect().right,
+              lines:
+                rect.height /
+                Number.parseFloat(
+                  globalThis.getComputedStyle(element).lineHeight
+                )
+            }
+          }
+        )
+        expect(layout.overflow).toBeLessThanOrEqual(0)
+        expect(layout.right).toBeLessThanOrEqual(layout.columnRight)
+        expect(layout.lines).toBeGreaterThan(3)
+
+        await openRetainedPiDetails(page, projectId, 'watercourse', 'R005')
+        await expect(details.supportingInformationValue).toHaveText(
+          NO_SUPPORTING_INFORMATION
         )
       })
     }

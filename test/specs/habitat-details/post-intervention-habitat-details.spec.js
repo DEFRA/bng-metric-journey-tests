@@ -37,6 +37,7 @@ const VALID_UUID_V4 = 'aaaaaaaa-bbbb-4ccc-bddd-eeeeeeeeeeee'
 // 60s timeout.
 const SHARED_BUILD_TEST_TIMEOUT = 180_000
 const PROJECT_LABEL = 'PI habitat details test'
+const RETAINED = 'Retained'
 const DETAILS_URL_PATTERN = /\/post-intervention-habitat-details/
 const BASELINE_DETAILS_URL_PATTERN = /\/baseline-habitat-details/
 
@@ -60,7 +61,7 @@ const BASELINE_DETAILS_URL_PATTERN = /\/baseline-habitat-details/
 //   baseline-side value sourcing) plus H2/H3 Enhanced with blank proposed
 //   columns (Incomplete). Its hedgerows (H1/H2) and river (R1) are Lost, so
 //   the backend excludes them on import.
-// - TREES_FILE: T001-T004 individual trees (unsupported placeholder page).
+// - TREES_FILE: T001-T004 Retained individual trees (BMD-1172 tree details page).
 const COMPLETE_PI_FILE = 'Post-intervention - complete.gpkg'
 const BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
 const HEDGEROWS_FILE = 'Post-intervention - hedgerows mixed retention.gpkg'
@@ -778,9 +779,7 @@ function getTreesProject(browser) {
     browser,
     'trees',
     { piFile: TREES_FILE },
-    async (page, id) => ({
-      tree: await featureIdByRef(page, id, 'area', 'T001')
-    })
+    async () => ({})
   )
 }
 
@@ -977,9 +976,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await expect(
             postInterventionHabitatDetailsPage.stackedSizeValue
           ).toHaveText(RETAINED_NO_BASELINE_SIZE_HECTARES)
-          await expect(
-            page.getByText('Retained', { exact: true })
-          ).toBeVisible()
+          await expect(page.getByText(RETAINED, { exact: true })).toBeVisible()
           await expect(
             page.getByText('Grassland', { exact: true })
           ).toBeVisible()
@@ -1771,15 +1768,11 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      // FIXME(BMD-1043): parked 2026-10-07 pending a team
-      // ruling. This project has a post-intervention upload and no baseline.
-      // Frontend PR#352 removed the post-intervention habitat list, which was
-      // the only page that listed such a project's features — the unit-type
-      // post-intervention pages redirect a no-baseline project to the summary —
-      // so the featureId can no longer be harvested from the UI. Restore once
-      // the team confirms whether that is intended (add a baseline upload) or
-      // a regression (keep this setup).
-      test.fixme('retained parcel with blank proposed columns shows baseline-side values', async ({
+      // Restored 2026-11-16 (BMD-1043 signed off). A post-intervention-only
+      // upload now derives its baseline from the file (BMD-1056, backend
+      // PR#478), so the unit-type post-intervention page lists H1 and its
+      // featureId is harvested from the grid again.
+      test('retained parcel with blank proposed columns shows baseline-side values', async ({
         browser,
         postInterventionHabitatDetailsPage,
         page
@@ -1793,7 +1786,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(
           postInterventionHabitatDetailsPage.viewOnlyHeading
         ).toBeVisible()
-        await expect(page.getByText('Retained', { exact: true })).toBeVisible()
+        await expect(page.getByText(RETAINED, { exact: true })).toBeVisible()
         // Baseline-side values (the proposed columns are blank in the
         // fixture).
         await expect(page.getByText('Urban', { exact: true })).toBeVisible()
@@ -1806,11 +1799,11 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(
           postInterventionHabitatDetailsPage.habitatUnitsValue
         ).toHaveText(shared.retainedBlankProposedUnits)
-        // No baseline upload in this project, so no ref-matched feature and
-        // no "View baseline details" link.
+        // The baseline derived from the same file holds H1, so the link
+        // resolves (it was hidden before BMD-1056, with no baseline at all).
         await expect(
           postInterventionHabitatDetailsPage.viewBaselineLink
-        ).toBeHidden()
+        ).toBeVisible()
       })
     })
   })
@@ -1902,7 +1895,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         // condition for that habitat type. The "Size (kilometres)" label
         // carries the unit, so the value renders bare with trailing zeros
         // trimmed.
-        await expect(page.getByText('Retained', { exact: true })).toBeVisible()
+        await expect(page.getByText(RETAINED, { exact: true })).toBeVisible()
         await expect(
           postInterventionHabitatDetailsPage.stackedSizeValue
         ).toHaveText(/^\s*0\.09\s*$/)
@@ -2777,7 +2770,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         // "Moderate (n)" are the engine's reference distinctiveness and
         // condition for that river type. The "Size (kilometres)" label carries
         // the unit, so the value renders bare with trailing zeros trimmed.
-        await expect(page.getByText('Retained', { exact: true })).toBeVisible()
+        await expect(page.getByText(RETAINED, { exact: true })).toBeVisible()
         await expect(
           postInterventionHabitatDetailsPage.stackedSizeValue
         ).toHaveText(/^\s*0\.09\s*$/)
@@ -3073,38 +3066,75 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     }
   )
 
-  // ─── Unsupported feature placeholder (individual trees) ─────────────────────
+  // ─── Retained individual tree (BMD-1172) ────────────────────────────────────
+  // Frontend PR#475 gave individual trees the area details page, with two tree
+  // rows after Size. This replaced the unsupported-feature placeholder, which
+  // now renders only for a feature type with no details page, and no upload
+  // produces one. It is covered by the frontend controller tests alone.
 
   test.describe(
-    'Post-intervention habitat details — unsupported tree feature',
+    'Post-intervention habitat details — retained individual tree',
     { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      // FIXME(BMD-1043): parked 2026-10-07 pending a team
-      // ruling. This project has a post-intervention upload and no baseline.
-      // Frontend PR#352 removed the post-intervention habitat list, which was
-      // the only page that listed such a project's features — the unit-type
-      // post-intervention pages redirect a no-baseline project to the summary —
-      // so the featureId can no longer be harvested from the UI. Restore once
-      // the team confirms whether that is intended (add a baseline upload) or
-      // a regression (keep this setup).
-      test.fixme('an individual tree renders the unsupported-feature placeholder', async ({
+      // Sole journey witness for a tree's details page: frontend controller
+      // tests mock the backend's tree feature, so nothing else proves the
+      // backend sends a tree that the page renders with its size class and
+      // count. Restored from the BMD-1043 placeholder test on 2026-11-16.
+      test('a Retained individual tree renders the area details page with its tree rows', async ({
         browser,
         postInterventionHabitatDetailsPage,
         page
       }) => {
         const shared = await getTreesProject(browser)
-        await postInterventionHabitatDetailsPage.open(shared.id, shared.tree)
+        const { unitPage } = await openPiTabFor(page, shared.id, 'area', 'T001')
+        const row = await unitPage.rowByRef(RETAINED, 'T001')
+        await unitPage.refLink(RETAINED, 'T001').click()
 
         await expect(
-          postInterventionHabitatDetailsPage.viewOnlyHeading
+          page.getByRole('heading', { name: 'Habitat T001', exact: true })
         ).toBeVisible()
         await expect(
+          postInterventionHabitatDetailsPage.stackedFieldLabels
+        ).toHaveText([
+          'Intervention',
+          'Size (hectares)',
+          'Tree size',
+          'Number of trees',
+          'Broad habitat',
+          'Habitat type',
+          'Distinctiveness',
+          'Condition',
+          'Strategic significance',
+          'Supporting information'
+        ])
+        // T001 is a small urban tree, counted once; the rest match its grid row.
+        await expect(
+          postInterventionHabitatDetailsPage.stackedValues
+        ).toHaveText([
+          RETAINED,
+          /^\d+(\.\d+)?$/,
+          'Small',
+          '1',
+          row['Broad habitat'],
+          row['Habitat type'],
+          row.Distinctiveness,
+          row.Condition,
+          row['Strategic significance'],
+          'No data',
+          'View baseline details'
+        ])
+        await expect(
+          postInterventionHabitatDetailsPage.habitatUnitsValue
+        ).toHaveText(row.Units)
+        await postInterventionHabitatDetailsPage.assertRetainedRefForm({
+          ref: 'T001'
+        })
+        await expect(
           postInterventionHabitatDetailsPage.unsupportedFeatureMessage
-        ).toBeVisible()
-        await expect(postInterventionHabitatDetailsPage.saveButton).toBeHidden()
+        ).toBeHidden()
 
         await postInterventionHabitatDetailsPage.backLink.click()
         await expectOnPiPage(page, shared.id, 'area')
