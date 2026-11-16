@@ -883,6 +883,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
   // PR#476), and PR#498 guards the calculators: a Created or Enhanced
   // watercourse is priced from its PROPOSED encroachments, so a null one leaves
   // it with null units and Incomplete. Retained is priced from the baseline.
+  // The grid shows the Enhanced one's units blank and the Created one's as
+  // 0.00 (BMD-1050, frontend PR #502, display only: the stored units stay
+  // null).
   //
   // Sole witness that a real import reaches this rule. The backend proves it
   // only on hand-built features (`null-unit-calculation.test.js:142`); its
@@ -907,7 +910,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         )
       })
 
-      test('Created and Enhanced watercourses with a null proposed encroachment are listed without units', async ({
+      test('Created and Enhanced watercourses with a null proposed encroachment are listed unpriced', async ({
         watercoursesPostInterventionPage
       }) => {
         const grid = watercoursesPostInterventionPage
@@ -925,13 +928,13 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           GRID_UNITS_2DP
         )
 
-        for (const [label, reference] of [
-          [ENHANCED, MIX_ENHANCED_REF],
-          [CREATED, MIX_CREATED_REF]
+        for (const [label, reference, units] of [
+          [ENHANCED, MIX_ENHANCED_REF, ''],
+          [CREATED, MIX_CREATED_REF, '0.00']
         ]) {
           await grid.tab(label).click()
           await expect(grid.featureRow(label, reference)).toBeVisible()
-          expect(await unitsOf(label, reference)).toBe('')
+          expect(await unitsOf(label, reference)).toBe(units)
         }
       })
     }
