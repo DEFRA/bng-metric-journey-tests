@@ -173,6 +173,10 @@ const UNENHANCEABLE_AREA_FILE =
   'invalid-area-medium-good-enhanced-post-intervention.gpkg'
 const UNENHANCEABLE_TREE_FILE =
   'invalid-tree-good-enhanced-post-intervention.gpkg'
+// BMD-1172 (backend PR #651, frontend PR #520, interim wording): the
+// problems-list heading for TREE_NOT_ENHANCEABLE.
+const TREE_NOT_ENHANCEABLE_HEADING =
+  /^One or more trees are enhanced, but their baseline tree is in Good condition, and a tree in Good condition cannot be enhanced/
 const UNENHANCEABLE_WATERCOURSE_FILE =
   'invalid-watercourse-medium-good-enhanced-post-intervention.gpkg'
 const UNENHANCEABLE_VERY_LOW_HEDGEROW_FILE =
@@ -985,12 +989,12 @@ async function assertUnenhanceableDropout(errorFilePage) {
 // rules with real bng-library data. The Very Low rule is the only permanent one.
 // When the MVS rules are removed, the area, tree and watercourse tests go with
 // them and this one keeps the page covered.
+//
+// Since BMD-1172 (backend PR #651) an Enhanced tree in Good condition is
+// refused with its own code, TREE_NOT_ENHANCEABLE. That code has no
+// single-problem page, so its file gets the problems list instead.
 function describeUnenhanceableBaseline() {
   const cases = [
-    {
-      name: 'an individual tree in Good condition',
-      file: UNENHANCEABLE_TREE_FILE
-    },
     {
       name: 'a Medium distinctiveness watercourse in Good condition',
       file: UNENHANCEABLE_WATERCOURSE_FILE
@@ -1073,6 +1077,41 @@ function describeUnenhanceableBaseline() {
           await assertUnenhanceableDropout(errorFilePage)
         })
       }
+
+      // Sole journey witness that a real upload's TREE_NOT_ENHANCEABLE reaches
+      // the problems list with its own heading. Backend
+      // refuse-unenhanceable-baselines.test.js hand-builds its documents, and
+      // frontend controller.test.js hands the page a made-up error.
+      test('a file enhancing an individual tree in Good condition is refused on the problems list', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadPostInterventionFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        const id = await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadPostInterventionFileFlow,
+            page
+          },
+          UNENHANCEABLE_TREE_FILE
+        )
+
+        await expect(
+          errorFilePage.postInterventionRejectedHeading
+        ).toBeVisible()
+        await expect(errorFilePage.errorSummary).toBeVisible()
+        await expect(
+          page.getByRole('heading', { name: TREE_NOT_ENHANCEABLE_HEADING })
+        ).toBeVisible()
+        await expect(errorFilePage.serviceEligibilityHeading).not.toBeVisible()
+        await expect(errorFilePage.uploadDifferentFileLink).toHaveAttribute(
+          'href',
+          `/projects/${id}/upload-post-intervention-file`
+        )
+      })
     }
   )
 }
