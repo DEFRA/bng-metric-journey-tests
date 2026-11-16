@@ -3037,12 +3037,16 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await expect(details.habitatUnitsValue).toHaveText('0.09')
           await details.delayYearsSelect.selectOption('')
           await details.saveButton.click()
+          // An incomplete Created watercourse lists and shows zero units
+          // (frontend PR#502, as the PO ruled for areas and hedgerows).
           await expectOnPiPage(page, shared.id, 'watercourse')
-          expect(await unitsByRef(page, shared.id, 'watercourse', ref)).toBe('')
+          expect(await unitsByRef(page, shared.id, 'watercourse', ref)).toBe(
+            '0.00'
+          )
           await openPiFeatureDetails(page, shared.id, 'watercourse', ref)
           await expect(details.delayYearsSelect).toHaveValue('')
           await expect(details.advanceYearsSelect).toHaveValue('0')
-          await expect(details.habitatUnitsValue).toHaveText(/^\s*$/)
+          await expect(details.habitatUnitsValue).toHaveText('0.00')
           await expect(details.watercourseEncroachmentSelect).toHaveValue(
             'Minor'
           )
@@ -3133,12 +3137,11 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(detailsPage.createdLengthValue).toHaveText(
           LENGTH_KM_PATTERN
         )
-        // No "View baseline details" assertion here, unlike the Created area
-        // and hedgerow tests. The baseline half of this pair carries R003, so a
-        // ref match exists and the link *does* render — Created watercourses do
-        // not suppress it the way Created hedgerows do (flow doc Step 8). The
-        // product decision on whether that is correct is still open, so
-        // asserting either way would cement it.
+        // Created watercourses follow the Created hedgerows' stored-parent
+        // rules (flow doc Step 8). The PI upload derives its baseline from the
+        // non-Created rows, so R003 has no parent in the stored project despite
+        // the baseline file's ref, and the link stays hidden.
+        await expect(detailsPage.viewBaselineLink).toBeHidden()
       })
     }
   )

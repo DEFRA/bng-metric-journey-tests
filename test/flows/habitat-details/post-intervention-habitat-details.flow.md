@@ -51,15 +51,17 @@ backend's discriminator (`habitat`, `tree`, `hedgerow`, `watercourse`) and
 `"N. "` list prefix and surrounding whitespace are stripped ("1. Enhanced" → "Enhanced"),
 `null` when there is no usable value.
 
-| Feature type            | `Enhanced`                         | `Created`                                                   | anything else (incl. `Retained`, unrecognised, absent) |
-| ----------------------- | ---------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------ |
-| `habitat`               | `pi-habitat-details-enhanced`      | `pi-habitat-details-created-edit` (Step 4, form)            | `pi-habitat-details` (Step 1)                          |
-| `hedgerow`              | `pi-hedgerow-details-enhanced`     | `pi-habitat-details-created-edit` (hedgerow form, BMD-1049) | `pi-hedgerow-details` (Step 2)                         |
-| `watercourse`           | `pi-watercourse-details-enhanced`  | `pi-watercourse-details-created`                            | `pi-watercourse-details` (Step 3)                      |
-| `tree` / any other type | `pi-feature-unsupported` (Step 10) | —                                                           | —                                                      |
+| Feature type            | `Enhanced`                         | `Created`                                                      | anything else (incl. `Retained`, unrecognised, absent) |
+| ----------------------- | ---------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------ |
+| `habitat`               | `pi-habitat-details-enhanced`      | `pi-habitat-details-created-edit` (Step 4, form)               | `pi-habitat-details` (Step 1)                          |
+| `hedgerow`              | `pi-hedgerow-details-enhanced`     | `pi-habitat-details-created-edit` (hedgerow form, BMD-1049)    | `pi-hedgerow-details` (Step 2)                         |
+| `watercourse`           | `pi-watercourse-details-enhanced`  | `pi-habitat-details-created-edit` (watercourse form, BMD-1050) | `pi-watercourse-details` (Step 3)                      |
+| `tree` / any other type | `pi-feature-unsupported` (Step 10) | —                                                              | —                                                      |
 
-The Created **area and hedgerow** cases are checked in the GET handler _before_ `resolveViewOnlyPage` is
-called, so it never reaches the view-only map. A Lost area parcel is persisted as Created
+The Created **area, hedgerow and watercourse** cases are checked in the GET handler _before_
+`resolveViewOnlyPage` is called, so they never reach the view-only map. Each falls back to its
+old read-only Created template (`pi-watercourse-details-created` for a watercourse) only while
+its creation reference endpoint answers 404. A Lost area parcel is persisted as Created
 (BMD-534), so it gets the edit form too.
 
 A category the map does not know (the backend only persists `Retained`/`Created`/`Enhanced`,
@@ -71,8 +73,8 @@ row showing the raw normalised value.
 - **`proposed`-first is the norm.** `buildSharedPiViewOnlyFields` reads distinctiveness,
   condition and their scores from `feature.proposed`; the sections pages additionally read
   `proposed.broadType` / `proposed.type` and every time/difficulty derivation from
-  `proposed`. This covers the retained area page, the retained hedgerow page and all six
-  Created/Enhanced pages.
+  `proposed`. This covers the retained area page, the retained hedgerow page, the Enhanced pages
+  and the Created forms and their read-only fallbacks.
 - **The retained watercourse page (Step 3) is the sole exception** — it still uses
   `buildViewOnlyViewModel`, whose `retained(key)` helper reads `baseline[key] ?? proposed[key] ?? ''`
   for descriptive values (habitat type, condition, both encroachments) while taking scores
@@ -112,11 +114,10 @@ ref. The "hidden" branch is no longer reached by a pairing of separate baseline 
 post-intervention files (which is how `complete-project` H2-2 and H2-3 reached it). It now
 needs a baseline ref changed after upload, or a Created feature. On a read-only or
 Retained sections page the link renders **after the first section**, before the units row.
-Created area and hedgerow forms render the link before Intervention and size. They
+Created area, hedgerow and watercourse forms render the link before Intervention and size. They
 resolve an explicit parent only within the matching baseline unit layer; an explicit
 null parent suppresses the link. Service-template projects require that parent link.
-Legacy non-template features without a parent field still resolve by ref. Created
-watercourses keep the read-only ref-based link behavior.
+Legacy non-template features without a parent field still resolve by ref.
 
 **Matched on the cleaned ref (BMD-1058) `[IMPLEMENTED]`.** `comparableRef` in
 `post-intervention-habitat-details/controller.js` trims both refs and cuts them to 100
@@ -490,7 +491,7 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
 - **Journey coverage (BMD-1050, Created watercourse):** `post-intervention-habitat-details.spec.js`,
   "non-retained watercourse habitats". It saves a new reference and both encroachment
   choices on WC3, checks the units on the list and the saved choices after reload, then
-  clears Delay and checks the units are blank and the delay stays blank after reload. The
+  clears Delay and checks the units show 0.00 and the delay stays blank after reload. The
   save gets its own project; the other tests reuse the read-only `watercourses` project.
 - **Journey coverage (BMD-1048, Created area):** `post-intervention-habitat-details.spec.js`,
   "Created area habitats — editing". It covers a complete save (AC11 Scenario A), completing
