@@ -907,12 +907,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         )
       })
 
-      // FIXME(BMD-1050): parked 2026-11-16. Frontend PR #502 (8147ac0) shows a
-      // Created watercourse saved Incomplete with 0.00 units, as BMD-1048 does
-      // for areas, so WC3's cell is no longer blank (WC2, Enhanced, still is).
-      // Restore with WC3 expecting 0.00 once BMD-1050 is picked up and the
-      // team has confirmed the change.
-      test.fixme('Created and Enhanced watercourses with a null proposed encroachment are listed without units', async ({
+      test('Created and Enhanced watercourses with a null proposed encroachment are listed without units', async ({
         watercoursesPostInterventionPage
       }) => {
         const grid = watercoursesPostInterventionPage
@@ -930,14 +925,17 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           GRID_UNITS_2DP
         )
 
-        for (const [label, reference] of [
-          [ENHANCED, MIX_ENHANCED_REF],
-          [CREATED, MIX_CREATED_REF]
-        ]) {
-          await grid.tab(label).click()
-          await expect(grid.featureRow(label, reference)).toBeVisible()
-          expect(await unitsOf(label, reference)).toBe('')
-        }
+        await grid.tab(ENHANCED).click()
+        await expect(grid.featureRow(ENHANCED, MIX_ENHANCED_REF)).toBeVisible()
+        expect(await unitsOf(ENHANCED, MIX_ENHANCED_REF)).toBe('')
+
+        // FIXME(BMD-1050): frontend PR #502 (8147ac0, 2026-11-16) shows a
+        // Created watercourse saved Incomplete with 0.00 units, as BMD-1048
+        // does for areas, so WC3's Units cell is no longer blank. Only its
+        // listing is checked until BMD-1050 is picked up and the team confirms
+        // the change; then assert WC3's units are '0.00'.
+        await grid.tab(CREATED).click()
+        await expect(grid.featureRow(CREATED, MIX_CREATED_REF)).toBeVisible()
       })
     }
   )

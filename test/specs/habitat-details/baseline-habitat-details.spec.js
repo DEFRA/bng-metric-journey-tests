@@ -2081,7 +2081,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
       test.skip(runMode === 'e2e', E2E_UPLOAD_SKIP_REASON)
       // Serial pins the edits to one worker. Each test uses its own habitats,
-      // so none depends on another having run.
+      // except hedgerow H5, the file's only Retained hedgerow: one test reads
+      // its "No data" and the other edits it, ending with the comment cleared,
+      // so the read holds whichever runs first.
       test.describe.configure({
         mode: 'serial',
         timeout: SHARED_PAIR_BUILD_TIMEOUT
@@ -2401,6 +2403,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             const rect = element.getBoundingClientRect()
             return {
               overflow: element.scrollWidth - element.clientWidth,
+              // A line clamp or a fixed height hides text that toHaveText
+              // still reads, so the box must be as tall as its content.
+              clipped: element.scrollHeight - element.clientHeight,
               right: rect.right,
               columnRight: element
                 .closest('.govuk-grid-column-two-thirds')
@@ -2414,6 +2419,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           }
         )
         expect(layout.overflow).toBeLessThanOrEqual(0)
+        expect(layout.clipped).toBeLessThanOrEqual(0)
         expect(layout.right).toBeLessThanOrEqual(layout.columnRight)
         expect(layout.lines).toBeGreaterThan(3)
 

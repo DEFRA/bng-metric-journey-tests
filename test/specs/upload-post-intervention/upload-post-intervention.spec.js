@@ -69,15 +69,19 @@ const CONFLICTING_TIMING_BASELINE_FILE =
 const CONFLICTING_TIMING_PI_FILE =
   'invalid-timing-conflicting-created-enhanced-post-intervention.gpkg'
 // Unpriced Created areas and hedgerows show 0.00 (BMD-1048, frontend PR #465);
-// every other unpriced feature, Created watercourses included, shows blank.
+// every other unpriced feature shows blank, except the Created watercourse
+// (see the FIXME below).
 const CONFLICTING_TIMING_ZERO_UNITS = [
   ['area', 'H001'],
   ['hedgerow', 'HG001']
 ]
+// FIXME(BMD-1050): the Created watercourse R001 is left out of both lists.
+// Frontend PR #502 (8147ac0, 2026-11-16) shows an unpriced Created watercourse
+// as 0.00, not blank. Once BMD-1050 is picked up and the team confirms the
+// change, add ['watercourse', 'R001'] to CONFLICTING_TIMING_ZERO_UNITS.
 const CONFLICTING_TIMING_BLANK_UNITS = [
   ['area', 'H002'],
   ['hedgerow', 'HG002'],
-  ['watercourse', 'R001'],
   ['watercourse', 'R002']
 ]
 const ZERO_TIMING_HEDGEROW_REF = 'HG003'
@@ -844,12 +848,7 @@ function describeConflictingTiming() {
       // (it.each over timing combinations, asserting null + Incomplete), but
       // nothing else renders the result. HG003 (explicit 0/0) is the control:
       // it proves a zero is not mistaken for a conflict and cleared.
-      // FIXME(BMD-1050): parked 2026-11-16. Frontend PR #502 (8147ac0) shows a
-      // Created watercourse saved Incomplete with 0.00 units, so R001 is no
-      // longer blank. Restore with the Created watercourse(s) moved into
-      // CONFLICTING_TIMING_ZERO_UNITS once BMD-1050 is picked up and the team
-      // has confirmed the change.
-      test.fixme('a file whose Created and Enhanced features set both advance and delay is accepted and those features are left unpriced', async ({
+      test('a file whose Created and Enhanced features set both advance and delay is accepted and those features are left unpriced', async ({
         createProjectFlow,
         projectDashboardPage,
         uploadBaselineFileFlow,
