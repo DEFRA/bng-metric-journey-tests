@@ -29,6 +29,8 @@ import { SignedOutPage } from '@pages/signed-out.page.js'
 import { SessionExpiredPage } from '@pages/session-expired.page.js'
 import { UploadPostInterventionFilePage } from '@pages/upload-post-intervention-file.page.js'
 import { PostInterventionHabitatDetailsPage } from '@pages/post-intervention-habitat-details.page.js'
+import { ServiceErrorPage } from '@pages/service-error.page.js'
+import { Toxiproxy } from '@utils/toxiproxy.js'
 import { CreateProjectFlow } from '@flows/project-management/create-project.flow.js'
 import { UploadBaselineFileFlow } from '@flows/upload-baseline/upload-baseline-file.flow.js'
 import { UploadPostInterventionFileFlow } from '@flows/upload-post-intervention/upload-post-intervention-file.flow.js'
@@ -123,6 +125,19 @@ export const test = base.extend({
   },
   postInterventionHabitatDetailsPage: async ({ page }, use) => {
     await use(new PostInterventionHabitatDetailsPage(page))
+  },
+  serviceErrorPage: async ({ page }, use) => {
+    await use(new ServiceErrorPage(page))
+  },
+  // Clears faults before and after every test, so a test that dies mid-fault
+  // cannot fail the tests that follow it.
+  toxiproxy: async ({ playwright }, use) => {
+    const api = await playwright.request.newContext({ baseURL: Toxiproxy.url })
+    const toxiproxy = new Toxiproxy(api)
+    await toxiproxy.reset()
+    await use(toxiproxy)
+    await toxiproxy.reset()
+    await api.dispose()
   },
   createProjectFlow: async ({ page }, use) => {
     await use(new CreateProjectFlow(page))

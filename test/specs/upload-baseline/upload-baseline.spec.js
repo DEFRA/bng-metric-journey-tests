@@ -3,7 +3,8 @@ import {
   STORAGE_STATE,
   NO_PROJECTS_STORAGE_STATE,
   skipInE2e,
-  baseUrl
+  baseUrl,
+  runMode
 } from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
 import { noBaselineSummaryRedirectHref } from '@utils/upload-file-navigation.js'
@@ -25,6 +26,9 @@ const PROJECT_LABEL = 'Upload baseline flow test'
 // CDP Uploader must be running; meta-refresh polling can take up to 120 s in the
 // worst case (esp. the real uploader in e2e), so allow the full window.
 const UPLOAD_TIMEOUT = 120_000
+const UPLOADER_REJECTION_FILE = 'Uploader rejected - virus.gpkg'
+const UPLOADER_REJECTION_SKIP_REASON =
+  'Relies on the mock uploader rejecting filenames containing "virus" — CDP runs the real scanner'
 const COMPLETE_BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
 const COMPLETE_POST_INTERVENTION_FILE = 'Post-intervention - complete.gpkg'
 // A second valid baseline whose hedgerow refs differ from COMPLETE_BASELINE_FILE
@@ -41,10 +45,11 @@ const INVALID_BASELINE_FILE = 'Baseline - overlapping parcels.gpkg'
 // name is the strict case for the widened rule: it both STARTS with punctuation
 // and contains round brackets.
 const PUNCTUATED_BASELINE_FILE = '(Baseline) - complete with area refs.gpkg'
-// BMD-1058. Interim copy from frontend single-error-copy.js, pending UCD.
-const HABITAT_REF_MISSING_COPY = 'All habitats must have a reference'
+// BMD-1058. Copy from the BMD-1110 dropout spreadsheet (frontend PR #452).
+const HABITAT_REF_MISSING_COPY =
+  'Your file contains a habitat with no habitat reference'
 const HABITAT_REF_INVALID_CHARACTERS_COPY =
-  'One or more habitat references contain characters that are not allowed'
+  'This habitat reference contains characters that are not allowed'
 // Two parcels share the ref DUP-1. Accepted since BMD-1058.
 const DUPLICATE_REF_FILE = 'Baseline - duplicate habitat ref.gpkg'
 const DUPLICATE_REF = 'DUP-1'
@@ -339,12 +344,13 @@ function describeNoPendingUpload() {
 // but the frontend doesn't propagate that: the GET step silently falls back to
 // a generic "Project" caption, and the POST /baseline/validate/{uploadId} 404
 // is caught by validateHabitatUpload's generic 4xx handler and surfaces as a
-// VALIDATION_FAILED error — which has no dedicated single-error copy, so it
-// falls through to the AC1 Natural England catch-all. A different user
-// uploading a fully VALID file against someone else's project id therefore
-// reaches a misleading "your file is invalid" page rather than any access
-// error, even though nothing is persisted. Verified directly against the
-// running stack (not inferred) before writing these assertions.
+// VALIDATION_FAILED error. Since frontend PR#483 (BMD-1204, 2026-11-10) that
+// error is worded as a service problem ("Sorry, there is a problem with the
+// service" / "Try again later."); before, it fell through to the AC1 Natural
+// England catch-all. A different user uploading a fully VALID file against
+// someone else's project id therefore still reaches a misleading page rather
+// than any access error, even though nothing is persisted. Verified directly
+// against the running stack (not inferred) before writing these assertions.
 function describeCrossUserAccess() {
   test.describe(
     'Upload baseline — cross-user access',
@@ -355,7 +361,7 @@ function describeCrossUserAccess() {
         'Requires a second stub-auth profile — not available in e2e mode'
       )
 
-      test('uploading a valid file against another user’s project id reaches the misleading catch-all error page, and nothing is persisted', async ({
+      test('uploading a valid file against another user’s project id reaches the misleading service-problem page, and nothing is persisted', async ({
         browser
       }) => {
         const ownerContext = await browser.newContext({
@@ -393,10 +399,10 @@ function describeCrossUserAccess() {
             timeout: UPLOAD_TIMEOUT
           })
 
-          await expect(otherErrorFilePage.geopackageErrorHeading).toBeVisible()
+          await expect(otherErrorFilePage.serviceProblemHeading).toBeVisible()
           await expect(
             otherPage.getByText(NATURAL_ENGLAND_MISMATCH_COPY)
-          ).toBeVisible()
+          ).toHaveCount(0)
         } finally {
           await otherContext.close()
         }
@@ -776,19 +782,22 @@ function describeFieldValidation() {
       })
 
       // BMD-1058 AC1/AC2: one collated error for every habitat it applies to,
-      // on the single-error page. The copy is the frontend's interim wording,
-      // pending UCD. Nothing from the file is saved.
+      // on the single-error page, in its text layout: no inline upload link,
+      // but the upload button stays. Nothing from the file is saved.
       async function expectHabitatRefDropout(fixtures, fixture, copy) {
         const { errorFilePage, projectSummaryPage, page } = fixtures
         const id = await uploadToErrorFile(fixtures, fixture)
 
-        await expect(errorFilePage.geopackageErrorHeading).toBeVisible()
+        await expect(errorFilePage.projectProblemHeading).toBeVisible()
+        await expect(errorFilePage.habitatParcelsHeading).toBeVisible()
         await expect(errorFilePage.errorSummary).not.toBeVisible()
         await expect(page.getByText(copy)).toHaveCount(1)
-        await expect(errorFilePage.uploadNewFileLink).toHaveAttribute(
+        await expect(errorFilePage.uploadNewFileLink).not.toBeVisible()
+        await expect(errorFilePage.uploadDifferentFileLink).toHaveAttribute(
           'href',
           `/projects/${id}/upload-baseline-file`
         )
+        await expect(errorFilePage.backToProjectLink).toBeVisible()
 
         // Nothing was saved, so the summary still redirects the project to the
         // upload-type page (BMD-1076).
@@ -917,13 +926,13 @@ function describeGeometricGateErrors() {
 // ─── Single validation error dropout pages (BMD-405) ──────────────────────────
 
 const GEOPACKAGE_ERROR_H1 = 'Your Geopackage (.gpkg) file contains an error'
+const REDLINE_OUTSIDE_ENGLAND_COPY = 'Redline boundary is outside England'
 
 // Each fixture below trips exactly one backend validation error (verified by
 // uploading and inspecting the rendered page), so the error-file page renders
 // the BMD-405 single-error layout. `heading` is the expected H1 (string =
 // substring match, regex for ref-personalised headings); `body` is the copy
-// asserted in the paragraph. `placeholder: true` marks AC14 codes whose
-// finalised copy is pending BMD-592.
+// asserted in the paragraph.
 //
 // One case per rendered variant, not one per error code. The code → copy map
 // itself is a pure function, unit-tested exhaustively over all 20 codes in
@@ -978,24 +987,10 @@ const SINGLE_ERROR_CASES = [
     fixture: 'Baseline - only bowtie parcel.gpkg',
     heading: /This parcel .+ contains an error/,
     body: 'This parcel is overlapping itself. Draw the parcel again and'
-  },
-  {
-    // Placeholder variant — AC14 codes with no finalised copy (BMD-592).
-    title: 'redline outside England alone shows the placeholder page',
-    fixture: 'Baseline - only redline not in england.gpkg',
-    placeholder: true,
-    body: 'Redline boundary is outside England'
   }
 ]
 
-function singleErrorTest({
-  title,
-  fixture,
-  heading,
-  body,
-  placeholder,
-  assertNavigation
-}) {
+function singleErrorTest({ title, fixture, heading, body, assertNavigation }) {
   test(
     title,
     async ({
@@ -1018,15 +1013,11 @@ function singleErrorTest({
       // The single-error layout renders no GOV.UK error summary.
       await expect(errorFilePage.errorSummary).not.toBeVisible()
       await expect(page.getByText(body)).toBeVisible()
-      if (placeholder) {
-        await expect(errorFilePage.placeholderHeading).toBeVisible()
-      } else {
-        await expect(errorFilePage.singleErrorHeading(heading)).toBeVisible()
-        await expect(errorFilePage.uploadNewFileLink).toHaveAttribute(
-          'href',
-          `/projects/${id}/upload-baseline-file`
-        )
-      }
+      await expect(errorFilePage.singleErrorHeading(heading)).toBeVisible()
+      await expect(errorFilePage.uploadNewFileLink).toHaveAttribute(
+        'href',
+        `/projects/${id}/upload-baseline-file`
+      )
       // QA fix (frontend PR#175): the single-error layout no longer shows
       // the "Upload a different file" button or "Back to project" link.
       await expect(errorFilePage.uploadDifferentFileLink).not.toBeVisible()
@@ -1051,6 +1042,40 @@ function describeSingleErrorDropout() {
       for (const singleErrorCase of SINGLE_ERROR_CASES) {
         singleErrorTest(singleErrorCase)
       }
+
+      // REDLINE_OUTSIDE_ENGLAND had no finalised single-error copy (BMD-592),
+      // so it alone showed a placeholder page. Frontend PR#483 (BMD-1204)
+      // removed the placeholder: an error without single-error copy now
+      // renders in the list layout even when it is the only one.
+      test('redline outside England alone shows the list layout', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            page
+          },
+          'Baseline - only redline not in england.gpkg'
+        )
+
+        await expect(errorFilePage.errorSummary).toContainText(
+          'There is a problem with your file'
+        )
+        await expect(errorFilePage.errorSummary).toContainText(
+          REDLINE_OUTSIDE_ENGLAND_COPY
+        )
+        await expect(errorFilePage.baselineRejectedHeading).toBeVisible()
+        await expect(
+          page.getByRole('heading', { name: REDLINE_OUTSIDE_ENGLAND_COPY })
+        ).toBeVisible()
+        await expect(errorFilePage.uploadDifferentFileLink).toBeVisible()
+      })
     }
   )
 }
@@ -1066,37 +1091,41 @@ function describeUploaderRejection() {
       // session, stores an empty error array, redirects to /error-file with the
       // generic "We couldn't accept your file" message) for files the CDP
       // Uploader itself rejects — a different code path from a `ready` status
-      // followed by our backend's own GPKG/content validation. No fixture or
-      // technique in this repo currently drives that branch (not a virus-scan
-      // test file, not an oversized file). To enable:
-      //   1. confirm what makes the CDP Uploader return `rejected` (virus scan?
-      //      MIME/size limit at the uploader layer specifically) and whether
-      //      it's reproducible against the local/github stub
-      //   2. add the fixture/technique and remove this test.skip
-      test.skip('a file rejected by the CDP Uploader shows the generic error-file message', async () => {})
+      // followed by our backend's own GPKG/content validation. The mock uploader
+      // in the stack rejects any filename matching `.*virus.*`; the file's
+      // content never reaches the backend.
+      test.skip(runMode === 'e2e', UPLOADER_REJECTION_SKIP_REASON)
+
+      test('a file rejected by the CDP Uploader shows the generic error-file message', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            page
+          },
+          UPLOADER_REJECTION_FILE
+        )
+
+        await expect(errorFilePage.genericHeading).toBeVisible()
+        await expect(
+          page.getByText("We couldn't accept your file. Please try again.")
+        ).toBeVisible()
+      })
     }
   )
 }
 
-// ─── Upload timeout (impractical without a fast-forward hook) ─────────────────
-
-function describeUploadTimeout() {
-  test.describe(
-    'Upload baseline — upload check timeout',
-    { tag: '@regression' },
-    () => {
-      // Elapsed > MAX_WAIT_SECONDS (120s, hardcoded in
-      // habitat-upload-received-controller.js) clears the session, sets the
-      // "The file check timed out. Please try again." flash, and redirects to
-      // the upload form. A real 2-minute wait isn't viable in this suite. To
-      // enable:
-      //   1. make MAX_WAIT_SECONDS env-overridable in the frontend (test-only)
-      //   2. drive a `pending` status for longer than the shortened window and
-      //      assert the flash + redirect, then remove this test.skip
-      test.skip('an upload stuck pending for over 120s shows the timeout flash on the upload form', async () => {})
-    }
-  )
-}
+// ─── Upload timeout ───────────────────────────────────────────────────────────
+// The 120s "file check timed out" message is covered in
+// test/specs/resilience/file-check-messages.spec.js, where a stub uploader keeps
+// reporting the upload as still scanning.
 
 // ─── Irreplaceable habitat (not yet built) ────────────────────────────────────
 
@@ -1166,6 +1195,5 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
   describeGeometricGateErrors()
   describeSingleErrorDropout()
   describeUploaderRejection()
-  describeUploadTimeout()
   describeIrreplaceableHabitat()
 })

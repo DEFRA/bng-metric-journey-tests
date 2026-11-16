@@ -97,10 +97,12 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         ).toHaveCount(0)
       })
 
-      // `all unit and intervention types`: the only shared pair with a Low
-      // watercourse. Canals lose 4.52 units (Medium deficit), the Culvert loses
-      // 0.32 with no Medium surplus to carry down. SOLE real-data witness for
-      // the Low band, for its tag on the cumulative tile (PR#387), and for
+      // `all unit and intervention types`: Canals lose 4.52 units (Medium
+      // deficit) and the three Culverts lose 1.94 (R001 0.69, R006 0.32, R008
+      // 0.93) with no Medium surplus to carry down. R001 and R008 count since
+      // their Poor recut for BMD-1195; before it they had no units and the
+      // figure was 0.32. SOLE witness on this page for the Low band, for its
+      // tag on the cumulative tile (PR#387), and for
       // `showLowTotals: false` — neither grid has a totals row, unlike the
       // area page.
       test('a Medium deficit and a Low running total below zero both read "Not met"', async ({
@@ -151,7 +153,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
             LOW,
             LOW_TILES.netChange
           )
-        ).toBe('-0.32 units')
+        ).toBe('-1.94 units')
         // A Medium deficit never carries down: available reads 0.00, not -4.52.
         expect(
           await watercoursesTradingSummaryPage.bandTileValue(
@@ -164,7 +166,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
             LOW,
             LOW_TILES.cumulativeSurplus
           )
-        ).toBe('-0.32 units')
+        ).toBe('-1.94 units')
         await expectStatusTag(
           watercoursesTradingSummaryPage.bandTileTag(
             LOW,
@@ -177,7 +179,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         ).toHaveCount(0)
         expect(await watercoursesTradingSummaryPage.readBandGrid(LOW)).toEqual({
           headers: UNIT_CHANGE_COLUMNS,
-          rows: [['Culvert', '-0.32']]
+          rows: [['Culvert', '-1.94']]
         })
       })
 

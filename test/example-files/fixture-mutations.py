@@ -141,6 +141,40 @@ def build_distinctiveness_fixture():
         con.close()
 
 
+def build_distinctiveness_and_missing_ref_fixture():
+    """`habitat distinctiveness out of scope and missing habitat ref.gpkg`.
+
+    Copy of the distinctiveness fixture above with H2-1's Parcel Ref set to SQL
+    NULL, as `missing habitat ref.gpkg` has it. Both are data-quality checks, so
+    the backend reports HABITAT_REF_MISSING beside the distinctiveness error and
+    the page renders the multi-error list, where the blank ref is a heading with
+    no rows under it (BMD-1086 AC7).
+
+    Used by upload-post-intervention.spec.js (content validation errors).
+    """
+    src = EX / "Post-intervention - habitat distinctiveness out of scope.gpkg"
+    dst = EX / (
+        "Post-intervention - habitat distinctiveness out of scope and missing"
+        " habitat ref.gpkg"
+    )
+    shutil.copyfile(src, dst)
+    con = sqlite3.connect(dst)
+    try:
+        update_attr(
+            con, "Habitats", '"Parcel Ref"=NULL WHERE "Parcel Ref"=?', ("H2-1",)
+        )
+        con.commit()
+        print("\nhabitat distinctiveness out of scope and missing habitat ref:")
+        for row in con.execute(
+            'SELECT fid, "Parcel Ref", "Proposed Habitat Type" FROM "Habitats" '
+            'WHERE "Parcel Ref" IS NULL OR "Parcel Ref"=?',
+            ("H1",),
+        ):
+            print(f"  Habitats: {row}")
+    finally:
+        con.close()
+
+
 def build_created_area_fixture():
     """`created area habitat.gpkg`: copy of complete, H2-7 -> genuinely Created.
 
@@ -417,37 +451,39 @@ def build_watercourses_uplift_fixture():
         con.close()
 
 
-def build_unrecognised_riparian_fixture():
-    """`Baseline - unrecognised riparian encroachment.gpkg`: R002 riparian -> Severe/Severe.
+def build_blank_riparian_fixture():
+    """`Baseline - blank riparian encroachment.gpkg`: R002 riparian -> NULL.
 
     BMD-1059 (backend PR#476) saves a blank or unrecognised encroachment as
     null instead of reading it as "no encroachment, x1", so the watercourse is
-    Incomplete and its units are cleared. No other fixture in this repo or the
-    harness carries such a value, so this one does: a copy of `no hedgerows`
-    (three Ditches rivers, the watercourses baseline grid fixture) with R002's
-    riparian encroachment changed from "Minor/Minor" to "Severe/Severe", which
-    is not in the reference data and which normalisation leaves unchanged.
+    Incomplete and its units are cleared. A copy of `no hedgerows` (three
+    Ditches rivers, the watercourses baseline grid fixture) with R002's
+    riparian encroachment emptied.
+
+    This was `unrecognised riparian encroachment` ("Severe/Severe") until
+    BMD-1175 (backend #615) refused any value outside the column's list at
+    upload, so only a blank now reaches the import.
 
     One defect only: the watercourse encroachment ("Major"), type and condition
     are untouched, so the upload still passes validation and only that field is
     nulled. Used by watercourses-baseline.spec.js.
     """
     src = EX / "Baseline - no hedgerows.gpkg"
-    dst = EX / "Baseline - unrecognised riparian encroachment.gpkg"
+    dst = EX / "Baseline - blank riparian encroachment.gpkg"
     shutil.copyfile(src, dst)
     con = sqlite3.connect(dst)
     try:
         update_attr(
             con, "Rivers",
             '"Baseline Encroachment into riparian zone"=? WHERE "Parcel Ref"=?',
-            ("Severe/Severe", "R002"),
+            (None, "R002"),
         )
         con.commit()
         rows = con.execute(
             'SELECT "Parcel Ref", "Baseline Encroachment into Watercourse", '
             '"Baseline Encroachment into riparian zone" FROM "Rivers"'
         ).fetchall()
-        print(f"\nunrecognised riparian encroachment baseline:\n  Rivers: {rows}")
+        print(f"\nblank riparian encroachment baseline:\n  Rivers: {rows}")
     finally:
         con.close()
 
@@ -493,6 +529,316 @@ def build_null_proposed_encroachment_fixture():
         con.close()
 
 
+_CREATED_AREA_SIGNIFICANCE = "Proposed Strategic Significance"
+_CREATED_AREA_NO_TARGET = {
+    "Proposed Condition": None,
+    "Habitat created in advance/years": None,
+    "Delay in starting habitat creation/years": None,
+}
+
+# BMD-1048 (Created area edit form). Each file is `created area habitat.gpkg`
+# with H2-7's attributes changed as listed. Only `partly blank` has a journey
+# test (post-intervention-habitat-details.spec.js, AC2); the rest back the
+# /validate-ac-manual demos named in each entry.
+_BMD1048_CREATED_AREA_VARIANTS = [
+    # AC2a and AC2e: no target condition or timing; the legacy significance
+    # label the file already carries maps to Low (frontend PR#448).
+    ("Post-intervention - created area partly blank.gpkg", _CREATED_AREA_NO_TARGET),
+    # AC2b: no dropdown value at all.
+    (
+        "Post-intervention - created area all blank.gpkg",
+        {
+            **_CREATED_AREA_NO_TARGET,
+            "Proposed Broad Habitat Type": None,
+            "Proposed Habitat Type": None,
+            "Proposed Distinctiveness": None,
+            _CREATED_AREA_SIGNIFICANCE: None,
+        },
+    ),
+    # AC2c: no reference, which the upload refuses.
+    ("Post-intervention - created area blank reference.gpkg", {"Parcel Ref": None}),
+    # AC2d: the legacy label for High.
+    (
+        "Post-intervention - created area partly blank high significance.gpkg",
+        {
+            **_CREATED_AREA_NO_TARGET,
+            _CREATED_AREA_SIGNIFICANCE: "Formally identified in local strategy",
+        },
+    ),
+    # AC2f: the legacy Medium label, rejected at import (BMD-1051).
+    (
+        "Post-intervention - created area partly blank unsupported significance.gpkg",
+        {
+            **_CREATED_AREA_NO_TARGET,
+            _CREATED_AREA_SIGNIFICANCE: (
+                "Location ecologically desirable but not in local strategy"
+            ),
+        },
+    ),
+]
+
+# BMD-1048 flag-on demos. `service-template/area-created.gpkg` is a verbatim
+# copy of the harness's
+# example-files/service-template/permutations/intervention/area-created.gpkg;
+# these cut its Created habitat H001.
+_BMD1048_SERVICE_TEMPLATE_VARIANTS = [
+    # AC2a-flag-on: no target condition or timing.
+    (
+        "service-template/area-created-no-condition-or-timing.gpkg",
+        _CREATED_AREA_NO_TARGET,
+    ),
+    # AC2c-flag-on: no broad habitat or type, which the upload refuses.
+    (
+        "service-template/area-created-no-habitat-type.gpkg",
+        {
+            "Proposed Broad Habitat Type": None,
+            "Proposed Habitat Type": None,
+            "Proposed Distinctiveness": None,
+        },
+    ),
+]
+
+
+def _build_attribute_variant(src_name, dst_name, table, ref_col, ref, values):
+    shutil.copyfile(EX / src_name, EX / dst_name)
+    con = sqlite3.connect(EX / dst_name)
+    try:
+        (matches,) = con.execute(
+            f'SELECT count(*) FROM "{table}" WHERE "{ref_col}"=?', (ref,)
+        ).fetchone()
+        if matches != 1:
+            raise SystemExit(f"{dst_name}: expected 1 {ref} row, found {matches}")
+        assignments = ", ".join(f'"{column}"=?' for column in values)
+        update_attr(
+            con, table, f'{assignments} WHERE "{ref_col}"=?',
+            (*values.values(), ref),
+        )
+        con.commit()
+        print(f"  {dst_name}: {ref} {sorted(values)}")
+    finally:
+        con.close()
+
+
+def build_bmd1048_created_area_fixtures():
+    """BMD-1048 Created area fixtures: see the two variant lists above."""
+    print("\nBMD-1048 created area variants:")
+    for dst_name, values in _BMD1048_CREATED_AREA_VARIANTS:
+        _build_attribute_variant(
+            "Post-intervention - created area habitat.gpkg", dst_name,
+            "Habitats", "Parcel Ref", "H2-7", values,
+        )
+    for dst_name, values in _BMD1048_SERVICE_TEMPLATE_VARIANTS:
+        _build_attribute_variant(
+            "service-template/area-created.gpkg", dst_name,
+            "Area Habitats Post-Intervention", "Habitat Ref", "H001", values,
+        )
+
+
+def build_bmd1049_created_hedgerow_fixture():
+    """`created hedgerow partly blank.gpkg`: BMD-1049 AC2, an incomplete Created hedgerow.
+
+    `created linear features.gpkg` with HG013 keeping its hedge type but losing
+    its target condition, strategic significance and timing, so it imports
+    Incomplete with type-derived values only. Used by
+    post-intervention-habitat-details.spec.js ("Created hedgerow habitats — editing").
+    """
+    print("\nBMD-1049 created hedgerow variant:")
+    _build_attribute_variant(
+        "Post-intervention - created linear features.gpkg",
+        "Post-intervention - created hedgerow partly blank.gpkg",
+        "Hedgerows", "Parcel Ref", "HG013",
+        {**_CREATED_AREA_NO_TARGET, "Proposed Strategic Significance": None},
+    )
+
+
+# BMD-1195 (backend #624): one blanked baseline value per layer, each on a
+# Retained feature of the all-met trading pair, whose baselines are otherwise
+# all Complete. Each blank is one BMD-482 incompleteness rule (AC4/AC5/AC6).
+_BMD1195_BLANKS = [
+    ("Post-intervention - incomplete baseline area habitat.gpkg",
+     "Habitats", "H002", {"Baseline Condition": None}),
+    ("Post-intervention - incomplete baseline hedgerow.gpkg",
+     "Hedgerows", "HG001", {"Baseline Condition": None}),
+    ("Post-intervention - incomplete baseline watercourse.gpkg",
+     "Rivers", "R001", {"Baseline Encroachment into Watercourse": None}),
+]
+
+
+def build_bmd1195_incomplete_baseline_fixtures():
+    """BMD-1195: a post-intervention file whose derived baseline is Incomplete.
+
+    One PI variant per layer (AC1-AC3), each refused with
+    BASELINE_HABITATS_INCOMPLETE naming the one blanked feature, and a Baseline
+    file with all three blanks (AC6), which a baseline upload still accepts and
+    saves as Incomplete.
+    """
+    print("\nBMD-1195 incomplete baseline variants:")
+    for dst_name, table, ref, values in _BMD1195_BLANKS:
+        _build_attribute_variant(
+            "trading-all-met-post-intervention.gpkg", dst_name,
+            table, "Parcel Ref", ref, values,
+        )
+    dst_name = "Baseline - incomplete habitat on every layer.gpkg"
+    shutil.copyfile(EX / "trading-all-met-baseline.gpkg", EX / dst_name)
+    con = sqlite3.connect(EX / dst_name)
+    try:
+        for _, table, ref, values in _BMD1195_BLANKS:
+            (column,) = values
+            update_attr(
+                con, table, f'"{column}"=NULL WHERE "Parcel Ref"=?', (ref,)
+            )
+        con.commit()
+        print(f"  {dst_name}: {[ref for _, _, ref, _ in _BMD1195_BLANKS]}")
+    finally:
+        con.close()
+
+
+# BMD-1175 (backend #615) refuses, at upload, a drop-down value that the
+# template's lists do not offer (VALUE_NOT_ALLOWED) and a text value over its
+# limit (TEXT_TOO_LONG), before any other check. The recuts below keep each
+# fixture failing or passing for the reason it was built for.
+
+# The words harness #222 rewrote its own fixtures to (harness
+# example-files/README.md, "Template words (BMD-1175)"). None of them enters
+# the metric: the service takes a tree's habitat from Rural or Urban Tree.
+_TEMPLATE_TREE_WORDS = {
+    "Tree Type": {
+        "Woodland tree": "Native",
+        "Hedgerow tree": "Native",
+        "Urban tree": "Native",
+        "Rural tree": "Native",
+        "Street tree": "Non-native",
+        "Park/garden tree": "Non-native",
+    },
+    "Rural or Urban Tree": {"Urban": "Urban tree", "Rural": "Rural tree"},
+}
+_OLD_TREE_CATEGORIES = ("Retained", "Lost")
+
+
+def rewrite_template_tree_words():
+    """Every legacy fixture: Urban Trees words -> the Natural England list's words.
+
+    Category becomes `Newly Planted` for a Created tree and `Existing` for the
+    rest. Runs last, so the fixtures built above from a source are covered too.
+    """
+    print("\nBMD-1175 template tree words:")
+    for path in sorted(EX.glob("*.gpkg")):
+        con = sqlite3.connect(path)
+        try:
+            try:
+                columns = {
+                    row[1]
+                    for row in con.execute('PRAGMA table_info("Urban Trees")')
+                }
+            except sqlite3.DatabaseError:
+                continue  # not a GeoPackage, by design
+            changed = 0
+            for suffix, words in _TEMPLATE_TREE_WORDS.items():
+                for side in ("Baseline", "Proposed"):
+                    column = f"{side} {suffix}"
+                    if column not in columns:
+                        continue
+                    for old, new in words.items():
+                        changed += update_attr(
+                            con, "Urban Trees",
+                            f'"{column}"=? WHERE "{column}"=?', (new, old),
+                        )
+            if "Category" in columns:
+                placeholders = ", ".join("?" for _ in _OLD_TREE_CATEGORIES)
+                changed += update_attr(
+                    con, "Urban Trees",
+                    '"Category"=CASE WHEN "Retention Category"=\'Created\' '
+                    "THEN 'Newly Planted' ELSE 'Existing' END "
+                    f'WHERE "Category" IN ({placeholders})',
+                    _OLD_TREE_CATEGORIES,
+                )
+            con.commit()
+            if changed:
+                print(f"  {path.name}: {changed} values")
+        finally:
+            con.close()
+
+
+def recut_no_hedgerows_h037():
+    """`Baseline - no hedgerows.gpkg`: H037 Proposed Habitat Type "Felled" -> NULL.
+
+    An old generator word, in a column a baseline upload does not read. Runs
+    before build_blank_riparian_fixture, which copies this file.
+    """
+    con = sqlite3.connect(EX / "Baseline - no hedgerows.gpkg")
+    try:
+        update_attr(
+            con, "Habitats",
+            '"Proposed Habitat Type"=NULL WHERE "Proposed Habitat Type"=?',
+            ("Felled",),
+        )
+        con.commit()
+        row = con.execute(
+            'SELECT "Parcel Ref", "Proposed Habitat Type" FROM "Habitats" '
+            'WHERE "Parcel Ref"=?', ("H037",)
+        ).fetchone()
+        print(f"\nno hedgerows H037: {row}")
+    finally:
+        con.close()
+
+
+def recut_placeholder_baseline_types():
+    """`blank and placeholder baseline types on every layer`: keep BASELINE_TYPE_MISSING.
+
+    H004 "N/A" and HG011 "(no selection)" are not in their lists, so the file
+    was refused with VALUE_NOT_ALLOWED before BASELINE_TYPE_MISSING was
+    reached. They become '' and "Null", which both still count as blank,
+    beside H002 (NULL), R003 ("Null") and T002 (''). Used by
+    upload-post-intervention.spec.js.
+    """
+    name = "Post-intervention - blank and placeholder baseline types on every layer.gpkg"
+    con = sqlite3.connect(EX / name)
+    try:
+        for table, column, old, new in (
+            ("Habitats", "Baseline Habitat Type", "N/A", ""),
+            ("Hedgerows", "Baseline Hedge Type", "(no selection)", "Null"),
+        ):
+            update_attr(con, table, f'"{column}"=? WHERE "{column}"=?', (new, old))
+        con.commit()
+        print(f"\nplaceholder baseline types: {name}")
+    finally:
+        con.close()
+
+
+_LONG_REF_LIMIT = 99
+
+
+def recut_long_padded_refs():
+    """The long-and-padded pair: the 115-character H002 ref -> its first 99.
+
+    99 characters is the Habitat Ref limit, and a ref at the limit is accepted
+    (BMD-1175 AC8). The padding around each ref is kept, so the pair still
+    shows the trim. Both halves now hold the same 99 characters, so H002 still
+    links to its baseline. Used by getLongPaddedRefsProject in
+    test/utils/summary-projects.js.
+    """
+    for name in (
+        "Baseline - long and padded habitat refs.gpkg",
+        "Post-intervention - long and padded habitat refs.gpkg",
+    ):
+        con = sqlite3.connect(EX / name)
+        try:
+            for (ref,) in con.execute('SELECT "Parcel Ref" FROM "Habitats"').fetchall():
+                if ref is None or len(ref.strip()) <= _LONG_REF_LIMIT:
+                    continue
+                core = ref.strip()
+                lead = ref[: len(ref) - len(ref.lstrip())]
+                trail = ref[len(ref.rstrip()):]
+                cut = f"{lead}{core[:_LONG_REF_LIMIT]}{trail}"
+                update_attr(
+                    con, "Habitats", '"Parcel Ref"=? WHERE "Parcel Ref"=?', (cut, ref)
+                )
+                print(f"\nlong ref cut to {_LONG_REF_LIMIT} ({name}): {cut!r}")
+            con.commit()
+        finally:
+            con.close()
+
+
 def _report(con, label, layers):
     print(f"\n{label}:")
     for table, ref in layers:
@@ -502,10 +848,49 @@ def _report(con, label, layers):
         print(f"  {table}: {rows}")
 
 
+_CULVERT_PI_FIXTURES = (
+    "Post-intervention - all unit and intervention types.gpkg",
+    "Post-intervention - net gain met.gpkg",
+    "Post-intervention - IGGI habitat.gpkg",
+    "Post-intervention - created linear features.gpkg",
+    "Post-intervention - long and padded habitat refs.gpkg",
+    "Post-intervention - created hedgerow partly blank.gpkg",
+)
+
+
+def recut_culvert_baseline_conditions():
+    """Culvert Baseline Condition -> "Poor" in the PI files of the shared pairs.
+
+    Poor is a Culvert's only condition. Good or Moderate is nulled on import,
+    so the derived baseline watercourse is Incomplete, and since backend #624
+    (BMD-1195) a post-intervention file with an incomplete baseline is refused.
+    The Baseline files keep their old condition: a baseline-only upload still
+    saves the culvert Incomplete. The negative fixtures are left alone.
+    """
+    for name in _CULVERT_PI_FIXTURES:
+        con = sqlite3.connect(EX / name)
+        try:
+            update_attr(
+                con, "Rivers",
+                '"Baseline Condition"=? WHERE "Baseline River Type"=? '
+                'AND "Baseline Condition"<>?',
+                ("Poor", "Culvert", "Poor"),
+            )
+            con.commit()
+            rows = con.execute(
+                'SELECT "Parcel Ref", "Baseline Condition" FROM "Rivers" '
+                'WHERE "Baseline River Type"=?', ("Culvert",)
+            ).fetchall()
+            print(f"\n{name} culverts: {rows}")
+        finally:
+            con.close()
+
+
 if __name__ == "__main__":
     recut_mixed_fixture()
     build_lost_tree_fixture()
     build_distinctiveness_fixture()
+    build_distinctiveness_and_missing_ref_fixture()
     build_created_area_fixture()
     build_watercourse_wc3_baseline_fixture()
     recut_all_unit_types_hg032()
@@ -513,6 +898,14 @@ if __name__ == "__main__":
     build_created_hedgerows_fixture()
     build_created_watercourses_fixture()
     build_watercourses_uplift_fixture()
-    build_unrecognised_riparian_fixture()
+    recut_no_hedgerows_h037()
+    build_blank_riparian_fixture()
     build_null_proposed_encroachment_fixture()
+    build_bmd1048_created_area_fixtures()
+    build_bmd1049_created_hedgerow_fixture()
+    recut_placeholder_baseline_types()
+    recut_long_padded_refs()
+    recut_culvert_baseline_conditions()
+    build_bmd1195_incomplete_baseline_fixtures()
+    rewrite_template_tree_words()
     print("\nDone.")

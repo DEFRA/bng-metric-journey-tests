@@ -14,6 +14,8 @@ import {
   BASELINE_NAV_CHILD,
   HEDGEROWS,
   POST_INTERVENTION_NAV_CHILD,
+  STATUS_COMPLETE,
+  STATUS_INCOMPLETE,
   SUMMARY,
   TILE_BASELINE,
   TRADING_RULES_NAV_CHILD,
@@ -27,12 +29,11 @@ const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const BASELINE_PATH = 'watercourses-baseline-summary'
 const LEGACY_BASELINE_PATH = 'watercourses-baseline'
 
-// `Baseline - no hedgerows.gpkg` with R002's riparian encroachment changed to
-// "Severe/Severe" — built by `build_unrecognised_riparian_fixture()` in
+// `Baseline - no hedgerows.gpkg` with R002's riparian encroachment emptied —
+// built by `build_blank_riparian_fixture()` in
 // test/example-files/fixture-mutations.py.
-const UNRECOGNISED_RIPARIAN_FILE =
-  'Baseline - unrecognised riparian encroachment.gpkg'
-const UNRECOGNISED_RIPARIAN_REF = 'R002'
+const BLANK_RIPARIAN_FILE = 'Baseline - blank riparian encroachment.gpkg'
+const BLANK_RIPARIAN_REF = 'R002'
 
 const UNITS_2DP = /^\d+\.\d{2}$/
 const KILOMETRES = /^\d+(\.\d+)?km$/
@@ -69,6 +70,7 @@ const TILE_HEADINGS = [
 // case rather than the AC's title case.
 const COLUMN_HEADINGS = [
   'Ref',
+  'Status',
   'Units',
   'Size',
   'Habitat type',
@@ -169,6 +171,12 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         expect(new Set(significance)).toEqual(
           new Set([FIXED_STRATEGIC_SIGNIFICANCE])
         )
+
+        // BMD-1101 AC2: the status the backend saves on upload reaches the
+        // grid. Every row of this file is valid, so every row is Complete.
+        const status = await watercoursesBaselinePage.columnValues('status')
+        expect(status).toHaveLength(EXPECTED_WATERCOURSES)
+        expect(new Set(status)).toEqual(new Set([STATUS_COMPLETE]))
       }
     )
 
@@ -203,6 +211,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       await expect(watercoursesBaselinePage.totalsCell('size')).toHaveText(
         KILOMETRES
       )
+      // BMD-1101 AC4: the Status cell is blank in the totals row.
+      await expect(watercoursesBaselinePage.totalsCell('status')).toHaveText('')
       // The four non-numeric columns stay empty in the totals row.
       await expect(
         watercoursesBaselinePage.totalsCell('habitatType')
@@ -516,18 +526,20 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     }
   )
 
-  // ─── Unrecognised encroachment on import (BMD-1059) ─────────────────────────
+  // ─── Blank encroachment on import (BMD-1059) ────────────────────────────────
   //
-  // Since backend PR#476 an encroachment the reference data does not recognise
-  // is saved as null instead of being read as "no encroachment, x1": the
-  // watercourse is Incomplete and gets no units. The upload is NOT rejected.
+  // Since backend PR#476 a blank or unrecognised encroachment is saved as null
+  // instead of being read as "no encroachment, x1": the watercourse is
+  // Incomplete and gets no units. The upload is NOT rejected. Since BMD-1175
+  // (backend #615) an unrecognised value is refused at upload, so only a blank
+  // one reaches the import.
   // `integration-tests/import-attributes.test.js:103` and `:157` prove the null
-  // and the Incomplete status from a real file, but never render. The frontend
-  // shows no "Incomplete" label anywhere, so what the user sees is only this:
-  // a blank Units cell, a total without it, and an empty select to fix it with.
-  // Sole witness that the cleared units and the nulled field reach the page.
+  // and the Incomplete status from a real file, but never render. What the
+  // user sees is this: an "Incomplete" Status tag (BMD-1101), a blank Units
+  // cell, a total without it, and an empty select to fix it with. Sole witness
+  // that the cleared units and the nulled field reach the page.
   test.describe(
-    'Watercourses baseline — unrecognised encroachment on import',
+    'Watercourses baseline — blank encroachment on import',
     { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
@@ -537,13 +549,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       test.beforeAll(async ({ browser }) => {
         // Accepted, not rejected: the build waits for the project summary and
         // would time out on the error-file dropout.
-        project = await buildBaselineOnlyProject(
-          browser,
-          UNRECOGNISED_RIPARIAN_FILE
-        )
+        project = await buildBaselineOnlyProject(browser, BLANK_RIPARIAN_FILE)
       })
 
-      test('a watercourse with an unrecognised riparian encroachment is listed without units and asks for the value', async ({
+      test('a watercourse with a blank riparian encroachment is listed without units and asks for the value', async ({
         page,
         watercoursesBaselinePage,
         baselineHabitatDetailsPage
@@ -552,10 +561,18 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
         const refs = await watercoursesBaselinePage.columnValues('ref')
         const units = await watercoursesBaselinePage.columnValues('units')
-        expect(refs).toEqual(['R001', UNRECOGNISED_RIPARIAN_REF, 'R003'])
+        expect(refs).toEqual(['R001', BLANK_RIPARIAN_REF, 'R003'])
 
-        const index = refs.indexOf(UNRECOGNISED_RIPARIAN_REF)
+        const index = refs.indexOf(BLANK_RIPARIAN_REF)
         expect(units[index].trim()).toBe('')
+        // BMD-1101 AC3: saved Incomplete on upload, and shown as such. The
+        // other two rivers are complete.
+        const status = await watercoursesBaselinePage.columnValues('status')
+        expect(status[index]).toBe(STATUS_INCOMPLETE)
+        expect(status.filter((_, i) => i !== index)).toEqual([
+          STATUS_COMPLETE,
+          STATUS_COMPLETE
+        ])
         const others = units.filter((_, i) => i !== index)
         for (const value of others) {
           expect(value).toMatch(UNITS_2DP)
@@ -570,12 +587,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           1
         )
 
-        await watercoursesBaselinePage
-          .refLink(UNRECOGNISED_RIPARIAN_REF)
-          .click()
+        await watercoursesBaselinePage.refLink(BLANK_RIPARIAN_REF).click()
         await page.waitForURL(/\/baseline-habitat-details\?/)
 
-        // Only the unrecognised field is nulled — the river's valid
+        // Only the blank field is nulled — the river's valid
         // watercourse encroachment ("Major") survives the import.
         await expect(
           baselineHabitatDetailsPage.riparianEncroachmentSelect

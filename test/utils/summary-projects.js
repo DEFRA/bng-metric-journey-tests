@@ -31,6 +31,12 @@ export const NO_HEDGEROWS_FILE = 'Baseline - no hedgerows.gpkg'
 // 120 habitat parcels, 60 urban trees, 40 hedgerows and 8 rivers — the only
 // baseline fixture that populates every unit type at once, so it is what the
 // hedgerow and watercourse pages need.
+//
+// Its Culverts R001 and R008 stay in Good condition, which a Culvert cannot
+// have, so they are saved Incomplete. That makes this upload the journey
+// witness for BMD-1195 AC6: a BASELINE upload with incomplete habitats is still
+// accepted. Only the PI half was recut to Poor (recut_culvert_baseline_conditions
+// in fixture-mutations.py). Recutting this file too would remove that witness.
 export const ALL_UNIT_TYPES_FILE =
   'Baseline - all unit and intervention types.gpkg'
 
@@ -179,9 +185,11 @@ export const IGGI_BASELINE_FILE = 'Baseline - IGGI habitat.gpkg'
 export const IGGI_PI_FILE = 'Post-intervention - IGGI habitat.gpkg'
 
 // BMD-1058's pair (harness PR#156). Refs on all three ref layers carry padding,
-// a 115-character ref, non-ASCII text, and refs of exactly 10 and of 16
-// characters. The PI half spells each ref differently (other padding, other
-// characters past the 100th), so each matches its baseline only once cleaned.
+// a 99-character ref, non-ASCII text, and refs of exactly 10 and of 16
+// characters. The PI half pads each ref differently, so each matches its
+// baseline only once cleaned. The long ref was 115 characters until BMD-1175
+// (backend #615) refused a ref over 99; `recut_long_padded_refs()` in
+// test/example-files/fixture-mutations.py cuts it to the limit.
 export const LONG_PADDED_REFS_BASELINE_FILE =
   'Baseline - long and padded habitat refs.gpkg'
 export const LONG_PADDED_REFS_PI_FILE =
@@ -191,8 +199,8 @@ export const LONG_PADDED_REFS_PI_FILE =
 export const LONG_PADDED_REFS = {
   // '  H001  ' in the baseline file, 'H001' in the PI file.
   padded: 'H001',
-  // 115 characters in the file, ending 'VWXYZ'; stored as the first 100.
-  long: `H002-${'ABCDEFGHIJ'.repeat(9)}ABCDE`,
+  // 99 characters, the Habitat Ref limit, so it is stored whole.
+  long: `H002-${'ABCDEFGHIJ'.repeat(9)}ABCD`,
   // 11 characters, so the grids cut it; ' Café–Ω H003' in the PI file.
   nonAscii: 'Café–Ω H003'
 }
@@ -233,6 +241,32 @@ async function buildPostInterventionProject(browser, baselineFile, piFile) {
     await new UploadBaselineFileFlow(page).uploadFileAndWaitForSummary(
       id,
       baselineFile
+    )
+    await new UploadPostInterventionFileFlow(page).uploadFileAndWaitForSummary(
+      id,
+      piFile
+    )
+    return { id, name }
+  } finally {
+    await context.close()
+  }
+}
+
+// A post-intervention file uploaded into an empty project. Since BMD-1056
+// (backend PR #478) the upload derives the baseline from the file's own
+// non-Created rows, so one upload gives a project with both. Not cached: the
+// callers edit what it builds.
+async function buildPostInterventionOnlyProject(browser, piFile) {
+  const context = await browser.newContext({
+    storageState: STORAGE_STATE,
+    baseURL: baseUrl
+  })
+  const page = await context.newPage()
+  try {
+    const { id, name } = await setupProject(
+      new CreateProjectFlow(page),
+      new ProjectDashboardPage(page),
+      PROJECT_LABEL
     )
     await new UploadPostInterventionFileFlow(page).uploadFileAndWaitForSummary(
       id,
@@ -593,4 +627,8 @@ export function getLongPaddedRefsProject(browser) {
   )
 }
 
-export { buildBaselineOnlyProject, buildPostInterventionProject }
+export {
+  buildBaselineOnlyProject,
+  buildPostInterventionOnlyProject,
+  buildPostInterventionProject
+}

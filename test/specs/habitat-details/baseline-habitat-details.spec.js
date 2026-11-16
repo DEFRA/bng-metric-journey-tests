@@ -11,9 +11,11 @@ import { HedgerowsBaselinePage } from '@pages/hedgerows-baseline.page.js'
 import { WatercoursesBaselinePage } from '@pages/watercourses-baseline.page.js'
 import {
   LONG_PADDED_REFS,
+  buildPostInterventionOnlyProject,
   getLongPaddedRefsProject
 } from '@utils/summary-projects.js'
 import { gridRefName } from '@utils/habitat-ref-display.js'
+import { STATUS_COMPLETE, STATUS_INCOMPLETE } from '@utils/unit-type-labels.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 // The edit/save describes each run their own real-CDP upload; under e2e load the
@@ -67,27 +69,48 @@ const IN_SCOPE_WATERCOURSE_TYPES = ['Canals', 'Culvert', 'Ditches']
 const COMPLETE_BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
 const PROJECT_LABEL = 'Habitat details test'
 
+// BMD-1112 — the habitat's comment, shown as "Supporting information". Harness
+// valid/ (BMD-1100). Only Retained and Lost rows put the file's comment on the
+// baseline habitat: area H2-2 (Retained, padded in the file) and hedgerow H2
+// (Lost). Area H3 is Enhanced, so its comment stays on its post-intervention
+// habitat and its baseline box is empty. No baseline watercourse has one.
+const COMMENTS_FILE = 'Post-intervention - comments are valid.gpkg'
+// Harness PR#235, made for BMD-1112: the all-unit-types pair with trees whose
+// baseline edits can be saved.
+const TREES_COMMENT_FILE =
+  'Post-intervention - all unit and intervention types with valid trees.gpkg'
+const COMMENT_HINT =
+  'Add information to help the Local Planning Authority understand the baseline metric.'
+const AREA_H2_2_COMMENT =
+  'This comment has both leading and trailing spaces in the geopackage.'
+const HEDGEROW_H2_COMMENT = 'This hedge needs to be removed.'
+const MAX_COMMENT_LENGTH = 999
+const COMMENT_TOO_LONG_SUMMARY = 'The supporting information is too long.'
+const COMMENT_TOO_LONG_INLINE =
+  'Supporting information must be 999 characters or less.'
+const COMMENT_INVALID_SUMMARY =
+  'The supporting information uses invalid characters.'
+const COMMENT_INVALID_INLINE =
+  'The supporting information can only use UTF-8 characters.'
+
 // BMD-1043 (frontend PR#352) removed the baseline habitat list. Each feature
 // type's grid now lives on its own unit-type baseline page, and that page is
-// where the details page's Back, Cancel and Save all lead. Column indexes follow
-// buildBaselineHabitatGrid: ref, units, size, [broad habitat — area only],
-// habitat type, distinctiveness, condition, strategic significance. The grid
-// has no Status column, so Complete/Incomplete is not observable there.
+// where the details page's Back, Cancel and Save all lead. Cells are read by
+// column name through each page object's COLUMN map, so the grid's column
+// order lives in one place. The Status column (BMD-1101) shows whether a save
+// left the habitat Complete or Incomplete.
 const BASELINE_PAGES = {
   area: {
     path: 'area-baseline',
-    Page: AreaBaselinePage,
-    columns: { units: 1, size: 2, distinctiveness: 5, condition: 6 }
+    Page: AreaBaselinePage
   },
   hedgerow: {
     path: 'hedgerows-baseline',
-    Page: HedgerowsBaselinePage,
-    columns: { units: 1, size: 2, distinctiveness: 4, condition: 5 }
+    Page: HedgerowsBaselinePage
   },
   watercourse: {
     path: 'watercourses-baseline-summary',
-    Page: WatercoursesBaselinePage,
-    columns: { units: 1, size: 2, distinctiveness: 4, condition: 5 }
+    Page: WatercoursesBaselinePage
   }
 }
 
@@ -118,7 +141,7 @@ function gridRow(page, type, ref) {
 function gridCell(page, type, ref, column) {
   return gridRow(page, type, ref)
     .locator('td')
-    .nth(BASELINE_PAGES[type].columns[column])
+    .nth(BASELINE_PAGES[type].Page.COLUMN[column])
 }
 
 // The grid renders condition as label and score — "Good (3)" — where the
@@ -232,7 +255,7 @@ async function expectDerivedValuesHidden(detailsPage) {
 // so strip it to compare like-for-like; area size reads "1.36ha" on both.
 async function readGridFeatures(page, projectId, type) {
   const grid = await openBaselineGrid(page, projectId, type)
-  const { columns } = BASELINE_PAGES[type]
+  const columns = BASELINE_PAGES[type].Page.COLUMN
   const features = []
   for (const row of await grid.featureRows().all()) {
     const link = row.getByRole('link').first()
@@ -557,8 +580,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     // AC6 (Scenario A — all options selected): saving a changed selection
     // persists it, recalculates the habitat units, and returns to the area
     // habitats baseline with the row and the grid total reflecting the new
-    // calculation. The grid has no Status column (BMD-1043), so "Complete" is
-    // evidenced by the recalculated units rather than a status cell.
+    // calculation, and its Status cell showing Complete (BMD-1101).
     test(
       'AC6 Scenario A — saving with all options selected recalculates units',
       { tag: '@smoke' },
@@ -597,6 +619,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         )
         await expect(gridUnitsTotal(page, 'area')).toHaveText(
           HABITAT_UNITS_PATTERN
+        )
+        await expect(gridCell(page, 'area', areaRef, 'status')).toHaveText(
+          STATUS_COMPLETE
         )
       }
     )
@@ -781,9 +806,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     )
 
     // AC6 (Scenario B — not all options selected): saving with a dropdown
-    // deselected clears the units — null + Incomplete since BMD-1070 (the
-    // grid has no Status column to show Incomplete — BMD-1043). Runs last in
-    // the serial block because it leaves the shared habitat Incomplete.
+    // deselected clears the units — null + Incomplete since BMD-1070, shown
+    // in the Status column (BMD-1101). Runs last in the serial block because
+    // it leaves the shared habitat Incomplete.
     test(
       'AC6 Scenario B — saving with a deselected dropdown clears units',
       { tag: '@regression' },
@@ -795,6 +820,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
         await expect(gridCell(page, 'area', areaRef, 'units')).toHaveText(
           NO_UNITS
+        )
+        await expect(gridCell(page, 'area', areaRef, 'status')).toHaveText(
+          STATUS_INCOMPLETE
         )
       }
     )
@@ -1076,7 +1104,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     // AC6 (Scenario A — all options selected): saving a changed selection
     // persists it, recalculates the hedgerow units, and returns to the
     // hedgerows baseline with the row and the grid total reflecting the new
-    // calculation. The grid has no Status column (BMD-1043).
+    // calculation, and its Status cell showing Complete (BMD-1101).
     test(
       'AC6 Scenario A — saving with all options selected recalculates units',
       { tag: '@smoke' },
@@ -1112,6 +1140,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(gridUnitsTotal(page, 'hedgerow')).toHaveText(
           HABITAT_UNITS_PATTERN
         )
+        await expect(
+          gridCell(page, 'hedgerow', hedgerowRef, 'status')
+        ).toHaveText(STATUS_COMPLETE)
       }
     )
 
@@ -1242,9 +1273,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     )
 
     // AC6 (Scenario B — not all options selected): saving with the condition
-    // deselected clears the units — null + Incomplete since BMD-1070 (no
-    // Status column — BMD-1043). Runs last in the serial block because it
-    // leaves the shared hedgerow Incomplete.
+    // deselected clears the units — null + Incomplete since BMD-1070, shown
+    // in the Status column (BMD-1101). Runs last in the serial block because
+    // it leaves the shared hedgerow Incomplete.
     test(
       'AC6 Scenario B — saving with a deselected dropdown clears units',
       { tag: '@regression' },
@@ -1257,6 +1288,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(
           gridCell(page, 'hedgerow', hedgerowRef, 'units')
         ).toHaveText(NO_UNITS)
+        await expect(
+          gridCell(page, 'hedgerow', hedgerowRef, 'status')
+        ).toHaveText(STATUS_INCOMPLETE)
       }
     )
   })
@@ -1463,8 +1497,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       // AC8/AC8c (Scenario A — all options selected): saving with habitat type,
       // condition and both encroachments set persists them, recalculates the
       // watercourse units, and returns to the watercourses baseline with the
-      // row and the grid total reflecting the new calculation. The grid has no
-      // Status column (BMD-1043).
+      // row and the grid total reflecting the new calculation, and its Status
+      // cell showing Complete (BMD-1101).
       test('Scenario A — saving with all options selected recalculates units', async ({
         createProjectFlow,
         projectDashboardPage,
@@ -1527,6 +1561,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(gridUnitsTotal(page, 'watercourse')).toHaveText(
           HABITAT_UNITS_PATTERN
         )
+        await expect(
+          gridCell(page, 'watercourse', watercourseRef, 'status')
+        ).toHaveText(STATUS_COMPLETE)
       })
 
       // AC (change condition): changing the condition shows the new value as
@@ -1666,9 +1703,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       })
 
       // AC8 (Scenario B — not all options selected): saving with the condition
-      // deselected clears the units — null + Incomplete since BMD-1070 (no
-      // Status column — BMD-1043). Runs last in the serial block because it
-      // leaves the shared watercourse Incomplete.
+      // deselected clears the units — null + Incomplete since BMD-1070, shown
+      // in the Status column (BMD-1101). Runs last in the serial block because
+      // it leaves the shared watercourse Incomplete.
       test('Scenario B — saving with a deselected dropdown clears units', async ({
         baselineHabitatDetailsPage,
         page
@@ -1681,6 +1718,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(
           gridCell(page, 'watercourse', watercourseRef, 'units')
         ).toHaveText(NO_UNITS)
+        await expect(
+          gridCell(page, 'watercourse', watercourseRef, 'status')
+        ).toHaveText(STATUS_INCOMPLETE)
       })
     }
   )
@@ -1941,14 +1981,15 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
   )
 
   // BMD-1058 AC3/AC5. The backend cleans a ref before it is saved: it trims the
-  // padding and cuts the ref to 100 characters. The grids trim refs when they
-  // display them, so they cannot show what was saved; this page's <h1> can,
-  // because it prints the stored ref as it is.
+  // padding. Since BMD-1175 (backend #615) a ref over 99 characters is refused
+  // at upload instead of cut, so one at the limit is saved whole (AC8). The
+  // grids trim refs when they display them, so they cannot show what was
+  // saved; this page's <h1> can, because it prints the stored ref as it is.
   //
   // The only check that a real upload is cleaned on save. The rule is covered by
   // backend extract-habitat-data.test.js:1339, but only against made-up features,
   // and no integration test reads back a stored ref. Do not delete without a
-  // backend integration test that uploads a padded, over-long ref and asserts
+  // backend integration test that uploads a padded ref and asserts
   // the stored value.
   test.describe(
     'Baseline habitat details — habitat reference cleaning',
@@ -1983,11 +2024,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         )
       })
 
-      test('saves a ref longer than 100 characters as its first 100', async ({
+      test('saves a ref at the 99-character limit whole', async ({
         areaBaselinePage,
         baselineHabitatDetailsPage
       }) => {
-        // 115 characters in the uploaded file, ending 'VWXYZ'.
         await areaBaselinePage.open(projectId)
         await areaBaselinePage
           .refLink(gridRefName(LONG_PADDED_REFS.long))
@@ -1995,6 +2035,193 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
         expect(await baselineHabitatDetailsPage.rawHeadingText()).toBe(
           `Habitat ${LONG_PADDED_REFS.long}`
+        )
+      })
+    }
+  )
+
+  test.describe(
+    'Baseline habitat details — supporting information',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+      test.skip(runMode === 'e2e', E2E_UPLOAD_SKIP_REASON)
+      // Serial pins the edits to one worker. Each test uses its own habitats,
+      // so none depends on another having run.
+      test.describe.configure({
+        mode: 'serial',
+        timeout: SHARED_PAIR_BUILD_TIMEOUT
+      })
+
+      let projectId
+
+      test.beforeAll(async ({ browser }) => {
+        ;({ id: projectId } = await buildPostInterventionOnlyProject(
+          browser,
+          COMMENTS_FILE
+        ))
+      })
+
+      async function openFromGrid(page, type, ref) {
+        const grid = await openBaselineGrid(page, projectId, type)
+        await grid.refLink(ref).click()
+        await expect(page).toHaveURL(/\/baseline-habitat-details/)
+      }
+
+      test('shows an imported comment on Retained and Lost habitats, and an empty box otherwise', async ({
+        baselineHabitatDetailsPage,
+        page
+      }) => {
+        await openFromGrid(page, 'area', 'H2-2')
+        // The textbox is named by its label.
+        await expect(baselineHabitatDetailsPage.commentInput).toBeVisible()
+        await expect(baselineHabitatDetailsPage.commentHint).toHaveText(
+          COMMENT_HINT
+        )
+        // Padded in the file; trimmed on import (BMD-1100).
+        await expect(baselineHabitatDetailsPage.commentInput).toHaveValue(
+          AREA_H2_2_COMMENT
+        )
+
+        await openFromGrid(page, 'hedgerow', 'H2')
+        await expect(baselineHabitatDetailsPage.commentInput).toHaveValue(
+          HEDGEROW_H2_COMMENT
+        )
+
+        // Enhanced: the file's comment belongs to the post-intervention habitat.
+        await openFromGrid(page, 'area', 'H3')
+        await expect(baselineHabitatDetailsPage.commentInput).toHaveValue('')
+
+        await openFromGrid(page, 'watercourse', 'R2')
+        await expect(baselineHabitatDetailsPage.commentInput).toHaveValue('')
+      })
+
+      // Sole witness for a comment typed in a real browser. A browser submits a
+      // textarea's line breaks as CRLF, so a 999-character comment over several
+      // lines arrives longer than 999. The frontend turns CRLF back into LF
+      // before counting (habitat-comment.js cleanComment). Its unit tests post
+      // CRLF strings to the route directly, and the backend never sees CRLF, so
+      // neither can show that a browser's own submission is counted as the user
+      // sees it. Saving it again unchanged is the regression the developer
+      // flagged (BMD-1112 QA notes): it must not suddenly be refused as too long.
+      test('saves a 999-character comment over several lines trimmed, and saves it again unchanged', async ({
+        baselineHabitatDetailsPage,
+        page
+      }) => {
+        const comment = Array.from({ length: 10 }, (_, line) =>
+          `Line ${line}: `.padEnd(99, 'x')
+        ).join('\n')
+        expect(Array.from(comment)).toHaveLength(MAX_COMMENT_LENGTH)
+
+        await openFromGrid(page, 'watercourse', 'R3')
+        await baselineHabitatDetailsPage.commentInput.fill(`  ${comment}  `)
+        await baselineHabitatDetailsPage.saveButton.click()
+        await expect(page).toHaveURL(baselinePageUrl(projectId, 'watercourse'))
+
+        await openFromGrid(page, 'watercourse', 'R3')
+        await expect(baselineHabitatDetailsPage.commentInput).toHaveValue(
+          comment
+        )
+        await baselineHabitatDetailsPage.saveButton.click()
+        await expect(page).toHaveURL(baselinePageUrl(projectId, 'watercourse'))
+
+        await openFromGrid(page, 'watercourse', 'R3')
+        await expect(baselineHabitatDetailsPage.commentInput).toHaveValue(
+          comment
+        )
+      })
+
+      test('refuses a comment that is too long and holds an invalid character, saving nothing on the page', async ({
+        baselineHabitatDetailsPage,
+        page
+      }) => {
+        const comment = `\uFFFD${'c'.repeat(MAX_COMMENT_LENGTH)}`
+
+        await openFromGrid(page, 'area', 'H2-6')
+        const savedCondition =
+          await baselineHabitatDetailsPage.conditionSelect.inputValue()
+        const newCondition =
+          await baselineHabitatDetailsPage.selectDifferentCondition()
+        await baselineHabitatDetailsPage.commentInput.fill(comment)
+        await baselineHabitatDetailsPage.saveButton.click()
+
+        await expect(page).toHaveURL(/\/baseline-habitat-details/)
+        await expect(page).toHaveTitle(/^Error:/)
+        // Characters first, then length, and nothing else.
+        await expect(baselineHabitatDetailsPage.errorSummaryLinks).toHaveText([
+          COMMENT_INVALID_SUMMARY,
+          COMMENT_TOO_LONG_SUMMARY
+        ])
+        for (const summary of [
+          COMMENT_INVALID_SUMMARY,
+          COMMENT_TOO_LONG_SUMMARY
+        ]) {
+          await expect(
+            baselineHabitatDetailsPage.errorSummaryLink(summary)
+          ).toHaveAttribute('href', '#comment')
+        }
+        await expect(
+          baselineHabitatDetailsPage.inlineError(COMMENT_INVALID_INLINE)
+        ).toBeVisible()
+        await expect(
+          baselineHabitatDetailsPage.inlineError(COMMENT_TOO_LONG_INLINE)
+        ).toBeVisible()
+        await expect(baselineHabitatDetailsPage.commentInput).toHaveValue(
+          comment
+        )
+        await expect(baselineHabitatDetailsPage.conditionSelect).toHaveValue(
+          newCondition
+        )
+
+        await baselineHabitatDetailsPage.cancelLink.click()
+        await openFromGrid(page, 'area', 'H2-6')
+        await expect(baselineHabitatDetailsPage.commentInput).toHaveValue('')
+        await expect(baselineHabitatDetailsPage.conditionSelect).toHaveValue(
+          savedCondition
+        )
+      })
+    }
+  )
+
+  test.describe(
+    'Baseline habitat details — supporting information on a tree',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+      test.skip(runMode === 'e2e', E2E_UPLOAD_SKIP_REASON)
+      test.describe.configure({
+        mode: 'serial',
+        timeout: SHARED_PAIR_BUILD_TIMEOUT
+      })
+
+      let projectId
+
+      test.beforeAll(async ({ browser }) => {
+        ;({ id: projectId } = await buildPostInterventionOnlyProject(
+          browser,
+          TREES_COMMENT_FILE
+        ))
+      })
+
+      // The only journey save of a baseline tree. Until backend PR #629 the
+      // backend refused a tree edit as an unknown layer, which the frontend's
+      // mocked tests could not see.
+      test("saves an individual tree's comment trimmed", async ({
+        baselineHabitatDetailsPage,
+        page
+      }) => {
+        const comment = 'Veteran features noted on the north side.'
+        const grid = await openBaselineGrid(page, projectId, 'area')
+        await grid.refLink('T001').click()
+        await baselineHabitatDetailsPage.commentInput.fill(`  ${comment}  `)
+        await baselineHabitatDetailsPage.saveButton.click()
+        await expect(page).toHaveURL(baselinePageUrl(projectId, 'area'))
+
+        await grid.refLink('T001').click()
+        await expect(baselineHabitatDetailsPage.commentInput).toHaveValue(
+          comment
         )
       })
     }

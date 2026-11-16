@@ -1,0 +1,44 @@
+[
+  {
+    "name": "postgres",
+    "listen": "0.0.0.0:15432",
+    "upstream": "postgres:5432",
+    "enabled": true
+  },
+  {
+    "name": "redis",
+    "listen": "0.0.0.0:6379",
+    "upstream": "redis:6379",
+    "enabled": true
+  },
+  {
+    "name": "s3",
+    "listen": "0.0.0.0:14566",
+    "upstream": "localstack:4566",
+    "enabled": true
+  },
+  {
+    "name": "cdp-uploader",
+    "listen": "0.0.0.0:17337",
+    "upstream": "cdp-uploader:7337",
+    "enabled": true
+  },
+  {
+    "name": "backend",
+    "listen": "0.0.0.0:13001",
+    "upstream": "bng-metric-backend:3001",
+    "enabled": true
+  },
+  {
+    "name": "test-postgres",
+    "listen": "0.0.0.0:25432",
+    "upstream": "postgres:5432",
+    "enabled": true
+  },
+  {
+    "name": "test-redis",
+    "listen": "0.0.0.0:26379",
+    "upstream": "redis:6379",
+    "enabled": true
+  }
+]

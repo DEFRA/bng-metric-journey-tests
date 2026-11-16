@@ -107,6 +107,7 @@ const CREATED_HIGH_REF = 'HG013'
 // "Standard Difficulty".
 const RETAINED_COLUMNS = [
   'Ref',
+  'Status',
   'Units',
   'Size',
   'Habitat type',
@@ -116,6 +117,7 @@ const RETAINED_COLUMNS = [
 ]
 const TARGET_COLUMNS = [
   'Ref',
+  'Status',
   'Units',
   'Size',
   'Habitat type',
@@ -736,7 +738,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         }
       )
 
-      // AC4c, AC5, AC7 on the Created grid — the 12-column shape, with the
+      // AC4c, AC5, AC7 on the Created grid — the 13-column shape, with the
       // target and time-to-target block in place of Condition.
       test('the Created grid carries the target and time-to-target columns', async ({
         hedgerowsPostInterventionPage
@@ -949,10 +951,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // AC6. The unit suite asserts the pane is in the markup with the right
       // aria-label; what it cannot see is whether the pane ever actually
       // overflows, which is the whole point of the requirement. Run on a
-      // twelve-column grid — the seven-column Retained one is the narrow case,
+      // thirteen-column grid — the eight-column Retained one is the narrow case,
       // and `hedgerows-baseline.spec.js:195` already witnesses that width on
       // its own page.
-      test('a twelve-column grid sits in a pane that overflows horizontally', async ({
+      test('a thirteen-column grid sits in a pane that overflows horizontally', async ({
         hedgerowsPostInterventionPage
       }) => {
         const grid = hedgerowsPostInterventionPage
@@ -1002,7 +1004,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
             // The ref identifies WHICH hedgerow was opened — without it the
             // assertions above pass on any of the three.
             await expect(
-              page.getByText(reference, { exact: true }).first()
+              page.getByRole('heading', {
+                name: new RegExp(`(^|\\s)${reference}$`),
+                level: 1
+              })
             ).toBeVisible()
           }
         }

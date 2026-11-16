@@ -21,12 +21,14 @@ const baseURL =
 export default defineConfig({
   globalSetup: './test/setup/auth.setup.js',
   testDir: './test',
-  // Neither tree belongs in the normal suite (CI, regression). The evidence/
-  // tree (throwaway /validate-ac-manual spec) runs only via
+  // None of these trees belongs in the normal suite (CI, regression). The
+  // evidence/ tree (throwaway /validate-ac-manual spec) runs only via
   // playwright.evidence.config.js, which it needs for video recording and
   // workers: 1; the screenshots/ tree (happy-path capture for UCD) only via
-  // playwright.screenshots.config.js.
-  testIgnore: ['**/evidence/**', '**/screenshots/**'],
+  // playwright.screenshots.config.js; the specs/resilience/ tree (downstream
+  // failures) only via playwright.resilience.config.js, because a fault would
+  // break every other test running at the same time.
+  testIgnore: ['**/evidence/**', '**/screenshots/**', '**/specs/resilience/**'],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   // e2e runs against a live environment (CDP entrypoint runs test:e2e without

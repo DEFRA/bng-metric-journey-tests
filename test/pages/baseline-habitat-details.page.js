@@ -54,6 +54,30 @@ export class BaselineHabitatDetailsPage extends BasePage {
     // Read-only derived spans the client JS rewrites as the dropdowns change.
     this.distinctivenessDisplay = page.locator('#distinctivenessDisplay')
     this.tradingRuleDisplay = page.locator('#tradingRuleDisplay')
+
+    // The habitat's comment (BMD-1112): a GOV.UK textarea on every baseline
+    // feature type, absent from the post-intervention pages.
+    this.commentInput = page.getByRole('textbox', {
+      name: 'Supporting information'
+    })
+    this.commentHint = page.locator('#comment-hint')
+
+    // A refused save re-renders the form with a GOV.UK error summary.
+    this.errorSummary = page.getByRole('alert')
+    this.errorSummaryLinks = this.errorSummary.getByRole('link')
+  }
+
+  errorSummaryLink(text) {
+    return this.errorSummary.getByRole('link', { name: text })
+  }
+
+  /**
+   * An inline field error. Not exact: GOV.UK prefixes it with a visually
+   * hidden "Error:". Its wording differs from the summary entry's, so the
+   * text alone cannot resolve to the summary link.
+   */
+  inlineError(text) {
+    return this.page.getByRole('main').getByText(text)
   }
 
   async open(projectId, featureId) {

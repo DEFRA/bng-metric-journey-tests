@@ -27,6 +27,8 @@ import {
   HEDGEROWS,
   POST_INTERVENTION_NAV_CHILD,
   REPORTS,
+  STATUS_COMPLETE,
+  STATUS_INCOMPLETE,
   SUMMARY,
   TILE_BASELINE,
   TILE_NET_PERCENTAGE,
@@ -43,7 +45,9 @@ import {
 //
 // Two describes: the BMD-858 page furniture (nav, header, tiles, size section,
 // tab visibility, upload action) and the BMD-997 grids inside the
-// intervention-type tabs.
+// intervention-type tabs. The BMD-1102 Status column describe covers all three
+// unit types' post-intervention grids, the way area-baseline.spec.js does for
+// the baseline grids.
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 // The shared-build upload budget. It sits on `describe.configure` because the
@@ -103,6 +107,7 @@ const ENHANCED_REJECTED_REF = 'H086'
 // Difficulty".
 const RETAINED_COLUMNS = [
   'Ref',
+  'Status',
   'Units',
   'Size',
   'Broad habitat',
@@ -113,6 +118,7 @@ const RETAINED_COLUMNS = [
 ]
 const TARGET_COLUMNS = [
   'Ref',
+  'Status',
   'Units',
   'Size',
   'Broad habitat',
@@ -175,6 +181,45 @@ const TREE_SIZE_BANDS = [
 // The area-size tiles round to 2dp, so a sum of 4dp grid sizes can differ from
 // them by up to one rounding step.
 const AREA_TILE_TOLERANCE_HA = 0.01
+const STATUS_HEADING = 'Status'
+
+// BMD-1102: the all-unit-types pair's Enhanced rows, one Complete and one
+// Incomplete per unit type. The hedgerow grid holds one Complete row (HG018)
+// among eight Incomplete ones, so a Status sort that broke ties by reversing
+// the ascending order would move the Incomplete refs, not just HG018.
+const STATUS_ROWS = {
+  area: { complete: 'H004', incomplete: 'H005' },
+  hedgerows: { complete: 'HG018', incomplete: 'HG011' },
+  watercourses: { complete: 'R007', incomplete: 'R008' }
+}
+const HEDGEROW_INCOMPLETE_REFS = [
+  'HG011',
+  'HG012',
+  'HG026',
+  'HG030',
+  'HG031',
+  'HG032',
+  'HG034',
+  'HG040'
+]
+const HEDGEROW_STATUS_ASCENDING = [
+  STATUS_ROWS.hedgerows.complete,
+  ...HEDGEROW_INCOMPLETE_REFS
+]
+const HEDGEROW_STATUS_DESCENDING = [
+  ...HEDGEROW_INCOMPLETE_REFS,
+  STATUS_ROWS.hedgerows.complete
+]
+
+/** A row's Status tag, found by the row's Ref link and the tag's text. */
+function statusTag(grid, label, reference, status) {
+  return grid
+    .featureRows(label)
+    .filter({
+      has: grid.page.getByRole('link', { name: reference, exact: true })
+    })
+    .getByText(status, { exact: true })
+}
 
 async function expectColumn(grid, label, heading, pattern) {
   const values = await grid.columnValues(label, heading)
@@ -720,9 +765,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       )
 
       // AC6. The unit suite can see the pane in the markup; whether it ever
-      // overflows is a layout fact. Run on the 13-column Enhanced grid — the
-      // 8-column Retained one is the narrow case.
-      test('a thirteen-column grid sits in a pane that overflows horizontally', async ({
+      // overflows is a layout fact. Run on the 14-column Enhanced grid — the
+      // 9-column Retained one is the narrow case.
+      test('a fourteen-column grid sits in a pane that overflows horizontally', async ({
         areaPostInterventionPage
       }) => {
         const grid = areaPostInterventionPage
@@ -768,7 +813,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
             // The ref identifies WHICH habitat was opened — without it the
             // assertions above pass on any of them.
             await expect(
-              page.getByText(reference, { exact: true }).first()
+              page.getByRole('heading', {
+                name: new RegExp(`(^|\\s)${reference}$`),
+                level: 1
+              })
             ).toBeVisible()
           }
         }
@@ -849,6 +897,93 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         expect(
           Math.abs(postInterventionArea - siteArea - sum(treeSizes))
         ).toBeLessThan(AREA_TILE_TOLERANCE_HA)
+      })
+    }
+  )
+
+  // BMD-1102. The Status column on real uploaded data. The frontend renders it
+  // only from hand-built features (post-intervention-habitat-grid.test.js:246,
+  // area-post-intervention/controller.test.js:663) and sorts it in jsdom
+  // (habitat-details-sortable-table.test.js:58,66). The backend stores the
+  // status on upload (import-combinations.test.js:154,168) but never renders
+  // it. The heading order and the unhighlighted default are asserted by the
+  // grid tests above and in the hedgerow and watercourse specs.
+  test.describe(
+    'Post-intervention grids — Status column',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      let project
+      test.beforeAll(async ({ browser }) => {
+        project = await getAllUnitTypesPostInterventionProject(browser)
+      })
+
+      // AC2, AC3 and AC4. Sole witness that the status saved on upload
+      // reaches a post-intervention grid as its tag, for each unit type.
+      // Deleting it leaves the tags proven only against made-up features.
+      test('each grid tags a Complete row grey and an Incomplete row blue, with no status in the totals', async ({
+        areaPostInterventionPage,
+        hedgerowsPostInterventionPage,
+        watercoursesPostInterventionPage
+      }) => {
+        const grids = [
+          [areaPostInterventionPage, STATUS_ROWS.area],
+          [hedgerowsPostInterventionPage, STATUS_ROWS.hedgerows],
+          [watercoursesPostInterventionPage, STATUS_ROWS.watercourses]
+        ]
+        for (const [grid, refs] of grids) {
+          await grid.open(project.id)
+          await grid.tab(ENHANCED).click()
+
+          await expect(
+            statusTag(grid, ENHANCED, refs.complete, STATUS_COMPLETE)
+          ).toHaveClass(/govuk-tag--grey/)
+          await expect(
+            statusTag(grid, ENHANCED, refs.incomplete, STATUS_INCOMPLETE)
+          ).toHaveClass(/govuk-tag--blue/)
+          await expect(
+            await grid.totalsCell(ENHANCED, STATUS_HEADING)
+          ).toHaveText('')
+        }
+      })
+
+      // AC5 and AC6. Sole witness that a post-intervention grid, sitting in a
+      // tab panel, is bound to the tie-by-Ref Status sort: the jsdom tests
+      // drive the class on a hand-built table, and area-baseline.spec.js only
+      // sorts the baseline grids.
+      test('clicking Status sorts Complete first, then Incomplete first, with ties in Ref order', async ({
+        hedgerowsPostInterventionPage
+      }) => {
+        const grid = hedgerowsPostInterventionPage
+        await grid.open(project.id)
+        const retainedRefs = await grid.columnValues(RETAINED, 'Ref')
+        await grid.tab(ENHANCED).click()
+
+        const statusHeader = grid
+          .columnHeaders(ENHANCED)
+          .nth(await grid.columnIndex(ENHANCED, STATUS_HEADING))
+        const sortButton = grid.sortButton(ENHANCED, STATUS_HEADING)
+
+        await sortButton.click()
+        await expect(statusHeader).toHaveAttribute('aria-sort', 'ascending')
+        expect(await grid.columnValues(ENHANCED, 'Ref')).toEqual(
+          HEDGEROW_STATUS_ASCENDING
+        )
+
+        await sortButton.click()
+        await expect(statusHeader).toHaveAttribute('aria-sort', 'descending')
+        expect(await grid.columnValues(ENHANCED, 'Ref')).toEqual(
+          HEDGEROW_STATUS_DESCENDING
+        )
+        await expect(
+          grid.table(ENHANCED).getByRole('row').last()
+        ).toContainText('Total')
+
+        // The other tabs' grids are not re-sorted.
+        await grid.tab(RETAINED).click()
+        expect(await grid.columnValues(RETAINED, 'Ref')).toEqual(retainedRefs)
       })
     }
   )

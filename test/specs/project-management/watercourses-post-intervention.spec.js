@@ -144,6 +144,7 @@ const FIXED_STRATEGIC_SIGNIFICANCE = 'Low (1)'
 // Difficulty".
 const RETAINED_COLUMNS = [
   'Ref',
+  'Status',
   'Units',
   'Size',
   'Habitat type',
@@ -155,6 +156,7 @@ const RETAINED_COLUMNS = [
 ]
 const TARGET_COLUMNS = [
   'Ref',
+  'Status',
   'Units',
   'Size',
   'Habitat type',
@@ -713,7 +715,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         }
       )
 
-      // AC4b, AC5, AC6 on the Enhanced grid — the 14-column shape, with the
+      // AC4b, AC5, AC6 on the Enhanced grid — the 15-column shape, with the
       // target and time-to-target block in place of Condition.
       test('the Enhanced grid carries the target columns and sits in a pane that overflows', async ({
         watercoursesPostInterventionPage
@@ -757,7 +759,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         // AC6. The unit suite asserts the pane is in the markup with the right
         // aria-label; what it cannot see is whether the pane ever actually
         // overflows, which is the whole point of the requirement. Run on the
-        // 14-column grid — the 9-column Retained one is the narrow case.
+        // 15-column grid — the 10-column Retained one is the narrow case.
         const { scrollWidth, clientWidth, scrollLeft } =
           await grid.scrollPaneToEnd(ENHANCED)
 

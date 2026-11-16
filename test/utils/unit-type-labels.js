@@ -12,6 +12,11 @@ export const SUMMARY = 'Summary'
 export const REPORTS = 'Reports'
 export const BASELINE_NAV_CHILD = 'Baseline'
 
+// The Status tag on the habitat details grids (BMD-1101 baseline, BMD-1102
+// post intervention): the status the backend saves against each feature.
+export const STATUS_COMPLETE = 'Complete'
+export const STATUS_INCOMPLETE = 'Incomplete'
+
 export const TILE_BASELINE = 'On-site baseline'
 // The two tiles that can hold a "Met"/"Not met" tag. They are different
 // verdicts — see test/utils/unit-type-tiles.js.

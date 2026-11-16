@@ -70,10 +70,11 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           'href',
           reportPdfPath(project.id)
         )
-        await expect(projectReportsPage.downloadLink).toHaveAttribute(
-          'download',
-          ''
-        )
+        // BMD-1203 drops the `download` attribute from the frontend so an
+        // error page, such as "too many requests", shows as a page; the
+        // response's content-disposition still saves the PDF, which the
+        // download test below proves. Assert the attribute is absent once that
+        // frontend is in `latest`: until then the stack still serves it.
       }
     )
 
@@ -207,30 +208,10 @@ test.describe('project-management', { tag: '@project-management' }, () => {
   // of paying for a context of its own.
 
   // ─── Session lifecycle ──────────────────────────────────────────────────────
-
-  test.describe('Project reports — session lifecycle', () => {
-    // BLOCKED: `fetchSiteReport` is the only service in the frontend that
-    // rethrows on `sessionExpired`, so a dead session on the PDF route reaches
-    // the global error handler and redirects to /auth/session-expired instead of
-    // surfacing as a generic 502. Driving a genuinely dead, unrefreshable session
-    // resets the server-side yar session and poisons the shared STORAGE_STATE for
-    // the rest of the run — the same constraint that blocks the interactive
-    // trigger in test/flows/authentication/session-expired.flow.md.
-    //
-    // Unblocking takes TWO steps, not one. First, isolate the session: either
-    // give this describe its own storage state rather than the shared one, or
-    // add a backend fault-injection hook that can expire a single session on
-    // demand. Second, add the expiry itself — the body below only navigates, so
-    // removing the skip on its own would run it against a live session and fail
-    // on a 200. Whichever mechanism lands, invoke it before the goto.
-    test.skip('an expired session on the PDF route is sent to sign in again', async ({
-      page
-    }) => {
-      const response = await page.goto(reportPdfPath(V4_PROJECT_ID))
-
-      expect(response.url()).toContain('/auth/session-expired')
-    })
-  })
+  // A dead session on the PDF route (the backend rejects the token and the
+  // refresh fails, so fetchSiteReport rethrows) is covered in
+  // test/specs/resilience/session-expiry.spec.js, on a throwaway user's session
+  // rather than the shared one.
 
   // ─── Access control ─────────────────────────────────────────────────────────
 

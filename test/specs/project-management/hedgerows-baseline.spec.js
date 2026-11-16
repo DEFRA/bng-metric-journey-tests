@@ -13,6 +13,7 @@ import {
   BASELINE_NAV_CHILD,
   HEDGEROWS,
   POST_INTERVENTION_NAV_CHILD,
+  STATUS_COMPLETE,
   SUMMARY,
   TILE_BASELINE,
   TRADING_RULES_NAV_CHILD,
@@ -52,6 +53,7 @@ const TILE_HEADINGS = [
 // case rather than the AC's title case.
 const COLUMN_HEADINGS = [
   'Ref',
+  'Status',
   'Units',
   'Size',
   'Habitat type',
@@ -152,6 +154,12 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         expect(new Set(significance)).toEqual(
           new Set([FIXED_STRATEGIC_SIGNIFICANCE])
         )
+
+        // BMD-1101 AC2: the status the backend saves on upload reaches the
+        // grid. Every row of this file is valid, so every row is Complete.
+        const status = await hedgerowsBaselinePage.columnValues('status')
+        expect(status).toHaveLength(EXPECTED_HEDGEROWS)
+        expect(new Set(status)).toEqual(new Set([STATUS_COMPLETE]))
       }
     )
 
@@ -184,6 +192,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       await expect(hedgerowsBaselinePage.totalsCell('size')).toHaveText(
         KILOMETRES
       )
+      // BMD-1101 AC4: the Status cell is blank in the totals row.
+      await expect(hedgerowsBaselinePage.totalsCell('status')).toHaveText('')
       // The four non-numeric columns stay empty in the totals row.
       await expect(hedgerowsBaselinePage.totalsCell('habitatType')).toHaveText(
         ''
@@ -223,7 +233,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     }) => {
       await hedgerowsBaselinePage.open(project.id)
 
-      const unitsHeader = hedgerowsBaselinePage.columnHeaders().nth(1)
+      const unitsHeader = hedgerowsBaselinePage.columnHeader('units')
       const sortButton = hedgerowsBaselinePage.sortButton('units')
 
       await sortButton.click()

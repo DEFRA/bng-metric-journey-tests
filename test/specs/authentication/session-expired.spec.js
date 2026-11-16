@@ -64,29 +64,8 @@ test.describe('authentication', { tag: '@authentication' }, () => {
     }
   )
 
-  // ─── Blocked: interactive session-expired redirect ───────────────────────────
-  // The auth scheme (auth-scheme.js) redirects an authenticated user to
-  // /auth/session-expired when their tokens expire and the silent refresh fails
-  // (or succeeds but the renewed token has lost the approved role). Reproducing
-  // live token expiry requires expireSession()'s yar.reset(), which tears down
-  // the SHARED completer STORAGE_STATE server-side and cascades failures across
-  // every other authenticated test in the run — the same constraint as the
-  // interactive sign-out click-through.
-  //
-  // NOTE: clearing the session cookie CLIENT-side does not reach this path
-  // either: it leaves no `sessionEnded` breadcrumb, so the request looks like
-  // one that never signed in and redirects to /auth/forbidden — what every
-  // "unauthenticated access" test already asserts.
-  //
-  // Unblock: mint a dedicated throwaway completer session in auth.setup.js (so
-  // resetting it cannot affect other tests), or add a stub hook to expire a
-  // single session's tokens, then assert the protected-route redirect to
-  // /auth/session-expired and the "Sign in again" round-trip.
-  test.skip('expired session on a protected route redirects to /auth/session-expired', async ({
-    page
-  }) => {
-    // Ready-to-run once a disposable expired session exists:
-    // await page.goto('/manage-projects')
-    // await expect(page).toHaveURL(/\/auth\/session-expired/)
-  })
+  // ─── Interactive session-expired redirect ───────────────────────────────────
+  // Covered in test/specs/resilience/session-expiry.spec.js, which signs in a
+  // throwaway user and expires that user's session in Redis. Expiring the shared
+  // STORAGE_STATE session here would sign out every later test in the run.
 })

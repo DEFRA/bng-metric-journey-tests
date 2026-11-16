@@ -14,6 +14,7 @@
     "test:github": "CI=true RUN_MODE=github playwright test",
     "test:e2e": "RUN_MODE=e2e playwright test",
     "test:evidence": "RUN_MODE=local playwright test --config=playwright.evidence.config.js --reporter=list",
+    "test:resilience": "CI=true RUN_MODE=github playwright test --config=playwright.resilience.config.js",
     "screenshots": "RUN_MODE=local playwright test --config=playwright.screenshots.config.js",
     "format": "prettier --write \"test/**/*.js\" \"**/*.{js,md,json,config.js}\"",
     "format:check": "prettier --check \"test/**/*.js\" \"**/*.{js,md,json,config.js}\"",
@@ -27,13 +28,15 @@
     "recalc:workbook": "docker compose -f compose.recalc.yml run --rm --build recalc-workbook"
   },
   "devDependencies": {
-    "@playwright/test": "1.64.1",
-    "dotenv": "18.0.9",
+    "@playwright/test": "1.65.0",
+    "dotenv": "18.0.10",
     "eslint": "9.39.5",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-prettier": "5.5.7",
     "husky": "9.1.7",
+    "ioredis": "6.0.0",
     "neostandard": "0.14.1",
+    "pg": "8.23.1",
     "prettier": "3.9.10"
   }
 }

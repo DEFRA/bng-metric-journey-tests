@@ -156,15 +156,15 @@ Shipped by frontend PR#302 and covered here since 2026-09-16 — five tests in t
 the BMD-999 AC sweep.
 
 `watercourses-post-intervention/controller.test.js:279-415` asserts the Retained / Enhanced /
-Created columns, values, totals and `aria-sort="none"` headers in markup — but with `wreck`
+Created columns (a `Status` tag column after Ref since BMD-1102, frontend PR #455), values, totals and `aria-sort="none"` headers in markup — but with `wreck`
 mocked and hand-built watercourse literals (`:28-56`), so it proves the grid renders
 `riparianEncroachmentMultiplier` IF it arrives, never that a real import emits it. The
 journey tests cover only what that cannot reach:
 
 | Test                              | AC       | Why it needs a browser and real data                                                                                                                                                              |
 | --------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Retained grid                     | 4a, 5, 7 | the 9-column shape, and the only proof a real import emits the `baseline.*` fields it reads                                                                                                       |
-| Enhanced grid                     | 4b, 5, 6 | the 14-column shape from real `proposed.*` fields, and whether the pane actually overflows — markup cannot show a layout fact                                                                     |
+| Retained grid                     | 4a, 5, 7 | the 10-column shape, and the only proof a real import emits the `baseline.*` fields it reads                                                                                                      |
+| Enhanced grid                     | 4b, 5, 6 | the 15-column shape from real `proposed.*` fields, and whether the pane actually overflows — markup cannot show a layout fact                                                                     |
 | Created grid                      | 4c, 5    | the same column set reached through a different retention path                                                                                                                                    |
 | Re-sort ascending then descending | 8, 9     | witnessed in `hedgerows-post-intervention.spec.js`: the hedgerow page passes the same `readSize`, km formatters and grid builder, so a Size sort reads `data-sort-value`s built by identical code |
 | Ref link opens the details page   | 10       | since BMD-1043 `post-intervention-habitat-details.spec.js` also clicks this grid's Ref links (the habitat list it used was removed); this row remains the grid-side witness                       |
@@ -181,7 +181,7 @@ where a real uploaded watercourse's encroachment fields reach a rendered grid. D
 would leave `buildWatercourseExtraColumns` proven only against fabricated literals. See the
 Backend coverage proposals in the BMD-999 analysis.
 
-> **Observed during the BMD-862 manual validation (2026-09-16).** In the Enhanced tab the fixture's WC2 renders an **empty Units cell and a `0.00` totals row** — the same "Incomplete feature renders as blank cells" shape the hedgerow grid has, with no `Status` column to explain it. It sits against BMD-862's shared precondition "units were successfully calculated on import" and against `post-intervention-persistence.test.js:177`, which asserts `units > 0` for Enhanced linear features. Raised against **BMD-999**, not this page's ACs. Confirmed again during the BMD-999 manual validation (2026-09-16) on a second fixture — R008 in `Post-intervention - all unit and intervention types.gpkg` (`Good -> Good`, no uplift) renders the same way, and its encroachment cells lose the `(multiplier)` suffix too. Both fixtures' non-uplift rows are excluded by the ACs' own precondition, so the grid tests assert VALUES only on a calculated row.
+> **Observed during the BMD-862 manual validation (2026-09-16).** In the Enhanced tab the fixture's WC2 renders an **empty Units cell and a `0.00` totals row** — the same "Incomplete feature renders as blank cells" shape the hedgerow grid has. At the time there was no `Status` column to explain it; since BMD-1102 (frontend PR #455) the row carries the blue `Incomplete` tag. It sits against BMD-862's shared precondition "units were successfully calculated on import" and against `post-intervention-persistence.test.js:177`, which asserts `units > 0` for Enhanced linear features. Raised against **BMD-999**, not this page's ACs. Confirmed again during the BMD-999 manual validation (2026-09-16) on a second fixture — R008 in `Post-intervention - all unit and intervention types.gpkg` (`Good -> Good`, no uplift) renders the same way, and its encroachment cells lose the `(multiplier)` suffix too. Both fixtures' non-uplift rows are excluded by the ACs' own precondition, so the grid tests assert VALUES only on a calculated row.
 
 ### BMD-1070 — null proposed encroachment `[IMPLEMENTED]`
 
