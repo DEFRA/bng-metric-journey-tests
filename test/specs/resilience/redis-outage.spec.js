@@ -32,33 +32,25 @@ test.describe('resilience', { tag: '@resilience' }, () => {
         })
       })
 
-      // FIXME(BMD-1200): known defect 1 on that ticket. A
-      // signed-in page never responds while Redis is not answering, because the
-      // frontend's redis-client.js sets no command timeout. It currently fails
-      // at the navigation timeout. test.fail rather than test.fixme so it keeps
-      // running: it shows this suite detects a hang, and it goes red ("expected
-      // to fail") once the defect is fixed, which is the cue to make it a plain
-      // test. test.fail accepts ANY failure, so when touching this test, run it
-      // as a plain test and check it still fails on page.goto.
-      test.fail(
-        'Redis not answering shows the error page without hanging, then recovers',
-        async ({
+      // The frontend's Redis command timeout (REDIS_COMMAND_TIMEOUT_MS) fails
+      // the session read, so the page answers well inside the navigation
+      // timeout. Before BMD-1200 there was none, and the page never responded.
+      test('Redis not answering shows the error page without hanging, then recovers', async ({
+        toxiproxy,
+        createProjectFlow,
+        projectDashboardPage,
+        serviceErrorPage,
+        page
+      }) => {
+        await assertHandlesOutage({
+          injectFault: () => toxiproxy.hang(REDIS),
           toxiproxy,
           createProjectFlow,
           projectDashboardPage,
           serviceErrorPage,
           page
-        }) => {
-          await assertHandlesOutage({
-            injectFault: () => toxiproxy.hang(REDIS),
-            toxiproxy,
-            createProjectFlow,
-            projectDashboardPage,
-            serviceErrorPage,
-            page
-          })
-        }
-      )
+        })
+      })
     }
   )
 })

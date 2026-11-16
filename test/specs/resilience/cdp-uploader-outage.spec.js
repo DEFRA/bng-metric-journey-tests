@@ -1,4 +1,4 @@
-import { test } from '@fixtures'
+import { test, expect } from '@fixtures'
 import { STORAGE_STATE, runMode } from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
 import {
@@ -12,8 +12,12 @@ const PROJECT_LABEL = 'Resilience Uploader'
 const BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
 
 // The frontend's MAX_WAIT_SECONDS is 120. A hanging uploader also holds each poll
-// for the 10s backend timeout, which took this to 149s when measured.
-const MAX_FILE_CHECK_ERROR_MS = 180_000
+// until the backend's uploader timeout (CDP_UPLOADER_TIMEOUT_MS, 5s). Before
+// BMD-1200 it held each poll for the frontend's 10s, which took this to 149s.
+const MAX_TIMED_OUT_MESSAGE_MS = 180_000
+const TIMED_OUT_MESSAGE = 'The file check timed out. Please try again.'
+const UPLOAD_UNAVAILABLE_TEXT =
+  'Unable to start file upload. Please try again later.'
 const FILE_CHECK_TEST_TIMEOUT_MS = 300_000
 
 test.describe('resilience', { tag: '@resilience' }, () => {
@@ -92,12 +96,10 @@ test.describe('resilience', { tag: '@resilience' }, () => {
     // status checks that follow do not. The frontend then waits out its 120s
     // limit, which makes these the slowest tests in the suite.
     //
-    // These assert the user is not left waiting forever, which holds today. They
-    // do not cover the "file check timed out" message, which is lost in this
-    // scenario (BMD-1200 defect 3): the upload page clears the message and then
-    // fails to load, because it needs the uploader too. A fix may end this
-    // journey somewhere other than the error page, so expect to update these
-    // tests alongside it.
+    // The user is not left waiting forever, and is told the file check timed
+    // out. The upload page that says so cannot start a new upload while the
+    // uploader fails, so it shows that instead of the form. Before BMD-1200 the
+    // message was lost and the journey ended on the generic error page.
     async function assertFileCheckHandlesOutage({
       injectFault,
       toxiproxy,
@@ -105,7 +107,6 @@ test.describe('resilience', { tag: '@resilience' }, () => {
       projectDashboardPage,
       uploadBaselineFilePage,
       uploadBaselineFileFlow,
-      serviceErrorPage,
       page
     }) {
       test.setTimeout(FILE_CHECK_TEST_TIMEOUT_MS)
@@ -124,9 +125,12 @@ test.describe('resilience', { tag: '@resilience' }, () => {
       )
       await uploadBaselineFilePage.continueButton.click()
 
-      await assertErrorPage(page, serviceErrorPage, {
-        timeout: MAX_FILE_CHECK_ERROR_MS
-      })
+      await expect(uploadBaselineFilePage.errorSummary).toContainText(
+        TIMED_OUT_MESSAGE,
+        { timeout: MAX_TIMED_OUT_MESSAGE_MS }
+      )
+      await expect(uploadBaselineFilePage.heading).toBeVisible()
+      await expect(page.getByText(UPLOAD_UNAVAILABLE_TEXT)).toBeVisible()
 
       await toxiproxy.reset()
 
@@ -136,13 +140,12 @@ test.describe('resilience', { tag: '@resilience' }, () => {
       )
     }
 
-    test('uploader lost during the file check ends on the error page, then the file can be uploaded again', async ({
+    test('uploader lost during the file check shows the timed-out message, then the file can be uploaded again', async ({
       toxiproxy,
       createProjectFlow,
       projectDashboardPage,
       uploadBaselineFilePage,
       uploadBaselineFileFlow,
-      serviceErrorPage,
       page
     }) => {
       await assertFileCheckHandlesOutage({
@@ -152,18 +155,16 @@ test.describe('resilience', { tag: '@resilience' }, () => {
         projectDashboardPage,
         uploadBaselineFilePage,
         uploadBaselineFileFlow,
-        serviceErrorPage,
         page
       })
     })
 
-    test('uploader not answering during the file check ends on the error page without hanging, then the file can be uploaded again', async ({
+    test('uploader not answering during the file check shows the timed-out message without hanging, then the file can be uploaded again', async ({
       toxiproxy,
       createProjectFlow,
       projectDashboardPage,
       uploadBaselineFilePage,
       uploadBaselineFileFlow,
-      serviceErrorPage,
       page
     }) => {
       await assertFileCheckHandlesOutage({
@@ -173,7 +174,6 @@ test.describe('resilience', { tag: '@resilience' }, () => {
         projectDashboardPage,
         uploadBaselineFilePage,
         uploadBaselineFileFlow,
-        serviceErrorPage,
         page
       })
     })
