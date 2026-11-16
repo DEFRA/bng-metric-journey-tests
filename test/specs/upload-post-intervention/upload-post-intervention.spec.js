@@ -992,7 +992,14 @@ function describeUnenhanceableBaseline() {
   const cases = [
     {
       name: 'an individual tree in Good condition',
-      file: UNENHANCEABLE_TREE_FILE
+      file: UNENHANCEABLE_TREE_FILE,
+      // FIXME(BMD-1172): parked 2026-11-16. Backend PR #651 (56c7cac) refuses
+      // an Enhanced tree in Good condition with its own TREE_NOT_ENHANCEABLE,
+      // which frontend PR #520 words as a single file error ("There is a
+      // problem with your file"), not this drop-out page. Restore as its own
+      // test asserting that page once BMD-1172 is picked up and the team
+      // confirms the change.
+      parked: true
     },
     {
       name: 'a Medium distinctiveness watercourse in Good condition',
@@ -1055,26 +1062,30 @@ function describeUnenhanceableBaseline() {
         ).toBeVisible()
       })
 
-      for (const { name, file } of cases) {
-        test(`a file enhancing ${name} is refused`, async ({
-          createProjectFlow,
-          projectDashboardPage,
-          uploadPostInterventionFileFlow,
-          errorFilePage,
-          page
-        }) => {
-          await uploadToErrorFile(
-            {
-              createProjectFlow,
-              projectDashboardPage,
-              uploadPostInterventionFileFlow,
-              page
-            },
-            file
-          )
+      for (const { name, file, parked } of cases) {
+        const unenhanceableTest = parked ? test.fixme : test
+        unenhanceableTest(
+          `a file enhancing ${name} is refused`,
+          async ({
+            createProjectFlow,
+            projectDashboardPage,
+            uploadPostInterventionFileFlow,
+            errorFilePage,
+            page
+          }) => {
+            await uploadToErrorFile(
+              {
+                createProjectFlow,
+                projectDashboardPage,
+                uploadPostInterventionFileFlow,
+                page
+              },
+              file
+            )
 
-          await assertUnenhanceableDropout(errorFilePage)
-        })
+            await assertUnenhanceableDropout(errorFilePage)
+          }
+        )
       }
     }
   )
