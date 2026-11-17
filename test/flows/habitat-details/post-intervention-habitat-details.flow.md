@@ -1,4 +1,4 @@
-# Post-Intervention Habitat Details User Flow (read-only view; Retained reference and Created area, hedgerow and watercourse edits)
+# Post-Intervention Habitat Details User Flow (read-only view; Retained reference, Created area, hedgerow and watercourse edits, and Enhanced area edits)
 
 ## Overview
 
@@ -7,14 +7,16 @@ A BNG Completer opens a feature from its unit-type post-intervention page —
 (BMD-1043, frontend PR#352; it was the post-intervention habitat list, now removed) — and
 views its details. **A Created area habitat, hedgerow or watercourse** renders an **editable
 form** (BMD-1048, frontend PR#418 / backend PR#539, 2026-10-28; watercourses since BMD-1050,
-frontend PR#444, 2026-11-10). **A Retained area habitat, hedgerow or
+frontend PR#444, 2026-11-10). **An Enhanced area habitat** renders the same area form,
+limited to the valid enhancements of its baseline (BMD-1045, frontend PR#518 / backend
+PR#650, 2026-11-17). **A Retained area habitat, hedgerow or
 watercourse** renders its details read-only with an editable **Habitat reference** and Save /
 Cancel (BMD-1180, frontend PR#423 / backend PR#552, 2026-11-03). **Every other feature renders
 a read-only page.** Area, hedgerow and watercourse features each get a page specific to their
 type _and_ their intervention (retention) category; individual trees use the area page with
 two tree rows (BMD-1172, frontend PR#475). Only a feature type with no details page renders
 the unsupported-feature placeholder. `POST /post-intervention-habitat-details` saves the Created
-form (Step 11) or the Retained reference (Step 12); for any other feature it returns **501 Not
+or Enhanced area form (Step 11) or the Retained reference (Step 12); for any other feature it returns **501 Not
 Implemented**.
 
 **Layout: the stacked "sections" design is the norm.** All seven read-only and reference-form
@@ -54,14 +56,16 @@ backend's discriminator (`habitat`, `tree`, `hedgerow`, `watercourse`) and
 
 | Feature type   | `Enhanced`                                       | `Created`                                                   | anything else (incl. `Retained`, unrecognised, absent) |
 | -------------- | ------------------------------------------------ | ----------------------------------------------------------- | ------------------------------------------------------ |
-| `habitat`      | `pi-habitat-details-enhanced`                    | `pi-habitat-details-created-edit` (Step 4, form)            | `pi-habitat-details` (Step 1)                          |
+| `habitat`      | `pi-habitat-details-created-edit` (Step 5, form) | `pi-habitat-details-created-edit` (Step 4, form)            | `pi-habitat-details` (Step 1)                          |
 | `hedgerow`     | `pi-hedgerow-details-enhanced`                   | `pi-habitat-details-created-edit` (hedgerow form, BMD-1049) | `pi-hedgerow-details` (Step 2)                         |
 | `watercourse`  | `pi-watercourse-details-enhanced`                | `pi-watercourse-details-created`                            | `pi-watercourse-details` (Step 3)                      |
 | `tree`         | tree edit page, or area sections page (BMD-1172) | tree edit page (BMD-1172)                                   | `pi-habitat-details` + tree rows (Step 1)              |
 | any other type | `pi-feature-unsupported` (Step 10)               | —                                                           | —                                                      |
 
-The Created **area and hedgerow** cases are checked in the GET handler _before_ `resolveViewOnlyPage` is
-called, so it never reaches the view-only map. A Lost area parcel is persisted as Created
+The Created **area and hedgerow** cases, and the Enhanced **area** case (BMD-1045), are checked in
+the GET handler _before_ `resolveViewOnlyPage` is called, so they never reach the view-only map.
+An Enhanced area falls back to `pi-habitat-details-enhanced` only while the backend does not serve
+`/reference/area-enhancement`. A Lost area parcel is persisted as Created
 (BMD-534), so it gets the edit form too.
 
 A category the map does not know (the backend only persists `Retained`/`Created`/`Enhanced`,
@@ -332,19 +336,44 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
 
 ---
 
-### Step 5 — View Enhanced area habitat details (read-only, two-section) `[IMPLEMENTED]`
+### Step 5 — Edit Enhanced area habitat details (form, BMD-1045) `[IMPLEMENTED]`
 
 - **Route:** shared GET contract (area feature whose normalised `retentionCategory === "Enhanced"`)
-- **Template:** `src/server/habitat-details/pi-habitat-details-enhanced.njk` (extends `layouts/pi-view-only-sections-page.njk`; BMD-725, frontend PR#170)
-- **Backend endpoint:** shared GET contract
-- **Description:** **Identical in every respect to Step 4** — the two templates set the same
-  `sections` structure and both view models delegate to
-  `buildAreaSectionsViewOnlyFields`. They differ only in the Intervention row value
-  ("Enhanced" vs "Created") and in the template file selected. Same row labels (including
-  `Area` with the `ha` suffix), same time/difficulty section, same baseline-link placement,
-  same `proposed`-only sourcing.
-- **Validation:** shared GET contract
-- **On success:** Renders the Enhanced two-section read-only area details page
+- **Template:** `src/server/habitat-details/pi-habitat-details-created-edit.njk`, the Step 4
+  form (BMD-1045, frontend PR#518, 2026-11-17). It replaced the read-only
+  `pi-habitat-details-enhanced.njk` (BMD-725), which is still the fallback while the
+  backend does not serve the enhancement reference.
+- **Backend endpoints:** shared GET contract, plus
+  `GET /reference/area-enhancement?broadType=&type=&condition=` (backend PR#650) with the
+  baseline's broad habitat, type and condition. It lists only the valid enhancements of that
+  baseline (the BMD-820 import rules, from bng-library), each condition with its
+  enhancement time to target. The frontend caches each baseline's answer.
+- **Description:** **The Step 4 form, with these differences:**
+  - Intervention reads **"Enhanced"**.
+  - **Broad habitat** lists only broad habitats with at least one valid enhancement of the
+    baseline; **Habitat type** only the types within the chosen broad habitat that have one;
+    **Target condition** only the conditions that make a valid enhancement with the chosen
+    type. For example, a Modified grassland (Moderate) baseline offers ten broad habitats,
+    Grassland offers four types (no Bracken), and Modified grassland itself offers only Good
+    and Fairly Good. A Mixed scrub (Poor) baseline offers only Heathland and shrub, and no Poor.
+  - **Standard time to target condition** is the enhancement time, as the transition
+    `"<baseline condition> to <target condition> - N years"`.
+  - **"View baseline details"** finds the baseline as the read-only Enhanced page did
+    (`viewOnlyBaselineFeatureId`), not by `parentFeatureId`.
+  - A stored proposal the list no longer offers (for example an IGGI type) is kept as an
+    "(imported value)" option while the choices above it are unchanged, and saved back as
+    stored.
+  - Advance and Delay are labelled as on the Created form, as per Figma.
+- **Journey coverage (BMD-1045):** `post-intervention-habitat-details.spec.js`, "Enhanced area
+  habitats — editing". H2-3 and H3 of `Post-intervention - complete.gpkg` cover the saved
+  values, the option lists of two baselines and "View baseline details" (AC1, AC11). An
+  import-incomplete H2-3 from `Post-intervention - missing proposed habitat data.gpkg` covers
+  AC2: the import nulls its significance with its type, so only the reference and Broad
+  habitat are filled. One test covers the enhancement lists as Broad habitat, Habitat type and
+  Target condition change (AC4, AC6, AC8). The previews and buttons it shares with the Created
+  form (AC3, AC5, AC7, AC9, AC10, AC13–AC15) are left to the Step 4 and Step 11 tests.
+- **Validation:** shared GET contract on load; the form's own rules are in Step 11
+- **On success:** Renders the Enhanced area edit form
 - **On error:** shared GET contract
 
 ---
@@ -497,7 +526,8 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
      Areas require a broad habitat field; hedgerows forbid it. Malformed payloads return
      400 before backend requests; the type-specific missing-area-broad guard runs after
      fetching the feature and before loading reference data.
-  2. Sends Retained features to Step 12, and refuses any other feature with 501.
+  2. Sends Retained features to Step 12, and refuses with 501 any feature that is neither
+     Created nor an Enhanced area (or Enhanced tree, BMD-1172).
   3. Validates choices and mutually exclusive positive advance/delay, resolving unchanged
      timing from per-feature imported metadata. Errors redisplay entered values, summary
      links and inline messages, including delay-only errors.
@@ -522,6 +552,21 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
   (backend PR #630) with its derived values null, as a Created area does under the PO ruling
   of 2026-11-06; the list shows `0.00`, the type's distinctiveness and the saved significance
   (frontend PR #502), and a blank Standard difficulty.
+- **Enhanced areas (BMD-1045, frontend PR#518 / backend PR#650, PR#659):** the Step 5 form
+  posts here. It loads `/reference/area-enhancement` for the feature's baseline and PUTs to
+  the same `/projects/{projectId}/post-intervention/habitats/{featureId}`, where the backend
+  checks the choices against the baseline's valid enhancements (`ENHANCEMENT_NOT_VALID`,
+  shown against Target condition). Units are recalculated as
+  `(B + (T − B) × temporal × difficulty) × proposed strategic significance`, where B and T are
+  area × distinctiveness × condition for the baseline and the target. An incomplete edit saves
+  `0` units and Incomplete. After an incomplete save the list blanks Distinctiveness, Standard
+  difficulty and both time-to-target columns, and shows Target condition with no score. That is
+  the shape the 2026-11-06 PO ruling changed for Created areas; it is an open question for
+  Enhanced areas.
+- **Journey coverage (BMD-1045, Enhanced area):** "Enhanced area habitats — editing" covers a
+  complete save that changes the habitat type, condition, significance and delay (AC12
+  Scenario A: row, units and total). Scenario B awaits the list-display ruling above. Cancel,
+  validation and Upload file share the Created area code and tests.
 - **Journey coverage (BMD-1048, Created area):** `post-intervention-habitat-details.spec.js`,
   "Created area habitats — editing". It covers a complete save (AC11 Scenario A), completing
   an import-incomplete habitat whose units go from null to calculated, a save with

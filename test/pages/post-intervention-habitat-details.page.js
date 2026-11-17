@@ -120,11 +120,9 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
       'Time to target / difficulty',
       { exact: true }
     )
-    // Enhanced area and Created/Enhanced linear size labels — these pages put
-    // the unit on the value ("1.23ha" / "0.09km"), so their labels are the
-    // bare "Area" / "Length". The Created area edit form uses
-    // "Size (hectares)".
-    this.enhancedAreaKey = page.getByText('Area', { exact: true })
+    // Created/Enhanced linear size label — these pages put the unit on the
+    // value ("0.09km"), so the label is the bare "Length". The Created and
+    // Enhanced area edit form uses "Size (hectares)".
     this.enhancedLengthKey = page.getByText('Length', { exact: true })
     // Lower-case on every stacked page.
     this.stackedStrategicSignificanceKey = page.getByText(
@@ -297,6 +295,15 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     await this.assertCreatedEditForm({ ref })
   }
 
+  /**
+   * The Enhanced area edit form (BMD-1045, frontend PR#518): the Created area
+   * form with Intervention "Enhanced" and the "View baseline details" link.
+   */
+  async assertEnhancedAreaEditForm({ ref }) {
+    await this.assertCreatedEditForm({ ref, intervention: 'Enhanced' })
+    await expect(this.viewBaselineLink).toBeVisible()
+  }
+
   async assertCreatedHedgerowEditForm({ ref }) {
     await this.assertCreatedEditForm({ ref, kind: 'hedgerow' })
   }
@@ -312,13 +319,19 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     await expect(this.riparianEncroachmentSelect).toBeVisible()
   }
 
-  async assertCreatedEditForm({ ref, kind = 'area' }) {
+  async assertCreatedEditForm({
+    ref,
+    kind = 'area',
+    intervention = 'Created'
+  }) {
     await expect(
       this.page.getByRole('heading', { name: ref, exact: true })
     ).toBeVisible()
     await expect(this.viewOnlyHeading).toBeVisible()
     await expect(this.interventionKey).toBeVisible()
-    await expect(this.page.getByText('Created', { exact: true })).toBeVisible()
+    await expect(
+      this.page.getByText(intervention, { exact: true })
+    ).toBeVisible()
     if (kind === 'area') {
       await expect(this.sizeHectaresKey).toBeVisible()
       await expect(this.broadHabitatSelect).toBeVisible()
