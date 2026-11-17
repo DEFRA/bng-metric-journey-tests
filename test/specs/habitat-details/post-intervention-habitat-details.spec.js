@@ -13,6 +13,7 @@ import { UploadBaselineFileFlow } from '@flows/upload-baseline/upload-baseline-f
 import { UploadPostInterventionFileFlow } from '@flows/upload-post-intervention/upload-post-intervention-file.flow.js'
 import { ProjectDashboardPage } from '@pages/project-dashboard.page.js'
 import {
+  findPiRef,
   openPiTabFor,
   piPage,
   piPageUrl
@@ -819,12 +820,19 @@ async function expectRetainedRename(
 ) {
   const before = await rowByRef(page, projectId, ref)
   const totalBefore = await tileUnits(page)
-  await saveRetainedRef(page, details, { projectId, type, ref, typed })
+  await openPiFeatureDetails(page, projectId, type, ref)
+  // A legacy row joins its baseline habitat by reference, so the rename must
+  // carry onto the baseline habitat for this link to survive it.
+  const baselineFeatureId = new URL(
+    await details.viewBaselineLink.getAttribute('href'),
+    baseUrl
+  ).searchParams.get('featureId')
+  await details.habitatReferenceInput.fill(typed)
+  await details.saveButton.click()
+
   await expectOnPiPage(page, projectId, type)
   expect(await tileUnits(page)).toBe(totalBefore)
-  await expect(page.getByRole('link', { name: ref, exact: true })).toHaveCount(
-    0
-  )
+  expect(await findPiRef(page, projectId, type, ref)).toBeNull()
   expect(await rowByRef(page, projectId, newRef)).toEqual({
     ...before,
     Ref: newRef
@@ -833,6 +841,13 @@ async function expectRetainedRename(
   await expect(details.habitatReferenceInput).toHaveValue(newRef)
   await expect(details.headingTitle).toHaveText(`Habitat ${newRef}`)
   await expect(details.habitatUnitsValue).toHaveText(before.Units)
+
+  await details.viewBaselineLink.click()
+  await expect(page).toHaveURL(BASELINE_DETAILS_URL_PATTERN)
+  expect(new URL(page.url()).searchParams.get('featureId')).toBe(
+    baselineFeatureId
+  )
+  await expect(details.habitatReferenceInput).toHaveValue(newRef)
 }
 
 // Baseline + PI hedgerow uploads in one project: retained hedgerows for the
@@ -1294,7 +1309,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         async ({ browser, page, postInterventionHabitatDetailsPage }) => {
           const { id } = await getCreatedAreaSaveProject(
             browser,
-            'retained-area-rename'
+            'retained-area-rename',
+            COMPLETE_PI_FILE
           )
           const newRef = 'H2-2-NEW'
 
@@ -1381,7 +1397,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         async ({ browser, page, postInterventionHabitatDetailsPage }) => {
           const { id } = await getCreatedAreaSaveProject(
             browser,
-            'retained-area-duplicate-ref'
+            'retained-area-duplicate-ref',
+            COMPLETE_PI_FILE
           )
           const details = postInterventionHabitatDetailsPage
 
@@ -1402,12 +1419,13 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
           await details.cancelLink.click()
           await expectOnPiPage(page, id, 'area')
-          await expect(
-            page.getByRole('link', { name: 'H1', exact: true })
-          ).toHaveCount(1)
-          await expect(
-            page.getByRole('link', { name: 'H2-2', exact: true })
-          ).toHaveCount(1)
+          for (const ref of ['H1', 'H2-2']) {
+            const found = await findPiRef(page, id, 'area', ref)
+            expect(found?.label).toBe(RETAINED)
+            await expect(found.unitPage.refLink(found.label, ref)).toHaveCount(
+              1
+            )
+          }
         }
       )
     })
