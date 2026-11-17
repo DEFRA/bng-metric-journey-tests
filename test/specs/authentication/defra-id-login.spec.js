@@ -6,7 +6,7 @@ const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 test.describe('authentication', { tag: '@authentication' }, () => {
   // ─── Authenticated landing ─────────────────────────────────────────────────
   // The interactive sign-in journey (Steps 1–4 of defra-id-login.flow.md) runs
-  // through external Government Gateway / B2C pages and is driven once by
+  // through external B2C / GOV.UK One Login pages and is driven once by
   // auth.setup.js to mint the completer session. Here we assert the journey's
   // outcome: a completer session is signed in and reaches the project area.
   // Uses the completer profile, so it runs in e2e too (against the real session).

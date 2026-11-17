@@ -2304,7 +2304,11 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     test.use({ storageState: STORAGE_STATE })
     test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-    test(
+    // FIXME(BMD-1046): parked 2026-11-17. Frontend PR #526 (1759631) with
+    // backend PR #660 opens an Enhanced hedgerow on the hedgerow edit form, not
+    // BMD-733's read-only page, so the read-only layout is gone. Restore as an
+    // edit-form test when BMD-1046 is covered.
+    test.fixme(
       'Enhanced hedgerow renders the two-section read-only page with every row and no form controls',
       { tag: '@smoke' },
       async ({ browser, postInterventionHabitatDetailsPage, page }) => {
@@ -2375,7 +2379,11 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     // witness is that no "{label} ({multiplier})" value renders at all, with
     // the label still present. Since BMD-1070 (backend PR #498) the feature is
     // saved with null units rather than 0, so units delivered is empty too.
-    test(
+    // FIXME(BMD-1046): parked 2026-11-17. Frontend PR #526 (1759631) puts an
+    // Enhanced hedgerow on the edit form, which has no read-only "Strategic
+    // significance" row. Restore against the edit form when BMD-1046 is
+    // covered.
+    test.fixme(
       'Enhanced hedgerow with a rejected strategic significance shows no value and no units delivered',
       { tag: '@regression' },
       async ({ browser, postInterventionHabitatDetailsPage, page }) => {
@@ -4041,7 +4049,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
       // An Enhanced hedgerow: its page is still read-only. It was an Enhanced
       // area until BMD-1045 made that editable.
-      test('POST /post-intervention-habitat-details for an Enhanced hedgerow returns 501 Not Implemented', async ({
+      // FIXME(BMD-1046): parked 2026-11-17. Frontend PR #526 (1759631) with
+      // backend PR #660 makes an Enhanced hedgerow editable, so this POST now
+      // saves (200). Restore against a feature that is still read-only.
+      test.fixme('POST /post-intervention-habitat-details for an Enhanced hedgerow returns 501 Not Implemented', async ({
         browser,
         page
       }) => {

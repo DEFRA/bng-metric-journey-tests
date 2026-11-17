@@ -10,6 +10,7 @@ import {
   PENDING_ROLE_STORAGE_STATE,
   defraIdUsername,
   defraIdPassword,
+  defraIdTotpSecret,
   proxyConfig
 } from '../utils/env.js'
 import { DefraIdLoginFlow } from '../flows/authentication/defra-id-login.flow.js'
@@ -85,7 +86,7 @@ export async function registerAndLogin(
   await page.getByRole('link', { name: 'Login' }).click()
 }
 
-// e2e: sign in once as the completer user via the real Government Gateway flow
+// e2e: sign in once as the completer user via the real GOV.UK One Login flow
 // and save the session. The no-role and no-projects profiles can't be created
 // from a single account, so they are written empty and skip in e2e (skipInE2e).
 async function setupRealDefraIdState() {
@@ -108,7 +109,11 @@ async function setupRealDefraIdState() {
     // baseURL lets the login page object navigate with a relative path.
     const context = await loginBrowser.newContext({ baseURL: baseUrl })
     const page = await context.newPage()
-    await new DefraIdLoginFlow(page).login(defraIdUsername, defraIdPassword)
+    await new DefraIdLoginFlow(page).login(
+      defraIdUsername,
+      defraIdPassword,
+      defraIdTotpSecret
+    )
     await context.storageState({ path: STORAGE_STATE })
     await context.close()
   } finally {
