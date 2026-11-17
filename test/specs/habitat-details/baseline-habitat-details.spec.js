@@ -10,12 +10,15 @@ import { AreaBaselinePage } from '@pages/area-baseline.page.js'
 import { HedgerowsBaselinePage } from '@pages/hedgerows-baseline.page.js'
 import { WatercoursesBaselinePage } from '@pages/watercourses-baseline.page.js'
 import {
+  HEDGEROW_REFS_BASELINE_FILE,
+  HEDGEROWS_MIXED_RETENTION_PI_FILE,
   LONG_PADDED_REFS,
+  buildBaselineOnlyProject,
   buildPostInterventionOnlyProject,
   getLongPaddedRefsProject
 } from '@utils/summary-projects.js'
 import { gridRefName } from '@utils/habitat-ref-display.js'
-import { openPiTabFor } from '@utils/post-intervention-grid.js'
+import { findPiRef, openPiTabFor } from '@utils/post-intervention-grid.js'
 import { UNITS_TWO_DP_PATTERN } from '@pages/post-intervention-habitat-details.page.js'
 import { STATUS_COMPLETE, STATUS_INCOMPLETE } from '@utils/unit-type-labels.js'
 
@@ -111,6 +114,13 @@ const COMMENT_INVALID_SUMMARY =
   'The supporting information uses invalid characters.'
 const COMMENT_INVALID_INLINE =
   'The supporting information can only use UTF-8 characters.'
+
+// BMD-1061 — editing the habitat reference. All wording is interim
+// (error-text.yaml `wording: interim`).
+const REF_INVALID_SUMMARY = 'You have entered an invalid habitat reference.'
+const REF_INVALID_INLINE = 'Enter a valid habitat reference.'
+const REF_IN_USE_SUMMARY = 'Another habitat already has this habitat reference.'
+const REF_IN_USE_INLINE = 'Enter a habitat reference that no other habitat has.'
 
 // BMD-1043 (frontend PR#352) removed the baseline habitat list. Each feature
 // type's grid now lives on its own unit-type baseline page, and that page is
@@ -2069,6 +2079,180 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         expect(await baselineHabitatDetailsPage.rawHeadingText()).toBe(
           `Habitat ${LONG_PADDED_REFS.long}`
         )
+      })
+    }
+  )
+
+  // BMD-1061 AC4 and AC6. Both refusals save nothing, so they share one
+  // legacy-template upload. Sole real-data witnesses that the baseline page
+  // refuses a reference: the frontend controller tests mock the backend, the
+  // backend's rename rules are tested only in apply-feature-update.test.js
+  // against made-up documents, and no integration test sends `ref` on the
+  // baseline PUT. Do not delete without integration tests that send a blank
+  // ref (400) and a ref another baseline habitat carries on a legacy project
+  // (422 HABITAT_REF_IN_USE) to PUT /projects/{id}/features/{featureId}.
+  test.describe(
+    'Baseline habitat details — habitat reference refusals',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+      test.skip(runMode === 'e2e', E2E_UPLOAD_SKIP_REASON)
+      test.describe.configure({
+        mode: 'serial',
+        timeout: SHARED_PAIR_BUILD_TIMEOUT
+      })
+
+      let projectId
+
+      test.beforeAll(async ({ browser }) => {
+        ;({ id: projectId } = await buildBaselineOnlyProject(
+          browser,
+          HEDGEROW_REFS_BASELINE_FILE
+        ))
+      })
+
+      async function openFromGrid(page, type, ref) {
+        const grid = await openBaselineGrid(page, projectId, type)
+        await grid.refLink(ref).click()
+        await expect(page).toHaveURL(/\/baseline-habitat-details/)
+      }
+
+      // A refusal saves nothing: the other fields changed in the same submit
+      // are kept on the error page and absent once the habitat is reopened.
+      // Returns what was stored and what was submitted.
+      async function changeOtherFields(details) {
+        const saved = {
+          condition: await details.conditionSelect.inputValue(),
+          comment: await details.commentInput.inputValue()
+        }
+        const submitted = {
+          condition: await details.selectDifferentCondition(),
+          comment: 'Not saved with a refused reference'
+        }
+        await details.commentInput.fill(submitted.comment)
+        return { saved, submitted }
+      }
+
+      async function expectFields(details, { condition, comment }) {
+        await expect(details.conditionSelect).toHaveValue(condition)
+        await expect(details.commentInput).toHaveValue(comment)
+      }
+
+      test('refuses a blank reference, keeping the saved one', async ({
+        baselineHabitatDetailsPage,
+        page
+      }) => {
+        await openFromGrid(page, 'area', 'H2')
+        const { saved, submitted } = await changeOtherFields(
+          baselineHabitatDetailsPage
+        )
+        await baselineHabitatDetailsPage.habitatReferenceInput.clear()
+        await baselineHabitatDetailsPage.saveButton.click()
+
+        await expect(page).toHaveTitle(/^Error:/)
+        await expect(
+          baselineHabitatDetailsPage.errorSummaryLink(REF_INVALID_SUMMARY)
+        ).toHaveAttribute('href', '#habitatRef')
+        await expect(
+          baselineHabitatDetailsPage.inlineError(REF_INVALID_INLINE)
+        ).toBeVisible()
+        await expect(baselineHabitatDetailsPage.heading).toHaveText(
+          'Habitat H2'
+        )
+        await expectFields(baselineHabitatDetailsPage, submitted)
+
+        await baselineHabitatDetailsPage.cancelLink.click()
+        await openFromGrid(page, 'area', 'H2')
+        await expect(
+          baselineHabitatDetailsPage.habitatReferenceInput
+        ).toHaveValue('H2')
+        await expectFields(baselineHabitatDetailsPage, saved)
+      })
+
+      // Hedgerows and watercourses share one reference scope, so a hedgerow
+      // cannot take the watercourse's ref either.
+      test("refuses a hedgerow taking a watercourse's reference on a legacy project", async ({
+        baselineHabitatDetailsPage,
+        page
+      }) => {
+        await openFromGrid(page, 'hedgerow', 'HR1')
+        const { saved, submitted } = await changeOtherFields(
+          baselineHabitatDetailsPage
+        )
+        await baselineHabitatDetailsPage.habitatReferenceInput.fill('R1')
+        await baselineHabitatDetailsPage.saveButton.click()
+
+        await expect(page).toHaveTitle(/^Error:/)
+        await expect(
+          baselineHabitatDetailsPage.errorSummaryLink(REF_IN_USE_SUMMARY)
+        ).toHaveAttribute('href', '#habitatRef')
+        await expect(
+          baselineHabitatDetailsPage.inlineError(REF_IN_USE_INLINE)
+        ).toBeVisible()
+        await expect(
+          baselineHabitatDetailsPage.habitatReferenceInput
+        ).toHaveValue('R1')
+        await expect(baselineHabitatDetailsPage.heading).toHaveText(
+          'Hedgerow HR1'
+        )
+        await expectFields(baselineHabitatDetailsPage, submitted)
+
+        await baselineHabitatDetailsPage.cancelLink.click()
+        await openFromGrid(page, 'hedgerow', 'HR1')
+        await expect(
+          baselineHabitatDetailsPage.habitatReferenceInput
+        ).toHaveValue('HR1')
+        await expectFields(baselineHabitatDetailsPage, saved)
+      })
+    }
+  )
+
+  // BMD-1061 AC5. Sole real-data witness that a baseline rename is saved and
+  // carried onto the post-intervention row joined to it by ref: the backend
+  // covers the rename (apply-feature-update.test.js) and the carry
+  // (resync-post-intervention-baseline.test.js) only against made-up
+  // documents, and no integration test sends `ref` on the baseline PUT. Do
+  // not delete without one that renames a baseline habitat with a Retained
+  // row and reads both back. Its own upload, because it renames.
+  test.describe(
+    'Baseline habitat details — habitat reference rename',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+      test.skip(runMode === 'e2e', E2E_UPLOAD_SKIP_REASON)
+      test.describe.configure({ timeout: SHARED_PAIR_BUILD_TIMEOUT })
+
+      test('saves a new reference and carries it onto the Retained post-intervention row', async ({
+        browser,
+        baselineHabitatDetailsPage,
+        page
+      }) => {
+        const newRef = 'H1-RENAMED'
+        // One file holding both stages: H1 is Retained.
+        const { id: projectId } = await buildPostInterventionOnlyProject(
+          browser,
+          HEDGEROWS_MIXED_RETENTION_PI_FILE
+        )
+
+        const grid = await openBaselineGrid(page, projectId, 'area')
+        await grid.refLink('H1').click()
+        await baselineHabitatDetailsPage.habitatReferenceInput.fill(newRef)
+        await baselineHabitatDetailsPage.saveButton.click()
+
+        await expect(page).toHaveURL(baselinePageUrl(projectId, 'area'))
+        await expect(grid.refLink(newRef)).toBeVisible()
+        await expect(grid.refLink('H1')).toHaveCount(0)
+        await grid.refLink(newRef).click()
+        expect(await baselineHabitatDetailsPage.rawHeadingText()).toBe(
+          `Habitat ${newRef}`
+        )
+
+        expect((await findPiRef(page, projectId, 'area', newRef))?.label).toBe(
+          RETAINED
+        )
+        expect(await findPiRef(page, projectId, 'area', 'H1')).toBeNull()
       })
     }
   )
