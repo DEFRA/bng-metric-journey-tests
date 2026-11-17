@@ -1,4 +1,4 @@
-import { setTimeout as sleep } from 'timers/promises'
+import { setTimeout as sleep } from 'node:timers/promises'
 import { DefraIdLoginPage } from '@pages/defra-id-login.page.js'
 import { totp, msUntilNextTotpStep } from '@utils/totp.js'
 
