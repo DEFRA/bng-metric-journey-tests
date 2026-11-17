@@ -45,7 +45,7 @@ const BASELINE_DETAILS_URL_PATTERN = /\/baseline-habitat-details/
 // Fixture reachability (Retention Category per feature, read from the .gpkg):
 // - COMPLETE_PI_FILE areas: H1 + H2-2 Retained, H2-3 + H3 Enhanced, H2-1…
 //   Lost. The Retained parcels render the reference form (BMD-1180), the
-//   Enhanced ones the read-only page.
+//   Enhanced ones the area edit form (BMD-1045).
 // - BASELINE_FILE areas: H1, H2, H3 — so in a project holding both uploads
 //   the PI parcel H1 has a ref-matching baseline feature (link shown) while
 //   H2-2 does not (link hidden).
@@ -182,6 +182,78 @@ const TIMING_CONFLICT_SUMMARY =
   'A habitat cannot be created both in advance and with a delay.'
 const TIMING_CONFLICT_INLINE =
   'Either the advance or delay field must be set at zero.'
+// BMD-1045. H2-3 in COMPLETE_PI_FILE: a Modified grassland (Low 2), Moderate (2)
+// baseline enhanced to Other neutral grassland (Medium 4), Good (3), Low, with
+// zero timing. The lists below are what GET /reference/area-enhancement offers
+// that baseline.
+const ENHANCED_AREA_REF = 'H2-3'
+const ENHANCED_AREA_SELECTIONS = {
+  broad: 'Grassland',
+  type: 'Other neutral grassland',
+  significance: 'Low',
+  condition: 'Good',
+  advance: '0',
+  delay: '0'
+}
+const ENHANCED_AREA_VALUES = {
+  intervention: 'Enhanced',
+  size: '0.3052136111',
+  distinctiveness: 'Medium (4)',
+  standardTime: 'Moderate to Good - 15 years',
+  difficulty: 'Low',
+  finalTime: '15 years (0.5860163055)',
+  applied: '1'
+}
+// Enhanced units are (baseline + (target - baseline) x temporal x difficulty)
+// x the proposed strategic significance, where baseline and target are
+// hectares x distinctiveness x condition:
+// (0.3052136111 x 4 + (0.3052136111 x 12 - 0.3052136111 x 4) x 0.5860163055) x 1
+const ENHANCED_AREA_EXACT_UNITS = 2.6517
+const ENHANCED_AREA_BROAD_HABITATS = [
+  'Choose broad habitat',
+  'Coastal saltmarsh',
+  'Cropland',
+  'Grassland',
+  'Heathland and shrub',
+  'Intertidal hard structures',
+  'Intertidal sediment',
+  'Lakes',
+  'Sparsely vegetated land',
+  'Urban',
+  'Woodland and forest'
+]
+// No Bracken: unlike GRASSLAND_TYPES, it is no enhancement of this baseline.
+const ENHANCED_GRASSLAND_TYPES = [
+  'Choose habitat type',
+  'Modified grassland',
+  'Other lowland acid grassland',
+  'Other neutral grassland',
+  'Upland acid grassland'
+]
+const SCRUB_TYPES = [
+  'Choose habitat type',
+  'Blackthorn scrub',
+  'Gorse scrub',
+  'Hawthorn scrub',
+  'Hazel scrub',
+  'Mixed scrub',
+  'Willow scrub'
+]
+// H3 in the same file: a Mixed scrub, Poor baseline enhanced to Good. Its only
+// broad habitat is its own, and Poor is no improvement on it.
+const ENHANCED_SCRUB_REF = 'H3'
+const ENHANCED_SCRUB_CONDITIONS = [
+  'Choose target condition',
+  'Good (3)',
+  'Fairly Good (2.5)',
+  'Moderate (2)',
+  'Fairly Poor (1.5)'
+]
+// Harness attribute-problems fixture: H2-3 is Enhanced with only its Broad
+// habitat and a legacy significance label. The import nulls the significance
+// along with the missing type, so only the reference and Broad habitat load.
+const ENHANCED_AREA_INCOMPLETE_PI_FILE =
+  'Post-intervention - missing proposed habitat data.gpkg'
 // The hedgerow equivalent, and the *other* flavour of absent baseline. H2-7
 // above has its Baseline* columns cleared; these hedgerows carry the GeoPackage
 // sentinel "N/A" instead, which frontend PR#206 (BMD-706) made count as absent
@@ -466,9 +538,9 @@ function getSharedProject(browser, key, files, harvest) {
 }
 
 // Baseline + PI complete uploads in one project: retained parcels for the
-// reference form (H1 with a ref-matching baseline feature, H2-2 without), an
-// Enhanced parcel, and a Lost parcel (H2-1) which the backend imports as
-// Created — both prove retention no longer gates the read-only page.
+// reference form (H1 with a ref-matching baseline feature, H2-2 without), the
+// Enhanced parcels H2-3 and H3 for the Enhanced area edit form (BMD-1045), and
+// a Lost parcel (H2-1) which the backend imports as Created.
 function getCompleteProject(browser) {
   return getSharedProject(
     browser,
@@ -484,21 +556,10 @@ function getCompleteProject(browser) {
         'area',
         'H2-2'
       )
-      const enhancedWithBaseline = await harvestPiFeature(
-        page,
-        id,
-        'area',
-        'H3'
-      )
       return {
         retainedWithBaseline: await featureIdByRef(page, id, 'area', 'H1'),
         retainedNoBaseline: retainedNoBaseline.featureId,
-        retainedNoBaselineUnits: retainedNoBaseline.units,
-        // Enhanced area parcel for the two-section read-only page (BMD-725):
-        // H3 is Enhanced and shares its ref with a baseline feature (View
-        // baseline link shown).
-        enhancedWithBaseline: enhancedWithBaseline.featureId,
-        enhancedWithBaselineUnits: enhancedWithBaseline.units
+        retainedNoBaselineUnits: retainedNoBaseline.units
       }
     }
   )
@@ -543,6 +604,17 @@ function getCreatedAreaSaveProject(
     browser,
     key,
     { baselineFile: BASELINE_FILE, piFile },
+    async () => ({})
+  )
+}
+
+// BMD-1045. The same pair with H2-3 left incomplete on import (see
+// ENHANCED_AREA_INCOMPLETE_PI_FILE).
+function getEnhancedAreaIncompleteProject(browser) {
+  return getSharedProject(
+    browser,
+    'enhanced-area-incomplete',
+    { baselineFile: BASELINE_FILE, piFile: ENHANCED_AREA_INCOMPLETE_PI_FILE },
     async () => ({})
   )
 }
@@ -699,10 +771,17 @@ async function expectCreatedAreaSelections(details, expected) {
   }
 }
 
-async function expectCreatedAreaValues(details, expected) {
+async function expectCreatedAreaValues(details, expected, options = {}) {
   for (const [name, value] of Object.entries(expected)) {
-    await expect(details.createdFormValue(name), name).toHaveText(value)
+    await expect(details.createdFormValue(name, options), name).toHaveText(
+      value
+    )
   }
+}
+
+// An Enhanced area's form values sit after its "View baseline details" link.
+async function expectEnhancedAreaValues(details, expected) {
+  await expectCreatedAreaValues(details, expected, { baselineLink: true })
 }
 
 // The area post-intervention tile, read from the page already open.
@@ -1162,79 +1241,6 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
               heading: 'Habitat H1'
             }
           )
-        }
-      )
-    })
-
-    // ─── Enhanced area habitat — two-section view-only display (BMD-725) ──────
-    // An Enhanced area habitat renders a dedicated two-section read-only page
-    // (pi-habitat-details-enhanced.njk): a "Post-intervention habitat details"
-    // section, a "Time to target / difficulty" section, and a "Habitat units
-    // delivered" summary row. The page heading is the feature ref, and every
-    // value is sourced from the feature's `proposed` side. H3 is Enhanced and
-    // shares its ref with a baseline feature (View baseline link shown); H2-3
-    // is Enhanced with no baseline match (link hidden).
-
-    test.describe('Enhanced area habitat display', () => {
-      test.use({ storageState: STORAGE_STATE })
-      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
-
-      test(
-        'Enhanced area habitat renders the two-section read-only page with every row and no form controls',
-        { tag: '@smoke' },
-        async ({ browser, postInterventionHabitatDetailsPage, page }) => {
-          const shared = await getCompleteProject(browser)
-          // Arrive the way the user does (BMD-725): click the parcel's Ref link
-          // in the area habitats post-intervention grid rather than deep-linking.
-          await openPiFeatureDetails(page, shared.id, 'area', 'H3')
-          await expect(page).toHaveURL(DETAILS_URL_PATTERN)
-
-          const detailsPage = postInterventionHabitatDetailsPage
-          await detailsPage.assertTwoSectionLayout({
-            ref: 'H3',
-            intervention: 'Enhanced'
-          })
-          await expect(detailsPage.caption).toHaveText(shared.name)
-          // Area specifics: the size row is "Area" and there is a Broad habitat
-          // row, neither of which the hedgerow/watercourse pages carry.
-          await expect(detailsPage.enhancedAreaKey).toBeVisible()
-          await expect(detailsPage.broadHabitatKey).toBeVisible()
-          // "View baseline details" renders after section 1 (H3 is ref-matched).
-          await expect(detailsPage.viewBaselineLink).toBeVisible()
-          await expect(detailsPage.broadHabitatSelect).toBeHidden()
-          await expect(detailsPage.habitatTypeSelect).toBeHidden()
-          await expect(detailsPage.conditionSelect).toBeHidden()
-        }
-      )
-
-      test(
-        'Enhanced area habitat shows its section-2 values and units delivered',
-        { tag: '@regression' },
-        async ({ browser, postInterventionHabitatDetailsPage }) => {
-          const shared = await getCompleteProject(browser)
-          await postInterventionHabitatDetailsPage.open(
-            shared.id,
-            shared.enhancedWithBaseline
-          )
-
-          // The standard time-to-target value proves the section-2 values
-          // render *and* pins the dynamic condition transition frontend PR#193
-          // introduced: "<baseline condition> to <target condition> - N years"
-          // (H3 improves Poor → Good over 10 years). A shape-only assertion
-          // would also pass on the old static "Baseline condition to target
-          // condition - N years" wording this ticket was re-worked away from, so
-          // assert the exact transition and explicitly exclude that stale text.
-          await expect(
-            postInterventionHabitatDetailsPage.standardTimeToTargetValue
-          ).toHaveText('Poor to Good - 10 years')
-          await expect(
-            postInterventionHabitatDetailsPage.standardTimeToTargetValue
-          ).not.toContainText(STALE_TIME_TO_TARGET_TEXT)
-          // "Habitat units delivered" matches the Units cell of the same
-          // parcel's grid row.
-          await expect(
-            postInterventionHabitatDetailsPage.habitatUnitsValue
-          ).toHaveText(shared.enhancedWithBaselineUnits)
         }
       )
     })
@@ -1812,6 +1818,246 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           ).toMatchObject({
             Units: shared.createdAreaUnits,
             'Strategic significance': 'Low (1)'
+          })
+        })
+      }
+    )
+
+    // ─── Enhanced area habitats — editing (BMD-1045) ─────────────────────────
+    // An Enhanced area opens on the Created area form, its choices limited to
+    // the valid enhancements of its baseline (GET /reference/area-enhancement,
+    // backend PR#650). Backend enhanced-area-edit.test.js and
+    // integration-tests/reference.test.js cover the lists, and frontend
+    // controller-enhanced-area.test.js renders them against made-up reference
+    // data, so these tests are the only proof the real enhancement reference
+    // reaches the page. The previews, Cancel, validation and Upload file are
+    // the Created form's own code, covered by the Created area tests above.
+    // Only the save test changes a project.
+
+    test.describe(
+      'Enhanced area habitats — editing',
+      { tag: '@regression' },
+      () => {
+        test.use({ storageState: STORAGE_STATE })
+        test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+        // AC1 and AC11. Replaces the BMD-725 read-only page test.
+        test(
+          'an Enhanced area habitat opens the area edit form, offering only valid enhancements of its baseline',
+          { tag: '@smoke' },
+          async ({
+            browser,
+            page,
+            postInterventionHabitatDetailsPage,
+            baselineHabitatDetailsPage
+          }) => {
+            const shared = await getCompleteProject(browser)
+            await openPiFeatureDetails(
+              page,
+              shared.id,
+              'area',
+              ENHANCED_AREA_REF
+            )
+            const details = postInterventionHabitatDetailsPage
+
+            await details.assertEnhancedAreaEditForm({ ref: ENHANCED_AREA_REF })
+            await expect(details.caption).toHaveText(shared.name)
+            await expectCreatedAreaSelections(details, ENHANCED_AREA_SELECTIONS)
+            await expect(
+              details.broadHabitatSelect.getByRole('option')
+            ).toHaveText(ENHANCED_AREA_BROAD_HABITATS)
+            await expect(
+              details.habitatTypeSelect.getByRole('option')
+            ).toHaveText(ENHANCED_GRASSLAND_TYPES)
+            await expect(
+              details.targetConditionSelect.getByRole('option')
+            ).toHaveText(AREA_CREATION_CONDITIONS)
+            await expect(
+              details.advanceYearsSelect.getByRole('option')
+            ).toHaveText(['Choose advance', ...TIMING_YEARS])
+            await expectEnhancedAreaValues(details, ENHANCED_AREA_VALUES)
+            await expect(details.habitatUnitsValue).toHaveText(
+              ENHANCED_AREA_EXACT_UNITS.toFixed(2)
+            )
+
+            // AC11. An Enhanced area finds its baseline as its read-only page
+            // did, not through parentFeatureId as a Created feature does.
+            await details.viewBaselineLink.click()
+            await expect(page).toHaveURL(BASELINE_DETAILS_URL_PATTERN)
+            await expect(baselineHabitatDetailsPage.headingTitle).toHaveText(
+              `Habitat ${ENHANCED_AREA_REF}`
+            )
+
+            // Each baseline is offered its own enhancements.
+            await openPiFeatureDetails(
+              page,
+              shared.id,
+              'area',
+              ENHANCED_SCRUB_REF
+            )
+            await expect(
+              details.broadHabitatSelect.getByRole('option')
+            ).toHaveText(['Choose broad habitat', 'Heathland and shrub'])
+            await expect(
+              details.habitatTypeSelect.getByRole('option')
+            ).toHaveText(SCRUB_TYPES)
+            await expect(
+              details.targetConditionSelect.getByRole('option')
+            ).toHaveText(ENHANCED_SCRUB_CONDITIONS)
+            await expectEnhancedAreaValues(details, {
+              standardTime: 'Poor to Good - 10 years'
+            })
+          }
+        )
+
+        // AC2. Sole real-data witness for an import-incomplete Enhanced area on
+        // the form. Frontend controller-enhanced-area.test.js covers it on a
+        // made-up feature.
+        test('an incomplete Enhanced area shows its saved broad habitat, default options and zero units', async ({
+          browser,
+          page,
+          postInterventionHabitatDetailsPage
+        }) => {
+          const { id } = await getEnhancedAreaIncompleteProject(browser)
+          await openPiFeatureDetails(page, id, 'area', ENHANCED_AREA_REF)
+          const details = postInterventionHabitatDetailsPage
+
+          await expect(details.habitatReferenceInput).toHaveValue(
+            ENHANCED_AREA_REF
+          )
+          await expectCreatedAreaSelections(details, {
+            broad: 'Grassland',
+            type: '',
+            significance: '',
+            condition: '',
+            advance: '',
+            delay: ''
+          })
+          await expect(
+            details.habitatTypeSelect.getByRole('option')
+          ).toHaveText(ENHANCED_GRASSLAND_TYPES)
+          await expect(
+            details.targetConditionSelect.getByRole('option')
+          ).toHaveText(['Choose target condition'])
+          await expectEnhancedAreaValues(details, {
+            distinctiveness: '',
+            standardTime: '',
+            difficulty: '',
+            finalTime: '',
+            applied: ''
+          })
+          await expect(details.standardTimeToTargetKey).toBeVisible()
+          await expect(details.habitatUnitsValue).toHaveText('0.00')
+          await expect(details.saveButton).toBeVisible()
+        })
+
+        // AC4, AC6 and AC8: each choice lists only the enhancements of the
+        // baseline (Modified grassland, Moderate), and the standard time is
+        // the enhancement time from that baseline condition.
+        test('the choices stay within the valid enhancements of the baseline as they change', async ({
+          browser,
+          page,
+          postInterventionHabitatDetailsPage
+        }) => {
+          const shared = await getCompleteProject(browser)
+          await openPiFeatureDetails(page, shared.id, 'area', ENHANCED_AREA_REF)
+          const details = postInterventionHabitatDetailsPage
+
+          // AC6. Kept in its own type, the baseline must improve on Moderate.
+          await details.habitatTypeSelect.selectOption('Modified grassland')
+          await expect(
+            details.targetConditionSelect.getByRole('option')
+          ).toHaveText([
+            'Choose target condition',
+            'Good (3)',
+            'Fairly Good (2.5)'
+          ])
+          await expectEnhancedAreaValues(details, {
+            distinctiveness: 'Low (2)',
+            standardTime: '',
+            difficulty: 'Low',
+            finalTime: '',
+            applied: '1'
+          })
+
+          // AC8.
+          await details.habitatTypeSelect.selectOption(
+            'Other neutral grassland'
+          )
+          await details.targetConditionSelect.selectOption('Fairly Good')
+          await expectEnhancedAreaValues(details, {
+            ...ENHANCED_AREA_VALUES,
+            standardTime: 'Moderate to Fairly Good - 12 years',
+            finalTime: '12 years (0.6521203607)'
+          })
+
+          // AC4.
+          await details.broadHabitatSelect.selectOption('Heathland and shrub')
+          await expect(
+            details.habitatTypeSelect.getByRole('option')
+          ).toHaveText(SCRUB_TYPES)
+          await expect(
+            details.targetConditionSelect.getByRole('option')
+          ).toHaveText(['Choose target condition'])
+          await expect(details.habitatUnitsValue).toHaveText(
+            ENHANCED_AREA_EXACT_UNITS.toFixed(2)
+          )
+        })
+
+        // AC12 Scenario A. Sole real-data witness that an Enhanced area save
+        // reaches the list with its enhanced units. Backend
+        // enhanced-area-edit.test.js:519 and integration-tests/habitats.test.js
+        // cover the calculation and storage. Scenario B is left out until the
+        // team rules on the list blanking an incomplete Enhanced row's derived
+        // columns (see the flow doc, Step 11).
+        test('saving a complete edit recalculates the enhanced units, the row and the total', async ({
+          browser,
+          page,
+          postInterventionHabitatDetailsPage
+        }) => {
+          const { id } = await getCreatedAreaSaveProject(
+            browser,
+            'enhanced-area-save-complete',
+            COMPLETE_PI_FILE
+          )
+          const newRef = 'H2-3-new'
+          // Upland acid grassland (Medium 4), Fairly Good (2.5), High (1.15),
+          // delay 2 on the 12-year enhancement: 14 years (0.6072707829).
+          // (0.3052136111 x 4 + (0.3052136111 x 10 - 0.3052136111 x 4) x
+          // 0.6072707829) x 1.15
+          const expectedUnits = 2.6829
+          await openPiTabFor(page, id, 'area', ENHANCED_AREA_REF)
+          const totalBefore = await areaPostInterventionUnits(page)
+          await piPage(page, 'area')
+            .refLink('Enhanced', ENHANCED_AREA_REF)
+            .click()
+          const details = postInterventionHabitatDetailsPage
+
+          await details.habitatReferenceInput.fill(newRef)
+          await details.habitatTypeSelect.selectOption('Upland acid grassland')
+          await details.targetConditionSelect.selectOption('Fairly Good')
+          await details.strategicSignificanceSelect.selectOption('High')
+          await details.delayYearsSelect.selectOption('2')
+          await details.saveButton.click()
+
+          await expect(page).toHaveURL(piPageUrl(id, 'area'))
+          const totalAfter = await areaPostInterventionUnits(page)
+          expect(
+            Math.abs(
+              totalAfter -
+                (totalBefore - ENHANCED_AREA_EXACT_UNITS + expectedUnits)
+            )
+          ).toBeLessThan(TILE_ROUNDING)
+          expect(await areaRowByRef(page, id, newRef)).toMatchObject({
+            Status: STATUS_COMPLETE,
+            Units: expectedUnits.toFixed(2),
+            'Broad habitat': 'Grassland',
+            'Habitat type': 'Upland acid grassland',
+            Distinctiveness: 'Medium (4)',
+            'Strategic significance': 'High (1.15)',
+            'Target condition': 'Fairly Good (2.5)',
+            Delay: '2 years',
+            'Final time to target': '14 years (0.6072707829)'
           })
         })
       }
@@ -3779,9 +4025,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
   )
 
   // ─── Save is not implemented for read-only features ─────────────────────────
-  // Created area and hedgerow edit forms and Retained reference forms post here.
-  // The route answers 501 for every other feature, so a stale page or client
-  // gets an explicit "not implemented" response rather than a save. The handler
+  // Created edit forms, the Enhanced area form (BMD-1045) and Retained
+  // reference forms post here. The route answers 501 for every other feature,
+  // so a stale page or client gets an explicit "not implemented" response
+  // rather than a save. The handler
   // validates the payload first (400 for a malformed body), so the request must
   // be a well-formed save aimed at a read-only feature to reach that branch.
 
@@ -3792,11 +4039,13 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      test('POST /post-intervention-habitat-details for an Enhanced area habitat returns 501 Not Implemented', async ({
+      // An Enhanced hedgerow: its page is still read-only. It was an Enhanced
+      // area until BMD-1045 made that editable.
+      test('POST /post-intervention-habitat-details for an Enhanced hedgerow returns 501 Not Implemented', async ({
         browser,
         page
       }) => {
-        const shared = await getCompleteProject(browser)
+        const shared = await getHedgerowsProject(browser)
         // No read-only page renders a form, so there is no crumb-carrying HTML
         // form to submit via a real browser action. Any response sets the
         // httpOnly `crumb` cookie (@hapi/crumb, restful: false); read it from
@@ -3811,9 +4060,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           {
             data: {
               projectId: shared.id,
-              featureId: shared.enhancedWithBaseline,
-              ref: 'H3',
-              broadHabitat: '',
+              featureId: shared.enhancedHedgerow,
+              ref: ENHANCED_HEDGEROW_REF,
               habitatType: '',
               condition: '',
               strategicSignificance: '',
