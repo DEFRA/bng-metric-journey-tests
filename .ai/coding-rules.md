@@ -83,7 +83,7 @@ test.describe('Feature — role enforcement', () => {
 - Always pass the same profile to `skipInE2e` that the describe passes to `test.use`.
 - Define `E2E_SKIP_REASON` as a file-level constant (avoids SonarCloud duplicate-literal violations).
 - Unauthenticated describes (no `storageState`) must **not** receive `test.skip`.
-- `e2e` mode reads `DEFRA_ID_USERNAME` / `DEFRA_ID_PASSWORD` (see `.env.example`).
+- `e2e` mode reads `DEFRA_ID_USERNAME` / `DEFRA_ID_PASSWORD` / `DEFRA_ID_TOTP_SECRET` (see `.env.example`).
 
 ## Test Tagging
 

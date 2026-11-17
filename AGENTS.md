@@ -174,11 +174,11 @@ Tests run in three modes controlled by `RUN_MODE` (exported from `test/utils/env
 - `github` — against the Docker Compose stack, CI (stub auth)
 - `e2e` — against a deployed CDP environment (real Defra ID auth)
 
-**Authentication by mode.** In `local`/`github` the `cdp-defra-id-stub` mints all three user profiles. In `e2e` the suite signs in through the **real Defra ID / Government Gateway** flow (`test/setup/auth.setup.js` → `DefraIdLoginFlow`) and saves the session for the **completer** profile only. That single account cannot reproduce the `no-role` or `no-projects` profiles, so describes using those two still skip in e2e; describes using the main completer `STORAGE_STATE` now **run** in e2e.
+**Authentication by mode.** In `local`/`github` the `cdp-defra-id-stub` mints all three user profiles. In `e2e` the suite signs in through the **real Defra ID / GOV.UK One Login** flow (`test/setup/auth.setup.js` → `DefraIdLoginFlow`) and saves the session for the **completer** profile only. That single account cannot reproduce the `no-role` or `no-projects` profiles, so describes using those two still skip in e2e; describes using the main completer `STORAGE_STATE` now **run** in e2e.
 
 **e2e always runs on one worker** (`playwright.config.js`). Every worker shares that one Defra ID session, so parallel uploads would clobber its single pending-upload key and import the wrong file. Running serially also lets the shared-project cache dedupe builds across spec files.
 
-`e2e` mode requires `DEFRA_ID_USERNAME` and `DEFRA_ID_PASSWORD` (gitignored `.env` locally, CDP Portal secret store in CI) — see `.env.example`.
+`e2e` mode requires `DEFRA_ID_USERNAME` (the One Login email) and `DEFRA_ID_PASSWORD`, plus `DEFRA_ID_TOTP_SECRET` if One Login asks for a security code (gitignored `.env` locally, CDP Portal secret store in CI) — see `.env.example`.
 
 Pattern for every `describe` block that uses `storageState` — pass the profile it uses to `skipInE2e`:
 

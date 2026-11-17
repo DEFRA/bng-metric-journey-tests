@@ -1,21 +1,21 @@
 import { BasePage } from './base.page.js'
 
-// Defra ID / Government Gateway sign-in pages. These screens are served by Defra
-// ID (Azure AD B2C → Government Gateway), not the frontend under test. Selectors
-// are verified against the dev environment and the test account has no MFA step;
-// re-confirm with a headed run against dev/test if the hosted pages change.
+// Defra ID / GOV.UK One Login sign-in pages. These screens are served by Defra
+// ID (Azure AD B2C → GOV.UK One Login integration), not the frontend under
+// test. Defra ID offers One Login only since BMD-1174, so B2C redirects straight
+// to One Login's "Create your GOV.UK One Login or sign in" page. Selectors are
+// verified against dev/test; re-confirm with a headed run if the hosted pages
+// change.
 export class DefraIdLoginPage extends BasePage {
   constructor(page) {
     super(page)
-    this.governmentGatewayOption = page.getByRole('radio', {
-      name: 'Sign in with Government Gateway'
+    this.signInButton = page.getByRole('button', { name: 'Sign in' })
+    this.emailInput = page.getByRole('textbox', { name: /email address/i })
+    this.passwordInput = page.getByLabel('Enter your password')
+    this.securityCodeInput = page.getByRole('textbox', {
+      name: /security code/i
     })
     this.continueButton = page.getByRole('button', { name: 'Continue' })
-    this.userIdInput = page.getByLabel('Government Gateway user ID')
-    // exact: true — the GOV.UK password field has a "Show current password"
-    // toggle whose name also contains "password".
-    this.passwordInput = page.getByLabel('Password', { exact: true })
-    this.signInButton = page.getByRole('button', { name: 'Sign in' })
   }
 
   async open() {
@@ -26,23 +26,23 @@ export class DefraIdLoginPage extends BasePage {
     await this.page.goto('/auth/login', { waitUntil: 'domcontentloaded' })
   }
 
-  async selectGovernmentGateway() {
-    await this.governmentGatewayOption.check()
+  async chooseSignIn() {
+    await this.signInButton.click()
   }
 
-  async clickContinue() {
-    await this.continueButton.click()
-  }
-
-  async enterUserId(userId) {
-    await this.userIdInput.fill(userId)
+  async enterEmail(email) {
+    await this.emailInput.fill(email)
   }
 
   async enterPassword(password) {
     await this.passwordInput.fill(password)
   }
 
-  async submit() {
-    await this.signInButton.click()
+  async enterSecurityCode(code) {
+    await this.securityCodeInput.fill(code)
+  }
+
+  async clickContinue() {
+    await this.continueButton.click()
   }
 }

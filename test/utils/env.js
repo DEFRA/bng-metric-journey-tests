@@ -49,6 +49,10 @@ export const PENDING_ROLE_STORAGE_STATE = path.join(
 // store (or a gitignored local .env). Required only when RUN_MODE=e2e.
 export const defraIdUsername = process.env.DEFRA_ID_USERNAME
 export const defraIdPassword = process.env.DEFRA_ID_PASSWORD
+// Authenticator-app setup key for the e2e One Login account. Only used if One
+// Login asks for a security code (test/utils/totp.js); Defra ID dev/test sign in
+// with a password alone today.
+export const defraIdTotpSecret = process.env.DEFRA_ID_TOTP_SECRET
 
 // Real Defra ID login in e2e mode produces only the main completer session
 // (STORAGE_STATE). The no-role and no-projects profiles cannot be reproduced
@@ -59,7 +63,7 @@ export function skipInE2e(storageState = STORAGE_STATE) {
 }
 
 // On the CDP test runner, the browser must reach the external Defra ID pages
-// (Azure B2C / Government Gateway) through the platform egress proxy; internal
+// (Azure B2C / GOV.UK One Login) through the platform egress proxy; internal
 // CDP URLs and localhost go direct. Use HTTPS_PROXY/HTTP_PROXY (the egress
 // proxy) — not CDP_HTTPS_PROXY, which targets the test's local forwarder
 // sidecar. The var is unset off-CDP, so this is a no-op locally and in github.

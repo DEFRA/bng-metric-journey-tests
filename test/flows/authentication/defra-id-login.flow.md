@@ -3,9 +3,9 @@
 ## Overview
 
 In e2e mode (deployed dev/test) the suite signs in through the **real Defra ID /
-Government Gateway** journey instead of the `cdp-defra-id-stub`. A user clicks
-"Sign in" on the home page and authenticates with a Government Gateway user ID
-and password, landing on the project dashboard. Used by
+GOV.UK One Login** journey instead of the `cdp-defra-id-stub`. A user clicks
+"Sign in" on the home page and authenticates with a One Login email address and
+password, landing on the project dashboard. Used by
 `test/setup/auth.setup.js` to mint the completer `storageState` in e2e; local and
 github runs continue to use the stub.
 
@@ -21,17 +21,30 @@ github runs continue to use the stub.
   to the IdP authorization request (forces account/organisation re-selection);
   omitted otherwise.
 
-### Step 2 — Choose Government Gateway `[IMPLEMENTED]`
+### Step 2 — Choose to sign in `[IMPLEMENTED]`
 
-- **Page:** Defra ID (external, not in this repo's source)
-- **Description:** Select "Sign in with Government Gateway", then click "Continue".
+- **Page:** GOV.UK One Login `/sign-in-or-create` (external, not in this repo's
+  source)
+- **Description:** BMD-1174 made Defra ID One Login-only, so Defra ID no longer
+  shows a "choose how to sign in" page — B2C redirects straight to One Login's
+  "Create your GOV.UK One Login or sign in". Click "Sign in".
 
 ### Step 3 — Enter credentials `[IMPLEMENTED]`
 
-- **Page:** Government Gateway (external)
-- **Description:** Enter the Government Gateway user ID and password, then click
-  "Sign in".
-- **Credentials:** from `DEFRA_ID_USERNAME` / `DEFRA_ID_PASSWORD`.
+- **Pages:** One Login `/enter-email` then `/enter-password` (external)
+- **Description:** Enter the email address and click "Continue", then the
+  password and click "Continue".
+- **Credentials:** from `DEFRA_ID_USERNAME` (the email) / `DEFRA_ID_PASSWORD`.
+
+### Step 3a — Enter a security code `[IMPLEMENTED — not currently reached]`
+
+- **Page:** One Login security-code page (external)
+- **Description:** Only if One Login asks for two-factor authentication. Defra ID
+  dev/test request password-only sign-in today, so a fresh browser returns to the
+  service straight after the password. If the code page appears, the flow
+  generates a 6-digit code from the authenticator-app setup key
+  (`DEFRA_ID_TOTP_SECRET`, `test/utils/totp.js`) and clicks "Continue". The
+  code-page selector is unverified until the page is seen.
 
 ### Step 4 — Return to service `[IMPLEMENTED]`
 
@@ -109,9 +122,14 @@ github runs continue to use the stub.
 ## Notes
 
 - The identity provider is **Azure AD B2C** (`*.b2clogin.com`), which federates to
-  **Government Gateway** (`*.access.service.gov.uk`). Selectors are verified against
-  dev; re-confirm with a headed run if the hosted pages change.
-- The test account has **no MFA** step (confirmed against dev).
+  **GOV.UK One Login integration** (`signin.integration.account.gov.uk`,
+  `oidc.integration.account.gov.uk`). Government Gateway was dropped in BMD-1174.
+  Selectors are verified against dev/test; re-confirm with a headed run if the
+  hosted pages change.
+- The e2e One Login account has an authenticator app set up, but One Login does
+  not currently ask for a code (confirmed against test, 2026-11-17).
+- The Defra ID account is matched by email, so the account kept its BNG
+  completer role and projects when it moved from Government Gateway to One Login.
 - Only the **completer** profile is produced via real login. The `no-role` and
   `no-projects` profiles still require the stub and stay skipped in e2e (see
   `skipInE2e` in `test/utils/env.js`).
