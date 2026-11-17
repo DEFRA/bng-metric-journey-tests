@@ -26,12 +26,12 @@ bottom; the parcel **ref** in the H1). `layouts/pi-view-only-page.njk` was remov
 PR#423. The Created area edit page (Step 4) extends `layouts/page.njk` and keeps the same two
 section headings and "Habitat units delivered" row.
 
-### Retained H1 (BMD-1180, open defect)
+### Retained H1 (BMD-1180)
 
-**PO ruling, 2026-11-03:** the H1 is `Habitat <ref>` on all three retained types, as the ticket's
-designs show. Frontend PR#423 renders `Habitat <ref>`, `Hedgerow <ref>` and `Watercourse <ref>`,
-so the hedgerow and watercourse pages do not follow the ruling yet; their heading tests are
-parked with `FIXME(BMD-1180)`.
+The H1 is `Habitat <ref>` on all three retained types (PO ruling, 2026-11-03; the ticket's
+designs). Frontend PR#482 (2026-11-17) brought the hedgerow and watercourse pages in line; until
+then they read `Hedgerow <ref>` and `Watercourse <ref>`. The baseline details pages keep their
+`Hedgerow`/`Watercourse` prefixes.
 
 ### Back link (BMD-1043)
 
@@ -614,11 +614,18 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
   BMD-1175); until then the backend truncated it.
 - **On success:** 302 to the feature type's post-intervention page, respecting a safe `returnUrl`.
 - **On error:** 400 for a malformed payload or a refused reference.
-- **Open defect (duplicates):** AC7 and the PO's ruling of 2026-11-03 say duplicate references are
-  allowed. When a rename goes through a baseline parcel and another baseline habitat already
-  carries the reference, the backend answers 422 `HABITAT_REF_IN_USE` and the page shows "You have
-  entered a habitat reference that is already in use." (placeholder wording). Reproduced in the
-  browser on an area habitat and a hedgerow, 2026-11-03.
+- **Duplicate references depend on the template (decision 17 Nov 2026, backend PR#620, frontend
+  PR#482):**
+  - **Legacy (Natural England) template project:** a rename onto a reference another baseline
+    habitat in the same layer carries (hedgerows and watercourses count as one layer) is refused
+    with 422 `HABITAT_REF_IN_USE`, shown as 400 with the summary "Another habitat already has this
+    habitat reference." and the inline message "Enter a habitat reference that no other habitat
+    has." Nothing is saved; the input keeps what was typed and the H1 the saved reference.
+  - **BNG Service template project:** no uniqueness check (`isTemplateUpload` in backend
+    `apply-retained-ref-edit.js`); the row is renamed alone, since it joins its baseline habitat by
+    feature ID and parent ID. Reachable only with `SERVICE_TEMPLATE_ENABLED=true`, so no journey
+    test covers it here (BMD-1088).
+  - Error wording for both rules is in frontend `error-text.yaml`, marked interim for UCD review.
 
 ---
 

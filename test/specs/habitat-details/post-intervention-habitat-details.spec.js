@@ -178,6 +178,11 @@ const CREATED_AREA_PARTLY_BLANK_PI_FILE =
   'Post-intervention - created area partly blank.gpkg'
 const INVALID_REF_SUMMARY = 'You have entered an invalid habitat reference.'
 const INVALID_REF_INLINE = 'Enter a valid habitat reference.'
+// BMD-1180 AC7, legacy template projects only (backend PR#620).
+const REF_IN_USE_SUMMARY = 'Another habitat already has this habitat reference.'
+const REF_IN_USE_INLINE = 'Enter a habitat reference that no other habitat has.'
+// The Retained reference input stops at 99 characters (BMD-1175).
+const MAX_REF_LENGTH = '99'
 const TIMING_CONFLICT_SUMMARY =
   'A habitat cannot be created both in advance and with a delay.'
 const TIMING_CONFLICT_INLINE =
@@ -799,6 +804,37 @@ async function areaRowByRef(page, projectId, ref) {
   return unitPage.rowByRef(label, ref)
 }
 
+// BMD-1180. Opens a Retained habitat from its grid, types `typed` into the
+// reference and saves.
+async function saveRetainedRef(page, details, { projectId, type, ref, typed }) {
+  await openPiFeatureDetails(page, projectId, type, ref)
+  await details.habitatReferenceInput.fill(typed)
+  await details.saveButton.click()
+}
+
+async function expectRetainedRename(
+  page,
+  details,
+  { projectId, type, ref, typed, newRef, rowByRef, tileUnits }
+) {
+  const before = await rowByRef(page, projectId, ref)
+  const totalBefore = await tileUnits(page)
+  await saveRetainedRef(page, details, { projectId, type, ref, typed })
+  await expectOnPiPage(page, projectId, type)
+  expect(await tileUnits(page)).toBe(totalBefore)
+  await expect(page.getByRole('link', { name: ref, exact: true })).toHaveCount(
+    0
+  )
+  expect(await rowByRef(page, projectId, newRef)).toEqual({
+    ...before,
+    Ref: newRef
+  })
+  await openPiFeatureDetails(page, projectId, type, newRef)
+  await expect(details.habitatReferenceInput).toHaveValue(newRef)
+  await expect(details.headingTitle).toHaveText(`Habitat ${newRef}`)
+  await expect(details.habitatUnitsValue).toHaveText(before.Units)
+}
+
 // Baseline + PI hedgerow uploads in one project: retained hedgerows for the
 // view-only page, with HR1 ref-matched to a baseline hedgerow so the
 // "View baseline details" link renders (BMD-723 AC1/AC3). HR2 is Enhanced and
@@ -1126,6 +1162,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           // and no trading-rules row (dropped relative to the baseline details
           // page).
           await detailsPage.assertRetainedRefForm({ ref: 'H2-2' })
+          await expect(detailsPage.habitatReferenceInput).toHaveAttribute(
+            'maxlength',
+            MAX_REF_LENGTH
+          )
           await expect(detailsPage.broadHabitatSelect).toBeHidden()
           await expect(detailsPage.habitatTypeSelect).toBeHidden()
           await expect(detailsPage.conditionSelect).toBeHidden()
@@ -1241,6 +1281,133 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
               heading: 'Habitat H1'
             }
           )
+        }
+      )
+
+      // BMD-1180 AC5. Backend integration-tests/features.test.js ("renames
+      // the retained habitat and the baseline parcel it is joined to") covers
+      // the stored rename; this proves the form sends it trimmed and the list,
+      // row units and tile show the result.
+      test(
+        'saving a new reference trims it, returns to the area page and leaves the units alone',
+        { tag: ['@smoke', '@happy-path'] },
+        async ({ browser, page, postInterventionHabitatDetailsPage }) => {
+          const { id } = await getCreatedAreaSaveProject(
+            browser,
+            'retained-area-rename'
+          )
+          const newRef = 'H2-2-NEW'
+
+          await expectRetainedRename(page, postInterventionHabitatDetailsPage, {
+            projectId: id,
+            type: 'area',
+            ref: 'H2-2',
+            typed: `  ${newRef}  `,
+            newRef,
+            rowByRef: areaRowByRef,
+            tileUnits: areaPostInterventionUnits
+          })
+        }
+      )
+
+      // BMD-1180 AC4 and AC6: typing changes nothing until Save. Frontend
+      // controller-retained-ref.test.js checks only the Cancel href.
+      test(
+        'Cancel discards a typed reference and returns to the area page without a prompt',
+        { tag: '@regression' },
+        async ({ browser, page, postInterventionHabitatDetailsPage }) => {
+          const shared = await getCompleteProject(browser)
+          const details = postInterventionHabitatDetailsPage
+          const dialogs = []
+          page.on('dialog', async (dialog) => {
+            dialogs.push(dialog.message())
+            await dialog.dismiss()
+          })
+          await openPiFeatureDetails(page, shared.id, 'area', 'H2-2')
+
+          await details.habitatReferenceInput.fill('Not saved')
+          await expect(details.headingTitle).toHaveText('Habitat H2-2')
+          await details.cancelLink.click()
+
+          await expectOnPiPage(page, shared.id, 'area')
+          expect(dialogs).toEqual([])
+          expect(await areaRowByRef(page, shared.id, 'H2-2')).toMatchObject({
+            Units: shared.retainedNoBaselineUnits
+          })
+          await openPiFeatureDetails(page, shared.id, 'area', 'H2-2')
+          await expect(details.habitatReferenceInput).toHaveValue('H2-2')
+        }
+      )
+
+      // BMD-1180 AC7. Frontend controller-retained-ref.test.js covers blank,
+      // whitespace-only and non-UTF-8 against a mocked backend; this is the
+      // one witness of the refusal on the Retained page itself.
+      test(
+        'a blank reference is refused, keeping the input and the saved heading',
+        { tag: '@smoke' },
+        async ({ browser, page, postInterventionHabitatDetailsPage }) => {
+          const shared = await getCompleteProject(browser)
+          const details = postInterventionHabitatDetailsPage
+
+          await saveRetainedRef(page, details, {
+            projectId: shared.id,
+            type: 'area',
+            ref: 'H2-2',
+            typed: ''
+          })
+
+          await expect(page).toHaveURL(DETAILS_URL_PATTERN)
+          await expect(page).toHaveTitle(/^Error:/)
+          await expect(
+            details.errorSummaryLink(INVALID_REF_SUMMARY)
+          ).toHaveAttribute('href', '#habitatRef')
+          await expect(details.inlineError(INVALID_REF_INLINE)).toBeVisible()
+          await expect(details.habitatReferenceInput).toHaveValue('')
+          await expect(details.headingTitle).toHaveText('Habitat H2-2')
+
+          await openPiFeatureDetails(page, shared.id, 'area', 'H2-2')
+          await expect(details.habitatReferenceInput).toHaveValue('H2-2')
+        }
+      )
+
+      // BMD-1180 AC7, legacy template projects (backend PR#620). Backend
+      // integration-tests/features.test.js covers the 422 and frontend
+      // controller-retained-ref.test.js its rendering against a mocked
+      // backend; this proves the two meet. A BNG Service template project
+      // saves the same rename, which needs the flag on (BMD-1088).
+      test(
+        'a reference another baseline area habitat carries is refused on a legacy project',
+        { tag: '@regression' },
+        async ({ browser, page, postInterventionHabitatDetailsPage }) => {
+          const { id } = await getCreatedAreaSaveProject(
+            browser,
+            'retained-area-duplicate-ref'
+          )
+          const details = postInterventionHabitatDetailsPage
+
+          await saveRetainedRef(page, details, {
+            projectId: id,
+            type: 'area',
+            ref: 'H1',
+            typed: 'H2-2'
+          })
+
+          await expect(page).toHaveURL(DETAILS_URL_PATTERN)
+          await expect(
+            details.errorSummaryLink(REF_IN_USE_SUMMARY)
+          ).toHaveAttribute('href', '#habitatRef')
+          await expect(details.inlineError(REF_IN_USE_INLINE)).toBeVisible()
+          await expect(details.habitatReferenceInput).toHaveValue('H2-2')
+          await expect(details.headingTitle).toHaveText('Habitat H1')
+
+          await details.cancelLink.click()
+          await expectOnPiPage(page, id, 'area')
+          await expect(
+            page.getByRole('link', { name: 'H1', exact: true })
+          ).toHaveCount(1)
+          await expect(
+            page.getByRole('link', { name: 'H2-2', exact: true })
+          ).toHaveCount(1)
         }
       )
     })
@@ -2160,10 +2327,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     test.use({ storageState: STORAGE_STATE })
     test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-    // FIXME(BMD-1180): parked 2026-11-03. The PO ruled the H1 is "Habitat <ref>"
-    // on every retained type, but frontend PR#423 renders "Hedgerow HR1". Restore
-    // once the frontend follows the ruling.
-    test.fixme(
+    // BMD-1180: "Habitat <ref>" on every retained type (PO ruling 2026-11-03,
+    // frontend PR#482), though the baseline hedgerow page reads "Hedgerow <ref>".
+    test(
       'retained hedgerow heading is "Habitat" followed by its reference',
       { tag: '@regression' },
       async ({ browser, postInterventionHabitatDetailsPage, page }) => {
@@ -2286,6 +2452,33 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(postInterventionHabitatDetailsPage.heading).toHaveText(
           `Hedgerow ${RETAINED_HEDGEROW_REF}`
         )
+      }
+    )
+
+    // BMD-1180 AC5. Sole real-data witness for renaming a Retained hedgerow
+    // through this page: backend integration-tests/features.test.js renames a
+    // retained area parcel and a tree, and the hedgerow rename is covered only
+    // by apply-retained-ref-edit.test.js on a fabricated project. Do not delete
+    // without adding a hedgerow PUT to that integration test first.
+    test(
+      'saving a new reference on a retained hedgerow returns to the hedgerow page and leaves the units alone',
+      { tag: '@regression' },
+      async ({ browser, page, postInterventionHabitatDetailsPage }) => {
+        const { id } = await getHedgerowsProject(
+          browser,
+          'retained-hedgerow-rename'
+        )
+        const newRef = `${RETAINED_HEDGEROW_REF}-NEW`
+
+        await expectRetainedRename(page, postInterventionHabitatDetailsPage, {
+          projectId: id,
+          type: 'hedgerow',
+          ref: RETAINED_HEDGEROW_REF,
+          typed: newRef,
+          newRef,
+          rowByRef: hedgerowRowByRef,
+          tileUnits: hedgerowPostInterventionUnits
+        })
       }
     )
   })
@@ -3024,10 +3217,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     test.use({ storageState: STORAGE_STATE })
     test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-    // FIXME(BMD-1180): parked 2026-11-03. The PO ruled the H1 is "Habitat <ref>"
-    // on every retained type, but frontend PR#423 renders "Watercourse WC1".
-    // Restore once the frontend follows the ruling.
-    test.fixme(
+    // BMD-1180: "Habitat <ref>" on every retained type (PO ruling 2026-11-03,
+    // frontend PR#482), though the baseline watercourse page reads
+    // "Watercourse <ref>".
+    test(
       'retained watercourse heading is "Habitat" followed by its reference',
       { tag: '@regression' },
       async ({ browser, postInterventionHabitatDetailsPage, page }) => {
@@ -3171,6 +3364,34 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(postInterventionHabitatDetailsPage.heading).toHaveText(
           `Watercourse ${RETAINED_WATERCOURSE_REF}`
         )
+      }
+    )
+
+    // BMD-1180 AC5. Sole real-data witness for renaming a Retained
+    // watercourse through this page: backend integration-tests/features.test.js
+    // renames a retained area parcel and a tree, and the watercourse rename is
+    // covered only by apply-retained-ref-edit.test.js on a fabricated project.
+    // Do not delete without adding a watercourse PUT to that integration test
+    // first.
+    test(
+      'saving a new reference on a retained watercourse returns to the watercourse page and leaves the units alone',
+      { tag: '@regression' },
+      async ({ browser, page, postInterventionHabitatDetailsPage }) => {
+        const { id } = await getWatercoursesProjectCopy(
+          browser,
+          'retained-watercourse-rename'
+        )
+        const newRef = `${RETAINED_WATERCOURSE_REF}-NEW`
+
+        await expectRetainedRename(page, postInterventionHabitatDetailsPage, {
+          projectId: id,
+          type: 'watercourse',
+          ref: RETAINED_WATERCOURSE_REF,
+          typed: newRef,
+          newRef,
+          rowByRef: watercourseRowByRef,
+          tileUnits: watercoursePostInterventionUnits
+        })
       }
     )
   })
