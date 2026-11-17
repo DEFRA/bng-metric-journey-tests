@@ -2118,11 +2118,35 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(page).toHaveURL(/\/baseline-habitat-details/)
       }
 
+      // A refusal saves nothing: the other fields changed in the same submit
+      // are kept on the error page and absent once the habitat is reopened.
+      // Returns what was stored and what was submitted.
+      async function changeOtherFields(details) {
+        const saved = {
+          condition: await details.conditionSelect.inputValue(),
+          comment: await details.commentInput.inputValue()
+        }
+        const submitted = {
+          condition: await details.selectDifferentCondition(),
+          comment: 'Not saved with a refused reference'
+        }
+        await details.commentInput.fill(submitted.comment)
+        return { saved, submitted }
+      }
+
+      async function expectFields(details, { condition, comment }) {
+        await expect(details.conditionSelect).toHaveValue(condition)
+        await expect(details.commentInput).toHaveValue(comment)
+      }
+
       test('refuses a blank reference, keeping the saved one', async ({
         baselineHabitatDetailsPage,
         page
       }) => {
-        await openFromGrid(page, 'area', 'H1')
+        await openFromGrid(page, 'area', 'H2')
+        const { saved, submitted } = await changeOtherFields(
+          baselineHabitatDetailsPage
+        )
         await baselineHabitatDetailsPage.habitatReferenceInput.clear()
         await baselineHabitatDetailsPage.saveButton.click()
 
@@ -2134,11 +2158,16 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           baselineHabitatDetailsPage.inlineError(REF_INVALID_INLINE)
         ).toBeVisible()
         await expect(baselineHabitatDetailsPage.heading).toHaveText(
-          'Habitat H1'
+          'Habitat H2'
         )
+        await expectFields(baselineHabitatDetailsPage, submitted)
 
         await baselineHabitatDetailsPage.cancelLink.click()
-        await expect(baselineGridPage(page, 'area').refLink('H1')).toBeVisible()
+        await openFromGrid(page, 'area', 'H2')
+        await expect(
+          baselineHabitatDetailsPage.habitatReferenceInput
+        ).toHaveValue('H2')
+        await expectFields(baselineHabitatDetailsPage, saved)
       })
 
       // Hedgerows and watercourses share one reference scope, so a hedgerow
@@ -2148,6 +2177,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         page
       }) => {
         await openFromGrid(page, 'hedgerow', 'HR1')
+        const { saved, submitted } = await changeOtherFields(
+          baselineHabitatDetailsPage
+        )
         await baselineHabitatDetailsPage.habitatReferenceInput.fill('R1')
         await baselineHabitatDetailsPage.saveButton.click()
 
@@ -2164,11 +2196,14 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(baselineHabitatDetailsPage.heading).toHaveText(
           'Hedgerow HR1'
         )
+        await expectFields(baselineHabitatDetailsPage, submitted)
 
         await baselineHabitatDetailsPage.cancelLink.click()
+        await openFromGrid(page, 'hedgerow', 'HR1')
         await expect(
-          baselineGridPage(page, 'hedgerow').refLink('HR1')
-        ).toBeVisible()
+          baselineHabitatDetailsPage.habitatReferenceInput
+        ).toHaveValue('HR1')
+        await expectFields(baselineHabitatDetailsPage, saved)
       })
     }
   )
