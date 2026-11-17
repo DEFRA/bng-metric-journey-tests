@@ -874,6 +874,37 @@ def build_bmd1050_created_watercourse_fixtures():
         )
 
 
+def build_bmd1184_degraded_tree_fixtures():
+    """BMD-1184 AC3/AC4: degraded tree variants, cut from T002 and T004.
+
+    `service-template/tree-condition-lowered.gpkg`, a copy of the harness
+    corpus file (harness d72d136, BNG Service template), records T002
+    as T001 (Medium, Rural, Moderate) Created again in Poor, 30+ years in
+    advance, Category Existing. Each variant breaks one degrade rule with no
+    delay: the same condition and a better one (STAGED_DEGRADE_NOT_WORSE),
+    and a lower condition only 10 years in advance
+    (STAGED_DEGRADE_ADVANCE_NOT_30_PLUS). AC4: T004, T003 (Large, Urban,
+    Good) put back after a 5-year delay, is kept in Good, so a put-back tree
+    is accepted in its baseline condition.
+    """
+    print("\nBMD-1184 degraded tree variants:")
+    for dst_name, ref, values in [
+        ("tree-degrade-same-condition.gpkg", "T002",
+         {"Proposed Condition": "Moderate"}),
+        ("tree-degrade-better-condition.gpkg", "T002",
+         {"Proposed Condition": "Good"}),
+        ("tree-degrade-advance-10.gpkg", "T002",
+         {"Habitat Created/Enhanced in advance/years": "10"}),
+        ("tree-put-back-same-condition.gpkg", "T004",
+         {"Proposed Condition": "Good"}),
+    ]:
+        _build_attribute_variant(
+            "service-template/tree-condition-lowered.gpkg",
+            f"service-template/{dst_name}",
+            "Individual Trees Post-Intervention", "Habitat Ref", ref, values,
+        )
+
+
 def _report(con, label, layers):
     print(f"\n{label}:")
     for table, ref in layers:
@@ -943,5 +974,6 @@ if __name__ == "__main__":
     recut_culvert_baseline_conditions()
     build_bmd1195_incomplete_baseline_fixtures()
     build_bmd1050_created_watercourse_fixtures()
+    build_bmd1184_degraded_tree_fixtures()
     rewrite_template_tree_words()
     print("\nDone.")
