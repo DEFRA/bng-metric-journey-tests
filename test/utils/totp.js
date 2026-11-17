@@ -6,6 +6,9 @@ const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
 // in groups, so spaces and case are ignored.
 function decodeBase32(secret) {
   const clean = secret.replace(/[\s=-]/g, '').toUpperCase()
+  if (clean.length === 0) {
+    throw new Error('DEFRA_ID_TOTP_SECRET is not a valid base32 key')
+  }
   let bits = ''
   for (const char of clean) {
     const value = BASE32_ALPHABET.indexOf(char)
