@@ -143,6 +143,8 @@ const CREATED_AREA_VALUES = {
 // H2-7's unrounded units: 0.02428732997 ha x 4 x 3 x 1 x 0.8368287006 x 1.
 // The tile rounds to 2 dp, so tile arithmetic allows TILE_ROUNDING either way.
 const CREATED_AREA_EXACT_UNITS = 0.2439
+// BMD-1153. Saved on H2-7, which imports no comment.
+const CREATED_AREA_COMMENT = 'Pond replaced by grassland.\n\nSee drawing LP-04.'
 const TILE_ROUNDING = 0.011
 const POST_INTERVENTION_TILE = 'On-site post-intervention'
 const LAKES_TYPES = [
@@ -188,6 +190,18 @@ const TIMING_CONFLICT_SUMMARY =
   'A habitat cannot be created both in advance and with a delay.'
 const TIMING_CONFLICT_INLINE =
   'Either the advance or delay field must be set at zero.'
+// BMD-1153. A Created habitat's own comment, labelled "Supporting
+// information". The wording is interim (error-text.yaml).
+const COMMENT_INVALID_SUMMARY =
+  'The supporting information uses invalid characters.'
+const COMMENT_INVALID_INLINE =
+  'The supporting information can only use UTF-8 characters.'
+const COMMENT_TOO_LONG_SUMMARY = 'The supporting information is too long.'
+const COMMENT_TOO_LONG_INLINE =
+  'Supporting information must be 999 characters or less.'
+const MAX_COMMENT_LENGTH = 999
+const CREATED_COMMENT_HINT =
+  'Add any information that will help support your submission.'
 // BMD-1045. H2-3 in COMPLETE_PI_FILE: a Modified grassland (Low 2), Moderate (2)
 // baseline enhanced to Other neutral grassland (Medium 4), Good (3), Low, with
 // zero timing. The lists below are what GET /reference/area-enhancement offers
@@ -316,6 +330,8 @@ const CREATED_HEDGEROW_PARTLY_BLANK_PI_FILE =
 // Another Created hedgerow in the same file, for the duplicate-reference save.
 const OTHER_CREATED_HEDGEROW_REF = 'HG005'
 const CREATED_LINEAR_WATERCOURSE_REF = 'R003'
+// The pair's only Created individual tree (BMD-1153).
+const CREATED_TREE_REF = 'T005'
 const CREATED_LINEAR_WATERCOURSE_TIME_TO_TARGET = 'Fairly Poor - 2 years'
 const ENHANCED_WATERCOURSE_REF = 'WC2'
 const CREATED_WATERCOURSE_REF = 'WC3'
@@ -343,6 +359,8 @@ const CREATED_WATERCOURSE_EXACT_UNITS = 0.1238
 // The AC11 Scenario A edit below: Good, Low, Minor, Minor/Minor, delay 2.
 // 0.024 km x 4 x 3 x 1 x 0.6521203607 x 0.67 x 0.8 x 0.95
 const CREATED_WATERCOURSE_EDITED_UNITS = 0.0956
+// BMD-1153. Saved with the edit above; WC3 imports no comment.
+const CREATED_WATERCOURSE_COMMENT = 'Ditch re-cut along the old line.'
 const WATERCOURSE_CREATION_TYPES = [
   'Choose habitat type',
   'Canals',
@@ -1754,6 +1772,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         // AC11 Scenario A. Backend integration-tests/habitats.test.js
         // ("persists complete and incomplete edits") covers the stored
         // result; this proves the list and the tile show it.
+        // BMD-1153 AC4: the only journey save of a Created area's comment,
+        // the area route's path (the linear and tree routes are separate). The
+        // exact units below also show the comment leaves them alone.
         test('saving a complete edit recalculates the row, the units and the total', async ({
           browser,
           page,
@@ -1777,6 +1798,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await details.strategicSignificanceSelect.selectOption('High')
           await details.targetConditionSelect.selectOption('Good')
           await details.delayYearsSelect.selectOption('2')
+          await details.commentInput.fill(`  ${CREATED_AREA_COMMENT}\n `)
           await details.saveButton.click()
 
           await expectOnPiPage(page, id, 'area')
@@ -1809,6 +1831,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             delay: '2'
           })
           await expect(details.habitatUnitsValue).toHaveText('0.22')
+          await expect(details.commentInput).toHaveValue(CREATED_AREA_COMMENT)
         })
 
         // AC11 Scenario B. Sole real-data witness that a saved incomplete
@@ -1906,6 +1929,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await details.habitatReferenceInput.fill('Not saved')
           await details.broadHabitatSelect.selectOption('Grassland')
           await details.strategicSignificanceSelect.selectOption('High')
+          // BMD-1153 AC6.
+          await details.commentInput.fill('Not saved either')
 
           await details.cancelLink.click()
 
@@ -1922,11 +1947,17 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             CREATED_AREA_REF
           )
           await expectCreatedAreaSelections(details, CREATED_AREA_SELECTIONS)
+          await expect(details.commentInput).toHaveValue('')
         })
 
         // AC13. Frontend controller-created-area.test.js covers each rule on
         // its own against a mocked backend. This proves both errors render
         // together, as UCD worded them, and that nothing is saved.
+        // BMD-1153 AC5: the comment breaks both its rules too. Sole journey
+        // witness for the comment's errors on a Created form, listed after
+        // every other field's (frontend
+        // controller-created-supporting-information.test.js covers the order
+        // against a mocked backend).
         test('a save breaking both rules shows one error per rule, keeps the input and saves nothing', async ({
           browser,
           page,
@@ -1953,25 +1984,50 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await details.targetConditionSelect.selectOption(entered.condition)
           await details.advanceYearsSelect.selectOption(entered.advance)
           await details.delayYearsSelect.selectOption(entered.delay)
+          const comment = `\uFFFD${'c'.repeat(MAX_COMMENT_LENGTH)}`
+          await details.commentInput.fill(comment)
 
           await details.saveButton.click()
 
-          await expect(details.errorSummary.getByRole('link')).toHaveCount(2)
+          // Invalid characters before length, after the other fields.
+          await expect(details.errorSummaryLinks).toHaveText([
+            INVALID_REF_SUMMARY,
+            TIMING_CONFLICT_SUMMARY,
+            COMMENT_INVALID_SUMMARY,
+            COMMENT_TOO_LONG_SUMMARY
+          ])
           await expect(
             details.errorSummaryLink(INVALID_REF_SUMMARY)
           ).toHaveAttribute('href', '#ref')
           await expect(
             details.errorSummaryLink(TIMING_CONFLICT_SUMMARY)
           ).toHaveAttribute('href', '#advanceYears')
+          for (const summary of [
+            COMMENT_INVALID_SUMMARY,
+            COMMENT_TOO_LONG_SUMMARY
+          ]) {
+            await expect(details.errorSummaryLink(summary)).toHaveAttribute(
+              'href',
+              '#comment'
+            )
+          }
           await expect(details.inlineError(INVALID_REF_INLINE)).toBeVisible()
           await expect(
             details.inlineError(TIMING_CONFLICT_INLINE)
           ).toBeVisible()
+          await expect(
+            details.inlineError(COMMENT_INVALID_INLINE)
+          ).toBeVisible()
+          await expect(
+            details.inlineError(COMMENT_TOO_LONG_INLINE)
+          ).toBeVisible()
           await expect(details.habitatReferenceInput).toHaveValue('')
           await expectCreatedAreaSelections(details, entered)
+          await expect(details.commentInput).toHaveValue(comment)
 
           await openPiFeatureDetails(page, shared.id, 'area', CREATED_AREA_REF)
           await expectCreatedAreaSelections(details, CREATED_AREA_SELECTIONS)
+          await expect(details.commentInput).toHaveValue('')
         })
 
         // AC14.
@@ -3911,6 +3967,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       // Created watercourse saves") covers the stored result; this proves the
       // list and the watercourse tile show it, both encroachment multipliers
       // included.
+      // BMD-1153 AC4: the only journey save of a Created watercourse's
+      // comment. The frontend's watercourse kind sets its own save path, so
+      // the hedgerow save in baseline-habitat-details.spec.js does not cover
+      // it. The exact units below also show the comment leaves them alone.
       test('saving a complete edit recalculates the row, the units and the total', async ({
         browser,
         page,
@@ -3932,6 +3992,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await details.watercourseEncroachmentSelect.selectOption('Minor')
         await details.riparianEncroachmentSelect.selectOption('Minor/Minor')
         await details.delayYearsSelect.selectOption('2')
+        await details.commentInput.fill(` ${CREATED_WATERCOURSE_COMMENT} `)
         await details.saveButton.click()
 
         await expectOnPiPage(page, id, 'watercourse')
@@ -3968,6 +4029,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           delay: '2'
         })
         await expect(details.habitatUnitsValue).toHaveText('0.10')
+        await expect(details.commentInput).toHaveValue(
+          CREATED_WATERCOURSE_COMMENT
+        )
       })
 
       // AC11 Scenario B. Backend created-watercourse-edit.test.js covers the
@@ -4267,6 +4331,52 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
         await postInterventionHabitatDetailsPage.backLink.click()
         await expectOnPiPage(page, shared.id, 'area')
+      })
+    }
+  )
+
+  // ─── Created individual tree — supporting information (BMD-1153) ────────────
+  // T005 is the created-linear pair's only Created tree. A tree saves through
+  // its own backend route (post-intervention-tree-edit.js) and frontend kind
+  // (tree-edit-kinds.js), so the area, hedgerow and watercourse comment saves
+  // do not cover it.
+
+  test.describe(
+    'Post-intervention habitat details — Created individual tree',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      // Sole journey witness for a Created tree's comment. The backend
+      // integration test (comment-import.test.js) saves it through the API,
+      // and the frontend's controller-created-tree.test.js mocks the backend,
+      // so neither shows the box on a real tree or the comment coming back.
+      test("saves a Created tree's comment trimmed, leaving its units alone", async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const comment = 'Standard oak planted with a guard and stake.'
+        const { id } = await getCreatedLinearProjectCopy(
+          browser,
+          'created-tree-comment'
+        )
+        const rowBefore = await areaRowByRef(page, id, CREATED_TREE_REF)
+
+        await openPiFeatureDetails(page, id, 'area', CREATED_TREE_REF)
+        await expect(details.commentInput).toHaveValue('')
+        await expect(details.commentHint).toHaveText(CREATED_COMMENT_HINT)
+        await details.commentInput.fill(`  ${comment}  `)
+        await details.saveButton.click()
+
+        await expectOnPiPage(page, id, 'area')
+        expect(await areaRowByRef(page, id, CREATED_TREE_REF)).toMatchObject({
+          Status: rowBefore.Status,
+          Units: rowBefore.Units
+        })
+        await openPiFeatureDetails(page, id, 'area', CREATED_TREE_REF)
+        await expect(details.commentInput).toHaveValue(comment)
       })
     }
   )

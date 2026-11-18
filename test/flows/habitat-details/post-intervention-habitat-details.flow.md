@@ -157,6 +157,36 @@ habitat has no comment or no single parcel can be identified.
   comment, "No data", line breaks, clearing) and › _supporting information on a tree_ (tree,
   long watercourse comment).
 
+### "Supporting information" on Created edit forms (BMD-1153) `[IMPLEMENTED]`
+
+Backend PR#667 / frontend PR#527, 2026-11-17. A **Created** area habitat, hedgerow, watercourse
+or individual tree has its own comment, kept on the post-intervention row and separate from
+any baseline, Retained or Enhanced comment. It is edited on the Created edit form. This is not
+behind `SERVICE_TEMPLATE_ENABLED`. A legacy upload imports a Created row's own comment (e.g.
+R4 in `Post-intervention - comments are valid.gpkg`). A Lost area row becomes Created, but its
+comment stays on the baseline habitat only.
+
+- **Rendering:** a GOV.UK textarea (`#comment`, 5 rows), labelled **Supporting information**
+  (`govuk-label--m`). Its hint reads "Add any information that will help support your
+  submission." (the baseline page keeps its own hint). It sits below **Habitat units delivered**
+  and above Save / Cancel, and has no character count. It is filled from the saved comment,
+  line breaks included, or is empty.
+- **Save** (`POST`, field `comment`): CRLF is turned into LF and leading and trailing whitespace
+  is trimmed. A blank or whitespace-only comment is saved as no value. The comment has no effect
+  on units or status.
+- **Refused** (validated on save only): invalid characters (U+FFFD) and more than 999
+  characters once trimmed, counted in characters, not bytes. The messages are the BMD-1112 ones,
+  marked interim. They are listed after every other field's errors, invalid characters first,
+  each linking to `#comment`. Nothing on the page is saved and everything typed is kept.
+- **Not on:** Enhanced areas or Enhanced trees (BMD-1190; the backend answers
+  `FEATURE_NOT_EDITABLE`), Retained pages (read-only, BMD-1187), or IGGIs.
+- **Journey checks:**
+  - `baseline-habitat-details.spec.js` › _supporting information_: R4's imported comment, the
+    empty box on H3 and on Lost-as-Created H2-1, no box on the Enhanced area, and a hedgerow
+    round trip.
+  - `post-intervention-habitat-details.spec.js`: the Created area and watercourse complete-edit
+    saves, the area's Cancel and both-rules refusal, and the Created tree save.
+
 ### Shared route contract
 
 Every GET step below shares this contract, so it is stated once rather than repeated:
