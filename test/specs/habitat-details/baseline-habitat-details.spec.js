@@ -18,7 +18,11 @@ import {
   getLongPaddedRefsProject
 } from '@utils/summary-projects.js'
 import { gridRefName } from '@utils/habitat-ref-display.js'
-import { findPiRef, openPiTabFor } from '@utils/post-intervention-grid.js'
+import {
+  findPiRef,
+  openPiTabFor,
+  piPageUrl
+} from '@utils/post-intervention-grid.js'
 import { UNITS_TWO_DP_PATTERN } from '@pages/post-intervention-habitat-details.page.js'
 import { STATUS_COMPLETE, STATUS_INCOMPLETE } from '@utils/unit-type-labels.js'
 
@@ -115,6 +119,20 @@ const COMMENT_INVALID_SUMMARY =
 const COMMENT_INVALID_INLINE =
   'The supporting information can only use UTF-8 characters.'
 
+// BMD-1153 — a Created habitat's own comment, edited in a box on its
+// post-intervention edit form. In COMMENTS_FILE, watercourse R4 is Created
+// with an imported comment, and hedgerow H3 is Created without one.
+const CREATED = 'Created'
+const ENHANCED = 'Enhanced'
+const CREATED_COMMENT_HINT =
+  'Add any information that will help support your submission.'
+const WATERCOURSE_R4_COMMENT =
+  'This is a new ditch. See design for further details.'
+const CREATED_HEDGEROW_REF = 'H3'
+// GOV.UK's character count message, which the box must not have.
+const CHARACTER_COUNT_PATTERN = /You (can enter up to|have) \d+ characters?/
+const POST_INTERVENTION_TILE = 'On-site post-intervention'
+
 // BMD-1061 — editing the habitat reference. All wording is interim
 // (error-text.yaml `wording: interim`).
 const REF_INVALID_SUMMARY = 'You have entered an invalid habitat reference.'
@@ -164,8 +182,14 @@ async function openBaselineGrid(page, projectId, type) {
 // A Retained habitat's post-intervention page, reached as a user does: from
 // the Retained tab of its unit-type post-intervention page.
 async function openRetainedPiDetails(page, projectId, type, ref) {
+  await openPiDetails(page, projectId, type, ref, RETAINED)
+}
+
+// Any habitat's post-intervention page, from the tab holding it, which must be
+// the one named.
+async function openPiDetails(page, projectId, type, ref, tabLabel) {
   const { unitPage, label } = await openPiTabFor(page, projectId, type, ref)
-  expect(label).toBe(RETAINED)
+  expect(label).toBe(tabLabel)
   await unitPage.refLink(label, ref).click()
   await expect(page).toHaveURL(/\/post-intervention-habitat-details/)
 }
@@ -173,6 +197,14 @@ async function openRetainedPiDetails(page, projectId, type, ref) {
 async function retainedPiRow(page, projectId, type, ref) {
   const { unitPage } = await openPiTabFor(page, projectId, type, ref)
   return unitPage.rowByRef(RETAINED, ref)
+}
+
+// A post-intervention row's Status and Units, from whichever tab holds it. The
+// unit-type page is left open, so its tiles can be read next.
+async function piRowUnits(page, projectId, type, ref) {
+  const { unitPage, label } = await openPiTabFor(page, projectId, type, ref)
+  const { Status, Units } = await unitPage.rowByRef(label, ref)
+  return { Status, Units }
 }
 
 function gridRow(page, type, ref) {
@@ -2265,9 +2297,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
       test.skip(runMode === 'e2e', E2E_UPLOAD_SKIP_REASON)
       // Serial pins the edits to one worker. Each test uses its own habitats,
-      // except hedgerow H5, the file's only Retained hedgerow: one test reads
-      // its "No data" and the other edits it, ending with the comment cleared,
-      // so the read holds whichever runs first.
+      // except hedgerow H5, the file's only Retained hedgerow, and Created
+      // hedgerow H3: for each, one test reads its empty comment and another
+      // edits it, ending with the comment cleared, so the read holds whichever
+      // runs first.
       test.describe.configure({
         mode: 'serial',
         timeout: SHARED_PAIR_BUILD_TIMEOUT
@@ -2508,6 +2541,138 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(details.supportingInformationValue).toHaveText(
           NO_SUPPORTING_INFORMATION
         )
+      })
+
+      // BMD-1153 AC1, AC2 and the BMD-1190 boundary. Sole real-data witness
+      // for a Created habitat's own comment box. The frontend controller tests
+      // (controller-created-supporting-information.test.js) mock the backend,
+      // and the backend integration test (comment-import.test.js) never
+      // renders. Without this, nothing proves that a Created row's imported
+      // comment reaches its edit form, that a Lost area imported as Created
+      // gets the box too, or that the Enhanced area form still has none.
+      test("shows a Created habitat's own comment in an editable box, an empty box without one, and none on an Enhanced area", async ({
+        postInterventionHabitatDetailsPage: details,
+        page
+      }) => {
+        await openPiDetails(page, projectId, 'watercourse', 'R4', CREATED)
+        await expect(details.commentInput).toHaveValue(WATERCOURSE_R4_COMMENT)
+        await expect(details.commentHint).toHaveText(CREATED_COMMENT_HINT)
+        await expect(page.getByText(CHARACTER_COUNT_PATTERN)).toHaveCount(0)
+        // Below the units, above Save and Cancel.
+        const unitsBox = await details.habitatUnitsValue.boundingBox()
+        const commentBox = await details.commentInput.boundingBox()
+        const saveBox = await details.saveButton.boundingBox()
+        expect(commentBox.y).toBeGreaterThan(unitsBox.y)
+        expect(saveBox.y).toBeGreaterThan(commentBox.y)
+        await expect(details.cancelLink).toBeVisible()
+        await expect(details.uploadFileButton).toBeVisible()
+
+        // No comment: an empty box, and the units the list shows.
+        const row = await piRowUnits(
+          page,
+          projectId,
+          'hedgerow',
+          CREATED_HEDGEROW_REF
+        )
+        await openPiDetails(
+          page,
+          projectId,
+          'hedgerow',
+          CREATED_HEDGEROW_REF,
+          CREATED
+        )
+        await expect(details.commentInput).toHaveValue('')
+        await expect(details.commentHint).toHaveText(CREATED_COMMENT_HINT)
+        await expect(details.habitatUnitsValue).toHaveText(row.Units)
+
+        await openPiDetails(page, projectId, 'area', 'H2-1', CREATED)
+        await expect(details.commentInput).toHaveValue('')
+
+        // An Enhanced area's comment is not editable yet (BMD-1190).
+        await openPiDetails(page, projectId, 'area', 'H3', ENHANCED)
+        await expect(details.saveButton).toBeVisible()
+        await expect(details.commentInput).toHaveCount(0)
+      })
+
+      // BMD-1153 AC1 and AC4. Sole witness for a Created habitat's comment
+      // typed in a real browser and shown again. The backend integration test
+      // (comment-import.test.js) saves through the API, and the frontend
+      // controller tests post to a mocked backend, so neither shows the CRLF
+      // a browser submits being saved as typed, or the saved text filling the
+      // box. Ends with H3's comment cleared, so the test above holds
+      // whichever runs first.
+      test("saves a Created hedgerow's comment trimmed with its line breaks, leaving units and status alone, and clears it when blank", async ({
+        hedgerowsPostInterventionPage: hedgerowsPage,
+        postInterventionHabitatDetailsPage: details,
+        page
+      }) => {
+        const comment = [
+          ...Array.from(
+            { length: 8 },
+            (_, line) =>
+              `Line ${line + 1}: gaps planted up with hawthorn, blackthorn and hazel.`
+          ),
+          '',
+          'Café naïve façade – “quotes” £20 ½ °C'
+        ].join('\n')
+        const rowBefore = await piRowUnits(
+          page,
+          projectId,
+          'hedgerow',
+          CREATED_HEDGEROW_REF
+        )
+        const totalBefore = await hedgerowsPage.tileUnits(
+          POST_INTERVENTION_TILE
+        )
+
+        await openPiDetails(
+          page,
+          projectId,
+          'hedgerow',
+          CREATED_HEDGEROW_REF,
+          CREATED
+        )
+        await details.commentInput.fill(`  \n ${comment}\n\n  `)
+        await details.saveButton.click()
+        await expect(page).toHaveURL(piPageUrl(projectId, 'hedgerow'))
+        expect(
+          await piRowUnits(page, projectId, 'hedgerow', CREATED_HEDGEROW_REF)
+        ).toEqual(rowBefore)
+        expect(await hedgerowsPage.tileUnits(POST_INTERVENTION_TILE)).toBe(
+          totalBefore
+        )
+
+        await openPiDetails(
+          page,
+          projectId,
+          'hedgerow',
+          CREATED_HEDGEROW_REF,
+          CREATED
+        )
+        await expect(details.commentInput).toHaveValue(comment)
+        // AC1: taller than the box, so it scrolls within it.
+        const scroll = await details.commentInput.evaluate((element) => {
+          element.scrollTop = element.scrollHeight
+          return {
+            hidden: element.scrollHeight - element.clientHeight,
+            scrollTop: element.scrollTop
+          }
+        })
+        expect(scroll.hidden).toBeGreaterThan(0)
+        expect(scroll.scrollTop).toBeGreaterThan(0)
+
+        // Whitespace alone saves as no comment.
+        await details.commentInput.fill('  \n \n  ')
+        await details.saveButton.click()
+        await expect(page).toHaveURL(piPageUrl(projectId, 'hedgerow'))
+        await openPiDetails(
+          page,
+          projectId,
+          'hedgerow',
+          CREATED_HEDGEROW_REF,
+          CREATED
+        )
+        await expect(details.commentInput).toHaveValue('')
       })
     }
   )
