@@ -4316,9 +4316,12 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           row.Distinctiveness,
           row.Condition,
           row['Strategic significance'],
-          'No data',
-          'View baseline details'
+          'No data'
         ])
+        // A post-intervention tree's page links to no baseline tree.
+        await expect(
+          postInterventionHabitatDetailsPage.viewBaselineLink
+        ).toBeHidden()
         await expect(
           postInterventionHabitatDetailsPage.habitatUnitsValue
         ).toHaveText(row.Units)
