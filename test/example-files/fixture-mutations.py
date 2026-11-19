@@ -875,27 +875,28 @@ def build_bmd1050_created_watercourse_fixtures():
 
 
 def build_bmd1184_degraded_tree_fixtures():
-    """BMD-1184 AC3/AC4: degraded tree variants, cut from T002 and T004.
+    """BMD-1184 AC3/AC4: degraded tree variants, cut from T001 and T003.
 
     `service-template/tree-condition-lowered.gpkg`, a copy of the harness
-    corpus file (harness d72d136, BNG Service template), records T002
-    as T001 (Medium, Rural, Moderate) Created again in Poor, 30+ years in
-    advance, Category Existing. Each variant breaks one degrade rule with no
-    delay: the same condition and a better one (STAGED_DEGRADE_NOT_WORSE),
-    and a lower condition only 10 years in advance
-    (STAGED_DEGRADE_ADVANCE_NOT_30_PLUS). AC4: T004, T003 (Large, Urban,
-    Good) put back after a 5-year delay, is kept in Good, so a put-back tree
-    is accepted in its baseline condition.
+    corpus file (BNG Service template), records T001 (Medium, Rural,
+    Moderate) as lost and Created again in Poor, 30+ years in advance,
+    Category Existing. As the template's copy button writes it, the Created
+    tree keeps its baseline tree's Habitat Ref, T001, so a user can see it is
+    the same tree. Each variant breaks one of the guide's steps with no
+    delay, which the service refuses as STAGED_TREE_DEGRADE_NOT_VALID: the
+    same condition, a better one, and a lower condition only 10 years in
+    advance. AC4: T003 (Large, Urban, Good), put back after a 5-year delay,
+    is kept in Good, so a put-back tree is accepted in its baseline condition.
     """
     print("\nBMD-1184 degraded tree variants:")
     for dst_name, ref, values in [
-        ("tree-degrade-same-condition.gpkg", "T002",
+        ("tree-degrade-same-condition.gpkg", "T001",
          {"Proposed Condition": "Moderate"}),
-        ("tree-degrade-better-condition.gpkg", "T002",
+        ("tree-degrade-better-condition.gpkg", "T001",
          {"Proposed Condition": "Good"}),
-        ("tree-degrade-advance-10.gpkg", "T002",
+        ("tree-degrade-advance-10.gpkg", "T001",
          {"Habitat Created/Enhanced in advance/years": "10"}),
-        ("tree-put-back-same-condition.gpkg", "T004",
+        ("tree-put-back-same-condition.gpkg", "T003",
          {"Proposed Condition": "Good"}),
     ]:
         _build_attribute_variant(
