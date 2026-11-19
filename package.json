@@ -37,6 +37,6 @@
     "ioredis": "6.0.0",
     "neostandard": "0.14.1",
     "pg": "8.23.1",
-    "prettier": "3.9.10"
+    "prettier": "3.10.1"
   }
 }
