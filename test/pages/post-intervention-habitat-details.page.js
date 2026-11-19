@@ -25,12 +25,13 @@ const CREATED_FORM_VALUE_INDEX = {
 // feature, picked by feature type *and* retention category, plus an
 // unsupported-feature placeholder for individual trees. Three kinds of page:
 //
-//   - read-only (Enhanced features).
+//   - read-only (Enhanced watercourses).
 //   - reference form (Retained area habitats, hedgerows and watercourses,
 //     BMD-1180, frontend PR#423) — the read-only page plus a "Habitat reference"
 //     input and Save / Cancel.
 //   - edit form (Created area habitats and hedgerows, BMD-1048, frontend PR#418;
-//     Created watercourses, BMD-1050, frontend PR#444).
+//     Created watercourses, BMD-1050, frontend PR#444; Enhanced area habitats,
+//     BMD-1045, frontend PR#518; Enhanced hedgerows, BMD-1046, frontend PR#526).
 //
 // POST saves either form and answers 501 for any other feature. The read-only
 // and reference-form pages share layouts/pi-view-only-sections-page.njk: <h3>
@@ -309,6 +310,21 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
   }
 
   /**
+   * The Enhanced hedgerow edit form (BMD-1046, frontend PR#526): the Created
+   * hedgerow form with Intervention "Enhanced", its size labelled
+   * "Size (kilometres)" as per Figma, and the "View baseline details" link.
+   */
+  async assertEnhancedHedgerowEditForm({ ref }) {
+    await this.assertCreatedEditForm({
+      ref,
+      kind: 'hedgerow',
+      intervention: 'Enhanced',
+      sizeKey: this.sizeKilometresKey
+    })
+    await expect(this.viewBaselineLink).toBeVisible()
+  }
+
+  /**
    * The Created watercourse edit form (BMD-1050, frontend PR#444): the shared
    * Created form with Length (km), no broad habitat, and a dropdown for each
    * encroachment.
@@ -322,7 +338,8 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
   async assertCreatedEditForm({
     ref,
     kind = 'area',
-    intervention = 'Created'
+    intervention = 'Created',
+    sizeKey = this.lengthKey
   }) {
     await expect(
       this.page.getByRole('heading', { name: ref, exact: true })
@@ -336,7 +353,7 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
       await expect(this.sizeHectaresKey).toBeVisible()
       await expect(this.broadHabitatSelect).toBeVisible()
     } else {
-      await expect(this.lengthKey).toBeVisible()
+      await expect(sizeKey).toBeVisible()
       await expect(this.broadHabitatSelect).toBeHidden()
     }
     await expect(this.habitatReferenceInput).toHaveValue(ref)
