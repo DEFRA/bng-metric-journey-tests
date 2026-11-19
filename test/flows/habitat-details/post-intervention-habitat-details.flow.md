@@ -106,10 +106,14 @@ The **Intervention** row shows the normalised retention category, defaulting to
 
 ### "View baseline details" link
 
-Resolved by matching the parcel `ref` across every baseline layer (habitats, trees,
-hedgerows, watercourses) — baseline and post-intervention are independent uploads with
+Resolved by matching the parcel `ref` across the baseline habitat, hedgerow and watercourse
+layers — baseline and post-intervention are independent uploads with
 independent `featureId`s, so `ref` is the only stable join key. Hidden when no baseline
 feature shares the ref (e.g. no baseline uploaded).
+
+**Never shown on a post-intervention tree page (BMD-1184, frontend PR #533).** Whatever its
+Retention Category, a tree page links to no baseline tree (`isUnlinked` in
+`baseline-feature-link.js`).
 
 **Since BMD-1056/BMD-1066 (backend PR#478, 2026-10-13) a fresh upload always matches a
 Retained or Enhanced feature.** The post-intervention upload derives the baseline from the
@@ -220,7 +224,7 @@ Every GET step below shares this contract, so it is stated once rather than repe
   **Supporting information** (BMD-1187). Then the "View baseline details" link, the bordered **"Habitat units delivered"** row, and
   **Save** and **Cancel** (Step 12). There is **no "Units in this habitat" row** (replaced by the
   units summary row) and no trading-rules row. An individual tree (BMD-1172) adds **Tree size** and
-  **Number of trees** after Size; journey check in `post-intervention-habitat-details.spec.js` ›
+  **Number of trees** after Size and has **no** "View baseline details" link (BMD-1184); journey check in `post-intervention-habitat-details.spec.js` ›
   _retained individual tree_. Size uses `formatAreaHectaresValue`
   (10 significant figures, **no `ha` suffix** — the label carries the unit). Broad habitat
   and habitat type read `proposed.broadType` / `proposed.type`. Back link to
