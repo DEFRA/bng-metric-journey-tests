@@ -183,14 +183,35 @@ comment stays on the baseline habitat only.
   characters once trimmed, counted in characters, not bytes. The messages are the BMD-1112 ones,
   marked interim. They are listed after every other field's errors, invalid characters first,
   each linking to `#comment`. Nothing on the page is saved and everything typed is kept.
-- **Not on:** Enhanced areas or Enhanced trees (BMD-1190; the backend answers
-  `FEATURE_NOT_EDITABLE`), Retained pages (read-only, BMD-1187), or IGGIs.
+- **Not on:** Retained pages (read-only, BMD-1187) or IGGIs. Enhanced habitats have their own
+  box (BMD-1190, below).
 - **Journey checks:**
   - `baseline-habitat-details.spec.js` › _supporting information_: R4's imported comment, the
-    empty box on H3 and on Lost-as-Created H2-1, no box on the Enhanced area, and a hedgerow
-    round trip.
+    empty box on H3 and on Lost-as-Created H2-1, and a hedgerow round trip.
   - `post-intervention-habitat-details.spec.js`: the Created area and watercourse complete-edit
     saves, the area's Cancel and both-rules refusal, and the Created tree save.
+
+### "Supporting information" on Enhanced edit forms (BMD-1190) `[IMPLEMENTED]`
+
+Backend PR#676 / frontend PR#536, 2026-11-19. An **Enhanced** area habitat, hedgerow or
+individual tree has its own comment, kept on the post-intervention row and separate from the
+comment of the baseline habitat it enhances. Editing either one leaves the other alone. The
+box, its save and its refusals are the Created ones above, on the Step 5 and Step 6 forms and
+the Enhanced tree form. A legacy upload imports an Enhanced row's own comment onto the
+post-intervention habitat, not the baseline (e.g. area H3 in
+`Post-intervention - comments are valid.gpkg`).
+
+- **Not on:** Enhanced watercourses. Their page is still read-only (Step 9) and the backend
+  refuses a comment for them, until BMD-1047 adds their edit form.
+- Save returns to the unit-type page with the **Retained** tab selected, as for Created.
+- The Enhanced tree form has no "View baseline details" link. Its baseline is reached from the
+  Areas baseline page.
+- The ticket's ACs say the limit is 999,999 characters. The service uses 999, the BMD-1112
+  limit, for every comment box.
+- **Journey checks:** `baseline-habitat-details.spec.js` › _supporting information_ (H3's
+  imported comment, an empty box on hedgerow H1, area H2-3 and hedgerow H1 saves) and ›
+  _supporting information on a tree_ (Enhanced tree T005 save). Refusals and the 999 boundary
+  share the Created form and its rule, and are left to the Created and baseline tests.
 
 ### Shared route contract
 
@@ -402,6 +423,8 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
     see Step 4). An IGGI habitat type is never offered, so a save clears it and leaves the
     habitat Incomplete with zero units.
   - Advance and Delay are labelled as on the Created form, as per Figma.
+  - The Supporting information box sits below the units, holding the Enhanced habitat's own
+    comment (BMD-1190).
 - **Journey coverage (BMD-1045):** `post-intervention-habitat-details.spec.js`, "Enhanced area
   habitats — editing". H2-3 and H3 of `Post-intervention - complete.gpkg` cover the saved
   values, the option lists of two baselines and "View baseline details" (AC1, AC11). An
@@ -442,7 +465,8 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
     Line of trees to Native hedgerow with trees).
   - Strategic significance offers only High (1.15) and Low (1). A significance rejected on
     import (HG032) shows the default option (frontend PR#532, see Step 4).
-  - **"View baseline details"** is shown, and no Comments box (BMD-1190).
+  - **"View baseline details"** is shown, with the Supporting information box below the units
+    (BMD-1190).
 - **Journey coverage (BMD-1046):** `post-intervention-habitat-details.spec.js`, "Enhanced
   hedgerow habitats — editing", on the all-unit-types pair. HG018 covers the saved values, the
   option lists and "View baseline details" (AC1, AC9), and the enhancement lists and times as

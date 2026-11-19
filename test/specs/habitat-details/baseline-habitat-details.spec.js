@@ -129,6 +129,15 @@ const CREATED_COMMENT_HINT =
 const WATERCOURSE_R4_COMMENT =
   'This is a new ditch. See design for further details.'
 const CREATED_HEDGEROW_REF = 'H3'
+// BMD-1190 — an Enhanced habitat's own comment, edited in the same box. In
+// COMMENTS_FILE, area H3 is Enhanced with an imported comment, and area H2-3
+// and hedgerow H1 are Enhanced without one.
+const AREA_H3_COMMENT =
+  'Enhancement of this area is required. See design for further details.'
+const ENHANCED_AREA_REF = 'H2-3'
+const ENHANCED_HEDGEROW_REF = 'H1'
+// A Complete Enhanced tree in TREES_COMMENT_FILE, with no comment.
+const ENHANCED_TREE_REF = 'T005'
 // GOV.UK's character count message, which the box must not have.
 const CHARACTER_COUNT_PATTERN = /You (can enter up to|have) \d+ characters?/
 const POST_INTERVENTION_TILE = 'On-site post-intervention'
@@ -2297,10 +2306,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
       test.skip(runMode === 'e2e', E2E_UPLOAD_SKIP_REASON)
       // Serial pins the edits to one worker. Each test uses its own habitats,
-      // except hedgerow H5, the file's only Retained hedgerow, and Created
-      // hedgerow H3: for each, one test reads its empty comment and another
-      // edits it, ending with the comment cleared, so the read holds whichever
-      // runs first.
+      // except hedgerow H5, the file's only Retained hedgerow, Created
+      // hedgerow H3 and Enhanced hedgerow H1: for each, one test reads its
+      // empty comment and another edits it, ending with the comment cleared,
+      // so the read holds whichever runs first.
       test.describe.configure({
         mode: 'serial',
         timeout: SHARED_PAIR_BUILD_TIMEOUT
@@ -2543,18 +2552,14 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         )
       })
 
-      // BMD-1153 AC1, AC2 and the BMD-1190 boundary. Sole real-data witness
-      // for a Created habitat's own comment box. The frontend controller tests
-      // (controller-created-supporting-information.test.js) mock the backend,
-      // and the backend integration test (comment-import.test.js) never
-      // renders. Without this, nothing proves that a Created row's imported
-      // comment reaches its edit form, that a Lost area imported as Created
-      // gets the box too, or that the Enhanced area form still has none.
-      // FIXME(BMD-1190): parked 2026-11-19. Frontend PR #536 (d264f81) with
-      // backend PR #676 gives Enhanced area, hedgerow and tree edit pages the
-      // Supporting information box, so H3 now has one. Restore with the
-      // Enhanced check reworked when BMD-1190 is covered.
-      test.fixme("shows a Created habitat's own comment in an editable box, an empty box without one, and none on an Enhanced area", async ({
+      // BMD-1153 AC1 and AC2, and BMD-1190 AC1 and AC2. Sole real-data
+      // witness for a Created or Enhanced habitat's own comment box. The
+      // frontend controller tests (controller-supporting-information.test.js)
+      // mock the backend, and the backend integration test
+      // (comment-import.test.js) never renders. Without this, nothing proves
+      // that a Created or Enhanced row's imported comment reaches its edit
+      // form, or that a Lost area imported as Created gets the box too.
+      test("shows a Created or Enhanced habitat's own comment in an editable box, and an empty box without one", async ({
         postInterventionHabitatDetailsPage: details,
         page
       }) => {
@@ -2592,10 +2597,165 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await openPiDetails(page, projectId, 'area', 'H2-1', CREATED)
         await expect(details.commentInput).toHaveValue('')
 
-        // An Enhanced area's comment is not editable yet (BMD-1190).
+        // Enhanced: H3's imported comment is its own, so its baseline box is
+        // empty (the first test). H1 has none, which leaves its units alone.
         await openPiDetails(page, projectId, 'area', 'H3', ENHANCED)
-        await expect(details.saveButton).toBeVisible()
-        await expect(details.commentInput).toHaveCount(0)
+        await expect(details.commentInput).toHaveValue(AREA_H3_COMMENT)
+        await expect(details.commentHint).toHaveText(CREATED_COMMENT_HINT)
+
+        const enhancedRow = await piRowUnits(
+          page,
+          projectId,
+          'hedgerow',
+          ENHANCED_HEDGEROW_REF
+        )
+        await openPiDetails(
+          page,
+          projectId,
+          'hedgerow',
+          ENHANCED_HEDGEROW_REF,
+          ENHANCED
+        )
+        await expect(details.commentInput).toHaveValue('')
+        await expect(details.habitatUnitsValue).toHaveText(enhancedRow.Units)
+      })
+
+      // BMD-1190 AC2 and AC4. Sole witness for an Enhanced area's comment
+      // saved through the areas route and shown again. The backend
+      // integration test (comment-import.test.js, "saves an Enhanced area,
+      // tree and hedgerow comment…") saves through the API and never renders,
+      // and the frontend controller tests post to a mocked backend. Without
+      // this, nothing proves the Enhanced form sends its comment, or that its
+      // baseline habitat's comment stays out of the Enhanced box. Ends with
+      // both comments cleared.
+      test("saves an Enhanced area's own comment trimmed, apart from its baseline habitat's comment", async ({
+        baselineHabitatDetailsPage,
+        postInterventionHabitatDetailsPage: details,
+        page
+      }) => {
+        const baselineComment = 'Grassland mown twice a year.'
+        const comment = [
+          'Enhancement agreed with the ecologist.',
+          '  Indented line kept as typed.',
+          '',
+          'Monitoring report due in year 5.'
+        ].join('\n')
+
+        await openFromGrid(page, 'area', ENHANCED_AREA_REF)
+        await baselineHabitatDetailsPage.commentInput.fill(baselineComment)
+        await baselineHabitatDetailsPage.saveButton.click()
+        await expect(page).toHaveURL(baselinePageUrl(projectId, 'area'))
+
+        const rowBefore = await piRowUnits(
+          page,
+          projectId,
+          'area',
+          ENHANCED_AREA_REF
+        )
+        await openPiDetails(
+          page,
+          projectId,
+          'area',
+          ENHANCED_AREA_REF,
+          ENHANCED
+        )
+        await expect(details.commentInput).toHaveValue('')
+        await details.commentInput.fill(`  \n ${comment}\n\n  `)
+        await details.saveButton.click()
+        await expect(page).toHaveURL(piPageUrl(projectId, 'area'))
+        expect(
+          await piRowUnits(page, projectId, 'area', ENHANCED_AREA_REF)
+        ).toEqual(rowBefore)
+
+        await openPiDetails(
+          page,
+          projectId,
+          'area',
+          ENHANCED_AREA_REF,
+          ENHANCED
+        )
+        await expect(details.commentInput).toHaveValue(comment)
+        await details.viewBaselineLink.click()
+        await expect(baselineHabitatDetailsPage.commentInput).toHaveValue(
+          baselineComment
+        )
+
+        // Whitespace alone saves as no comment.
+        await openPiDetails(
+          page,
+          projectId,
+          'area',
+          ENHANCED_AREA_REF,
+          ENHANCED
+        )
+        await details.commentInput.fill('  \n \n  ')
+        await details.saveButton.click()
+        await expect(page).toHaveURL(piPageUrl(projectId, 'area'))
+        await openPiDetails(
+          page,
+          projectId,
+          'area',
+          ENHANCED_AREA_REF,
+          ENHANCED
+        )
+        await expect(details.commentInput).toHaveValue('')
+
+        await openFromGrid(page, 'area', ENHANCED_AREA_REF)
+        await baselineHabitatDetailsPage.commentInput.fill('')
+        await baselineHabitatDetailsPage.saveButton.click()
+        await expect(page).toHaveURL(baselinePageUrl(projectId, 'area'))
+      })
+
+      // BMD-1190 AC4. Sole witness for an Enhanced hedgerow's comment saved
+      // through the hedgerows route, for the reasons given above. Ends with
+      // H1's comment cleared, so the read in the box test holds whichever
+      // runs first.
+      test("saves an Enhanced hedgerow's own comment, leaving units and status alone, and clears it when blank", async ({
+        postInterventionHabitatDetailsPage: details,
+        page
+      }) => {
+        const comment = 'Hedgerow laid in winter 2027; gaps planted with hazel.'
+        const rowBefore = await piRowUnits(
+          page,
+          projectId,
+          'hedgerow',
+          ENHANCED_HEDGEROW_REF
+        )
+
+        await openPiDetails(
+          page,
+          projectId,
+          'hedgerow',
+          ENHANCED_HEDGEROW_REF,
+          ENHANCED
+        )
+        await details.commentInput.fill(comment)
+        await details.saveButton.click()
+        await expect(page).toHaveURL(piPageUrl(projectId, 'hedgerow'))
+        expect(
+          await piRowUnits(page, projectId, 'hedgerow', ENHANCED_HEDGEROW_REF)
+        ).toEqual(rowBefore)
+
+        await openPiDetails(
+          page,
+          projectId,
+          'hedgerow',
+          ENHANCED_HEDGEROW_REF,
+          ENHANCED
+        )
+        await expect(details.commentInput).toHaveValue(comment)
+        await details.commentInput.fill('   ')
+        await details.saveButton.click()
+        await expect(page).toHaveURL(piPageUrl(projectId, 'hedgerow'))
+
+        await openPiDetails(
+          page,
+          projectId,
+          'hedgerow',
+          ENHANCED_HEDGEROW_REF,
+          ENHANCED
+        )
+        await expect(details.commentInput).toHaveValue('')
       })
 
       // BMD-1153 AC1 and AC4. Sole witness for a Created habitat's comment
@@ -2780,6 +2940,56 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(details.supportingInformationValue).toHaveText(
           NO_SUPPORTING_INFORMATION
         )
+      })
+
+      // BMD-1190, for the Enhanced tree the developer added to the ticket's
+      // scope. Sole witness for an Enhanced tree's comment saved through the
+      // trees route: comment-import.test.js saves through the API, and the
+      // frontend tests mock the backend. The tree form has no "View baseline
+      // details" link, so its baseline tree is read from the grid. T005 is
+      // Complete: saving an Incomplete Enhanced tree, comment or not, turns
+      // its blank units into 0.00, which would hide what the comment does.
+      test("saves an Enhanced tree's own comment trimmed, apart from its baseline tree", async ({
+        baselineHabitatDetailsPage,
+        postInterventionHabitatDetailsPage: details,
+        page
+      }) => {
+        const comment = 'Crown lifted and deadwood retained for habitat value.'
+        const rowBefore = await piRowUnits(
+          page,
+          projectId,
+          'area',
+          ENHANCED_TREE_REF
+        )
+
+        await openPiDetails(
+          page,
+          projectId,
+          'area',
+          ENHANCED_TREE_REF,
+          ENHANCED
+        )
+        await expect(details.commentInput).toHaveValue('')
+        await expect(details.viewBaselineLink).toHaveCount(0)
+        await details.commentInput.fill(`  ${comment}  `)
+        await details.saveButton.click()
+        await expect(page).toHaveURL(piPageUrl(projectId, 'area'))
+        expect(
+          await piRowUnits(page, projectId, 'area', ENHANCED_TREE_REF)
+        ).toEqual(rowBefore)
+
+        await openPiDetails(
+          page,
+          projectId,
+          'area',
+          ENHANCED_TREE_REF,
+          ENHANCED
+        )
+        await expect(details.commentInput).toHaveValue(comment)
+
+        const grid = await openBaselineGrid(page, projectId, 'area')
+        await grid.refLink(ENHANCED_TREE_REF).click()
+        await expect(baselineHabitatDetailsPage.commentInput).toHaveValue('')
       })
     }
   )
