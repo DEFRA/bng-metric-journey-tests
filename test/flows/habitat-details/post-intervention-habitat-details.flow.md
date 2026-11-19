@@ -1,4 +1,4 @@
-# Post-Intervention Habitat Details User Flow (read-only view; Retained reference, Created area, hedgerow and watercourse edits, and Enhanced area edits)
+# Post-Intervention Habitat Details User Flow (read-only view; Retained reference, Created area, hedgerow and watercourse edits, and Enhanced area and hedgerow edits)
 
 ## Overview
 
@@ -9,14 +9,15 @@ views its details. **A Created area habitat, hedgerow or watercourse** renders a
 form** (BMD-1048, frontend PR#418 / backend PR#539, 2026-10-28; watercourses since BMD-1050,
 frontend PR#444, 2026-11-10). **An Enhanced area habitat** renders the same area form,
 limited to the valid enhancements of its baseline (BMD-1045, frontend PR#518 / backend
-PR#650, 2026-11-17). **A Retained area habitat, hedgerow or
+PR#650, 2026-11-17). **An Enhanced hedgerow** renders the Created hedgerow form, limited the
+same way (BMD-1046, frontend PR#526 / backend PR#660, 2026-11-17). **A Retained area habitat, hedgerow or
 watercourse** renders its details read-only with an editable **Habitat reference** and Save /
 Cancel (BMD-1180, frontend PR#423 / backend PR#552, 2026-11-03). **Every other feature renders
 a read-only page.** Area, hedgerow and watercourse features each get a page specific to their
 type _and_ their intervention (retention) category; individual trees use the area page with
 two tree rows (BMD-1172, frontend PR#475). Only a feature type with no details page renders
 the unsupported-feature placeholder. `POST /post-intervention-habitat-details` saves the Created
-or Enhanced area form (Step 11) or the Retained reference (Step 12); for any other feature it returns **501 Not
+or Enhanced form (Step 11) or the Retained reference (Step 12); for any other feature it returns **501 Not
 Implemented**.
 
 **Layout: the stacked "sections" design is the norm.** All seven read-only and reference-form
@@ -308,10 +309,13 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
   - **Derived values update in the browser** (`src/client/javascripts/created-area-details.js`)
     as the dropdowns change; nothing is saved until Save (BMD-1048 AC4–AC10). Units are only
     recalculated by the backend on Save.
-  - Unavailable imported habitat/condition choices show a hint that saving without a new
-    selection clears them. Imported timing outside the offered range stays selected as
-    unchanged until explicitly replaced or cleared. A reference over 99 characters shows
-    a "Shorten it" hint.
+  - Since frontend PR#532 (the PO ruling during BMD-1046 testing, 2026-11-18), a stored value
+    the list does not offer is not shown or kept: the dropdown shows its default option and
+    a save sends `null`. This covers a significance rejected on import, an out-of-list broad
+    habitat, type, condition or encroachment, and a fractional or over-30 timing. Clearing a
+    broad habitat or type also clears the choices under it. There is no "(imported value)"
+    option or hint on any edit page.
+    A reference over 99 characters shows a "Shorten it" hint.
   - The "View baseline details" link resolves through `parentFeatureId` when the feature
     carries one (BNG Service template, BMD-1083), otherwise by ref as above.
   - **Standard time to target condition** on first load is the view-only value below (the
@@ -394,9 +398,9 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
     `"<baseline condition> to <target condition> - N years"`.
   - **"View baseline details"** finds the baseline as the read-only Enhanced page did
     (`viewOnlyBaselineFeatureId`), not by `parentFeatureId`.
-  - A stored proposal the list no longer offers (for example an IGGI type) is kept as an
-    "(imported value)" option while the choices above it are unchanged, and saved back as
-    stored.
+  - A stored proposal the list no longer offers shows the default option (frontend PR#532,
+    see Step 4). An IGGI habitat type is never offered, so a save clears it and leaves the
+    habitat Incomplete with zero units.
   - Advance and Delay are labelled as on the Created form, as per Figma.
 - **Journey coverage (BMD-1045):** `post-intervention-habitat-details.spec.js`, "Enhanced area
   habitats — editing". H2-3 and H3 of `Post-intervention - complete.gpkg` cover the saved
@@ -412,22 +416,41 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
 
 ---
 
-### Step 6 — View Enhanced hedgerow details (read-only, two-section) `[IMPLEMENTED]`
+### Step 6 — Edit Enhanced hedgerow details (form, BMD-1046) `[IMPLEMENTED]`
 
 - **Route:** shared GET contract (hedgerow feature whose normalised `retentionCategory === "Enhanced"`)
-- **Template:** `src/server/habitat-details/pi-hedgerow-details-enhanced.njk` (extends `layouts/pi-view-only-sections-page.njk`; frontend PR#179)
-- **Backend endpoint:** shared GET contract
-- **Description:** Two-section stacked page, H1 = feature ref.
-  - **Section 1 — "Post-intervention habitat details":** Intervention, **Length**, Habitat
-    type, Distinctiveness, Condition, Strategic significance. No Broad habitat row. Length
-    uses `formatLengthDisplay` — the value carries its own **`km` suffix**, unlike the
-    retained hedgerow page in Step 2.
-  - **"View baseline details"** link after the first section, resolved by ref.
-  - **Section 2 — "Time to target / difficulty":** the same six rows as Step 4.
-  - Then the bordered "Habitat units delivered" row. All values read from `proposed`.
-  - Back link to the hedgerows post-intervention page.
-- **Validation:** shared GET contract
-- **On success:** Renders the Enhanced two-section read-only hedgerow details page
+- **Template:** `src/server/habitat-details/pi-habitat-details-created-edit.njk`, the Step 7
+  form (BMD-1046, frontend PR#526, 2026-11-17). It replaced BMD-733's read-only
+  `pi-hedgerow-details-enhanced.njk`, which is still the fallback while the backend does not
+  serve the enhancement reference.
+- **Backend endpoints:** shared GET contract, plus `GET /reference/hedgerow-enhancement`
+  (backend PR#660) with the baseline hedgerow. It lists only the hedgerow types and
+  conditions that make a valid enhancement of that baseline (the BMD-820 import rules,
+  including the metric's G-6 "Enhancement through Distinctiveness" type moves), each with its
+  enhancement time to target. Save is a PUT to
+  `/projects/{projectId}/post-intervention/hedgerows/{featureId}` (Step 11).
+- **Description:** **The Step 7 form, with these differences:**
+  - Intervention reads **"Enhanced"**, and the size row is **"Size (kilometres)"** (value
+    without a unit suffix), as per Figma.
+  - **Habitat type** lists only the types with a valid enhancement of the baseline; **Target
+    condition** only the conditions that make one with the chosen type. A Poor Line of trees
+    (HG018) offers Line of trees and Line of trees - associated with bank or ditch (Moderate
+    and Good), and Native hedgerow with trees (Poor, Moderate and Good).
+  - **Standard time to target condition** is the enhancement time, as the transition
+    `"<baseline condition> to <target condition> - N years"`. A move to a type of higher
+    distinctiveness takes the G-6 type-to-type time whatever the condition (12 years for
+    Line of trees to Native hedgerow with trees).
+  - Strategic significance offers only High (1.15) and Low (1). A significance rejected on
+    import (HG032) shows the default option (frontend PR#532, see Step 4).
+  - **"View baseline details"** is shown, and no Comments box (BMD-1190).
+- **Journey coverage (BMD-1046):** `post-intervention-habitat-details.spec.js`, "Enhanced
+  hedgerow habitats — editing", on the all-unit-types pair. HG018 covers the saved values, the
+  option lists and "View baseline details" (AC1, AC9), and the enhancement lists and times as
+  Habitat type, Target condition and Advance / Delay change (AC4-AC6, AC8). HG032 covers the
+  incomplete form (AC2). The saves are in Step 11. The previews and buttons it shares with
+  the Created hedgerow form (AC3, AC7, AC11-AC13) are left to the Step 7 tests.
+- **Validation:** shared GET contract on load; the form's own rules are in Step 11
+- **On success:** Renders the Enhanced hedgerow edit form
 - **On error:** shared GET contract
 
 ---
@@ -442,7 +465,7 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
   Length (km), no broad-habitat field and hedgerow-only habitat/target-condition choices.
   HR3 retains its baseline-to-target time wording; HG013 shows the target alone.
   Editable fields start from the saved feature. Imported timing outside the new-choice
-  range stays selected as unchanged until explicitly replaced or cleared. Stored final-time
+  range shows the default option (frontend PR#532, see Step 4). Stored final-time
   text remains visible while its calculation inputs are unchanged.
   Created hedgerows keep valid stored-parent links; explicit null parents suppress them.
   Legacy non-template features without a parent field can still resolve a baseline by ref.
@@ -540,7 +563,7 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
 
 ---
 
-### Step 11 — Save Created area or hedgerow details (BMD-1048/BMD-1049) `[IMPLEMENTED]`
+### Step 11 — Save Created or Enhanced area or hedgerow details (BMD-1048/BMD-1049/BMD-1045/BMD-1046) `[IMPLEMENTED]`
 
 - **Route:** `POST /post-intervention-habitat-details`
 - **Template:** `pi-habitat-details-created-edit.njk` on a field-validation failure
@@ -553,21 +576,21 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
   project totals. An incomplete feature does not contribute units. An incomplete Created
   **area** edit saves `units: 0` (backend PR#614, BMD-1048 AC11 Scenario B); imports and
   hedgerow edits keep `units: null`. Either way, the Created area and hedgerow lists and
-  the edit form show `0.00` (frontend PR#465, the PO ruling of 2026-11-06).
+  the edit form show `0.00` (frontend PR#465, the PO ruling of 2026-11-06), and so do the
+  Enhanced area and hedgerow lists since frontend PR#532 (display only).
 - **Description:** Both Step 4 and Step 7 forms post here. The handler:
   1. Validates UUIDs, editable strings and timing selections against the two Joi payload
-     schemas. Timing selections can be blank, 0 to 30, 30+, or unchanged imported values.
+     schemas. Timing selections can be blank, 0 to 30 or 30+.
      Areas require a broad habitat field; hedgerows forbid it. Malformed payloads return
      400 before backend requests; the type-specific missing-area-broad guard runs after
      fetching the feature and before loading reference data.
   2. Sends Retained features to Step 12, and refuses with 501 any feature that is neither
-     Created nor an Enhanced area (or Enhanced tree, BMD-1172).
-  3. Validates choices and mutually exclusive positive advance/delay, resolving unchanged
-     timing from per-feature imported metadata. Errors redisplay entered values, summary
-     links and inline messages, including delay-only errors.
-  4. Sends valid edits to the type-specific backend PUT. Blank fields send null; unchanged
-     timing is omitted. Both backend routes resolve omissions from the locked stored row,
-     retain 30+ metadata and still reject out-of-range newly selected years.
+     Created nor an Enhanced area, hedgerow (BMD-1046) or tree (BMD-1172).
+  3. Validates choices and mutually exclusive positive advance/delay. Errors redisplay
+     entered values, summary links and inline messages, including delay-only errors.
+  4. Sends valid edits to the type-specific backend PUT. Blank fields, and stored values the
+     list does not offer (frontend PR#532), send null. The backend still accepts a value sent
+     back as stored, but the frontend no longer sends one.
 - **Validation:** References must be nonblank, valid UTF-8 and at most 99 characters once trimmed (BMD-1175).
   Habitat/condition/significance selections must be offered choices. Positive advance and
   delay cannot both be selected. Duplicate references and explicit blank dropdowns are
@@ -601,6 +624,12 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
   complete save that changes the habitat type, condition, significance and delay (AC12
   Scenario A: row, units and total). Scenario B awaits the list-display ruling above. Cancel,
   validation and Upload file share the Created area code and tests.
+- **Journey coverage (BMD-1046, Enhanced hedgerow):** "Enhanced hedgerow habitats — editing"
+  covers a complete save that renames HG018 and changes its type, condition, significance and
+  delay (AC10 Scenario A: row, units and total), and a save with Strategic significance
+  cleared (AC10 Scenario B: Incomplete, `0.00`, the total drops; the list's other derived
+  columns await the same ruling as the Created hedgerow's). Scenario B with a null Advance,
+  Cancel, validation and Upload file share the Created hedgerow code and tests.
 - **Journey coverage (BMD-1048, Created area):** `post-intervention-habitat-details.spec.js`,
   "Created area habitats — editing". It covers a complete save (AC11 Scenario A), completing
   an import-incomplete habitat whose units go from null to calculated, a save with
@@ -683,8 +712,8 @@ habitat, reference/type/significance/target/timing controls, Save/Cancel/Upload.
 The reference endpoint is `/reference/hedgerow-creation`; until it is deployed
 (a 404), GET retains the previous read-only page. Other backend failures propagate.
 The standard-time row retains baseline-to-target wording when a baseline condition
-is present; N/A baselines keep the short form. Unsupported imported timing is
-selected as an unchanged imported option; only explicit clearing sends null.
+is present; N/A baselines keep the short form. Unsupported imported timing shows the
+default option and a save sends null (frontend PR#532).
 Save uses PUT `/projects/{projectId}/post-intervention/hedgerows/{featureId}` and
 returns to the hedgerow list. Incomplete units use the same null persistence as
 import/resync. Created reference edits preserve the baseline parent separately.

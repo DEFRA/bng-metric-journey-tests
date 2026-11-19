@@ -89,16 +89,45 @@ const ALL_TYPES_BASELINE_FILE =
   'Baseline - all unit and intervention types.gpkg'
 const RETAINED_HEDGEROW_REF = 'HR1'
 const RETAINED_WATERCOURSE_REF = 'WC1'
-const ENHANCED_HEDGEROW_REF = 'HR2'
 const ENHANCED_UPLIFT_HEDGEROW_REF = 'HG018'
-const ENHANCED_UPLIFT_HEDGEROW_TIME = 'Poor to Moderate - 20 years'
+const ENHANCED_UPLIFT_HEDGEROW_KM = '0.3903847'
+// Line of trees (Low 2), Poor -> Moderate (2), High (1.15), 0/0 on the 20-year
+// enhancement: (B + (T - B) x 0.4903952635) x 1.15, B = km x 2 x 1, T = km x 2 x 2.
+const ENHANCED_UPLIFT_HEDGEROW_EXACT_UNITS = 1.3382
+const ENHANCED_HEDGEROW_SELECTIONS = {
+  type: 'Line of trees',
+  significance: 'High',
+  condition: 'Moderate',
+  advance: '0',
+  delay: '0'
+}
+const ENHANCED_HEDGEROW_VALUES = {
+  distinctiveness: 'Low (2)',
+  standardTime: 'Poor to Moderate - 20 years',
+  difficulty: 'Low',
+  finalTime: '20 years (0.4903952635)',
+  applied: '1'
+}
+const NATIVE_HEDGEROW_WITH_TREES = 'Native hedgerow with trees'
+// BMD-1046: the valid enhancements of a Poor Line of trees, as listed in the
+// ticket's spreadsheet.
+const ENHANCED_HEDGEROW_TYPES = [
+  'Choose habitat type',
+  'Line of trees',
+  'Line of trees - associated with bank or ditch',
+  NATIVE_HEDGEROW_WITH_TREES
+]
 // BMD-1051: the same file's HG032 (a valid Moderate→Good enhancement) carries
 // a Medium Proposed Strategic Significance, which the backend rejects and
-// prices at zero. HG031 would not do: BMD-820 rejects its enhancement first.
+// leaves unpriced. HG031 would not do: BMD-820 rejects its enhancement first.
 const ENHANCED_REJECTED_HEDGEROW_REF = 'HG032'
-// Any "{label} ({multiplier})" strategic significance — what the page showed
-// for a nulled value ("Low (1)") before frontend PR #370.
-const STRATEGIC_SIGNIFICANCE_WITH_MULTIPLIER = /^(Low|Medium|High) \([\d.]+\)$/
+const ENHANCED_REJECTED_HEDGEROW_TYPE =
+  'Native hedgerow - associated with bank or ditch'
+const STRATEGIC_SIGNIFICANCE_OPTIONS = [
+  'Choose strategic significance',
+  'High (1.15)',
+  'Low (1)'
+]
 const CREATED_HEDGEROW_REF = 'HR3'
 // HR3 and WC3 are both created to Moderate condition over 5 years, so unlike
 // their Enhanced siblings (HR2 and WC2, both Moderate→Moderate, neither of
@@ -302,7 +331,7 @@ const CREATED_LINEAR_HEDGEROW_REF = 'HG013'
 const CREATED_LINEAR_HEDGEROW_TIME_TO_TARGET = 'Good - 20 years'
 // HG013 as imported: Native hedgerow with trees, Good, High, no timing.
 const CREATED_HEDGEROW_SELECTIONS = {
-  type: 'Native hedgerow with trees',
+  type: NATIVE_HEDGEROW_WITH_TREES,
   significance: 'High',
   condition: 'Good',
   advance: '0',
@@ -752,7 +781,7 @@ const HEDGEROW_CREATION_OPTIONS = [
   'Line of trees - associated with bank or ditch',
   'Native hedgerow',
   'Native hedgerow - associated with bank or ditch',
-  'Native hedgerow with trees',
+  NATIVE_HEDGEROW_WITH_TREES,
   'Non-native and ornamental hedgerow',
   'Species-rich native hedgerow'
 ]
@@ -803,8 +832,8 @@ async function expectCreatedAreaValues(details, expected, options = {}) {
   }
 }
 
-// An Enhanced area's form values sit after its "View baseline details" link.
-async function expectEnhancedAreaValues(details, expected) {
+// An Enhanced form's values sit after its "View baseline details" link.
+async function expectEnhancedFormValues(details, expected) {
   await expectCreatedAreaValues(details, expected, { baselineLink: true })
 }
 
@@ -870,9 +899,7 @@ async function expectRetainedRename(
 
 // Baseline + PI hedgerow uploads in one project: retained hedgerows for the
 // view-only page, with HR1 ref-matched to a baseline hedgerow so the
-// "View baseline details" link renders (BMD-723 AC1/AC3). HR2 is Enhanced and
-// also ref-matched (the baseline file has HR1/HR2), so it drives the two-section
-// Enhanced hedgerow page with its View-baseline link shown (BMD-733).
+// "View baseline details" link renders (BMD-723 AC1/AC3).
 function getHedgerowsProject(browser, key = 'hedgerows') {
   return getSharedProject(
     browser,
@@ -885,19 +912,9 @@ function getHedgerowsProject(browser, key = 'hedgerows') {
         'hedgerow',
         RETAINED_HEDGEROW_REF
       )
-      // HR2 — Enhanced hedgerow, ref-matched to a baseline hedgerow (View
-      // baseline link shown) — for the two-section Enhanced page (BMD-733).
-      const enhanced = await harvestPiFeature(
-        page,
-        id,
-        'hedgerow',
-        ENHANCED_HEDGEROW_REF
-      )
       return {
         retainedHedgerow: retained.featureId,
         retainedHedgerowUnits: retained.units,
-        enhancedHedgerow: enhanced.featureId,
-        enhancedHedgerowUnits: enhanced.units,
         // HR3 — Created hedgerow (BMD-737). Only its grid Units cell is
         // harvested: its tests arrive by clicking the Ref link (the AC's own
         // entry path), so they need no featureId.
@@ -914,8 +931,7 @@ function getHedgerowsProject(browser, key = 'hedgerows') {
 
 // Baseline + PI "all unit and intervention types" uploads in one project: the
 // only shipped fixture with an Enhanced hedge that improves condition (HG018,
-// Poor→Moderate), so it can pin the dynamic condition-transition time text
-// (frontend PR#193) on a hedgerow. HG018 is ref-matched to a baseline hedgerow,
+// Poor→Moderate), so it drives the Enhanced hedgerow edit form (BMD-1046). HG018 is ref-matched to a baseline hedgerow,
 // so the "View baseline details" link resolves. The same pair is the only one
 // whose Enhanced *watercourse* (R007) both improves condition and ref-matches
 // a baseline river, so it carries the BMD-735 tests too — one project, two
@@ -926,12 +942,6 @@ function getAllTypesProject(browser) {
     'all-types',
     { baselineFile: ALL_TYPES_BASELINE_FILE, piFile: ALL_TYPES_PI_FILE },
     async (page, id) => {
-      const hedgerow = await harvestPiFeature(
-        page,
-        id,
-        'hedgerow',
-        ENHANCED_UPLIFT_HEDGEROW_REF
-      )
       const watercourse = await harvestPiFeature(
         page,
         id,
@@ -939,12 +949,27 @@ function getAllTypesProject(browser) {
         ENHANCED_UPLIFT_WATERCOURSE_REF
       )
       return {
-        enhancedUpliftHedgerow: hedgerow.featureId,
-        enhancedUpliftHedgerowUnits: hedgerow.units,
+        enhancedUpliftHedgerowUnits: await unitsByRef(
+          page,
+          id,
+          'hedgerow',
+          ENHANCED_UPLIFT_HEDGEROW_REF
+        ),
         enhancedUpliftWatercourse: watercourse.featureId,
         enhancedUpliftWatercourseUnits: watercourse.units
       }
     }
+  )
+}
+
+// BMD-1046. A copy of the all-unit-types pair under its own key, for a test
+// that saves (and so mutates its project).
+function getAllTypesProjectCopy(browser, key) {
+  return getSharedProject(
+    browser,
+    key,
+    { baselineFile: ALL_TYPES_BASELINE_FILE, piFile: ALL_TYPES_PI_FILE },
+    async () => ({})
   )
 }
 
@@ -2116,7 +2141,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             await expect(
               details.advanceYearsSelect.getByRole('option')
             ).toHaveText(['Choose advance', ...TIMING_YEARS])
-            await expectEnhancedAreaValues(details, ENHANCED_AREA_VALUES)
+            await expectEnhancedFormValues(details, ENHANCED_AREA_VALUES)
             await expect(details.habitatUnitsValue).toHaveText(
               ENHANCED_AREA_EXACT_UNITS.toFixed(2)
             )
@@ -2145,7 +2170,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             await expect(
               details.targetConditionSelect.getByRole('option')
             ).toHaveText(ENHANCED_SCRUB_CONDITIONS)
-            await expectEnhancedAreaValues(details, {
+            await expectEnhancedFormValues(details, {
               standardTime: 'Poor to Good - 10 years'
             })
           }
@@ -2180,7 +2205,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await expect(
             details.targetConditionSelect.getByRole('option')
           ).toHaveText(['Choose target condition'])
-          await expectEnhancedAreaValues(details, {
+          await expectEnhancedFormValues(details, {
             distinctiveness: '',
             standardTime: '',
             difficulty: '',
@@ -2213,7 +2238,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             'Good (3)',
             'Fairly Good (2.5)'
           ])
-          await expectEnhancedAreaValues(details, {
+          await expectEnhancedFormValues(details, {
             distinctiveness: 'Low (2)',
             standardTime: '',
             difficulty: 'Low',
@@ -2226,7 +2251,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             'Other neutral grassland'
           )
           await details.targetConditionSelect.selectOption('Fairly Good')
-          await expectEnhancedAreaValues(details, {
+          await expectEnhancedFormValues(details, {
             ...ENHANCED_AREA_VALUES,
             standardTime: 'Moderate to Fairly Good - 12 years',
             finalTime: '12 years (0.6521203607)'
@@ -2557,103 +2582,98 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     )
   })
 
-  // ─── Enhanced hedgerow — two-section view-only display (BMD-733) ─────────────
-  // An Enhanced hedgerow renders a dedicated two-section read-only page
-  // (pi-hedgerow-details-enhanced.njk): a "Post-intervention habitat details"
-  // section, a "Time to target / difficulty" section, and a "Habitat units
-  // delivered" summary row. Like the single-list hedgerow page it has no Broad
-  // habitat row and labels the size row "Length" (km); like the Enhanced area
-  // page (BMD-725) every value is sourced from the feature's `proposed` side and
-  // the page heading is the feature ref. HR2 is Enhanced and shares its ref with
-  // a baseline hedgerow (View baseline link shown).
+  // ─── Enhanced hedgerow — edit form (BMD-1046) ───────────────────────────────
+  // Since frontend PR #526 and backend PR #660 an Enhanced hedgerow opens the
+  // hedgerow edit form, its choices limited to the valid enhancements of its
+  // baseline (BMD-733's read-only page is gone). HG018 of the all-unit-types
+  // pair is the only Enhanced hedgerow that is priced: Line of trees, Poor ->
+  // Moderate. HG032 is the incomplete one. The previews and buttons this form
+  // shares with the Created hedgerow form (AC3, AC7, AC11-AC13) are left to
+  // "Created hedgerow habitats — editing".
 
-  test.describe('Post-intervention habitat details — Enhanced hedgerow display', () => {
-    test.use({ storageState: STORAGE_STATE })
-    test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+  test.describe(
+    'Enhanced hedgerow habitats — editing',
+    { tag: '@regression' },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-    // FIXME(BMD-1046): parked 2026-11-17. Frontend PR #526 (1759631) with
-    // backend PR #660 opens an Enhanced hedgerow on the hedgerow edit form, not
-    // BMD-733's read-only page, so the read-only layout is gone. Restore as an
-    // edit-form test when BMD-1046 is covered.
-    test.fixme(
-      'Enhanced hedgerow renders the two-section read-only page with every row and no form controls',
-      { tag: '@smoke' },
-      async ({ browser, postInterventionHabitatDetailsPage, page }) => {
-        const shared = await getHedgerowsProject(browser)
-        // Arrive the way the user does (BMD-733 AC1): open the hedgerows grid
-        // and click the hedgerow's Ref link rather than deep-linking.
-        await openPiFeatureDetails(
+      // AC1 and AC9. Replaces the BMD-733 read-only page test. The standard
+      // time also pins the condition transition of frontend PR#193 against
+      // the static wording it replaced.
+      test(
+        'an Enhanced hedgerow opens the hedgerow edit form, offering only valid enhancements of its baseline',
+        { tag: '@smoke' },
+        async ({
+          browser,
           page,
-          shared.id,
-          'hedgerow',
-          ENHANCED_HEDGEROW_REF
-        )
-        await expect(page).toHaveURL(DETAILS_URL_PATTERN)
+          postInterventionHabitatDetailsPage,
+          baselineHabitatDetailsPage
+        }) => {
+          const shared = await getAllTypesProject(browser)
+          await openPiFeatureDetails(
+            page,
+            shared.id,
+            'hedgerow',
+            ENHANCED_UPLIFT_HEDGEROW_REF
+          )
+          const details = postInterventionHabitatDetailsPage
 
-        const detailsPage = postInterventionHabitatDetailsPage
-        await detailsPage.assertTwoSectionLayout({
-          ref: ENHANCED_HEDGEROW_REF,
-          intervention: 'Enhanced'
-        })
-        await expect(detailsPage.caption).toHaveText(shared.name)
-        // Hedgerow specifics: the size row is "Length" and there is no Broad
-        // habitat row.
-        await expect(detailsPage.enhancedLengthKey).toBeVisible()
-        await expect(detailsPage.broadHabitatKey).toBeHidden()
-        // "View baseline details" renders after section 1 (HR2 is ref-matched).
-        await expect(detailsPage.viewBaselineLink).toBeVisible()
-        await expect(detailsPage.habitatTypeSelect).toBeHidden()
-        await expect(detailsPage.conditionSelect).toBeHidden()
-      }
-    )
+          await details.assertEnhancedHedgerowEditForm({
+            ref: ENHANCED_UPLIFT_HEDGEROW_REF
+          })
+          await expect(details.caption).toHaveText(shared.name)
+          await expectCreatedAreaSelections(
+            details,
+            ENHANCED_HEDGEROW_SELECTIONS
+          )
+          await expect(
+            details.habitatTypeSelect.getByRole('option')
+          ).toHaveText(ENHANCED_HEDGEROW_TYPES)
+          await expect(
+            details.targetConditionSelect.getByRole('option')
+          ).toHaveText(['Choose target condition', 'Good (3)', 'Moderate (2)'])
+          await expect(
+            details.strategicSignificanceSelect.getByRole('option')
+          ).toHaveText(STRATEGIC_SIGNIFICANCE_OPTIONS)
+          await expect(
+            details.advanceYearsSelect.getByRole('option')
+          ).toHaveText(['Choose advance', ...TIMING_YEARS])
+          await expect(details.delayYearsSelect.getByRole('option')).toHaveText(
+            ['Choose delay', ...TIMING_YEARS]
+          )
+          await expectEnhancedFormValues(details, {
+            intervention: 'Enhanced',
+            size: ENHANCED_UPLIFT_HEDGEROW_KM,
+            ...ENHANCED_HEDGEROW_VALUES
+          })
+          await expect(
+            details.createdFormValue('standardTime', { baselineLink: true })
+          ).not.toContainText(STALE_TIME_TO_TARGET_TEXT)
+          await expect(details.habitatUnitsValue).toHaveText(
+            shared.enhancedUpliftHedgerowUnits
+          )
 
-    test(
-      'Enhanced hedgerow shows its section-2 values and the dynamic condition-transition time (PR#193)',
-      { tag: '@regression' },
-      async ({ browser, postInterventionHabitatDetailsPage }) => {
-        // HR2 (the mixed fixture's Enhanced hedge) is Moderate→Moderate, so
-        // its time-to-target renders blank — the dynamic transition can only
-        // be pinned on a hedge that actually improves. HG018 goes
-        // Poor→Moderate.
-        const shared = await getAllTypesProject(browser)
-        await postInterventionHabitatDetailsPage.open(
-          shared.id,
-          shared.enhancedUpliftHedgerow
-        )
+          // AC9. Unsaved changes are left behind.
+          await details.habitatReferenceInput.fill('Not saved')
+          await details.viewBaselineLink.click()
+          await expect(page).toHaveURL(BASELINE_DETAILS_URL_PATTERN)
+          await expect(baselineHabitatDetailsPage.headingTitle).toHaveText(
+            `Hedgerow ${ENHANCED_UPLIFT_HEDGEROW_REF}`
+          )
+        }
+      )
 
-        // The standard time-to-target value proves the section-2 values render
-        // *and* pins the dynamic condition transition frontend PR#193 introduced:
-        // "<baseline condition> to <target condition> - N years". A shape-only
-        // assertion would also pass on the old static "Baseline condition to
-        // target condition - N years" wording this ticket was re-worked away
-        // from, so assert the exact transition and exclude that stale text.
-        await expect(
-          postInterventionHabitatDetailsPage.standardTimeToTargetValue
-        ).toHaveText(ENHANCED_UPLIFT_HEDGEROW_TIME)
-        await expect(
-          postInterventionHabitatDetailsPage.standardTimeToTargetValue
-        ).not.toContainText(STALE_TIME_TO_TARGET_TEXT)
-        // "Habitat units delivered" matches the Units cell of the same
-        // hedgerow's grid row.
-        await expect(
-          postInterventionHabitatDetailsPage.habitatUnitsValue
-        ).toHaveText(shared.enhancedUpliftHedgerowUnits)
-      }
-    )
-
-    // BMD-1051, frontend PR #370: a strategic significance nulled on import
-    // shows nothing. Before #370 the page fell back to "Low (1)", so the
-    // witness is that no "{label} ({multiplier})" value renders at all, with
-    // the label still present. Since BMD-1070 (backend PR #498) the feature is
-    // saved with null units rather than 0, so units delivered is empty too.
-    // FIXME(BMD-1046): parked 2026-11-17. Frontend PR #526 (1759631) puts an
-    // Enhanced hedgerow on the edit form, which has no read-only "Strategic
-    // significance" row. Restore against the edit form when BMD-1046 is
-    // covered.
-    test.fixme(
-      'Enhanced hedgerow with a rejected strategic significance shows no value and no units delivered',
-      { tag: '@regression' },
-      async ({ browser, postInterventionHabitatDetailsPage, page }) => {
+      // AC2, under the PO ruling of frontend PR #532: a significance rejected
+      // on import shows the default option, with no "(imported value)" option
+      // kept. Sole real-data witness; frontend
+      // controller-enhanced-hedgerow-edit.test.js covers it on a made-up
+      // feature.
+      test('an incomplete Enhanced hedgerow shows its rejected significance as the default option and zero units', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage
+      }) => {
         const shared = await getAllTypesProject(browser)
         await openPiFeatureDetails(
           page,
@@ -2661,24 +2681,227 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           'hedgerow',
           ENHANCED_REJECTED_HEDGEROW_REF
         )
-        await expect(page).toHaveURL(DETAILS_URL_PATTERN)
+        const details = postInterventionHabitatDetailsPage
 
+        await expect(details.habitatReferenceInput).toHaveValue(
+          ENHANCED_REJECTED_HEDGEROW_REF
+        )
+        await expectCreatedAreaSelections(details, {
+          type: ENHANCED_REJECTED_HEDGEROW_TYPE,
+          significance: '',
+          condition: 'Good',
+          advance: '0',
+          delay: '0'
+        })
         await expect(
-          postInterventionHabitatDetailsPage.stackedStrategicSignificanceKey
-        ).toBeVisible()
+          details.strategicSignificanceSelect.getByRole('option')
+        ).toHaveText(STRATEGIC_SIGNIFICANCE_OPTIONS)
+        await expect(details.habitatTypeSelect.getByRole('option')).toHaveText([
+          'Choose habitat type',
+          ENHANCED_REJECTED_HEDGEROW_TYPE
+        ])
         await expect(
-          page
-            .getByRole('main')
-            .getByText(STRATEGIC_SIGNIFICANCE_WITH_MULTIPLIER)
-        ).toHaveCount(0)
-        // The <dd> keeps its template whitespace, so match "nothing but
-        // whitespace" rather than an exact empty string.
+          details.targetConditionSelect.getByRole('option')
+        ).toHaveText(['Choose target condition', 'Good (3)'])
+        await expect(details.habitatUnitsValue).toHaveText('0.00')
+        await expect(details.saveButton).toBeVisible()
+      })
+
+      // AC4, AC5, AC6 and AC8. Each choice lists only the enhancements of the
+      // baseline (Line of trees, Poor). A move to a higher-distinctiveness
+      // type takes the metric's G-6 type-to-type time, whatever the condition.
+      test('the choices stay within the valid enhancements of the baseline as they change', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage
+      }) => {
+        const shared = await getAllTypesProject(browser)
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'hedgerow',
+          ENHANCED_UPLIFT_HEDGEROW_REF
+        )
+        const details = postInterventionHabitatDetailsPage
+
+        // AC6, condition to condition within Line of trees.
+        await details.targetConditionSelect.selectOption('Good')
+        await expectEnhancedFormValues(details, {
+          ...ENHANCED_HEDGEROW_VALUES,
+          standardTime: 'Poor to Good - 30 years',
+          finalTime: '30 years (0.3434151104)'
+        })
+
+        // AC4.
+        await details.habitatTypeSelect.selectOption(NATIVE_HEDGEROW_WITH_TREES)
+        await expectCreatedAreaSelections(details, {
+          ...ENHANCED_HEDGEROW_SELECTIONS,
+          type: NATIVE_HEDGEROW_WITH_TREES,
+          condition: ''
+        })
         await expect(
-          postInterventionHabitatDetailsPage.habitatUnitsValue
-        ).toHaveText(/^\s*$/)
-      }
-    )
-  })
+          details.targetConditionSelect.getByRole('option')
+        ).toHaveText([
+          'Choose target condition',
+          'Good (3)',
+          'Moderate (2)',
+          'Poor (1)'
+        ])
+        await expectEnhancedFormValues(details, {
+          distinctiveness: 'Medium (4)',
+          standardTime: '',
+          difficulty: 'Low',
+          finalTime: '',
+          applied: '1'
+        })
+
+        // AC6, type to type (G-6): 12 years from Poor and to Good alike.
+        await details.targetConditionSelect.selectOption('Poor')
+        await expectEnhancedFormValues(details, {
+          standardTime: 'Poor to Poor - 12 years',
+          finalTime: '12 years (0.6521203607)'
+        })
+        await details.targetConditionSelect.selectOption('Good')
+        await expectEnhancedFormValues(details, {
+          standardTime: 'Poor to Good - 12 years'
+        })
+
+        // AC8.
+        const finalTime = details.createdFormValue('finalTime', {
+          baselineLink: true
+        })
+        await details.delayYearsSelect.selectOption('2')
+        await expect(finalTime).toHaveText('14 years (0.6072707829)')
+        await details.advanceYearsSelect.selectOption('2')
+        await expect(finalTime).toHaveText('')
+        await expect(details.errorSummary).toBeHidden()
+        await details.delayYearsSelect.selectOption('0')
+        await details.advanceYearsSelect.selectOption('25')
+        await expect(finalTime).toHaveText('0 years (1)')
+
+        // AC5.
+        await details.habitatTypeSelect.selectOption({
+          label: 'Choose habitat type'
+        })
+        await expect(
+          details.targetConditionSelect.getByRole('option')
+        ).toHaveText(['Choose target condition'])
+        await expectEnhancedFormValues(details, {
+          distinctiveness: '',
+          standardTime: '',
+          difficulty: '',
+          finalTime: '',
+          applied: ''
+        })
+        await expect(details.habitatUnitsValue).toHaveText(
+          shared.enhancedUpliftHedgerowUnits
+        )
+      })
+
+      // AC10 Scenario A. Backend enhanced-hedgerow-edit.test.js:113 and
+      // integration-tests/habitats.test.js ("BMD-1046 Enhanced hedgerow
+      // editing") cover the calculation and storage; this proves the list and
+      // the hedgerow tile show it.
+      test('saving a complete edit recalculates the enhanced units, the row and the total', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage
+      }) => {
+        const { id } = await getAllTypesProjectCopy(
+          browser,
+          'enhanced-hedgerow-save-complete'
+        )
+        const newRef = `${ENHANCED_UPLIFT_HEDGEROW_REF}-new`
+        // Native hedgerow with trees (Medium 4), Moderate (2), Low (1), delay
+        // 2 on the 12-year G-6 move: 14 years (0.6072707829).
+        // 0.3903847 x 4 x 2 = T, 0.3903847 x 2 x 1 = B,
+        // (B + (T - B) x 0.6072707829 x 1) x 1 = 2.2032
+        const expectedUnits = 2.2032
+        await openPiTabFor(page, id, 'hedgerow', ENHANCED_UPLIFT_HEDGEROW_REF)
+        const totalBefore = await hedgerowPostInterventionUnits(page)
+        await piPage(page, 'hedgerow')
+          .refLink('Enhanced', ENHANCED_UPLIFT_HEDGEROW_REF)
+          .click()
+        const details = postInterventionHabitatDetailsPage
+
+        await details.habitatReferenceInput.fill(newRef)
+        await details.habitatTypeSelect.selectOption(NATIVE_HEDGEROW_WITH_TREES)
+        await details.targetConditionSelect.selectOption('Moderate')
+        await details.strategicSignificanceSelect.selectOption('Low')
+        await details.delayYearsSelect.selectOption('2')
+        await details.saveButton.click()
+
+        await expectOnPiPage(page, id, 'hedgerow')
+        const totalAfter = await hedgerowPostInterventionUnits(page)
+        expect(
+          Math.abs(
+            totalAfter -
+              (totalBefore -
+                ENHANCED_UPLIFT_HEDGEROW_EXACT_UNITS +
+                expectedUnits)
+          )
+        ).toBeLessThan(TILE_ROUNDING)
+        expect(await hedgerowRowByRef(page, id, newRef)).toMatchObject({
+          Status: STATUS_COMPLETE,
+          Units: expectedUnits.toFixed(2),
+          'Habitat type': NATIVE_HEDGEROW_WITH_TREES,
+          Distinctiveness: 'Medium (4)',
+          'Strategic significance': 'Low (1)',
+          'Target condition': 'Moderate (2)',
+          Delay: '2 years',
+          'Final time to target': '14 years (0.6072707829)'
+        })
+      })
+
+      // AC10 Scenario B. The list's other derived columns after an incomplete
+      // save await the same ruling as the Created hedgerow's, so only the
+      // status, the 0.00 and the total are asserted.
+      test('saving with the significance cleared shows zero units and leaves the hedgerow out of the total', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage
+      }) => {
+        const { id } = await getAllTypesProjectCopy(
+          browser,
+          'enhanced-hedgerow-save-incomplete'
+        )
+        await openPiTabFor(page, id, 'hedgerow', ENHANCED_UPLIFT_HEDGEROW_REF)
+        const totalBefore = await hedgerowPostInterventionUnits(page)
+        await piPage(page, 'hedgerow')
+          .refLink('Enhanced', ENHANCED_UPLIFT_HEDGEROW_REF)
+          .click()
+        const details = postInterventionHabitatDetailsPage
+
+        await details.strategicSignificanceSelect.selectOption({
+          label: 'Choose strategic significance'
+        })
+        await details.saveButton.click()
+
+        await expectOnPiPage(page, id, 'hedgerow')
+        const totalAfter = await hedgerowPostInterventionUnits(page)
+        expect(
+          Math.abs(
+            totalAfter - (totalBefore - ENHANCED_UPLIFT_HEDGEROW_EXACT_UNITS)
+          )
+        ).toBeLessThan(TILE_ROUNDING)
+        expect(
+          await hedgerowRowByRef(page, id, ENHANCED_UPLIFT_HEDGEROW_REF)
+        ).toMatchObject({ Status: STATUS_INCOMPLETE, Units: '0.00' })
+
+        await openPiFeatureDetails(
+          page,
+          id,
+          'hedgerow',
+          ENHANCED_UPLIFT_HEDGEROW_REF
+        )
+        await expectCreatedAreaSelections(details, {
+          ...ENHANCED_HEDGEROW_SELECTIONS,
+          significance: ''
+        })
+        await expect(details.habitatUnitsValue).toHaveText('0.00')
+      })
+    }
+  )
 
   // BMD-1049: real uploaded Created hedgerows render the shared edit form.
   // Keep both baseline-transition and absent-baseline fixtures as witnesses.
@@ -2779,7 +3002,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         // Created hedgerows label the size field "Length (km)" and have no
         // broad-habitat dimension.
         await expectCreatedHedgerowSelections(detailsPage, {
-          habitatType: 'Native hedgerow with trees',
+          habitatType: NATIVE_HEDGEROW_WITH_TREES,
           condition: 'Good',
           significance: 'High'
         })
@@ -4385,8 +4608,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
   )
 
   // ─── Save is not implemented for read-only features ─────────────────────────
-  // Created edit forms, the Enhanced area form (BMD-1045) and Retained
-  // reference forms post here. The route answers 501 for every other feature,
+  // Created edit forms, the Enhanced area (BMD-1045) and hedgerow (BMD-1046)
+  // forms and Retained reference forms post here. The route answers 501 for every other feature,
   // so a stale page or client gets an explicit "not implemented" response
   // rather than a save. The handler
   // validates the payload first (400 for a malformed body), so the request must
@@ -4399,16 +4622,13 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      // An Enhanced hedgerow: its page is still read-only. It was an Enhanced
-      // area until BMD-1045 made that editable.
-      // FIXME(BMD-1046): parked 2026-11-17. Frontend PR #526 (1759631) with
-      // backend PR #660 makes an Enhanced hedgerow editable, so this POST now
-      // saves (200). Restore against a feature that is still read-only.
-      test.fixme('POST /post-intervention-habitat-details for an Enhanced hedgerow returns 501 Not Implemented', async ({
+      // An Enhanced watercourse: its page is still read-only. It was an
+      // Enhanced hedgerow until BMD-1046 made that editable.
+      test('POST /post-intervention-habitat-details for an Enhanced watercourse returns 501 Not Implemented', async ({
         browser,
         page
       }) => {
-        const shared = await getHedgerowsProject(browser)
+        const shared = await getAllTypesProject(browser)
         // No read-only page renders a form, so there is no crumb-carrying HTML
         // form to submit via a real browser action. Any response sets the
         // httpOnly `crumb` cookie (@hapi/crumb, restful: false); read it from
@@ -4423,8 +4643,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           {
             data: {
               projectId: shared.id,
-              featureId: shared.enhancedHedgerow,
-              ref: ENHANCED_HEDGEROW_REF,
+              featureId: shared.enhancedUpliftWatercourse,
+              ref: ENHANCED_UPLIFT_WATERCOURSE_REF,
               habitatType: '',
               condition: '',
               strategicSignificance: '',
