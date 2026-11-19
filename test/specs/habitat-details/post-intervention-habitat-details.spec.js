@@ -2661,6 +2661,15 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await expect(baselineHabitatDetailsPage.headingTitle).toHaveText(
             `Hedgerow ${ENHANCED_UPLIFT_HEDGEROW_REF}`
           )
+          await openPiFeatureDetails(
+            page,
+            shared.id,
+            'hedgerow',
+            ENHANCED_UPLIFT_HEDGEROW_REF
+          )
+          await expect(details.habitatReferenceInput).toHaveValue(
+            ENHANCED_UPLIFT_HEDGEROW_REF
+          )
         }
       )
 
