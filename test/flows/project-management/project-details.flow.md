@@ -102,7 +102,10 @@ BMD-276 introduced:
     The date is saved as `DD/MM/YYYY`.
 
   - **Local planning authority:** the default option saves `null`, clearing the name and the
-    reference. A reference that does not match `^E600\d{5}$`, or one the backend no longer
+    reference. The exception is a legacy free-text authority (saved before BMD-1012): while
+    the select stays on the default option, the form posts `keepLocalPlanningAuthority` and
+    the save leaves the legacy name in place, until the user chooses an authority from the
+    list. A reference that does not match `^E600\d{5}$`, or one the backend no longer
     holds (its 400), is refused with "Select a local planning authority from the list".
 - **On success:** 302 to `returnUrl` (Step 1), with no success message. The new name shows
   wherever the project name does.
@@ -121,7 +124,9 @@ BMD-276 introduced:
 - **Save and refill:** saving every field trimmed and seeing them pre-filled, then
   overwritten (AC3, AC8).
 - **Save round trip:** saving from Hedgerows post-intervention, back there under the new name,
-  with the project top of the dashboard (AC8).
+  and the dashboard listing the new name (AC8). The project's place at the top of the
+  dashboard is not asserted: every CI worker shares one stub user, so another worker's project
+  can be newer. The dashboard's own sort order is covered in `project-dashboard.spec.js`.
 - **Clearing:** blank fields and the default authority clear every saved value (AC7, AC8).
 - **Combined refusal:** a blank name, an invalid character and a partial date (AC10).
 - **Unknown authority:** the backend's 400 for an authority it no longer holds (AC10).

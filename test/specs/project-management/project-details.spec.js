@@ -586,6 +586,12 @@ test.describe('project-management', { tag: '@project-management' }, () => {
             applicant: 'Isolation Developments Ltd'
           })
           await creatorDetails.submit()
+          // The details must be saved, or a 404 below would prove nothing.
+          await expect(creatorPage).toHaveURL(noBaselineSummaryRedirectHref(id))
+          await creatorDetails.open(id)
+          await expect(creatorDetails.applicantInput).toHaveValue(
+            'Isolation Developments Ltd'
+          )
 
           const otherPage = await otherContext.newPage()
           const response = await otherPage.goto(`/project-details/${id}`)
