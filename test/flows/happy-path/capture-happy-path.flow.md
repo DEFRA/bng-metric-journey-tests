@@ -25,7 +25,7 @@ Re-sequenced on 2026-10-07 for **BMD-1043** (frontend PR#352): the project task 
 | 10  | `10-upload-post-intervention-file.png` | Upload post-intervention form with file chosen (`/projects/{id}/upload-post-intervention-file`) | [IMPLEMENTED]                                                                                          |
 | 11  | `11-project-summary-complete.png`      | Project summary with post-intervention results (`/projects/{id}/project-summary`)               | [IMPLEMENTED]                                                                                          |
 | 12  | `12-area-post-intervention.png`        | Post intervention for area habitats (`/projects/{id}/area-post-intervention`)                   | [IMPLEMENTED]                                                                                          |
-| —   | _not captured_                         | Project Details form (`/project-details/{projectId}`)                                           | [PLANNED] — route **is** implemented; since BMD-1043 no page links to it                               |
+| —   | _not captured_                         | Project Details form (`/project-details/{projectId}`)                                           | [PLANNED] — route **is** implemented; linked from the left navigation since BMD-849                    |
 
 ## Fixtures
 

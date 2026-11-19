@@ -2,36 +2,135 @@
 
 ## Overview
 
-The authenticated user enters or updates supplementary project attributes (Local Planning Authority, survey completer(s), survey completion date, development type, NSIPs classification, applicant) via a form that the project task list linked to. **BMD-1043 (frontend PR#352) removed the task list, and no page links to this form now** — the project summary's "View project details" section has no link — so it is reachable only by URL (open question raised with the team, 2026-10-07). Values persist against the project and pre-fill on return visits; resubmitting updates the same record rather than creating a new one. Note: unlike the baseline/post-intervention task items, the task list's "Project Details" status is hardcoded to "Not yet started" and does not flip to "Completed" once details are saved (`src/server/projects/task-list.njk`).
+The authenticated user views and updates a project's details: its name and six supplementary
+attributes. BMD-849 (frontend PR#514 / backend PR#642, 2026-11-19) rebuilt the page that
+BMD-276 introduced:
+
+- **Entry:** a **"Project details"** item in the left navigation, just before Reports, on every
+  page that shows the navigation (project summary, the area, hedgerow and watercourse summaries
+  and their Baseline, Post intervention and Trading rules pages, and Reports). The link carries
+  the page it was followed from as `returnUrl`. The page is still reachable by URL. The project
+  summary's "View project details" section is still unlinked, which is out of scope.
+- **Save and Cancel** both return to `returnUrl`. A missing or off-site one (anything but a
+  same-site path) falls back to the project summary. A project with no baseline is passed on
+  from the summary to `/upload-file` (BMD-1076).
+- **Removed:** the Back link, "Save and continue", and the Development type and NSIPs radios.
+  Values already saved for those two are left in place.
+- Only the project name is mandatory. The other fields become mandatory at final submission,
+  which is a later story.
 
 ## Steps
 
-### Step 1 — View project details form `[IMPLEMENTED]`
+### Step 1 — View the project details form `[IMPLEMENTED]`
 
-- **Route:** `GET /project-details/{projectId}`
+- **Route:** `GET /project-details/{projectId}?returnUrl={path}` (`returnUrl` optional)
 - **Template:** `src/server/project-details/index.njk`
-- **Auth required:** Yes — active session + an approved (status 3) `bng completer` role (pre-method; redirects to `/auth/forbidden` otherwise)
-- **Backend endpoint:** `GET /projects/{id}` (fetches the full project; the handler reads `project.details` off the response — no dedicated `GET /projects/{id}/details` call from this route) and `GET /reference/local-planning-authorities` (the LPA list — `{ name, reference }` for each current English LPA, ordered by name; fetched once and memoised for the life of the frontend process, `src/server/common/services/local-planning-authorities.js`)
-- **Description:** Renders the form with a back link to the project summary (`/projects/{projectId}/project-summary`; BMD-1043 — it was the removed task list), the project name as a caption, and six fields pre-filled from any previously saved `project.details` values: Local Planning Authority (GOV.UK select `localPlanningAuthorityReference`: a "Select a Local Planning Authority" placeholder with an empty value, selected by default, then one option per LPA with the Planning Data reference as the value and the LPA name as the text; the saved reference is pre-selected), Survey completer(s) (text), Survey completion date (GOV.UK three-part date input: day/month/year), Development type (radios: Small site / Large site), NSIPs (radios: Yes / No — hint "National Significant Infrastructure Project"), Applicant (text). A "Save and continue" button submits the form. A record saved before BMD-1012 (free-text `localPlanningAuthority`, no reference) shows "Previously saved Local Planning Authority: {name}. Select an authority from the list to update it." above the select, which stays on the placeholder.
-- **Validation:** None (display-only) — see Step 2 for the schema applied on submit
-- **On success:** Renders the form
-- **On error:** `Boom.notFound` (404) if the project doesn't exist or isn't visible to the user; `Boom.badGateway` if the backend is unreachable or returns a non-2xx status, or if the LPA list is unreachable, empty or malformed
+- **Auth required:** Yes. An active session and an approved (status 3) `bng completer` role are
+  checked before the handler, and anyone else is redirected to `/auth/forbidden`.
+- **Backend endpoints:**
+  - `GET /projects/{id}` for the name and `project.details`.
+  - `GET /reference/local-planning-authorities` for the `{ name, reference }` of each current
+    English authority, ordered by name. It is fetched once and memoised for the life of the
+    frontend process. The stack's list has 308 authorities (`bng.local_planning_authorities`).
+- **Description:**
+  - The left navigation, labelled with the page heading, shows **Project details** as the
+    current item (`aria-current="page"`, not a link).
+  - H1 **"Project details"**, then the help text: "Enter the details for the project. You do
+    not need to add them all straight away, but you will need to complete all of these details
+    before you can export your metric."
+  - The fields, in this order, each filled from the saved value or empty:
+    - **Project name**: text, `maxlength` 1000.
+    - **Survey completed by** (`surveyCompleters`): text, 255.
+    - **Survey date** (`surveyCompletionDate`): a GOV.UK date input with Day, Month and Year,
+      `maxlength` 2, 2 and 4. A saved date fills each box as stored, `DD/MM/YYYY`, so a month
+      of 6 shows "06".
+    - **Planning permission applicant name** (`applicant`): text, 255.
+    - **Local planning authority** (`localPlanningAuthorityReference`): a select with
+      "Choose local planning authority" (empty value) first, then one option per authority. The
+      option's text is the name and its value is the Planning Data reference. The saved
+      reference is selected.
+    - **Planning application reference (optional)**: text, 50.
+    - **Planning application type (optional)**: text, 100.
+  - A **Save** button and a **Cancel** link to `returnUrl`. A hidden `returnUrl` field carries it
+    through the POST.
+  - A record saved before BMD-1012 (free-text `localPlanningAuthority`, no reference) shows
+    "Previously saved local planning authority: {name}. Choose an authority from the list to
+    update it." above the select, which stays on the default option.
+- **Validation:** none on load. `projectId` must be a UUIDv4 (400 otherwise).
+- **On success:** renders the form.
+- **On error:** 404 if the project does not exist or is not the user's. 502 if the backend or
+  the LPA list is unreachable, empty or malformed.
 
 ---
 
-### Step 2 — Submit project details `[IMPLEMENTED]`
+### Step 2 — Change values on the form (display only) `[IMPLEMENTED]`
+
+- Typing, amending or clearing a box changes only that box. The browser stops typing at each
+  `maxlength`. Choosing an authority, or the default option, changes only the select.
+- Nothing is validated until Save, and nothing is saved until Save.
+
+---
+
+### Step 3 — Save the project details `[IMPLEMENTED]`
 
 - **Route:** `POST /project-details/{projectId}`
-- **Template:** `src/server/project-details/index.njk`
-- **Auth required:** Yes — same as Step 1
-- **Backend endpoint:** `PATCH /projects/{id}/details` — payload is merged into the stored `project.details` via a jsonb `||` merge (`persist-project.js`): omitted keys are left untouched, but a field explicitly sent as `null` overwrites the stored value. Resubmitting the form updates the same record, not create-only.
-- **Description:** User submits the six fields listed in Step 1.
-- **Validation:**
-  - `localPlanningAuthorityReference` — optional; must match `^E600\d{5}$` (error "Select a Local Planning Authority from the list"); the placeholder's empty value normalises to `null`. The backend resolves the reference against its LPA table and saves both `localPlanningAuthority` (the canonical name) and `localPlanningAuthorityReference`; an unknown reference returns 400, which the frontend re-renders as the same error. Because the form always posts the field, saving with the placeholder selected clears both — including a legacy free-text name, even when only another field was edited
-  - `surveyCompleters` — string, trimmed, optional, max 500 chars; empty string normalises to `null`
-  - `surveyCompletionDate` — posted as three separate day/month/year fields, combined server-side into `DD/MM/YYYY`; all three empty → saves as `null` (valid); some but not all present → error "Survey completion date must include a day/month/year" naming the missing part(s); combined value isn't a real calendar date → error "Survey completion date must be a real date"
-  - `developmentType` — optional; must be exactly `"Small site"` or `"Large site"` if provided; empty normalises to `null`
-  - `nsips` — optional; must be exactly `"Yes"` or `"No"` if provided; empty normalises to `null`
-  - `applicant` — string, trimmed, optional, max 500 chars; empty normalises to `null`
-- **On success:** Redirects to `/projects/{projectId}/project-summary` (the project summary; BMD-1043 — it was the removed task list) — 302
-- **On error:** Re-renders the form with a GOV.UK error summary and inline field error(s); previously-typed values (including invalid ones) are preserved rather than cleared. A date-fieldset error highlights only the invalid day/month/year sub-field(s) via `govuk-input--error`.
+- **Template:** `src/server/project-details/index.njk` (re-rendered on a refusal)
+- **Auth required:** Yes, as Step 1. CSRF crumb required (403 without).
+- **Backend endpoint:** `PATCH /projects/{id}/details` with the name and the details in one
+  write (backend PR#642). The details are merged into `project.details` with a jsonb `||`
+  merge. A field sent as `null` clears the stored value. The `updated_at` trigger sets the
+  project's Last modified, so it moves to the top of the Project dashboard.
+- **Validation** (frontend `validation.js`; every field is checked at once, and a problem with
+  any of them saves none of them). The errors are listed in field order, each linking to its
+  field, and the wording is interim except the project name's:
+  - **Project name:** blank after trimming gives "Enter a project name". Over 1000 gives
+    "Project name must be 1000 characters or fewer".
+  - **Text fields:** each is trimmed, and blank is saved as `null`.
+    - Over its limit: "<Field> must be {max} characters or fewer".
+    - An invalid character (a control character such as a tab, DEL, or half of a UTF-16
+      surrogate pair): "<Field> must only contain valid characters".
+  - **Survey date:** all three boxes blank is saved as `null`. Otherwise:
+
+    | Problem                                            | Message                                                    | Highlighted           |
+    | -------------------------------------------------- | ---------------------------------------------------------- | --------------------- |
+    | One part missing                                   | "Survey date must include a {part}"                        | the missing box       |
+    | Two parts missing                                  | "Survey date must include {parts}" (e.g. "month and year") | the missing boxes     |
+    | Not digits                                         | "Survey date must only include numbers"                    | the non-numeric boxes |
+    | Not a calendar date, or a year that isn't 4 digits | "Survey date must be a real date"                          | —                     |
+    | Later than today in the UK                         | "Survey date must be today or in the past"                 | —                     |
+
+    The date is saved as `DD/MM/YYYY`.
+
+  - **Local planning authority:** the default option saves `null`, clearing the name and the
+    reference. The exception is a legacy free-text authority (saved before BMD-1012): while
+    the select stays on the default option, the form posts `keepLocalPlanningAuthority` and
+    the save leaves the legacy name in place, until the user chooses an authority from the
+    list. A reference that does not match `^E600\d{5}$`, or one the backend no longer
+    holds (its 400), is refused with "Select a local planning authority from the list".
+- **On success:** 302 to `returnUrl` (Step 1), with no success message. The new name shows
+  wherever the project name does.
+- **On error:** re-renders with a "There is a problem" GOV.UK error summary, which takes focus,
+  and an inline error above each field, which is outlined in red. Everything entered is kept,
+  and nothing is saved.
+
+## Journey coverage
+
+`test/specs/project-management/project-details.spec.js`:
+
+- **Page content:** a project with only its name saved (AC2), including the authority options
+  from the backend list (AC6).
+- **Real link:** following the nav link from a real uploaded project's Hedgerows
+  post-intervention page, with the current item shown and Cancel returning there (AC1, AC9).
+- **Save and refill:** saving every field trimmed and seeing them pre-filled, then
+  overwritten (AC3, AC8).
+- **Save round trip:** saving from Hedgerows post-intervention, back there under the new name,
+  and the dashboard listing the new name (AC8). The project's place at the top of the
+  dashboard is not asserted: every CI worker shares one stub user, so another worker's project
+  can be newer. The dashboard's own sort order is covered in `project-dashboard.spec.js`.
+- **Clearing:** blank fields and the default authority clear every saved value (AC7, AC8).
+- **Combined refusal:** a blank name, an invalid character and a partial date (AC10).
+- **Unknown authority:** the backend's 400 for an authority it no longer holds (AC10).
+- **Access:** role, unauthenticated, 400, not-found, and cross-user 404.
+
+Typing and `maxlength` (AC4, AC5) and each date rule are left to the frontend controller and
+`validation.js` tests.
