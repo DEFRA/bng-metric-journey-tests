@@ -50,12 +50,7 @@ const LEGACY_ONLY_SPECS = [
   'specs/project-management/watercourses-baseline.spec.js',
   'specs/project-management/watercourses-post-intervention.spec.js',
   'specs/project-management/watercourses-summary.spec.js',
-  'specs/project-management/watercourses-trading-summary.spec.js',
-  'specs/upload-baseline/upload-baseline-file.spec.js',
-  'specs/upload-baseline/upload-baseline.spec.js',
-  'specs/upload-file/upload-file.spec.js',
-  'specs/upload-post-intervention/upload-post-intervention-file.spec.js',
-  'specs/upload-post-intervention/upload-post-intervention.spec.js'
+  'specs/project-management/watercourses-trading-summary.spec.js'
 ]
 
 /**

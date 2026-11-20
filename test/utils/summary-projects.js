@@ -13,6 +13,8 @@
 // under full parallelism, a second worker may build its own copy; that costs an
 // upload but is still correct.
 import { STORAGE_STATE, baseUrl } from '@utils/env.js'
+import { isServiceTemplateRun } from '@utils/template-run.js'
+import { SMALL_SITE_BASELINE } from '@utils/service-template-files.js'
 import { setupProject } from '@utils/project-helpers.js'
 import { createProjectCache } from '@utils/shared-project.js'
 import { CreateProjectFlow } from '@flows/project-management/create-project.flow.js'
@@ -295,6 +297,32 @@ export function getBaselineOnlyProject(browser) {
   return getOrBuildProject(projectKey(NO_HEDGEROWS_FILE), () =>
     buildBaselineOnlyProject(browser, NO_HEDGEROWS_FILE)
   )
+}
+
+/**
+ * A project with a baseline and no post-intervention data, in the BNG
+ * Service template: the small site's baseline-stage file.
+ *
+ * @param {import('@playwright/test').Browser} browser
+ * @returns {Promise<{id: string, name: string}>}
+ */
+export function getServiceTemplateBaselineProject(browser) {
+  return getOrBuildProject(projectKey(SMALL_SITE_BASELINE), () =>
+    buildBaselineOnlyProject(browser, SMALL_SITE_BASELINE)
+  )
+}
+
+/**
+ * A project with a baseline and no post-intervention data, in the template
+ * this run tests, for a spec that needs a baseline but none in particular.
+ *
+ * @param {import('@playwright/test').Browser} browser
+ * @returns {Promise<{id: string, name: string}>}
+ */
+export function getRunBaselineProject(browser) {
+  return isServiceTemplateRun()
+    ? getServiceTemplateBaselineProject(browser)
+    : getBaselineOnlyProject(browser)
 }
 
 /** A baseline-only project populating every unit type. */

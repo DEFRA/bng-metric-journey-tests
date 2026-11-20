@@ -374,6 +374,10 @@ A post-intervention file gets the same normalisation on both its `baseline` and 
 
 ---
 
+### The BNG Service template run — BMD-1088 `[IMPLEMENTED]`
+
+With `SERVICE_TEMPLATE_ENABLED=true` the baseline upload takes only a BNG Service template file, read for its Red Line Boundary and Baseline tables. The happy path (`small-site-baseline.gpkg`), replacing a baseline (`default-site-baseline.gpkg`, `default-site.gpkg`, then `small-site-baseline.gpkg`: HG010 gone), cross-user access, no pending upload, the format error and CDP Uploader rejection run in both runs with the run's files. The legacy file checks (structural, parcel size, slivers, distinctiveness, field and geometric checks, the single-error drop-outs, irreplaceable habitat), the filename rule and the failed replacement are `@legacy-only`: they show legacy checks, or rules that run the same for either template. What a BNG Service template file can get wrong at upload is in [the post-intervention flow](../upload-post-intervention/upload-post-intervention-file.flow.md).
+
 ### Landing — project summary (separate flow)
 
 On a successful upload the user lands on `GET /projects/{id}/project-summary` (BMD-870; it was `GET /projects/{id}/baseline-habitat-list` before, a page BMD-1043 removed). That page, the unit-type baseline pages that list the habitats, and the habitat-detail edit journey are documented in their own flow docs and are **out of scope** for this flow:

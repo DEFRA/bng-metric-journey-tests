@@ -316,6 +316,20 @@ upload — in the same project — must expect the post-intervention side to be 
 
 ---
 
+### The BNG Service template run — BMD-1088 `[IMPLEMENTED]`
+
+With `SERVICE_TEMPLATE_ENABLED=true` the service takes only BNG Service template files, which hold both stages, and the post-intervention upload is a **baseline + post-intervention** upload: it writes both documents from the one file, with or without a baseline already stored. The run uploads the copies in `test/example-files/service-template/` (named in `@utils/service-template-files.js`).
+
+- **Same in both runs, with the run's files:** the happy path (the small site's baseline-stage file, then `small-site.gpkg` over it; H002 listed), replacing an upload (`default-site.gpkg`, then `small-site.gpkg`: HG010 gone from both documents), cross-user access, no pending upload, the format error, CDP Uploader rejection and the upload timeout.
+- **Legacy only (`@legacy-only`):** the Lost/Created split, the failed replacement, the content validation errors, conflicting timing, distinctiveness, unenhanceable and incomplete baselines. Each uploads a legacy file to show a legacy rule or check; the BNG Service template's checks are held by the harness corpus.
+- **BNG Service template only (`@service-template-only`, "BNG Service template file checks"):**
+  - a baseline-stage file (`small-site-baseline.gpkg`) → `/error-file`, `POST_INTERVENTION_TABLES_EMPTY`: "The Post-Intervention tables in this file are all empty…";
+  - a changed parent shape (`lineage-parent-geom-mismatch.gpkg`), over a stored small site → `/error-file`, `STAGED_BASELINE_DRIFTED`, listing "Area Habitats Baseline H001 — Other lowland acid grassland, copied to H001"; the stored project keeps HG005a;
+  - a hedgerow that gets worse with no years in advance (`degrade-hedgerow-advance-missing.gpkg`) → `/error-file`, `STAGED_HABITAT_DEGRADE_NOT_VALID`, listing HG017;
+  - a watercourse whose encroachment alone gets worse, 10 years in advance (`watercourse-degraded.gpkg`) → accepted, R003 listed.
+
+Each code has no single-problem page, so each is the list layout: "We couldn't accept your post-intervention file", the code's text as a heading, and one item per habitat it names.
+
 ### Landing — project summary (separate flow)
 
 On a successful upload the user lands on `GET /projects/{id}/project-summary` (BMD-1043; it was `GET /projects/{id}/post-intervention-habitat-list`, now removed). That page, the unit-type post-intervention pages that list the features, and the post-intervention habitat-detail journey are documented separately and are **out of scope** for this flow:

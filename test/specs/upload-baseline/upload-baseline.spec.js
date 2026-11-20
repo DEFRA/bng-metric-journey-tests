@@ -13,6 +13,12 @@ import { UploadBaselineFileFlow } from '@flows/upload-baseline/upload-baseline-f
 import { ProjectDashboardPage } from '@pages/project-dashboard.page.js'
 import { ErrorFilePage } from '@pages/error-file.page.js'
 import { AREA_HABITATS } from '@utils/unit-type-labels.js'
+import { LEGACY_ONLY, isServiceTemplateRun } from '@utils/template-run.js'
+import {
+  DEFAULT_SITE,
+  DEFAULT_SITE_BASELINE,
+  SMALL_SITE_BASELINE
+} from '@utils/service-template-files.js'
 
 // BMD-1043 (frontend PR#352) removed the project task list and the baseline
 // habitat list. What the task list's statuses used to show is now read off the
@@ -56,6 +62,18 @@ const DUPLICATE_REF = 'DUP-1'
 const NATURAL_ENGLAND_MISMATCH_COPY =
   'The layer names and column names do not match what is required by Natural England'
 
+// A valid baseline in the template this run tests.
+const VALID_BASELINE_FILE = isServiceTemplateRun()
+  ? SMALL_SITE_BASELINE
+  : COMPLETE_BASELINE_FILE
+
+// The describes tagged LEGACY_ONLY upload legacy-template files to show the
+// legacy template's own file checks. The BNG Service template's checks are
+// held by the harness's corpus (npm run test:uploads there), and its
+// drop-outs by upload-post-intervention.spec.js. The filename and
+// failed-replacement rules run before or around those checks, the same for
+// either template, so the legacy run covers them.
+
 // ─── E2E happy path ─────────────────────────────────────────────────────────
 
 // BMD-870 re-pointed the baseline upload's success redirect from the habitat
@@ -87,7 +105,7 @@ function describeHappyPath() {
       }) => {
         const { id, name } = await uploadToProjectSummary(
           { createProjectFlow, projectDashboardPage, uploadBaselineFileFlow },
-          COMPLETE_BASELINE_FILE
+          VALID_BASELINE_FILE
         )
 
         // BMD-870: a successful baseline upload lands on the project summary.
@@ -134,7 +152,7 @@ function describeHappyPath() {
 function describeFilenameAcceptance() {
   test.describe(
     'Upload baseline — accepted filename characters (BMD-958)',
-    { tag: '@regression' },
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       // Sole end-to-end witness that the widened SAFE_FILENAME_RE actually
       // admits a file. The rule is unit-tested on both sides (backend
@@ -180,6 +198,25 @@ function describeFilenameAcceptance() {
 // changed and the row counts match — nothing anywhere proved the *new file's*
 // habitats are what end up on the page. The hedgerow refs below are that proof.
 
+// The files the replacement uploads, in the run's template: a first baseline
+// with a hedgerow the second lacks, a post-intervention file over it, and the
+// second baseline.
+const REPLACEMENT = isServiceTemplateRun()
+  ? {
+      first: DEFAULT_SITE_BASELINE,
+      firstOnlyHedgerow: 'HG010',
+      postIntervention: DEFAULT_SITE,
+      second: SMALL_SITE_BASELINE,
+      secondHedgerows: ['HG001', 'HG005']
+    }
+  : {
+      first: COMPLETE_BASELINE_FILE,
+      firstOnlyHedgerow: COMPLETE_BASELINE_HEDGEROW_REF,
+      postIntervention: COMPLETE_POST_INTERVENTION_FILE,
+      second: ALTERNATE_BASELINE_FILE,
+      secondHedgerows: ALTERNATE_HEDGEROW_REFS
+    }
+
 function describeBaselineReplacement() {
   test.describe(
     'Upload baseline — replacing an existing baseline',
@@ -198,21 +235,21 @@ function describeBaselineReplacement() {
 
         const { id } = await uploadToProjectSummary(
           { createProjectFlow, projectDashboardPage, uploadBaselineFileFlow },
-          COMPLETE_BASELINE_FILE
+          REPLACEMENT.first
         )
 
         // The first file's hedgerows are what is stored right now. Checked
         // before the post-intervention upload, because since BMD-1056/BMD-1066
         // that upload replaces the baseline with one derived from its own rows,
-        // and COMPLETE_POST_INTERVENTION_FILE has no hedgerows.
+        // and the legacy post-intervention file has no hedgerows.
         await hedgerowsBaselinePage.open(id)
         await expect(
-          hedgerowsBaselinePage.refLink(COMPLETE_BASELINE_HEDGEROW_REF)
+          hedgerowsBaselinePage.refLink(REPLACEMENT.firstOnlyHedgerow)
         ).toBeVisible()
 
         await uploadPostInterventionFileFlow.uploadFileAndWaitForSummary(
           id,
-          COMPLETE_POST_INTERVENTION_FILE
+          REPLACEMENT.postIntervention
         )
 
         // Post-intervention data is stored before the replacement, so the
@@ -223,7 +260,7 @@ function describeBaselineReplacement() {
 
         await uploadBaselineFileFlow.uploadFileAndWaitForSummary(
           id,
-          ALTERNATE_BASELINE_FILE
+          REPLACEMENT.second
         )
 
         // The replacement dropped the post-intervention document, so the
@@ -235,11 +272,11 @@ function describeBaselineReplacement() {
         // The stored baseline is the new file, not a merge of the two: the
         // replacement's refs are present and the original's are gone.
         await hedgerowsBaselinePage.open(id)
-        for (const ref of ALTERNATE_HEDGEROW_REFS) {
+        for (const ref of REPLACEMENT.secondHedgerows) {
           await expect(hedgerowsBaselinePage.refLink(ref)).toBeVisible()
         }
         await expect(
-          hedgerowsBaselinePage.refLink(COMPLETE_BASELINE_HEDGEROW_REF)
+          hedgerowsBaselinePage.refLink(REPLACEMENT.firstOnlyHedgerow)
         ).toHaveCount(0)
       })
     }
@@ -263,7 +300,7 @@ function describeBaselineReplacement() {
 function describeFailedReplacement() {
   test.describe(
     'Upload baseline — failed replacement',
-    { tag: '@regression' },
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       test('a rejected re-upload leaves the existing baseline intact', async ({
         createProjectFlow,
@@ -393,7 +430,7 @@ function describeCrossUserAccess() {
 
           await new UploadBaselineFileFlow(otherPage).uploadFile(
             ownerProjectId,
-            COMPLETE_BASELINE_FILE
+            VALID_BASELINE_FILE
           )
           await otherPage.waitForURL('/error-file', {
             timeout: UPLOAD_TIMEOUT
@@ -455,7 +492,7 @@ function describeFormatError() {
 function describeStructuralErrors() {
   test.describe(
     'Upload baseline — structural validation errors',
-    { tag: '@regression' },
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       // The fixture trips PARCEL_OVERLAPS alongside distinctiveness and
       // area-sum-mismatch errors, so the multi-error layout renders (the
@@ -520,7 +557,7 @@ function describeStructuralErrors() {
 function describeParcelTooSmall() {
   test.describe(
     'Upload baseline — parcel below the minimum area',
-    { tag: '@regression' },
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       // The replacement for the removed derived-sliver check: a parcel supplied
       // in the file whose own footprint is under 1 m². The fixture leaves the
@@ -568,7 +605,7 @@ function describeParcelTooSmall() {
 function describeSuppression() {
   test.describe(
     'Upload baseline — SLIVERS_OUTSIDE_REDLINE suppression',
-    { tag: '@regression' },
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       test('when AREA_PARCELS_OUTSIDE_REDLINE is present, SLIVERS_OUTSIDE_REDLINE is suppressed on the error-file page', async ({
         createProjectFlow,
@@ -612,7 +649,7 @@ function describeSuppression() {
 function describeDistinctivenessError() {
   test.describe(
     'Upload baseline — high distinctiveness habitat',
-    { tag: '@smoke' },
+    { tag: ['@smoke', LEGACY_ONLY] },
     () => {
       test('uploading a file with High/Very High distinctiveness habitat shows the distinctiveness single-error page', async ({
         createProjectFlow,
@@ -679,7 +716,7 @@ async function uploadToErrorFile(fixtures, fixture) {
 function describeFieldValidation() {
   test.describe(
     'Upload baseline — field and combination validation',
-    { tag: '@regression' },
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       // All three gates are built (backend validation) and route to /error-file.
       // Each test uploads a fixture that violates one rule and asserts the matching
@@ -887,7 +924,7 @@ const GEOMETRIC_GATE_CASES = [
 function describeGeometricGateErrors() {
   test.describe(
     'Upload baseline — geometric validation errors',
-    { tag: '@regression' },
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       for (const { title, fixture, summaryText } of GEOMETRIC_GATE_CASES) {
         test(
@@ -1037,7 +1074,7 @@ function singleErrorTest({ title, fixture, heading, body, assertNavigation }) {
 function describeSingleErrorDropout() {
   test.describe(
     'Upload baseline — single validation error dropout (BMD-405)',
-    { tag: '@regression' },
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       for (const singleErrorCase of SINGLE_ERROR_CASES) {
         singleErrorTest(singleErrorCase)
@@ -1132,7 +1169,7 @@ function describeUploaderRejection() {
 function describeIrreplaceableHabitat() {
   test.describe(
     'Upload baseline — irreplaceable habitat',
-    { tag: '@regression' },
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       // The irreplaceable-habitat eligibility filter is NOT implemented: there is
       // no error code in ../bng-metric-backend/src/validation/baseline/errors.js
