@@ -22,3 +22,6 @@ export const HEDGEROW_DEGRADE_NO_ADVANCE = `${DIR}/degrade-hedgerow-advance-miss
 
 // R003, a watercourse whose encroachment alone gets worse, 10 years in advance.
 export const WATERCOURSE_DEGRADED = `${DIR}/watercourse-degraded.gpkg`
+
+// V004, a vertical area habitat with no Area: refused at the baseline upload.
+export const VERTICAL_AREA_MISSING = `${DIR}/vertical-area-missing.gpkg`

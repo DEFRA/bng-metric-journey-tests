@@ -17,7 +17,8 @@ import { LEGACY_ONLY, isServiceTemplateRun } from '@utils/template-run.js'
 import {
   DEFAULT_SITE,
   DEFAULT_SITE_BASELINE,
-  SMALL_SITE_BASELINE
+  SMALL_SITE_BASELINE,
+  VERTICAL_AREA_MISSING
 } from '@utils/service-template-files.js'
 
 // BMD-1043 (frontend PR#352) removed the project task list and the baseline
@@ -70,9 +71,9 @@ const VALID_BASELINE_FILE = isServiceTemplateRun()
 // The describes tagged LEGACY_ONLY upload legacy-template files to show the
 // legacy template's own file checks. The BNG Service template's checks are
 // held by the harness's corpus (npm run test:uploads there), and its
-// drop-outs by upload-post-intervention.spec.js. The filename and
-// failed-replacement rules run before or around those checks, the same for
-// either template, so the legacy run covers them.
+// drop-outs by upload-post-intervention.spec.js. The filename rule runs
+// before a byte of the file is read, the same for either template, so the
+// legacy run covers it.
 
 // ─── E2E happy path ─────────────────────────────────────────────────────────
 
@@ -297,10 +298,27 @@ function describeBaselineReplacement() {
 // test asserts the non-write, and no frontend unit test can see it. Do not
 // delete without an integration test that re-uploads an invalid GeoPackage into
 // a populated project and asserts the stored document is untouched.
+// The failed replacement's files, in the run's template: a stored baseline and
+// its hedgerows, then a file the baseline upload refuses, and how the page
+// says so. A BNG Service template file is read for its Baseline tables here,
+// so its fault is in one: a vertical area habitat with no Area.
+const FAILED_REPLACEMENT = isServiceTemplateRun()
+  ? {
+      stored: SMALL_SITE_BASELINE,
+      storedHedgerows: ['HG001', 'HG005'],
+      refused: VERTICAL_AREA_MISSING,
+      rejectedHeading: 'This vertical area habitat V004 contains an error'
+    }
+  : {
+      stored: ALTERNATE_BASELINE_FILE,
+      storedHedgerows: ALTERNATE_HEDGEROW_REFS,
+      refused: INVALID_BASELINE_FILE
+    }
+
 function describeFailedReplacement() {
   test.describe(
     'Upload baseline — failed replacement',
-    { tag: ['@regression', LEGACY_ONLY] },
+    { tag: '@regression' },
     () => {
       test('a rejected re-upload leaves the existing baseline intact', async ({
         createProjectFlow,
@@ -316,18 +334,25 @@ function describeFailedReplacement() {
 
         const { id } = await uploadToProjectSummary(
           { createProjectFlow, projectDashboardPage, uploadBaselineFileFlow },
-          ALTERNATE_BASELINE_FILE
+          FAILED_REPLACEMENT.stored
         )
 
         // Attempt to replace it with a file that fails backend validation.
-        await uploadBaselineFileFlow.uploadFile(id, INVALID_BASELINE_FILE)
+        await uploadBaselineFileFlow.uploadFile(id, FAILED_REPLACEMENT.refused)
         await page.waitForURL('/error-file', { timeout: UPLOAD_TIMEOUT })
-        await expect(errorFilePage.errorSummary).toBeVisible()
-        await expect(errorFilePage.baselineRejectedHeading).toBeVisible()
+        if (isServiceTemplateRun()) {
+          // One problem, so its own page rather than the list.
+          await expect(
+            errorFilePage.singleErrorHeading(FAILED_REPLACEMENT.rejectedHeading)
+          ).toBeVisible()
+        } else {
+          await expect(errorFilePage.errorSummary).toBeVisible()
+          await expect(errorFilePage.baselineRejectedHeading).toBeVisible()
+        }
 
         // The original upload is still the stored baseline, unchanged.
         await hedgerowsBaselinePage.open(id)
-        for (const ref of ALTERNATE_HEDGEROW_REFS) {
+        for (const ref of FAILED_REPLACEMENT.storedHedgerows) {
           await expect(hedgerowsBaselinePage.refLink(ref)).toBeVisible()
         }
 
