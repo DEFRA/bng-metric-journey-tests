@@ -47,18 +47,53 @@ function sha256(file) {
   return createHash('sha256').update(readFileSync(file)).digest('hex')
 }
 
+/**
+ * The harness checkout: BNG_HARNESS_DIR, or the one beside this repo. Null
+ * when there is none beside it; a BNG_HARNESS_DIR with no corpus is a mistake,
+ * so it stops the script rather than being taken for no harness.
+ */
 function harnessDir() {
-  const dir =
-    process.env.BNG_HARNESS_DIR ??
-    path.resolve(REPO_ROOT, '..', 'bng-metric-harness')
-  return existsSync(path.join(dir, CORPUS)) ? dir : null
+  const configured = process.env.BNG_HARNESS_DIR
+  const dir = configured ?? path.resolve(REPO_ROOT, '..', 'bng-metric-harness')
+  if (existsSync(path.join(dir, CORPUS))) {
+    return dir
+  }
+  if (configured) {
+    console.error(`✘ BNG_HARNESS_DIR is ${configured}, which has no ${CORPUS}`)
+    process.exit(1)
+  }
+  return null
 }
 
-function harnessCommit(dir) {
-  return execFileSync('git', ['rev-parse', 'HEAD'], {
+function git(dir, args) {
+  return execFileSync('git', args, {
     cwd: dir,
-    encoding: 'utf8'
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe']
   }).trim()
+}
+
+/**
+ * The commit the copies come from, which must hold the bytes copied: a
+ * corpus with changes not yet committed would record a commit without them.
+ */
+function cleanHarnessCommit(dir) {
+  const changes = git(dir, ['status', '--porcelain', '--', CORPUS])
+  if (changes) {
+    console.error(
+      `✘ ${CORPUS} has changes not committed in ${dir}, so no commit holds the files --sync would copy:\n${changes}`
+    )
+    process.exit(1)
+  }
+  const commit = git(dir, ['rev-parse', 'HEAD'])
+  try {
+    git(dir, ['merge-base', '--is-ancestor', commit, 'origin/main'])
+  } catch {
+    console.warn(
+      `! harness ${commit} is not on its origin/main, so the copies come from a branch: sync again once it merges`
+    )
+  }
+  return commit
 }
 
 function readManifest() {
@@ -97,18 +132,28 @@ function staleCopies(manifest, harness) {
   })
 }
 
+/**
+ * Copy every source again. Every check runs before the first file is copied,
+ * so a sync that stops leaves the folder and manifest.json as they were.
+ */
 function sync(manifest, harness) {
+  const commit = cleanHarnessCommit(harness)
+  const missing = manifest.files
+    .map(({ source }) => source)
+    .filter((source) => !existsSync(path.join(harness, CORPUS, source)))
+  if (missing.length > 0) {
+    console.error(
+      `✘ These sources are not in ${path.join(harness, CORPUS)}, so nothing was copied:\n  ${missing.join('\n  ')}`
+    )
+    process.exit(1)
+  }
   for (const entry of manifest.files) {
     const original = path.join(harness, CORPUS, entry.source)
-    if (!existsSync(original)) {
-      console.error(`✘ ${entry.source} is not in ${harness}`)
-      process.exit(1)
-    }
     copyFileSync(original, path.join(FIXTURE_DIR, entry.file))
     entry.sha256 = sha256(original)
     console.log(`  ${entry.file} ← ${entry.source}`)
   }
-  manifest.harnessCommit = harnessCommit(harness)
+  manifest.harnessCommit = commit
   writeFileSync(MANIFEST, `${JSON.stringify(manifest, null, JSON_INDENT)}\n`)
   console.log(
     `✔ ${manifest.files.length} fixtures copied from harness ${manifest.harnessCommit}`

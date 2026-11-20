@@ -96,7 +96,7 @@
       "file": "area-created-no-habitat-type.gpkg",
       "source": "attribute-problems/area-created-no-habitat-type.gpkg",
       "sha256": "3e70e2e992fb84360ea549a15dcd37eff0ea67bc1060cdffe5068810392ef5be",
-      "for": "H005, Created, with no habitat type: refused (STAGED_HABITAT_DEGRADE_NOT_VALID)"
+      "for": "H005, Created and linked to its parent, with no habitat type: refused with STAGED_HABITAT_DEGRADE_NOT_VALID, not a missing-type error. The service reads a blank Proposed Habitat Type as the row's Baseline one, so it takes H005 as Created in its parent's own type, a habitat that gets worse (see the harness README)"
     },
     {
       "file": "tree-condition-lowered-baseline.gpkg",
