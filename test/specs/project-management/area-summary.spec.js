@@ -2,11 +2,12 @@ import { test, expect } from '@fixtures'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
-  getAllUnitTypesPostInterventionProject,
-  getAllUnitTypesProject,
-  getAreaGainProject,
-  getBaselineOnlyProject
+  getRunAllUnitTypesPostInterventionProject,
+  getRunAllUnitTypesProject,
+  getRunAreaGainProject,
+  getRunBaselineProject
 } from '@utils/summary-projects.js'
+import { isServiceTemplateRun } from '@utils/template-run.js'
 import {
   AREA_HABITATS,
   BASELINE_NAV_CHILD,
@@ -69,7 +70,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
     let project
     test.beforeAll(async ({ browser }) => {
-      project = await getBaselineOnlyProject(browser)
+      project = await getRunBaselineProject(browser)
     })
 
     // The frontend unit suite covers this page thoroughly
@@ -162,7 +163,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
     let project
     test.beforeAll(async ({ browser }) => {
-      project = await getBaselineOnlyProject(browser)
+      project = await getRunBaselineProject(browser)
     })
 
     // `unit-type-navigation.test.js` proves the builder as a pure function, and
@@ -202,11 +203,14 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         areaSummaryPage.navItem(TRADING_RULES_NAV_CHILD)
       ).toHaveCount(0)
 
-      // The fixture's Hedgerows layer is empty, so that unit type earns no nav
-      // entry; its rivers do. Same conditional the project summary applies to
-      // its sections.
+      // The legacy fixture's Hedgerows layer is empty, so that unit type earns
+      // no nav entry; its rivers do. Same conditional the project summary
+      // applies to its sections. The BNG Service template's small site has
+      // both, so both earn one.
       await expect(areaSummaryPage.navItem(WATERCOURSES)).toBeVisible()
-      await expect(areaSummaryPage.navItem(HEDGEROWS)).toHaveCount(0)
+      await expect(areaSummaryPage.navItem(HEDGEROWS)).toHaveCount(
+        isServiceTemplateRun() ? 1 : 0
+      )
     })
 
     test('the project summary collapses the Area habitats section again', async ({
@@ -259,7 +263,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // names does not render on it at all.
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getAllUnitTypesProject(browser)
+        project = await getRunAllUnitTypesProject(browser)
       })
 
       // BMD-854 AC7. There is no back link on this page — the left nav is the
@@ -318,7 +322,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getBaselineOnlyProject(browser)
+        project = await getRunBaselineProject(browser)
       })
 
       // Pure wiring, which is exactly what the mocked unit tests cannot show:
@@ -378,7 +382,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getAllUnitTypesPostInterventionProject(browser)
+        project = await getRunAllUnitTypesPostInterventionProject(browser)
       })
 
       test('the five Results tiles agree with the project summary', async ({
@@ -490,7 +494,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // it for the green "Met" tag, so it costs no extra upload in CI.
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getAreaGainProject(browser)
+        project = await getRunAreaGainProject(browser)
       })
 
       test('the deficit is clamped to zero, not a negative surplus', async ({
@@ -542,7 +546,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         projectSummaryPage,
         browser
       }) => {
-        const project = await getAllUnitTypesPostInterventionProject(browser)
+        const project = await getRunAllUnitTypesPostInterventionProject(browser)
 
         await areaSummaryPage.open(project.id)
         await expectStatusTag(areaSummaryPage.tradingRulesTag(), STATUS_NOT_MET)
@@ -558,7 +562,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         projectSummaryPage,
         browser
       }) => {
-        const project = await getAreaGainProject(browser)
+        const project = await getRunAreaGainProject(browser)
 
         await areaSummaryPage.open(project.id)
         await expectStatusTag(areaSummaryPage.tradingRulesTag(), STATUS_MET)

@@ -14,7 +14,12 @@
 // upload but is still correct.
 import { STORAGE_STATE, baseUrl } from '@utils/env.js'
 import { isServiceTemplateRun } from '@utils/template-run.js'
-import { SMALL_SITE_BASELINE } from '@utils/service-template-files.js'
+import {
+  DEFAULT_SITE,
+  DEFAULT_SITE_BASELINE,
+  SMALL_SITE_BASELINE,
+  TRADING_ALL_MET
+} from '@utils/service-template-files.js'
 import { setupProject } from '@utils/project-helpers.js'
 import { createProjectCache } from '@utils/shared-project.js'
 import { CreateProjectFlow } from '@flows/project-management/create-project.flow.js'
@@ -323,6 +328,54 @@ export function getRunBaselineProject(browser) {
   return isServiceTemplateRun()
     ? getServiceTemplateBaselineProject(browser)
     : getBaselineOnlyProject(browser)
+}
+
+/**
+ * A BNG Service template file uploaded at the baseline + post-intervention
+ * upload into an empty project, which writes both documents from the one
+ * file. Shared, as the other builds are.
+ */
+function getServiceTemplatePostInterventionProject(browser, file) {
+  return getOrBuildProject(projectKey(undefined, file), () =>
+    buildPostInterventionOnlyProject(browser, file)
+  )
+}
+
+/**
+ * The BNG Service template stand-ins for the legacy projects below, each
+ * picked for the property its legacy project is used for, and each project in
+ * the template this run tests.
+ *
+ * - every unit type, baseline only: the default site's baseline-stage file;
+ * - every unit type, with a post-intervention document: the default site,
+ *   whose area habitats fall short of the 10% target and break the area
+ *   trading rules;
+ * - area habitats that meet the target and the trading rules:
+ *   trading-all-met.gpkg.
+ *
+ * @param {import('@playwright/test').Browser} browser
+ * @returns {Promise<{id: string, name: string}>}
+ */
+export function getRunAllUnitTypesProject(browser) {
+  return isServiceTemplateRun()
+    ? getOrBuildProject(projectKey(DEFAULT_SITE_BASELINE), () =>
+        buildBaselineOnlyProject(browser, DEFAULT_SITE_BASELINE)
+      )
+    : getAllUnitTypesProject(browser)
+}
+
+/** @see getRunAllUnitTypesProject */
+export function getRunAllUnitTypesPostInterventionProject(browser) {
+  return isServiceTemplateRun()
+    ? getServiceTemplatePostInterventionProject(browser, DEFAULT_SITE)
+    : getAllUnitTypesPostInterventionProject(browser)
+}
+
+/** @see getRunAllUnitTypesProject */
+export function getRunAreaGainProject(browser) {
+  return isServiceTemplateRun()
+    ? getServiceTemplatePostInterventionProject(browser, TRADING_ALL_MET)
+    : getAreaGainProject(browser)
 }
 
 /** A baseline-only project populating every unit type. */
