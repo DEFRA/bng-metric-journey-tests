@@ -29,6 +29,14 @@ on:
         required: false
         default: ''
         type: string
+      template-run:
+        description: 'Which template run: legacy (SERVICE_TEMPLATE_ENABLED=false) or service-template (true)'
+        required: false
+        default: legacy
+        type: choice
+        options:
+          - legacy
+          - service-template
 
   workflow_call:
     inputs:
@@ -48,6 +56,11 @@ on:
         required: false
         type: string
         default: ''
+      # legacy or service-template, as for workflow_dispatch.
+      template-run:
+        required: false
+        type: string
+        default: legacy
 
 jobs:
   # Parses Depends-On lines from the PR body (workflow_call context).
@@ -80,13 +93,32 @@ jobs:
           echo "Resolved frontend branch: $frontend_branch"
           echo "Resolved backend branch:  $backend_branch"
 
+  # The template-run input sets the services' SERVICE_TEMPLATE_ENABLED flag:
+  # legacy (the default, and what a PR gets) with it off, service-template with
+  # it on. The suite reads the same variable to choose its Playwright project
+  # (test/utils/template-run.js), so setting it on the job starts the stack and
+  # picks the run together.
   run-tests:
     name: Run Journey Tests
     runs-on: ubuntu-latest
     needs: parse-depends-on
     env:
       BROWSER: ${{ inputs.browser || 'chromium' }}
+      TEMPLATE_RUN: ${{ inputs.template-run || 'legacy' }}
+      SERVICE_TEMPLATE_ENABLED: ${{ inputs.template-run == 'service-template' && 'true' || 'false' }}
     steps:
+      # A caller passes template-run as free text, so check it before anything
+      # is built: anything else would quietly run legacy.
+      - name: Check the template run
+        run: |
+          case "$TEMPLATE_RUN" in
+            legacy | service-template) echo "Template run: $TEMPLATE_RUN (SERVICE_TEMPLATE_ENABLED=$SERVICE_TEMPLATE_ENABLED)" ;;
+            *)
+              echo "::error::template-run must be legacy or service-template, not '$TEMPLATE_RUN'"
+              exit 1
+              ;;
+          esac
+
       # Pinned explicitly so this workflow can be called from another repo.
       # A bare checkout resolves to github.repository, which in a cross-repo
       # workflow_call is the *calling* service repo, not the test suite.
@@ -149,10 +181,15 @@ jobs:
       - name: Add host entries for identity stub
         run: echo "127.0.0.1 cdp-defra-id-stub" | sudo tee -a /etc/hosts
 
+      # A profile can select nothing in the service-template run, such as a tag
+      # whose specs it still leaves out (LEGACY_ONLY_SPECS). That run passes
+      # empty rather than failing with "No tests found". Without a profile an
+      # empty run is a real fault, so it still fails.
       - name: Run Playwright tests
         env:
           PROFILE: ${{ inputs.profile }}
-        run: npm run test:github
+          NO_TESTS_FLAG: ${{ inputs.profile && '--pass-with-no-tests' || '' }}
+        run: npm run test:github -- $NO_TESTS_FLAG
 
       - name: Collect Docker Compose logs
         if: always()

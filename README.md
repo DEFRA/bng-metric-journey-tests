@@ -170,7 +170,10 @@ GitHub → Actions → Run Journey Tests on GitHub → Run workflow
   frontend-branch: main  (or a feature branch)
   backend-branch: main   (or a feature branch)
   browser: chromium
+  template-run: legacy   (or service-template)
 ```
+
+`template-run` picks the run: `legacy` with `SERVICE_TEMPLATE_ENABLED=false`, or `service-template` with it `true`. It sets the flag for the stack and the suite together. PRs here, and the frontend's and backend's runs, get `legacy`. With a `profile` set, a run with no tests that match it passes empty.
 
 ---
 

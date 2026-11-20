@@ -501,6 +501,7 @@ npm run recalc:workbook -- --help
 - `PROFILE` env var filters tests by tag (e.g. `PROFILE=@smoke`). Uses Playwright `{ tag }` annotations — see **Test Tagging** above.
 - **CDP Portal runs should use `PROFILE=@happy-path`.** The error and unhappy-path scenarios trip the environment's monitoring alerts; `@happy-path` restricts the run to successful journeys. See **@happy-path** under Test Tagging.
 - The **Run Journey Tests** GitHub workflow accepts an optional `profile` input (`@smoke`, `@project-management`, etc.). Leave it blank to run all tests.
+- Its `template-run` input picks the run: `legacy` (the default, and what a PR gets) against a stack with `SERVICE_TEMPLATE_ENABLED=false`, or `service-template` against one with it `true` (see **Template Runs**). With a `profile` set, a run that has no matching tests (a tag whose specs are still in `LEGACY_ONLY_SPECS`) passes empty.
 
 ---
 
