@@ -1,0 +1,150 @@
+{
+  "description": "Each file here is a copy of a file in bng-metric-harness/example-files/service-template/ (source), built by the harness's corpus recipes or bng-library's generator; its README says how. Refresh them with npm run check:fixtures -- --sync, never by hand.",
+  "harnessCommit": "95b3ff211a65f8b4e2edcccf1875abf5d9ab1bec",
+  "files": [
+    {
+      "file": "small-site-baseline.gpkg",
+      "source": "valid/small-site-baseline.gpkg",
+      "sha256": "034ff78851968b67d0957f4571aa6cfb4999e0681afbb8e378fef1d4cd7428aa",
+      "for": "A 3-parcel site's baseline-stage file: a baseline upload, and a baseline + post-intervention upload with no post-intervention habitats (POST_INTERVENTION_TABLES_EMPTY)"
+    },
+    {
+      "file": "small-site.gpkg",
+      "source": "valid/small-site.gpkg",
+      "sha256": "600476fb2ee0eed394793fb96b58a860c7309ff9976ab26988a4032ef29b126b",
+      "for": "The same site holding both stages: a baseline + post-intervention upload"
+    },
+    {
+      "file": "default-site-baseline.gpkg",
+      "source": "valid/default-site-baseline.gpkg",
+      "sha256": "92e55050238dfaecf4535c81138965d878865d01a96a67b5152e11e9e9e34007",
+      "for": "The default site's baseline-stage file"
+    },
+    {
+      "file": "default-site.gpkg",
+      "source": "valid/default-site.gpkg",
+      "sha256": "b0a496ec7c9aac92368da371001095358e91134c593fd313797adac2337a3cce",
+      "for": "The default site holding both stages: vertical area habitats, an Enhanced tree, Retained, Enhanced and Created features linked to their parents, habitats that get worse"
+    },
+    {
+      "file": "lineage-parent-geom-mismatch.gpkg",
+      "source": "lineage-problems/lineage-parent-geom-mismatch.gpkg",
+      "sha256": "c903f795adfaddd11136362f33909d0e50a2b773719c80a6abe737893db31919",
+      "for": "A post-intervention feature whose parent's shape has changed: refused, listing the habitats that do not align"
+    },
+    {
+      "file": "degrade-hedgerow-advance-missing.gpkg",
+      "source": "attribute-problems/degrade-hedgerow-advance-missing.gpkg",
+      "sha256": "42d5b1f9552487e5ddcf6a087074560d0fa9daf6c7a1a74022430da617ea7557",
+      "for": "A hedgerow that gets worse without 30+ years created in advance: refused (STAGED_HABITAT_DEGRADE_NOT_VALID)"
+    },
+    {
+      "file": "watercourse-degraded-baseline.gpkg",
+      "source": "permutations/intervention/watercourse-degraded-baseline.gpkg",
+      "sha256": "529926e34b8f1457dd62e4e431b7f1bdb559cdf7dc1678c8431716efea7ab286",
+      "for": "Baseline-stage file for watercourse-degraded.gpkg"
+    },
+    {
+      "file": "watercourse-degraded.gpkg",
+      "source": "permutations/intervention/watercourse-degraded.gpkg",
+      "sha256": "2bee56bf25e7c6d44bae52a0b6ac2f47265685884fe4c354bd39dc949841f124",
+      "for": "A watercourse whose encroachment alone gets worse, 10 years in advance, and one in a lower condition: accepted"
+    },
+    {
+      "file": "watercourse-remeandered-baseline.gpkg",
+      "source": "permutations/intervention/watercourse-remeandered-baseline.gpkg",
+      "sha256": "b2b9d34c013d4a6d73f4c450d87c2713e1940693fcc4fffc5617a633580218e5",
+      "for": "Baseline-stage file for watercourse-remeandered.gpkg: R003, a 100 m ditch"
+    },
+    {
+      "file": "watercourse-remeandered.gpkg",
+      "source": "permutations/intervention/watercourse-remeandered.gpkg",
+      "sha256": "51ee22cb8fd2c67fb8e2a8617dda5bdd605ae44fa32af6da68a5679ef918288a",
+      "for": "R003 re-meandered onto a 130 m route, Enhanced by Realignment: accepted, priced on 130 m with no length lost"
+    },
+    {
+      "file": "every-retention-baseline.gpkg",
+      "source": "permutations/vertical-area/every-retention-baseline.gpkg",
+      "sha256": "8be4df59e0a49775128b6b480d956df1f10e7d343f5e6af2423260fb504c0da0",
+      "for": "Baseline-stage file for every-retention.gpkg: vertical area habitats V001-V004"
+    },
+    {
+      "file": "every-retention.gpkg",
+      "source": "permutations/vertical-area/every-retention.gpkg",
+      "sha256": "2cb3f11c13e7e5b6bb0101dffbeaebb2ed68a72078d0366a63c271d7b58ba49f",
+      "for": "Vertical area habitats V001 Retained, V002 Enhanced, V003 Created (IGGI), V004 Lost"
+    },
+    {
+      "file": "vertical-area-missing.gpkg",
+      "source": "attribute-problems/vertical-area-missing.gpkg",
+      "sha256": "93e3685f752fc74d6cf788ff0c19819260584a1f112da083d4f376ef4342127c",
+      "for": "A vertical area habitat with no Area: refused (VERTICAL_HABITAT_AREA_NOT_POSITIVE)"
+    },
+    {
+      "file": "area-created.gpkg",
+      "source": "permutations/intervention/area-created.gpkg",
+      "sha256": "14634f3177840bbb5f405d483d76f22f483999bcc1138ac5df03ed6ab348b4fb",
+      "for": "Created area habitats"
+    },
+    {
+      "file": "area-created-no-condition-or-timing.gpkg",
+      "source": "incomplete/area-created-no-condition-or-timing.gpkg",
+      "sha256": "093454cfe3022aec110123c80521823736d60b451cbd761de81453402ff0b379",
+      "for": "H005, Created, with no target condition or timing: accepted, saved Incomplete"
+    },
+    {
+      "file": "area-created-no-habitat-type.gpkg",
+      "source": "attribute-problems/area-created-no-habitat-type.gpkg",
+      "sha256": "3e70e2e992fb84360ea549a15dcd37eff0ea67bc1060cdffe5068810392ef5be",
+      "for": "H005, Created and linked to its parent, with no habitat type: refused with STAGED_HABITAT_DEGRADE_NOT_VALID, not a missing-type error. The service reads a blank Proposed Habitat Type as the row's Baseline one, so it takes H005 as Created in its parent's own type, a habitat that gets worse (see the harness README)"
+    },
+    {
+      "file": "tree-condition-lowered-baseline.gpkg",
+      "source": "permutations/intervention/tree-condition-lowered-baseline.gpkg",
+      "sha256": "32dfc36a7fc120284bf0449efd37c310bbf4a572f17574c4511b7a4fe462013e",
+      "for": "Baseline-stage file for tree-condition-lowered.gpkg"
+    },
+    {
+      "file": "tree-condition-lowered.gpkg",
+      "source": "permutations/intervention/tree-condition-lowered.gpkg",
+      "sha256": "40db01e888b5bac40f4a8aa48a787322ac7244651226bb308f9d6e428058238c",
+      "for": "A tree Created again in a lower condition, 30+ years in advance, and one put back after a delay: accepted"
+    },
+    {
+      "file": "tree-degrade-same-condition.gpkg",
+      "source": "attribute-problems/tree-degrade-same-condition.gpkg",
+      "sha256": "20f77236f4b093a5ec51792f5306e9098e0b60bfe16566431f716d1f4b96f764",
+      "for": "T007 Created again in the same condition: refused (STAGED_TREE_DEGRADE_NOT_VALID)"
+    },
+    {
+      "file": "tree-degrade-better-condition.gpkg",
+      "source": "attribute-problems/tree-degrade-better-condition.gpkg",
+      "sha256": "3ace9ff6d3077d3790cbc5978d1c4430c43eaa70ead3d034296bbd99b7612312",
+      "for": "T007 Created again in a better condition: refused (STAGED_TREE_DEGRADE_NOT_VALID)"
+    },
+    {
+      "file": "tree-degrade-advance-10.gpkg",
+      "source": "attribute-problems/tree-degrade-advance-10.gpkg",
+      "sha256": "bd0ac804dc01f9db723341ea9a4a308f9e5dc463862b85625dc39ea115e9e8e1",
+      "for": "T007 Created again in a lower condition only 10 years in advance: refused (STAGED_TREE_DEGRADE_NOT_VALID)"
+    },
+    {
+      "file": "tree-put-back-same-condition.gpkg",
+      "source": "valid/tree-put-back-same-condition.gpkg",
+      "sha256": "4860f14b6b445f88a6ce1c5682b860021daf2704c2e4dec1b2933d769d2daa67",
+      "for": "T007 put back after a 5-year delay in its baseline condition: accepted"
+    },
+    {
+      "file": "tree-replanted-baseline.gpkg",
+      "source": "permutations/intervention/tree-replanted-baseline.gpkg",
+      "sha256": "3cec520e6ff6351007b348ccae58739f2872c1d8c3c62963a9ca099e52938782",
+      "for": "Baseline-stage file for tree-replanted.gpkg"
+    },
+    {
+      "file": "tree-replanted.gpkg",
+      "source": "permutations/intervention/tree-replanted.gpkg",
+      "sha256": "0764ec70b18f53a723c0bbe99baa84ea043691ca4030befb9588ca367b280155",
+      "for": "A tree felled and a new one planted in its place, linked to it: accepted"
+    }
+  ]
+}

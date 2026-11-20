@@ -25,7 +25,8 @@
     "postinstall": "node scripts/postinstall.mjs",
     "setup:husky": "node -e \"try { (await import('husky')).default() } catch (e) { if (e.code !== 'ERR_MODULE_NOT_FOUND') throw e }\" --input-type module",
     "install:gitleaks": "node scripts/install-gitleaks.mjs",
-    "recalc:workbook": "docker compose -f compose.recalc.yml run --rm --build recalc-workbook"
+    "recalc:workbook": "docker compose -f compose.recalc.yml run --rm --build recalc-workbook",
+    "check:fixtures": "node scripts/service-template-fixtures.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.65.1",

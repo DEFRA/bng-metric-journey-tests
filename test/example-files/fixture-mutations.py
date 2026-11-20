@@ -10,6 +10,10 @@ post-intervention retention rules:
   - Hedgerow/watercourse/tree Lost -> backend excludes at import (never shown)
   - Missing / unrecognised value   -> upload rejected (/error-file)
 
+Legacy fixtures only. The BNG Service template fixtures in service-template/
+are copies of the harness's corpus, never edited here: see
+service-template/README.md.
+
 GOTCHA — RTree spatial-index triggers:
   gpkg feature tables carry ``rtree_<table>_<geom>_*`` triggers whose bodies
   call GDAL spatial functions (``ST_IsEmpty``, ``ST_MinX`` …) that plain
@@ -577,28 +581,6 @@ _BMD1048_CREATED_AREA_VARIANTS = [
     ),
 ]
 
-# BMD-1048 flag-on demos. `service-template/area-created.gpkg` is a verbatim
-# copy of the harness's
-# example-files/service-template/permutations/intervention/area-created.gpkg;
-# these cut its Created habitat H001.
-_BMD1048_SERVICE_TEMPLATE_VARIANTS = [
-    # AC2a-flag-on: no target condition or timing.
-    (
-        "service-template/area-created-no-condition-or-timing.gpkg",
-        _CREATED_AREA_NO_TARGET,
-    ),
-    # AC2c-flag-on: no broad habitat or type, which the upload refuses.
-    (
-        "service-template/area-created-no-habitat-type.gpkg",
-        {
-            "Proposed Broad Habitat Type": None,
-            "Proposed Habitat Type": None,
-            "Proposed Distinctiveness": None,
-        },
-    ),
-]
-
-
 def _build_attribute_variant(src_name, dst_name, table, ref_col, ref, values):
     shutil.copyfile(EX / src_name, EX / dst_name)
     con = sqlite3.connect(EX / dst_name)
@@ -620,17 +602,12 @@ def _build_attribute_variant(src_name, dst_name, table, ref_col, ref, values):
 
 
 def build_bmd1048_created_area_fixtures():
-    """BMD-1048 Created area fixtures: see the two variant lists above."""
+    """BMD-1048 Created area fixtures: see the variant list above."""
     print("\nBMD-1048 created area variants:")
     for dst_name, values in _BMD1048_CREATED_AREA_VARIANTS:
         _build_attribute_variant(
             "Post-intervention - created area habitat.gpkg", dst_name,
             "Habitats", "Parcel Ref", "H2-7", values,
-        )
-    for dst_name, values in _BMD1048_SERVICE_TEMPLATE_VARIANTS:
-        _build_attribute_variant(
-            "service-template/area-created.gpkg", dst_name,
-            "Area Habitats Post-Intervention", "Habitat Ref", "H001", values,
         )
 
 
@@ -874,37 +851,6 @@ def build_bmd1050_created_watercourse_fixtures():
         )
 
 
-def build_bmd1184_degraded_tree_fixtures():
-    """BMD-1184 AC3/AC4: degraded tree variants, cut from T002 and T004.
-
-    `service-template/tree-condition-lowered.gpkg`, a copy of the harness
-    corpus file (harness d72d136, BNG Service template), records T002
-    as T001 (Medium, Rural, Moderate) Created again in Poor, 30+ years in
-    advance, Category Existing. Each variant breaks one degrade rule with no
-    delay: the same condition and a better one (STAGED_DEGRADE_NOT_WORSE),
-    and a lower condition only 10 years in advance
-    (STAGED_DEGRADE_ADVANCE_NOT_30_PLUS). AC4: T004, T003 (Large, Urban,
-    Good) put back after a 5-year delay, is kept in Good, so a put-back tree
-    is accepted in its baseline condition.
-    """
-    print("\nBMD-1184 degraded tree variants:")
-    for dst_name, ref, values in [
-        ("tree-degrade-same-condition.gpkg", "T002",
-         {"Proposed Condition": "Moderate"}),
-        ("tree-degrade-better-condition.gpkg", "T002",
-         {"Proposed Condition": "Good"}),
-        ("tree-degrade-advance-10.gpkg", "T002",
-         {"Habitat Created/Enhanced in advance/years": "10"}),
-        ("tree-put-back-same-condition.gpkg", "T004",
-         {"Proposed Condition": "Good"}),
-    ]:
-        _build_attribute_variant(
-            "service-template/tree-condition-lowered.gpkg",
-            f"service-template/{dst_name}",
-            "Individual Trees Post-Intervention", "Habitat Ref", ref, values,
-        )
-
-
 def _report(con, label, layers):
     print(f"\n{label}:")
     for table, ref in layers:
@@ -974,6 +920,5 @@ if __name__ == "__main__":
     recut_culvert_baseline_conditions()
     build_bmd1195_incomplete_baseline_fixtures()
     build_bmd1050_created_watercourse_fixtures()
-    build_bmd1184_degraded_tree_fixtures()
     rewrite_template_tree_words()
     print("\nDone.")
