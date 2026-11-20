@@ -145,6 +145,12 @@
       "source": "permutations/intervention/tree-replanted.gpkg",
       "sha256": "0764ec70b18f53a723c0bbe99baa84ea043691ca4030befb9588ca367b280155",
       "for": "A tree felled and a new one planted in its place, linked to it: accepted"
+    },
+    {
+      "file": "trading-all-met.gpkg",
+      "source": "permutations/trading-rules/trading-all-met.gpkg",
+      "sha256": "e21951ff93bf9c24237e72c477593c01c01649268cee13b32a2834ffa24c951b",
+      "for": "Every unit type's trading rules met, and the area habitats' net gain above the 10% target: area trading Met, unit deficit 0"
     }
   ]
 }

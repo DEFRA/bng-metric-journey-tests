@@ -25,3 +25,7 @@ export const WATERCOURSE_DEGRADED = `${DIR}/watercourse-degraded.gpkg`
 
 // V004, a vertical area habitat with no Area: refused at the baseline upload.
 export const VERTICAL_AREA_MISSING = `${DIR}/vertical-area-missing.gpkg`
+
+// Every unit type's trading rules met, with the area habitats above the 10%
+// net gain target.
+export const TRADING_ALL_MET = `${DIR}/trading-all-met.gpkg`

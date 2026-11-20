@@ -4,12 +4,13 @@ import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
   buildBaselineOnlyProject,
-  getAllUnitTypesProject,
-  getAreaGainProject,
-  getBaselineOnlyProject,
   getLongPaddedRefsProject,
+  getRunAllUnitTypesProject,
+  getRunAreaGainProject,
+  getRunBaselineProject,
   LONG_PADDED_REFS
 } from '@utils/summary-projects.js'
+import { LEGACY_ONLY, isServiceTemplateRun } from '@utils/template-run.js'
 import {
   expectRefCut,
   expectRefWhole,
@@ -49,14 +50,24 @@ const INCOMPLETE_EVERY_LAYER_FILE =
   'Baseline - incomplete habitat on every layer.gpkg'
 const REF_SORT_LOCALE = 'en'
 
-// `Baseline - no hedgerows.gpkg` — 50 habitat parcels and 25 urban trees. The
-// counts are asserted rather than hardcoded blindly: the point of the test is
-// that BOTH collections reach one table, so the total is what matters. Since
-// BMD-1056/BMD-1066 (backend PR #478) a baseline upload skips Created rows, and
-// 7 of the 50 parcels are Created, so 43 reach the table.
-const EXPECTED_HABITATS = 43
-const EXPECTED_TREES = 25
-const EXPECTED_ROWS = EXPECTED_HABITATS + EXPECTED_TREES
+// The rows the run's baseline-only project lists, by collection. The point of
+// the test is that every collection reaches one table, so the counts are what
+// matter.
+//
+// Legacy, `Baseline - no hedgerows.gpkg`: 50 habitat parcels and 25 urban
+// trees. Since BMD-1056/BMD-1066 (backend PR #478) a baseline upload skips
+// Created rows, and 7 of the 50 parcels are Created, so 43 reach the table.
+//
+// BNG Service template, `small-site-baseline.gpkg`: 3 parcels, 3 vertical area
+// habitats and 4 trees. A vertical area habitat is an area habitat counted by
+// its vertical area, so it is listed with the rest (BMD-1084).
+const EXPECTED = isServiceTemplateRun()
+  ? { habitats: 3, verticalHabitats: 3, trees: 4 }
+  : { habitats: 43, verticalHabitats: 0, trees: 25 }
+const EXPECTED_HABITATS = EXPECTED.habitats
+const EXPECTED_TREES = EXPECTED.trees
+const EXPECTED_ROWS =
+  EXPECTED.habitats + EXPECTED.verticalHabitats + EXPECTED.trees
 
 // BMD-857 AC5: the same five tiles the project summary and the area summary
 // carry, in the same order. Baseline-only project, so the post-intervention
@@ -100,7 +111,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
     let project
     test.beforeAll(async ({ browser }) => {
-      project = await getBaselineOnlyProject(browser)
+      project = await getRunBaselineProject(browser)
     })
 
     // `area-baseline/controller.test.js` covers this page in 16 tests, all with
@@ -130,13 +141,20 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         expect(refs.filter((r) => r.startsWith('T'))).toHaveLength(
           EXPECTED_TREES
         )
+        expect(refs.filter((r) => r.startsWith('V'))).toHaveLength(
+          EXPECTED.verticalHabitats
+        )
 
         // BMD-1101 AC2: the status the backend saves on upload reaches the
         // grid, for trees as well as parcels. Every row of this file is valid,
-        // so every row is Complete.
-        const status = await areaBaselinePage.columnValues('status')
-        expect(status).toHaveLength(EXPECTED_ROWS)
-        expect(new Set(status)).toEqual(new Set([STATUS_COMPLETE]))
+        // so every row is Complete. For the BNG Service template the column
+        // renders (the heading above, and the blank totals cell below, hold in
+        // both runs) but its values are not asserted in this epic (BMD-1088).
+        if (!isServiceTemplateRun()) {
+          const status = await areaBaselinePage.columnValues('status')
+          expect(status).toHaveLength(EXPECTED_ROWS)
+          expect(new Set(status)).toEqual(new Set([STATUS_COMPLETE]))
+        }
 
         // Server-side ordering is by ref, ascending, across the combined list —
         // so the trees are interleaved by ref rather than appended.
@@ -242,9 +260,11 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     // and every baseline feature is priced at Low (×1). The "Low (1)" column
     // above cannot witness that — the frontend prints it as a constant — so
     // the witness is the arithmetic: units = size × distinctiveness ×
-    // condition, with no other multiplier on a baseline feature. This fixture
-    // gives 28 habitats and 20 trees a Medium or High value, which would put
-    // their units 10–15% above the product.
+    // condition, with no other multiplier on a baseline feature. The legacy
+    // fixture gives 28 habitats and 20 trees a Medium or High value, which
+    // would put their units 10–15% above the product. The BNG Service
+    // template's drop-down offers only Low, so there it checks the arithmetic
+    // alone, vertical area habitats included.
     //
     // Sole real-data witness: the backend's enrich-baseline-units.test.js
     // proves the ×1 sum only for features carrying NO strategic significance,
@@ -296,10 +316,12 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   // ─── Page furniture (AC3, AC4, AC5, AC11, AC12) ──────────────────────────────
   //
-  // The all-unit-types fixture, not the shared baseline-only one: that file has
-  // an empty Hedgerows layer, so the Hedgerows nav link AC3 names never renders
-  // on it. area-summary.spec.js already builds this project, so in CI (one
-  // worker, module-scope cache) these tests cost no upload of their own.
+  // The all-unit-types project, not the shared baseline-only one: the legacy
+  // baseline-only file has an empty Hedgerows layer, so the Hedgerows nav link
+  // AC3 names never renders on it. In the BNG Service template run it is the
+  // default site's baseline-stage file, which has every unit type.
+  // area-summary.spec.js builds the same project, so in CI (one worker,
+  // module-scope cache) these tests cost no upload of their own.
 
   test.describe(
     'Area baseline — page furniture',
@@ -310,7 +332,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getAllUnitTypesProject(browser)
+        project = await getRunAllUnitTypesProject(browser)
       })
 
       // `controller.test.js:104,124,137` covers all of this against mocked
@@ -344,8 +366,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // from a project whose habitats actually earn all four entries.
       //
       // Each link is followed once elsewhere — see the "Nav click witnesses"
-      // table in test/flows/project-management/area-summary.flow.md. What is asserted here is that this page
-      // emits them at all, which on `Baseline - no hedgerows.gpkg` it could not.
+      // table in test/flows/project-management/area-summary.flow.md. What is
+      // asserted here is that this page emits them at all, which on the legacy
+      // `Baseline - no hedgerows.gpkg` it could not.
       test('renders the full left navigation with Baseline as the current child', async ({
         areaBaselinePage
       }) => {
@@ -397,7 +420,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getBaselineOnlyProject(browser)
+        project = await getRunBaselineProject(browser)
       })
 
       // Wiring the unit tests cannot reach: they assert the href is in the
@@ -451,7 +474,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         areaBaselinePage,
         browser
       }) => {
-        const project = await getBaselineOnlyProject(browser)
+        const project = await getRunBaselineProject(browser)
         await areaBaselinePage.open(project.id)
 
         await expect(areaBaselinePage.resultsHeading).toBeVisible()
@@ -467,7 +490,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         areaBaselinePage,
         browser
       }) => {
-        const project = await getAreaGainProject(browser)
+        const project = await getRunAreaGainProject(browser)
         await areaBaselinePage.open(project.id)
 
         await expectStatusTag(areaBaselinePage.tradingRulesTag(), STATUS_MET)
@@ -494,7 +517,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
   // (habitat-details-sortable-table.test.js).
   test.describe(
     'Baseline grids — Status column',
-    { tag: '@regression' },
+    // Status is not asserted for the BNG Service template in this epic, and
+    // this describe's file is cut by fixture-mutations.py.
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
@@ -572,7 +597,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
   // grids call the same buildRefCell, so they are not repeated.
   test.describe(
     'Area baseline — long references',
-    { tag: '@regression' },
+    // The long and padded refs are cut into a legacy file by
+    // fixture-mutations.py; the BNG Service template corpus has none yet.
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
