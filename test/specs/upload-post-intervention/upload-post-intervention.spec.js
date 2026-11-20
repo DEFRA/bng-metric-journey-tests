@@ -99,6 +99,11 @@ const DISTINCTIVENESS_FILE =
   'Post-intervention - habitat distinctiveness out of scope.gpkg'
 const NATURAL_ENGLAND_MISMATCH_COPY =
   'The layer names and column names do not match what is required by Natural England'
+// The catch-all for a file whose layers or columns do not match, as the run's
+// template words it: what a misrouted refusal would fall through to.
+const CATCH_ALL_MISMATCH_COPY = isServiceTemplateRun()
+  ? 'The layer names and column names do not match the BNG Service template'
+  : NATURAL_ENGLAND_MISMATCH_COPY
 // BMD-1058. One habitat's Parcel Ref is SQL NULL. Copy from the BMD-1110
 // dropout spreadsheet (frontend PR #452).
 const MISSING_HABITAT_REF_FILE = 'Post-intervention - missing habitat ref.gpkg'
@@ -1299,7 +1304,7 @@ function describeCrossUserAccess() {
 
           await expect(otherErrorFilePage.serviceProblemHeading).toBeVisible()
           await expect(
-            otherPage.getByText(NATURAL_ENGLAND_MISMATCH_COPY)
+            otherPage.getByText(CATCH_ALL_MISMATCH_COPY)
           ).toHaveCount(0)
         } finally {
           await otherContext.close()
@@ -1371,8 +1376,6 @@ function describeUploadTimeout() {
     }
   )
 }
-
-// ─── Suite ───────────────────────────────────────────────────────────────────
 
 // ─── BNG Service template file checks ───────────────────────────────────────
 
@@ -1540,6 +1543,8 @@ function describeServiceTemplateChecks() {
     }
   )
 }
+
+// ─── Suite ───────────────────────────────────────────────────────────────────
 
 test.describe(
   'upload-post-intervention',

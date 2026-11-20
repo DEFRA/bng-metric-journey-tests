@@ -62,6 +62,11 @@ const DUPLICATE_REF_FILE = 'Baseline - duplicate habitat ref.gpkg'
 const DUPLICATE_REF = 'DUP-1'
 const NATURAL_ENGLAND_MISMATCH_COPY =
   'The layer names and column names do not match what is required by Natural England'
+// The catch-all for a file whose layers or columns do not match, as the run's
+// template words it: what a misrouted refusal would fall through to.
+const CATCH_ALL_MISMATCH_COPY = isServiceTemplateRun()
+  ? 'The layer names and column names do not match the BNG Service template'
+  : NATURAL_ENGLAND_MISMATCH_COPY
 
 // A valid baseline in the template this run tests.
 const VALID_BASELINE_FILE = isServiceTemplateRun()
@@ -463,7 +468,7 @@ function describeCrossUserAccess() {
 
           await expect(otherErrorFilePage.serviceProblemHeading).toBeVisible()
           await expect(
-            otherPage.getByText(NATURAL_ENGLAND_MISMATCH_COPY)
+            otherPage.getByText(CATCH_ALL_MISMATCH_COPY)
           ).toHaveCount(0)
         } finally {
           await otherContext.close()
