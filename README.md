@@ -92,7 +92,7 @@ Triggered from the Portal: Log in → Test Suites → select this suite → sele
 
 ### Legacy and BNG Service template runs
 
-The service takes one upload template at a time, chosen by its `SERVICE_TEMPLATE_ENABLED` flag. The suite has a run for each, and reads the same variable to choose it, so set it once for the stack and the suite:
+The service takes one upload template at a time, chosen by its `SERVICE_TEMPLATE_ENABLED` flag. The suite has a run for each, and reads the same variable to choose it, so set it once for the stack and the main suite (`playwright.config.js`):
 
 | Run                  | Flag                                       | Playwright project | Uploads                  |
 | -------------------- | ------------------------------------------ | ------------------ | ------------------------ |
@@ -117,6 +117,8 @@ SERVICE_TEMPLATE_ENABLED=true ENVIRONMENT=dev npm run test:e2e
 ```
 
 Moving between states needs the apps restarted with the new value (`docker compose up --wait -d` again recreates both).
+
+The other suites have no BNG Service template run yet. `npm run test:resilience` and `npm run screenshots` upload legacy files, so they need a stack with the flag off, and stop before they start if it is `true`. `npm run test:evidence` does not read the flag: an evidence spec uploads whichever template its AC needs, against a stack started to match.
 
 The BNG Service template run is still being built. Until it is, it leaves out the spec files listed in `LEGACY_ONLY_SPECS` (`test/utils/template-run.js`), which upload legacy files or assert legacy values; it runs the rest of the suite, the parts that do not depend on the template. See AGENTS.md, **Template Runs**.
 

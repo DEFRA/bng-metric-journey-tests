@@ -59,8 +59,11 @@ const LEGACY_ONLY_SPECS = [
 ]
 
 /**
- * Read the flag as the backend does: `true`, `false` or unset (off). Anything
- * else is a mistake, and guessing would run the suite against the wrong stack.
+ * Read the flag strictly: `true`, `false` or unset (off). These are the only
+ * spellings the two apps read the same way. The backend also takes yes/no,
+ * on/off and 1/0, in any case, but the frontend reads every value except
+ * `false` as on, so a value such as `0` would leave the apps in different
+ * states. Anything else stops the run rather than guessing which stack it is.
  *
  * @param {string | undefined} value
  * @returns {boolean}
@@ -119,8 +122,10 @@ function assertLegacyOnlySpecsExist() {
  * @returns {import('@playwright/test').Project}
  */
 export function templateRunProject(baseTestIgnore) {
+  // Checked in both runs, so the legacy run in CI catches a renamed or moved
+  // spec before the service-template run meets it.
+  assertLegacyOnlySpecsExist()
   if (serviceTemplateEnabled) {
-    assertLegacyOnlySpecsExist()
     return {
       name: SERVICE_TEMPLATE_RUN,
       testIgnore: [
@@ -134,6 +139,21 @@ export function templateRunProject(baseTestIgnore) {
     name: LEGACY_RUN,
     testIgnore: baseTestIgnore,
     grepInvert: new RegExp(SERVICE_TEMPLATE_ONLY)
+  }
+}
+
+/**
+ * Stop a config whose specs upload only legacy files from running against a
+ * flag-on stack, where the service would refuse every upload and each test
+ * would fail for that reason rather than its own.
+ *
+ * @param {string} suite the suite's name, for the message
+ */
+export function assertLegacyTemplateRun(suite) {
+  if (serviceTemplateEnabled) {
+    throw new Error(
+      `The ${suite} suite uploads legacy files, so it needs a stack with SERVICE_TEMPLATE_ENABLED off; it is "true"`
+    )
   }
 }
 

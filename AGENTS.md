@@ -255,7 +255,9 @@ The run must match the stack: against a stack in the other state, every upload i
 - A test of behaviour only one template has carries `{ tag: '@legacy-only' }` or `{ tag: '@service-template-only' }`, on the test or its describe. Import the tags as `LEGACY_ONLY` and `SERVICE_TEMPLATE_ONLY` from `@utils/template-run.js`.
 - A test of the same behaviour that asserts different values, or uploads a different file, runs in both and chooses them with `isServiceTemplateRun()` from `@utils/template-run.js`. Keep the legacy and new-template values next to each other.
 
-**`LEGACY_ONLY_SPECS`** lists the spec files the BNG Service template run leaves out as a whole, because they have no new-template fixtures or assertions yet. When a spec gains them, take it off the list in the same PR. The config fails if the list names a spec that does not exist, so a rename cannot quietly put a legacy-only spec into the run. The list is empty once the migration is done; tests that are legitimately legacy-only by then carry `@legacy-only`, and are removed with the flag.
+**`LEGACY_ONLY_SPECS`** lists the spec files the BNG Service template run leaves out as a whole, because they have no new-template fixtures or assertions yet. When a spec gains them, take it off the list in the same PR. The config fails, in both runs, if the list names a spec that does not exist, so the legacy run in CI catches a rename before it can quietly put a legacy-only spec into the BNG Service template run. The list is empty once the migration is done; tests that are legitimately legacy-only by then carry `@legacy-only`, and are removed with the flag.
+
+The template runs belong to the main suite (`playwright.config.js`) only. The resilience and happy-path screenshot suites upload legacy files, so their configs call `assertLegacyTemplateRun()` and stop on a stack with the flag on. The evidence config does not read the flag; an evidence spec uploads the template its AC needs, against a stack started to match.
 
 ---
 

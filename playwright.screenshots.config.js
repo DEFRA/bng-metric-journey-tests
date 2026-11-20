@@ -1,4 +1,5 @@
 import { defineConfig } from '@playwright/test'
+import { assertLegacyTemplateRun } from './test/utils/template-run.js'
 
 // Two uploads at up to ~120 s of meta-refresh polling each, plus navigation.
 const TIMEOUT_MS = 360_000
@@ -6,6 +7,8 @@ const EXPECT_TIMEOUT_MS = 15_000
 
 // Local-only happy-path screenshot capture for UCD — run via
 // `npm run screenshots`. See test/flows/happy-path/capture-happy-path.flow.md.
+assertLegacyTemplateRun('happy-path screenshots')
+
 export default defineConfig({
   globalSetup: './test/setup/auth.setup.js',
   testDir: './test/screenshots',

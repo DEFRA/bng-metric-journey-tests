@@ -1,5 +1,6 @@
 import 'dotenv/config'
 import { defineConfig } from '@playwright/test'
+import { assertLegacyTemplateRun } from './test/utils/template-run.js'
 
 // Downstream-failure tests — run via `npm run test:resilience`, against the
 // stack started with compose.resilience.yml. See
@@ -11,6 +12,8 @@ const EXPECT_TIMEOUT_MS = 15_000
 // test. The frontend's backend timeout is 10s and a page can make two backend
 // calls in sequence, so 25s allows for that on a slower CI runner.
 const NAVIGATION_TIMEOUT_MS = 25_000
+
+assertLegacyTemplateRun('resilience')
 
 export default defineConfig({
   globalSetup: './test/setup/auth.setup.js',
