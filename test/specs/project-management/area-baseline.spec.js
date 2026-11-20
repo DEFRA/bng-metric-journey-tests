@@ -147,8 +147,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
         // BMD-1101 AC2: the status the backend saves on upload reaches the
         // grid, for trees as well as parcels. Every row of this file is valid,
-        // so every row is Complete. Not asserted for the BNG Service template:
-        // the frontend does not show its status in this epic (BMD-1088).
+        // so every row is Complete. For the BNG Service template the column
+        // renders (the heading above, and the blank totals cell below, hold in
+        // both runs) but its values are not asserted in this epic (BMD-1088).
         if (!isServiceTemplateRun()) {
           const status = await areaBaselinePage.columnValues('status')
           expect(status).toHaveLength(EXPECTED_ROWS)
@@ -315,10 +316,12 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   // ─── Page furniture (AC3, AC4, AC5, AC11, AC12) ──────────────────────────────
   //
-  // The all-unit-types fixture, not the shared baseline-only one: that file has
-  // an empty Hedgerows layer, so the Hedgerows nav link AC3 names never renders
-  // on it. area-summary.spec.js already builds this project, so in CI (one
-  // worker, module-scope cache) these tests cost no upload of their own.
+  // The all-unit-types project, not the shared baseline-only one: the legacy
+  // baseline-only file has an empty Hedgerows layer, so the Hedgerows nav link
+  // AC3 names never renders on it. In the BNG Service template run it is the
+  // default site's baseline-stage file, which has every unit type.
+  // area-summary.spec.js builds the same project, so in CI (one worker,
+  // module-scope cache) these tests cost no upload of their own.
 
   test.describe(
     'Area baseline — page furniture',
@@ -363,8 +366,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // from a project whose habitats actually earn all four entries.
       //
       // Each link is followed once elsewhere — see the "Nav click witnesses"
-      // table in test/flows/project-management/area-summary.flow.md. What is asserted here is that this page
-      // emits them at all, which on `Baseline - no hedgerows.gpkg` it could not.
+      // table in test/flows/project-management/area-summary.flow.md. What is
+      // asserted here is that this page emits them at all, which on the legacy
+      // `Baseline - no hedgerows.gpkg` it could not.
       test('renders the full left navigation with Baseline as the current child', async ({
         areaBaselinePage
       }) => {

@@ -261,8 +261,10 @@ async function buildPostInterventionProject(browser, baselineFile, piFile) {
 
 // A post-intervention file uploaded into an empty project. Since BMD-1056
 // (backend PR #478) the upload derives the baseline from the file's own
-// non-Created rows, so one upload gives a project with both. Not cached: the
-// callers edit what it builds.
+// non-Created rows, so one upload gives a project with both. Not cached for
+// its direct callers, which edit what it builds; the BNG Service template's
+// read-only projects reach it through getServiceTemplatePostInterventionProject,
+// which caches them.
 async function buildPostInterventionOnlyProject(browser, piFile) {
   const context = await browser.newContext({
     storageState: STORAGE_STATE,

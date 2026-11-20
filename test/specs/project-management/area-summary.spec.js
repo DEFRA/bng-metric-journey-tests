@@ -53,9 +53,9 @@ const SHARED_TILES = [
 ]
 
 // The area summary and every other drill-down are READ-ONLY: they render a
-// project that was uploaded once. `getBaselineOnlyProject` is shared with
-// project-summary.spec.js through @utils/summary-projects.js, so in CI (one
-// worker) this whole file costs zero additional uploads.
+// project that was uploaded once. `getRunBaselineProject` is shared with the
+// other specs through @utils/summary-projects.js, so in CI (one worker) a spec
+// that runs before this one has usually paid for its upload.
 //
 // Serial for the same reason project-summary.spec.js is: the shared build must
 // happen once, and concurrent uploads clobber the single pendingUploadId key.
@@ -490,8 +490,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
       // The linear net-gain pair does nothing for area units, so this branch
-      // needs the area pair — shared with project-summary.spec.js, which uses
-      // it for the green "Met" tag, so it costs no extra upload in CI.
+      // needs a project whose area habitats meet the target: the legacy area
+      // pair, or the BNG Service template's trading-all-met.gpkg. Shared with
+      // the other specs that use it, through @utils/summary-projects.js.
       let project
       test.beforeAll(async ({ browser }) => {
         project = await getRunAreaGainProject(browser)
