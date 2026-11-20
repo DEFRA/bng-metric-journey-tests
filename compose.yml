@@ -111,6 +111,10 @@ services:
       - ./docker/config/bng-metric-backend.env
     environment:
       - PORT=3001
+      # Which upload template the stack takes. Set it once, for both apps and
+      # the suite: SERVICE_TEMPLATE_ENABLED=true docker compose up, then
+      # SERVICE_TEMPLATE_ENABLED=true npm run test:github. Off by default.
+      - SERVICE_TEMPLATE_ENABLED=${SERVICE_TEMPLATE_ENABLED:-false}
     depends_on:
       postgres:
         condition: service_healthy
@@ -204,6 +208,8 @@ services:
       - ./docker/config/bng-metric-frontend.env
     environment:
       - PORT=3000
+      # Must match the backend's (see bng-metric-backend above).
+      - SERVICE_TEMPLATE_ENABLED=${SERVICE_TEMPLATE_ENABLED:-false}
     ports:
       - 3000:3000
     depends_on:

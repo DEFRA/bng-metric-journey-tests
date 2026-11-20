@@ -1,6 +1,7 @@
 import 'dotenv/config'
 import { defineConfig } from '@playwright/test'
 import { proxyConfig } from './test/utils/env.js'
+import { templateRunProject } from './test/utils/template-run.js'
 
 const runMode = process.env.RUN_MODE ?? 'local'
 const environment = process.env.ENVIRONMENT ?? 'dev'
@@ -18,17 +19,26 @@ const baseURL =
     ? baseUrls.e2e
     : (process.env.BASE_URL ?? baseUrls[runMode] ?? baseUrls.local)
 
+// None of these trees belongs in the normal suite (CI, regression). The
+// evidence/ tree (throwaway /validate-ac-manual spec) runs only via
+// playwright.evidence.config.js, which it needs for video recording and
+// workers: 1; the screenshots/ tree (happy-path capture for UCD) only via
+// playwright.screenshots.config.js; the specs/resilience/ tree (downstream
+// failures) only via playwright.resilience.config.js, because a fault would
+// break every other test running at the same time.
+const testIgnore = [
+  '**/evidence/**',
+  '**/screenshots/**',
+  '**/specs/resilience/**'
+]
+
 export default defineConfig({
   globalSetup: './test/setup/auth.setup.js',
   testDir: './test',
-  // None of these trees belongs in the normal suite (CI, regression). The
-  // evidence/ tree (throwaway /validate-ac-manual spec) runs only via
-  // playwright.evidence.config.js, which it needs for video recording and
-  // workers: 1; the screenshots/ tree (happy-path capture for UCD) only via
-  // playwright.screenshots.config.js; the specs/resilience/ tree (downstream
-  // failures) only via playwright.resilience.config.js, because a fault would
-  // break every other test running at the same time.
-  testIgnore: ['**/evidence/**', '**/screenshots/**', '**/specs/resilience/**'],
+  testIgnore,
+  // One project, for the template the stack takes: legacy, or the BNG Service
+  // template with SERVICE_TEMPLATE_ENABLED=true (test/utils/template-run.js).
+  projects: [templateRunProject(testIgnore)],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   // e2e runs against a live environment (CDP entrypoint runs test:e2e without
