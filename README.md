@@ -173,7 +173,7 @@ GitHub → Actions → Run Journey Tests on GitHub → Run workflow
   template-run: legacy   (or service-template)
 ```
 
-`template-run` picks the run: `legacy` with `SERVICE_TEMPLATE_ENABLED=false`, or `service-template` with it `true`. It sets the flag for the stack and the suite together. PRs here, and the frontend's and backend's runs, get `legacy`. With a `profile` set, a run with no tests that match it passes empty.
+`template-run` picks the run: `legacy` with `SERVICE_TEMPLATE_ENABLED=false`, or `service-template` with it `true`. It sets the flag for the stack and the suite together. PRs here, and the frontend's and backend's runs, get `legacy`. With a `profile` set, a `service-template` run with no tests that match it passes empty, as the profile's specs may still be left out of that run. A `legacy` run with none still fails, so a mistyped profile cannot pass.
 
 ---
 
