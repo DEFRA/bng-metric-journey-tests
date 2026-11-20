@@ -19,7 +19,9 @@
 //
 // It reads Playwright's own resolved e2e test list (authoritative for both the
 // describe hierarchy and the runMode==='e2e' skips), needs no browsers, and no
-// CDP credentials (--list never connects).
+// CDP credentials (--list never connects). It lists both template runs (see
+// test/utils/template-run.js), since each leaves out tests the other runs, and
+// checks every test either one would run on CDP.
 
 import { execFileSync } from 'node:child_process'
 import path from 'node:path'
@@ -42,6 +44,9 @@ const PLAYWRIGHT_CLI = path.join(
   'cli.js'
 )
 
+// SERVICE_TEMPLATE_ENABLED values for the legacy and BNG Service template runs.
+const TEMPLATE_RUN_FLAGS = ['false', 'true']
+
 // Describe titles (any ancestor) that mark a scenario as unhappy.
 const UNHAPPY_DESCRIBE_PATTERNS = [
   /—\s*validation\b/i,
@@ -56,7 +61,7 @@ const UNHAPPY_DESCRIBE_PATTERNS = [
   /\bempty state\b/i
 ]
 
-function listE2eTests() {
+function listE2eTests(serviceTemplateEnabled) {
   let raw
   try {
     raw = execFileSync(
@@ -69,7 +74,8 @@ function listE2eTests() {
         env: {
           ...process.env,
           RUN_MODE: 'e2e',
-          ENVIRONMENT: process.env.ENVIRONMENT || 'dev'
+          ENVIRONMENT: process.env.ENVIRONMENT || 'dev',
+          SERVICE_TEMPLATE_ENABLED: serviceTemplateEnabled
         }
       }
     )
@@ -99,26 +105,30 @@ function collectSpecs(suite, ancestors, out) {
 }
 
 function main() {
-  const report = listE2eTests()
   const specs = []
-  for (const suite of report.suites ?? []) {
-    collectSpecs(suite, [], specs)
+  for (const flag of TEMPLATE_RUN_FLAGS) {
+    const report = listE2eTests(flag)
+    for (const suite of report.suites ?? []) {
+      collectSpecs(suite, [], specs)
+    }
   }
 
-  const violations = []
-  let happyCount = 0
+  // A violation found in both runs is reported once, and a test both runs
+  // select is counted once.
+  const violations = new Set()
+  const happyTests = new Set()
 
   for (const { spec, chain, skippedOnCdp } of specs) {
     const tags = spec.tags ?? []
     if (!tags.includes(HAPPY)) {
       continue
     }
-    happyCount++
+    happyTests.add(`${spec.file}:${spec.line}`)
 
     const where = `  ${spec.file}:${spec.line} — “${spec.title}”`
 
     if (skippedOnCdp) {
-      violations.push(
+      violations.add(
         `${where}\n    → tagged @happy-path but is skipped on CDP (RUN_MODE=e2e); it would never run there.`
       )
     }
@@ -127,17 +137,17 @@ function main() {
       UNHAPPY_DESCRIBE_PATTERNS.some((re) => re.test(title))
     )
     if (unhappyAncestor) {
-      violations.push(
+      violations.add(
         `${where}\n    → sits inside an unhappy describe “${unhappyAncestor}”; @happy-path must not tag error/boundary scenarios.`
       )
     }
   }
 
-  if (violations.length > 0) {
+  if (violations.size > 0) {
     console.error(
-      `\n✗ @happy-path tag check failed — ${violations.length} violation(s):\n`
+      `\n✗ @happy-path tag check failed — ${violations.size} violation(s):\n`
     )
-    console.error(violations.join('\n\n'))
+    console.error([...violations].join('\n\n'))
     console.error(
       '\nFix: remove @happy-path from the test above, or correct its tags/skips.' +
         '\nSee AGENTS.md → "@happy-path — what to tag".\n'
@@ -146,7 +156,7 @@ function main() {
   }
 
   console.log(
-    `✓ @happy-path tag check passed — ${happyCount} happy-path tests, all run on CDP and outside unhappy describes.`
+    `✓ @happy-path tag check passed — ${happyTests.size} happy-path tests across both template runs, all run on CDP and outside unhappy describes.`
   )
 }
 

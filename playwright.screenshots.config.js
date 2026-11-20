@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import { defineConfig } from '@playwright/test'
 import { assertLegacyTemplateRun } from './test/utils/template-run.js'
 

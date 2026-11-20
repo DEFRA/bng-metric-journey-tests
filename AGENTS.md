@@ -386,7 +386,7 @@ test('clicking a project name navigates to its task list', { tag: ['@regression'
 **When adding any test, evaluate it against the five-part rule above** and add
 `@happy-path` if it qualifies. Two of the rules are enforced mechanically, in CI
 and the pre-commit hook, by `npm run check:happy-path-tags`, which reads
-Playwright's own `RUN_MODE=e2e` test list and fails the build on a violation:
+Playwright's own `RUN_MODE=e2e` test list, for both template runs (the legacy and the BNG Service template run each leave out tests the other runs), and fails the build on a violation:
 
 - **Rule 1** (_runs on CDP_) — fails if a `@happy-path` test is skipped in e2e.
 - **Rule 3** (_not unhappy_) — fails if a `@happy-path` test sits in an unhappy describe.
