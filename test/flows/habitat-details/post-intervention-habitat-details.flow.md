@@ -338,7 +338,15 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
     option or hint on any edit page.
     A reference over 99 characters shows a "Shorten it" hint.
   - The "View baseline details" link resolves through `parentFeatureId` when the feature
-    carries one (BNG Service template, BMD-1083), otherwise by ref as above.
+    carries one (BNG Service template, BMD-1083), otherwise by ref as above. A tree's edit
+    page never shows it (BMD-1184, frontend PR #533); journey check in
+    `post-intervention-habitat-details.spec.js` › _Created individual tree_.
+  - **A Created tree's Standard time to target condition names only the target condition**
+    (e.g. `"Poor - 10 years"`), even when its baseline tree has one (BMD-1184, frontend
+    PR #528, `namesBaselineCondition: false` on the Created tree kind). Only a BNG Service
+    template tree whose condition gets worse (Category Existing, Created) has a baseline
+    condition, so this needs the service-template flag to observe (BMD-1088); a legacy
+    Created tree is Newly Planted with an N/A baseline and shows the short form anyway.
   - **Standard time to target condition** on first load is the view-only value below (the
     edit page reuses it while the selection is unchanged); after a change it is rebuilt by
     `createdAreaDerived` (`src/shared/created-area-details.js`) with the same rules — a real
