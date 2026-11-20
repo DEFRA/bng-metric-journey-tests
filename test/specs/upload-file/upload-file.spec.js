@@ -7,7 +7,7 @@ import {
 } from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
-import { getBaselineOnlyProject } from '@utils/summary-projects.js'
+import { getRunBaselineProject } from '@utils/summary-projects.js'
 import {
   describeRoleEnforcement,
   describeUnauthenticatedAccess
@@ -81,15 +81,16 @@ test.describe('upload-file', { tag: '@upload-file' }, () => {
 
       // BMD-1076 (frontend PR#396): Back and Cancel follow returnUrl only once
       // the project has a baseline, so these read-only tests share the
-      // baseline-only project from @utils/summary-projects.js. In CI (one
-      // worker) project-summary.spec.js has usually paid for its upload.
+      // baseline-only project from @utils/summary-projects.js, in the run's
+      // template. In CI (one worker) project-summary.spec.js has usually paid
+      // for its upload.
       // 'default' mode keeps the describe on one worker, so the project is
       // built once even under test:local.
       test.describe.configure({ mode: 'default' })
       let project
       test.beforeAll(async ({ browser }) => {
         test.setTimeout(UPLOAD_TIMEOUT + 60_000)
-        project = await getBaselineOnlyProject(browser)
+        project = await getRunBaselineProject(browser)
       })
 
       // BMD-850 AC11/AC12: both links must return the user to the page that

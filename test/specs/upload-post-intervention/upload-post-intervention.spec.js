@@ -18,6 +18,19 @@ import {
   HEDGEROWS,
   TILE_BASELINE
 } from '@utils/unit-type-labels.js'
+import {
+  LEGACY_ONLY,
+  SERVICE_TEMPLATE_ONLY,
+  isServiceTemplateRun
+} from '@utils/template-run.js'
+import {
+  DEFAULT_SITE,
+  HEDGEROW_DEGRADE_NO_ADVANCE,
+  PARENT_SHAPE_CHANGED,
+  SMALL_SITE,
+  SMALL_SITE_BASELINE,
+  WATERCOURSE_DEGRADED
+} from '@utils/service-template-files.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const PROJECT_LABEL = 'Upload post-intervention flow test'
@@ -86,6 +99,11 @@ const DISTINCTIVENESS_FILE =
   'Post-intervention - habitat distinctiveness out of scope.gpkg'
 const NATURAL_ENGLAND_MISMATCH_COPY =
   'The layer names and column names do not match what is required by Natural England'
+// The catch-all for a file whose layers or columns do not match, as the run's
+// template words it: what a misrouted refusal would fall through to.
+const CATCH_ALL_MISMATCH_COPY = isServiceTemplateRun()
+  ? 'The layer names and column names do not match the BNG Service template'
+  : NATURAL_ENGLAND_MISMATCH_COPY
 // BMD-1058. One habitat's Parcel Ref is SQL NULL. Copy from the BMD-1110
 // dropout spreadsheet (frontend PR #452).
 const MISSING_HABITAT_REF_FILE = 'Post-intervention - missing habitat ref.gpkg'
@@ -165,6 +183,46 @@ const KM_PRECISION = 2
 const METRIC_TOOL_URL =
   'https://www.gov.uk/government/publications/statutory-biodiversity-metric-tools-and-guides'
 const ERROR_FILE_URL = '/error-file'
+
+// The describes tagged LEGACY_ONLY upload legacy-template files to show the
+// legacy template's own rules and file checks: Lost rows, its timing columns,
+// its error text. The BNG Service template's checks are held by the
+// harness's corpus (npm run test:uploads there); what only its files can get
+// wrong is in describeServiceTemplateChecks below.
+
+// The files the happy path uploads, in the run's template: a baseline, then a
+// post-intervention file over it, and an area habitat the second lists.
+const HAPPY_PATH = isServiceTemplateRun()
+  ? {
+      baseline: SMALL_SITE_BASELINE,
+      postIntervention: SMALL_SITE,
+      area: 'H002'
+    }
+  : {
+      baseline: HEDGEROW_BASELINE_FILE,
+      postIntervention: COMPLETE_FILE,
+      area: COMPLETE_FILE_AREA_REF
+    }
+
+// The replacement's two files, in the run's template: the first has a
+// Retained hedgerow the second lacks, in both its stages; the second has an
+// area habitat to show it was stored.
+const REPLACEMENT = isServiceTemplateRun()
+  ? {
+      first: DEFAULT_SITE,
+      firstOnlyHedgerow: 'HG010',
+      second: SMALL_SITE,
+      secondArea: 'H002'
+    }
+  : {
+      first: HEDGEROWS_FILE,
+      firstOnlyHedgerow: REPLACED_HEDGEROW_REF,
+      second: COMPLETE_FILE,
+      secondArea: COMPLETE_FILE_AREA_REF
+    }
+
+// A valid file in the run's template, for a test about who may upload it.
+const VALID_FILE = isServiceTemplateRun() ? SMALL_SITE : COMPLETE_FILE
 // BMD-1182 (harness PR#200). Each file trips one rule, through one offender.
 // The area and hedgerow files also hold a valid Enhanced row (H002, HG003), so
 // a table that listed every enhancement would fail on its row count.
@@ -220,7 +278,7 @@ function describeHappyPath() {
         )
         await uploadBaselineFileFlow.uploadFileAndWaitForSummary(
           id,
-          HEDGEROW_BASELINE_FILE
+          HAPPY_PATH.baseline
         )
         await expect(
           projectSummaryPage.uploadPostInterventionLink(AREA_HABITATS)
@@ -229,13 +287,16 @@ function describeHappyPath() {
 
         await uploadPostInterventionFileFlow.uploadFileAndWaitForSummary(
           id,
-          COMPLETE_FILE
+          HAPPY_PATH.postIntervention
         )
 
         // BMD-1056 AC6: the upload replaced the uploaded baseline with one
         // derived from COMPLETE_FILE, which has no Hedgerows layer. The
-        // baseline file's HR1/HR2 are gone rather than kept alongside it.
-        await expect(projectSummaryPage.unitSection(HEDGEROWS)).toHaveCount(0)
+        // baseline file's HR1/HR2 are gone rather than kept alongside it. A
+        // BNG Service template file brings its own baseline, hedgerows and all.
+        if (!isServiceTemplateRun()) {
+          await expect(projectSummaryPage.unitSection(HEDGEROWS)).toHaveCount(0)
+        }
 
         // The post-intervention document is stored: the summary stops offering
         // its upload, and the file's parcels are listed on the area habitats
@@ -248,11 +309,9 @@ function describeHappyPath() {
           page,
           id,
           'area',
-          COMPLETE_FILE_AREA_REF
+          HAPPY_PATH.area
         )
-        await expect(
-          unitPage.refLink(label, COMPLETE_FILE_AREA_REF)
-        ).toBeVisible()
+        await expect(unitPage.refLink(label, HAPPY_PATH.area)).toBeVisible()
       })
     }
   )
@@ -296,36 +355,37 @@ function describePostInterventionReplacement() {
 
         await uploadPostInterventionFileFlow.uploadFileAndWaitForSummary(
           id,
-          HEDGEROWS_FILE
+          REPLACEMENT.first
         )
         expect(
-          await findPiRef(page, id, 'hedgerow', REPLACED_HEDGEROW_REF)
+          await findPiRef(page, id, 'hedgerow', REPLACEMENT.firstOnlyHedgerow)
         ).not.toBeNull()
-        // HR3 is Retained, so the derived baseline carries it too.
+        // It is Retained, so the baseline carries it too.
         await hedgerowsBaselinePage.open(id)
         await expect(
-          hedgerowsBaselinePage.refLink(REPLACED_HEDGEROW_REF)
+          hedgerowsBaselinePage.refLink(REPLACEMENT.firstOnlyHedgerow)
         ).toBeVisible()
 
-        // COMPLETE_FILE carries no Hedgerows layer at all.
+        // The second file does not have that hedgerow in either stage (the
+        // legacy one has no Hedgerows layer at all).
         await uploadPostInterventionFileFlow.uploadFileAndWaitForSummary(
           id,
-          COMPLETE_FILE
+          REPLACEMENT.second
         )
 
         // The new file's area habitats render...
         expect(
-          await findPiRef(page, id, 'area', COMPLETE_FILE_AREA_REF)
+          await findPiRef(page, id, 'area', REPLACEMENT.secondArea)
         ).not.toBeNull()
-        // ...and the previous file's hedgerows are gone rather than merged in,
-        // from the post-intervention document and the derived baseline alike.
+        // ...and the previous file's hedgerow is gone rather than merged in,
+        // from the post-intervention document and the baseline alike.
         expect(
-          await findPiRef(page, id, 'hedgerow', REPLACED_HEDGEROW_REF)
+          await findPiRef(page, id, 'hedgerow', REPLACEMENT.firstOnlyHedgerow)
         ).toBeNull()
         await hedgerowsBaselinePage.open(id)
         await expect(hedgerowsBaselinePage.heading).toBeVisible()
         await expect(
-          hedgerowsBaselinePage.refLink(REPLACED_HEDGEROW_REF)
+          hedgerowsBaselinePage.refLink(REPLACEMENT.firstOnlyHedgerow)
         ).toHaveCount(0)
 
         // BMD-1043 made every dashboard row link to the summary. Asserted here
@@ -367,7 +427,7 @@ function expectLinearRowMatchesFile(row, expected) {
 function describeLinearAndTreeSplit() {
   test.describe(
     'Upload post-intervention — Lost/Created split for hedgerows, watercourses and trees',
-    { tag: '@regression' },
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       test('Lost features stay in the derived baseline, Created ones reach only the post-intervention grids', async ({
         browser,
@@ -458,7 +518,7 @@ function describeLinearAndTreeSplit() {
 function describeFailedReplacement() {
   test.describe(
     'Upload post-intervention — failed replacement',
-    { tag: '@regression' },
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       test('a file with a missing baseline habitat type is rejected and leaves the existing baseline intact', async ({
         createProjectFlow,
@@ -709,7 +769,7 @@ function describeContentValidationErrors() {
 
   test.describe(
     'Upload post-intervention — content validation errors',
-    { tag: '@regression' },
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       for (const { name, file, layout, expected } of cases) {
         test(`uploading ${name} is rejected on the error-file page`, async ({
@@ -827,7 +887,7 @@ async function piUnitsCell(page, projectId, type, ref) {
 function describeConflictingTiming() {
   test.describe(
     'Upload post-intervention — conflicting advance and delay timing',
-    { tag: '@regression' },
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       // BMD-1060 AC3 + BMD-1070, backend PR #498. A Created/Enhanced feature
       // that sets both advance and delay above 0 is no longer rejected (the
@@ -894,7 +954,7 @@ function describeConflictingTiming() {
 function describeDistinctivenessError() {
   test.describe(
     'Upload post-intervention — high distinctiveness habitat',
-    { tag: '@regression' },
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       // The distinctiveness scope gate reads the *Proposed* habitat columns for
       // a post-intervention file (checkHabitatDistinctiveness is passed the
@@ -1010,7 +1070,7 @@ function describeUnenhanceableBaseline() {
 
   test.describe(
     'Upload post-intervention — unenhanceable baseline',
-    { tag: '@regression' },
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       // Refused at a later step than BASELINE_TYPE_MISSING, so the failed
       // replacement test above would not notice this check moving after the
@@ -1101,7 +1161,7 @@ function describeUnenhanceableBaseline() {
 function describeIncompleteBaseline() {
   test.describe(
     'Upload post-intervention — incomplete baseline',
-    { tag: '@regression' },
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       test('a file whose baseline has an incomplete area habitat is refused, naming it, and leaves the existing project intact', async ({
         createProjectFlow,
@@ -1236,7 +1296,7 @@ function describeCrossUserAccess() {
 
           await new UploadPostInterventionFileFlow(otherPage).uploadFile(
             ownerProjectId,
-            COMPLETE_FILE
+            VALID_FILE
           )
           await otherPage.waitForURL(ERROR_FILE_URL, {
             timeout: UPLOAD_TIMEOUT
@@ -1244,7 +1304,7 @@ function describeCrossUserAccess() {
 
           await expect(otherErrorFilePage.serviceProblemHeading).toBeVisible()
           await expect(
-            otherPage.getByText(NATURAL_ENGLAND_MISMATCH_COPY)
+            otherPage.getByText(CATCH_ALL_MISMATCH_COPY)
           ).toHaveCount(0)
         } finally {
           await otherContext.close()
@@ -1317,6 +1377,173 @@ function describeUploadTimeout() {
   )
 }
 
+// ─── BNG Service template file checks ───────────────────────────────────────
+
+// What only a BNG Service template file can get wrong at this upload: it holds
+// both stages, and each post-intervention habitat is linked to the baseline
+// habitat it was copied from. Each code's text is the frontend's
+// (src/server/common/error-text/error-text.yaml), and each habitat it lists is
+// the backend's, as the drop-out page shows them.
+const TABLES_EMPTY_HEADING =
+  'The Post-Intervention tables in this file are all empty, so it has no post-intervention habitats to upload. Upload it as a baseline, or add the post-intervention habitats and upload it again.'
+const PARENT_SHAPE_CHANGED_HEADING =
+  'One or more baseline habitats do not have the shape their post-intervention habitats were copied from'
+const PARENT_SHAPE_CHANGED_HABITAT =
+  'Area Habitats Baseline H001 — Other lowland acid grassland, copied to H001'
+const DEGRADE_NOT_VALID_HEADING =
+  'One or more habitats are Created in the habitat type of the baseline habitat they are linked to, but not in a lower condition or not created 30+ years in advance'
+const DEGRADE_NOT_VALID_HABITAT =
+  'Hedgerows Post-Intervention HG017 — Ecologically valuable line of trees - associated with bank or ditch, copied from HG017'
+// A hedgerow only the small site has, so a project still holding it was not
+// touched by an upload refused after it.
+const SMALL_SITE_ONLY_HEDGEROW = 'HG005a'
+const ENCROACHED_WATERCOURSE = 'R003'
+
+function describeServiceTemplateChecks() {
+  test.describe(
+    'Upload post-intervention — BNG Service template file checks',
+    { tag: ['@regression', SERVICE_TEMPLATE_ONLY] },
+    () => {
+      // POST_INTERVENTION_TABLES_EMPTY. Saving it would replace the stored
+      // post-intervention document with an empty one.
+      test('a baseline-stage file, with no post-intervention habitats, is refused on the error-file page', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadPostInterventionFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadPostInterventionFileFlow,
+            page
+          },
+          SMALL_SITE_BASELINE
+        )
+
+        await expect(
+          errorFilePage.postInterventionRejectedHeading
+        ).toBeVisible()
+        await expect(
+          errorFilePage.singleErrorHeading(TABLES_EMPTY_HEADING)
+        ).toBeVisible()
+      })
+
+      // STAGED_BASELINE_DRIFTED. A Retained habitat's parent_geom is its
+      // parent's shape moved 5 m, as if the baseline changed after the copy.
+      // Uploaded over a stored project, as the lineage checks run before the
+      // write that replaces both documents.
+      test('a file whose baseline habitat changed shape after it was copied is refused, listing it, and leaves the stored project as it was', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadPostInterventionFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        // Two real uploads back this test.
+        test.setTimeout(UPLOAD_TIMEOUT * 2)
+
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
+        )
+        await uploadPostInterventionFileFlow.uploadFileAndWaitForSummary(
+          id,
+          SMALL_SITE
+        )
+
+        await uploadPostInterventionFileFlow.uploadFile(
+          id,
+          PARENT_SHAPE_CHANGED
+        )
+        await page.waitForURL(ERROR_FILE_URL, { timeout: UPLOAD_TIMEOUT })
+
+        await expect(
+          errorFilePage.postInterventionRejectedHeading
+        ).toBeVisible()
+        await expect(
+          errorFilePage.singleErrorHeading(PARENT_SHAPE_CHANGED_HEADING)
+        ).toBeVisible()
+        await expect(
+          page.getByRole('listitem').filter({
+            hasText: PARENT_SHAPE_CHANGED_HABITAT
+          })
+        ).toBeVisible()
+
+        expect(
+          await findPiRef(page, id, 'hedgerow', SMALL_SITE_ONLY_HEDGEROW)
+        ).not.toBeNull()
+      })
+
+      // STAGED_HABITAT_DEGRADE_NOT_VALID. HG017 is Created again in its own
+      // type, in a lower condition, with no years created in advance; the
+      // Metric guide asks for 30 plus.
+      test('a hedgerow that gets worse without 30+ years created in advance is refused, listing it', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadPostInterventionFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadPostInterventionFileFlow,
+            page
+          },
+          HEDGEROW_DEGRADE_NO_ADVANCE
+        )
+
+        await expect(
+          errorFilePage.postInterventionRejectedHeading
+        ).toBeVisible()
+        await expect(
+          errorFilePage.singleErrorHeading(DEGRADE_NOT_VALID_HEADING)
+        ).toBeVisible()
+        await expect(
+          page.getByRole('listitem').filter({
+            hasText: DEGRADE_NOT_VALID_HABITAT
+          })
+        ).toBeVisible()
+      })
+
+      // R003 is Created again in its baseline condition with only its
+      // encroachment worse, 10 years in advance: the guide's steps for a
+      // watercourse whose encroachment gets worse.
+      test('a watercourse whose encroachment alone gets worse, 10 years in advance, is accepted and listed', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadPostInterventionFileFlow,
+        page
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
+        )
+        await uploadPostInterventionFileFlow.uploadFileAndWaitForSummary(
+          id,
+          WATERCOURSE_DEGRADED
+        )
+
+        const { unitPage, label } = await openPiTabFor(
+          page,
+          id,
+          'watercourse',
+          ENCROACHED_WATERCOURSE
+        )
+        await expect(
+          unitPage.refLink(label, ENCROACHED_WATERCOURSE)
+        ).toBeVisible()
+      })
+    }
+  )
+}
+
 // ─── Suite ───────────────────────────────────────────────────────────────────
 
 test.describe(
@@ -1344,5 +1571,6 @@ test.describe(
     describeCrossUserAccess()
     describeUploaderRejection()
     describeUploadTimeout()
+    describeServiceTemplateChecks()
   }
 )
