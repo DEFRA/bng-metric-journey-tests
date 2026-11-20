@@ -11,14 +11,17 @@ const CDP_UPLOADER = 'cdp-uploader'
 const PROJECT_LABEL = 'Resilience Uploader'
 const BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
 
-// The frontend's MAX_WAIT_SECONDS is 120. A hanging uploader also holds each poll
-// until the backend's uploader timeout (CDP_UPLOADER_TIMEOUT_MS, 5s). Before
-// BMD-1200 it held each poll for the frontend's 10s, which took this to 149s.
-const MAX_TIMED_OUT_MESSAGE_MS = 180_000
-const TIMED_OUT_MESSAGE = 'The file check timed out. Please try again.'
+// The frontend gives up after 3 failed status checks in a row, not at its 120s
+// MAX_WAIT_SECONDS. The holding page refreshes every 5 to 8s, and a
+// hanging uploader also holds each check until the backend's uploader timeout
+// (CDP_UPLOADER_TIMEOUT_MS, 5s), so 3 checks take under 40s. 60s leaves room
+// for a slow runner and still fails a frontend that waits out the 120s.
+const MAX_STATUS_UNAVAILABLE_MS = 60_000
+const STATUS_UNAVAILABLE_MESSAGE =
+  'Sorry, there is a problem with the service. Please try again later.'
 const UPLOAD_UNAVAILABLE_TEXT =
   'Unable to start file upload. Please try again later.'
-const FILE_CHECK_TEST_TIMEOUT_MS = 300_000
+const FILE_CHECK_TEST_TIMEOUT_MS = 180_000
 
 test.describe('resilience', { tag: '@resilience' }, () => {
   test.describe('CDP Uploader outage', { tag: '@regression' }, () => {
@@ -93,13 +96,15 @@ test.describe('resilience', { tag: '@resilience' }, () => {
 
     // Only the backend's connection to the uploader fails here: the browser
     // posts the file to the uploader directly, so the upload succeeds and the
-    // status checks that follow do not. The frontend then waits out its 120s
-    // limit, which makes these the slowest tests in the suite.
+    // status checks that follow do not.
     //
-    // The user is not left waiting forever, and is told the file check timed
-    // out. The upload page that says so cannot start a new upload while the
-    // uploader fails, so it shows that instead of the form. Before BMD-1200 the
-    // message was lost and the journey ended on the generic error page.
+    // The user is not left waiting for the 120s limit: after 3 failed checks
+    // in a row the frontend stops and says the service has a problem. It used
+    // to wait out the 120s and say the file check timed out, which is now what
+    // only a scan still running gets
+    // (file-check-messages.spec.js). The upload page that says so cannot start
+    // a new upload while the uploader fails, so it shows that instead of the
+    // form.
     async function assertFileCheckHandlesOutage({
       injectFault,
       toxiproxy,
@@ -126,8 +131,8 @@ test.describe('resilience', { tag: '@resilience' }, () => {
       await uploadBaselineFilePage.continueButton.click()
 
       await expect(uploadBaselineFilePage.errorSummary).toContainText(
-        TIMED_OUT_MESSAGE,
-        { timeout: MAX_TIMED_OUT_MESSAGE_MS }
+        STATUS_UNAVAILABLE_MESSAGE,
+        { timeout: MAX_STATUS_UNAVAILABLE_MS }
       )
       await expect(uploadBaselineFilePage.heading).toBeVisible()
       await expect(page.getByText(UPLOAD_UNAVAILABLE_TEXT)).toBeVisible()
@@ -140,7 +145,7 @@ test.describe('resilience', { tag: '@resilience' }, () => {
       )
     }
 
-    test('uploader lost during the file check shows the timed-out message, then the file can be uploaded again', async ({
+    test('uploader lost during the file check shows the service problem message, then the file can be uploaded again', async ({
       toxiproxy,
       createProjectFlow,
       projectDashboardPage,
@@ -159,7 +164,7 @@ test.describe('resilience', { tag: '@resilience' }, () => {
       })
     })
 
-    test('uploader not answering during the file check shows the timed-out message without hanging, then the file can be uploaded again', async ({
+    test('uploader not answering during the file check shows the service problem message without hanging, then the file can be uploaded again', async ({
       toxiproxy,
       createProjectFlow,
       projectDashboardPage,

@@ -79,7 +79,7 @@ The file check is the only time the backend reads S3 while handling a request. I
 
 - **Route:** `GET /projects/{id}/upload-received`, after submitting a baseline file
 - **Fault:** backend → CDP Uploader `down` and `hang`. The browser posts the file to the uploader directly, so the upload itself succeeds.
-- **On error:** "Checking your file" until the frontend's 120s limit (`MAX_WAIT_SECONDS`), then the upload page with "The file check timed out. Please try again." The upload page cannot start a new upload while the uploader fails, so it shows "Unable to start file upload. Please try again later." in place of the form. Before BMD-1200 the message was lost, and the user got the generic error page.
+- **On error:** "Checking your file" until 3 status checks in a row have failed, well inside the frontend's 120s limit (`MAX_WAIT_SECONDS`), then the upload page with "Sorry, there is a problem with the service. Please try again later." (BMD-1204). The upload page cannot start a new upload while the uploader fails, so it shows "Unable to start file upload. Please try again later." in place of the form. Before BMD-1204 the page waited out the 120s and said "The file check timed out. Please try again.", which is now only for a scan still running (Step 12). Before BMD-1200 the message was lost, and the user got the generic error page.
 - **Recovery:** the same file uploads successfully once the fault clears
 
 ### Step 10 — Browser posting a file to a failing CDP Uploader `[BLOCKED: not reachable through the proxy]`
@@ -124,4 +124,4 @@ The browser talks to the uploader directly, so the service can't answer for this
 
 A file rejected by the CDP Uploader needs no fault, so it runs in the main suite, in the upload specs ("CDP Uploader rejection"), on the stub stack only.
 
-"Unable to start file upload" (ticket scenario 5) has no test of its own. Since BMD-1200 Step 9 shows it, with the timed-out message.
+"Unable to start file upload" (ticket scenario 5) has no test of its own. Since BMD-1200 Step 9 shows it, with the service problem message.
