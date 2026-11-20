@@ -30,11 +30,12 @@ on:
         default: ''
         type: string
       template-run:
-        description: 'Which template run: legacy (SERVICE_TEMPLATE_ENABLED=false) or service-template (true)'
+        description: 'Which template run: both, legacy (SERVICE_TEMPLATE_ENABLED=false) or service-template (true)'
         required: false
-        default: legacy
+        default: both
         type: choice
         options:
+          - both
           - legacy
           - service-template
 
@@ -56,11 +57,11 @@ on:
         required: false
         type: string
         default: ''
-      # legacy or service-template, as for workflow_dispatch.
+      # both, legacy or service-template, as for workflow_dispatch.
       template-run:
         required: false
         type: string
-        default: legacy
+        default: both
 
 jobs:
   # Parses Depends-On lines from the PR body (workflow_call context).
@@ -71,7 +72,30 @@ jobs:
     outputs:
       frontend-branch: ${{ steps.resolve.outputs.frontend-branch }}
       backend-branch: ${{ steps.resolve.outputs.backend-branch }}
+      runs: ${{ steps.runs.outputs.matrix }}
     steps:
+      # The run-tests matrix, from the template-run input. A PR, and a call
+      # that does not set it, gets both. A caller passes it as free text, so
+      # anything else fails here, before a stack is built.
+      - name: Choose the template runs
+        id: runs
+        env:
+          TEMPLATE_RUN: ${{ inputs.template-run || 'both' }}
+        run: |
+          legacy='{"run":"legacy","service-template":"false"}'
+          service='{"run":"service-template","service-template":"true"}'
+          case "$TEMPLATE_RUN" in
+            both) runs="$legacy,$service" ;;
+            legacy) runs="$legacy" ;;
+            service-template) runs="$service" ;;
+            *)
+              echo "::error::template-run must be both, legacy or service-template, not '$TEMPLATE_RUN'"
+              exit 1
+              ;;
+          esac
+          echo "matrix={\"include\":[$runs]}" >> "$GITHUB_OUTPUT"
+          echo "Template runs: $TEMPLATE_RUN"
+
       - name: Resolve branches from PR body or inputs
         id: resolve
         env:
@@ -93,32 +117,24 @@ jobs:
           echo "Resolved frontend branch: $frontend_branch"
           echo "Resolved backend branch:  $backend_branch"
 
-  # The template-run input sets the services' SERVICE_TEMPLATE_ENABLED flag:
-  # legacy (the default, and what a PR gets) with it off, service-template with
-  # it on. The suite reads the same variable to choose its Playwright project
-  # (test/utils/template-run.js), so setting it on the job starts the stack and
-  # picks the run together.
+  # One job for each state of the services' SERVICE_TEMPLATE_ENABLED flag,
+  # each against its own stack started in that state: legacy with it off,
+  # service-template with it on. Both run by default, and on every PR and call;
+  # the template-run input can pick one. The suite reads the same variable to
+  # choose its Playwright project (test/utils/template-run.js), so setting it
+  # on the job starts the stack and picks the run together. fail-fast is off
+  # so one run failing never cancels the other.
   run-tests:
-    name: Run Journey Tests
+    name: Run Journey Tests (${{ matrix.run }})
     runs-on: ubuntu-latest
     needs: parse-depends-on
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.parse-depends-on.outputs.runs) }}
     env:
       BROWSER: ${{ inputs.browser || 'chromium' }}
-      TEMPLATE_RUN: ${{ inputs.template-run || 'legacy' }}
-      SERVICE_TEMPLATE_ENABLED: ${{ inputs.template-run == 'service-template' && 'true' || 'false' }}
+      SERVICE_TEMPLATE_ENABLED: ${{ matrix.service-template }}
     steps:
-      # A caller passes template-run as free text, so check it before anything
-      # is built: anything else would quietly run legacy.
-      - name: Check the template run
-        run: |
-          case "$TEMPLATE_RUN" in
-            legacy | service-template) echo "Template run: $TEMPLATE_RUN (SERVICE_TEMPLATE_ENABLED=$SERVICE_TEMPLATE_ENABLED)" ;;
-            *)
-              echo "::error::template-run must be legacy or service-template, not '$TEMPLATE_RUN'"
-              exit 1
-              ;;
-          esac
-
       # Pinned explicitly so this workflow can be called from another repo.
       # A bare checkout resolves to github.repository, which in a cross-repo
       # workflow_call is the *calling* service repo, not the test suite.
@@ -189,7 +205,7 @@ jobs:
       - name: Run Playwright tests
         env:
           PROFILE: ${{ inputs.profile }}
-          NO_TESTS_FLAG: ${{ inputs.profile && inputs.template-run == 'service-template' && '--pass-with-no-tests' || '' }}
+          NO_TESTS_FLAG: ${{ inputs.profile && matrix.run == 'service-template' && '--pass-with-no-tests' || '' }}
         run: npm run test:github -- $NO_TESTS_FLAG
 
       - name: Collect Docker Compose logs
@@ -200,12 +216,12 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.run }}
           path: ./playwright-report
 
       - name: Upload Docker Compose logs
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: docker-compose-logs
+          name: docker-compose-logs-${{ matrix.run }}
           path: ./logs.txt

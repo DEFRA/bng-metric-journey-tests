@@ -170,10 +170,10 @@ GitHub → Actions → Run Journey Tests on GitHub → Run workflow
   frontend-branch: main  (or a feature branch)
   backend-branch: main   (or a feature branch)
   browser: chromium
-  template-run: legacy   (or service-template)
+  template-run: both     (or legacy, or service-template)
 ```
 
-`template-run` picks the run: `legacy` with `SERVICE_TEMPLATE_ENABLED=false`, or `service-template` with it `true`. It sets the flag for the stack and the suite together. PRs here, and the frontend's and backend's runs, get `legacy`. With a `profile` set, a `service-template` run with no tests that match it passes empty, as the profile's specs may still be left out of that run. A `legacy` run with none still fails, so a mistyped profile cannot pass.
+Every run has a job for each template run by default: **Run Journey Tests (legacy)** with `SERVICE_TEMPLATE_ENABLED=false`, and **Run Journey Tests (service-template)** with it `true`, each against its own stack started in that state. They run side by side, neither cancels the other, and each uploads its own report and logs (`playwright-report-<run>`, `docker-compose-logs-<run>`). PRs here, and the frontend's and backend's runs, always get both. A dispatched run can pick one with `template-run`. With a `profile` set, a `service-template` run with no tests that match it passes empty, as the profile's specs may still be left out of that run. A `legacy` run with none still fails, so a mistyped profile cannot pass.
 
 ---
 
