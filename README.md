@@ -90,6 +90,36 @@ ENVIRONMENT=test npm run test:e2e
 
 Triggered from the Portal: Log in → Test Suites → select this suite → select environment → set `PROFILE` if needed → choose configuration → Run. Portal returns pass/fail and a report link.
 
+### Legacy and BNG Service template runs
+
+The service takes one upload template at a time, chosen by its `SERVICE_TEMPLATE_ENABLED` flag. The suite has a run for each, and reads the same variable to choose it, so set it once for the stack and the suite:
+
+| Run                  | Flag                                       | Playwright project | Uploads                  |
+| -------------------- | ------------------------------------------ | ------------------ | ------------------------ |
+| Legacy               | `SERVICE_TEMPLATE_ENABLED=false` (default) | `legacy`           | the legacy template      |
+| BNG Service template | `SERVICE_TEMPLATE_ENABLED=true`            | `service-template` | the BNG Service template |
+
+The run must match the stack. A run against a stack in the other state fails, because the service refuses every upload in the other template. A value other than `true` or `false` stops the run before it starts.
+
+```sh
+# Docker Compose: compose.yml passes the flag to both apps
+SERVICE_TEMPLATE_ENABLED=true docker compose up --wait -d
+SERVICE_TEMPLATE_ENABLED=true npm run test:github
+
+# Apps run locally: from the harness, npm run dev:service-template (or npm run dev -- --service-template)
+SERVICE_TEMPLATE_ENABLED=true npm run test:local
+
+# Tilt (from the harness): the apps and the journey-tests resource all inherit it
+SERVICE_TEMPLATE_ENABLED=true tilt up
+
+# CDP: set it on the Portal run to the environment's own setting
+SERVICE_TEMPLATE_ENABLED=true ENVIRONMENT=dev npm run test:e2e
+```
+
+Moving between states needs the apps restarted with the new value (`docker compose up --wait -d` again recreates both).
+
+The BNG Service template run is still being built. Until it is, it leaves out the spec files listed in `LEGACY_ONLY_SPECS` (`test/utils/template-run.js`), which upload legacy files or assert legacy values; it runs the rest of the suite, the parts that do not depend on the template. See AGENTS.md, **Template Runs**.
+
 ---
 
 ## Folder structure
@@ -153,14 +183,15 @@ GitHub → Actions → Run Journey Tests on GitHub → Run workflow
 
 ## Environment variables
 
-| Variable      | Default     | Description                                                                                                 |
-| ------------- | ----------- | ----------------------------------------------------------------------------------------------------------- |
-| `RUN_MODE`    | `local`     | `local` / `github` / `e2e` — selects base URL                                                               |
-| `ENVIRONMENT` | `dev`       | CDP environment name (used when `RUN_MODE=e2e`)                                                             |
-| `BASE_URL`    | _(derived)_ | Override the target URL directly                                                                            |
-| `BROWSER`     | `chromium`  | `chromium` / `firefox` / `webkit`                                                                           |
-| `HEADED`      | _(unset)_   | Set to `true` for headed browser                                                                            |
-| `PROFILE`     | _(unset)_   | Tag filter, e.g. `@smoke`, `@project-management`, or `@upload-file`. Uses Playwright `{ tag }` annotations. |
+| Variable                   | Default     | Description                                                                                                                          |
+| -------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `RUN_MODE`                 | `local`     | `local` / `github` / `e2e` — selects base URL                                                                                        |
+| `ENVIRONMENT`              | `dev`       | CDP environment name (used when `RUN_MODE=e2e`)                                                                                      |
+| `BASE_URL`                 | _(derived)_ | Override the target URL directly                                                                                                     |
+| `BROWSER`                  | `chromium`  | `chromium` / `firefox` / `webkit`                                                                                                    |
+| `HEADED`                   | _(unset)_   | Set to `true` for headed browser                                                                                                     |
+| `PROFILE`                  | _(unset)_   | Tag filter, e.g. `@smoke`, `@project-management`, or `@upload-file`. Uses Playwright `{ tag }` annotations.                          |
+| `SERVICE_TEMPLATE_ENABLED` | `false`     | `true` runs the BNG Service template run, `false` the legacy run. Must match the stack's flag; `compose.yml` passes it to both apps. |
 
 ---
 

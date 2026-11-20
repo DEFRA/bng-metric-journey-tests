@@ -231,6 +231,34 @@ RUN_MODE=e2e    npx playwright test --list  --reporter=json
 
 ---
 
+## Template Runs
+
+The service takes one upload template at a time: the legacy template with `SERVICE_TEMPLATE_ENABLED` off, the BNG Service template with it on. The suite has a run for each, as a Playwright project, and reads the same variable to choose it (`test/utils/template-run.js`). Only the project that matches is defined, so a plain `playwright test` runs one or the other, never both.
+
+| Run                  | Flag                                       | Project            | Leaves out                                                         |
+| -------------------- | ------------------------------------------ | ------------------ | ------------------------------------------------------------------ |
+| Legacy               | `SERVICE_TEMPLATE_ENABLED=false` (default) | `legacy`           | tests tagged `@service-template-only`                              |
+| BNG Service template | `SERVICE_TEMPLATE_ENABLED=true`            | `service-template` | spec files in `LEGACY_ONLY_SPECS`, and tests tagged `@legacy-only` |
+
+Set the flag once, for the stack and the suite. `compose.yml` passes it to both apps, and under Tilt the apps and the journey-tests resource inherit it:
+
+```sh
+SERVICE_TEMPLATE_ENABLED=true docker compose up --wait -d && SERVICE_TEMPLATE_ENABLED=true npm run test:github
+SERVICE_TEMPLATE_ENABLED=true tilt up   # from the harness
+```
+
+The run must match the stack: against a stack in the other state, every upload is refused and the run fails. On CDP, set the flag on the Portal run to the environment's own setting.
+
+**Writing a test for one template or both:**
+
+- A test that does not depend on the template (sign-in, the header and footer, creating a project) runs in both, unchanged.
+- A test of behaviour only one template has carries `{ tag: '@legacy-only' }` or `{ tag: '@service-template-only' }`, on the test or its describe. Import the tags as `LEGACY_ONLY` and `SERVICE_TEMPLATE_ONLY` from `@utils/template-run.js`.
+- A test of the same behaviour that asserts different values, or uploads a different file, runs in both and chooses them with `isServiceTemplateRun()` from `@utils/template-run.js`. Keep the legacy and new-template values next to each other.
+
+**`LEGACY_ONLY_SPECS`** lists the spec files the BNG Service template run leaves out as a whole, because they have no new-template fixtures or assertions yet. When a spec gains them, take it off the list in the same PR. The config fails if the list names a spec that does not exist, so a rename cannot quietly put a legacy-only spec into the run. The list is empty once the migration is done; tests that are legitimately legacy-only by then carry `@legacy-only`, and are removed with the flag.
+
+---
+
 ## Test Tagging
 
 Use Playwright's `{ tag }` annotation to attach tags to individual tests or entire describe blocks. Tags are separate from the test title — names stay descriptive, tags are metadata.
@@ -415,21 +443,22 @@ PROFILE=@project-management npm run test:github
 
 ## Run Commands
 
-| Command                                           | What it does                                                                                                                                 |
-| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run test:local`                              | Playwright against locally-running frontend (http://localhost:3000)                                                                          |
-| `npm run test:github`                             | Playwright against Docker Compose stack (used in CI)                                                                                         |
-| `npm run test:e2e`                                | Playwright against CDP deployed env (real Defra ID) — set `ENVIRONMENT=dev\|test` and `DEFRA_ID_USERNAME`/`DEFRA_ID_PASSWORD`                |
-| `HEADED=true npm run test:local`                  | Headed browser for debugging                                                                                                                 |
-| `BROWSER=firefox npm run test:local`              | Override browser                                                                                                                             |
-| `PROFILE=@smoke npm run test:github`              | Run only `@smoke`-tagged tests against Docker Compose stack                                                                                  |
-| `PROFILE=@smoke npm run test:e2e`                 | Run only `@smoke`-tagged tests on the CDP portal                                                                                             |
-| `PROFILE=@happy-path npm run test:e2e`            | Run only happy-path journeys on the CDP portal — avoids tripping its monitoring alerts (see **@happy-path**)                                 |
-| `PROFILE=@regression npm run test:github`         | Run only `@regression`-tagged (non-smoke) tests                                                                                              |
-| `PROFILE=@project-management npm run test:github` | Run tests for the `project-management` domain                                                                                                |
-| `npm run test:evidence`                           | Run the `/validate-ac-manual` evidence spec (screenshots + per-AC demo videos) — never part of the normal suite                              |
-| `npm run recalc:workbook -- <file>`               | Recalculate a metric workbook (`.xlsx`) or a post-intervention GeoPackage with LibreOffice in Docker — see **Metric workbook recalculation** |
-| `npm run test:resilience`                         | Downstream-failure tests through Toxiproxy, against the stack with `compose.resilience.yml` applied — see **Resilience tests**               |
+| Command                                             | What it does                                                                                                                                 |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run test:local`                                | Playwright against locally-running frontend (http://localhost:3000)                                                                          |
+| `npm run test:github`                               | Playwright against Docker Compose stack (used in CI)                                                                                         |
+| `npm run test:e2e`                                  | Playwright against CDP deployed env (real Defra ID) — set `ENVIRONMENT=dev\|test` and `DEFRA_ID_USERNAME`/`DEFRA_ID_PASSWORD`                |
+| `SERVICE_TEMPLATE_ENABLED=true npm run test:github` | The BNG Service template run, against a stack started with the same flag — see **Template Runs**                                             |
+| `HEADED=true npm run test:local`                    | Headed browser for debugging                                                                                                                 |
+| `BROWSER=firefox npm run test:local`                | Override browser                                                                                                                             |
+| `PROFILE=@smoke npm run test:github`                | Run only `@smoke`-tagged tests against Docker Compose stack                                                                                  |
+| `PROFILE=@smoke npm run test:e2e`                   | Run only `@smoke`-tagged tests on the CDP portal                                                                                             |
+| `PROFILE=@happy-path npm run test:e2e`              | Run only happy-path journeys on the CDP portal — avoids tripping its monitoring alerts (see **@happy-path**)                                 |
+| `PROFILE=@regression npm run test:github`           | Run only `@regression`-tagged (non-smoke) tests                                                                                              |
+| `PROFILE=@project-management npm run test:github`   | Run tests for the `project-management` domain                                                                                                |
+| `npm run test:evidence`                             | Run the `/validate-ac-manual` evidence spec (screenshots + per-AC demo videos) — never part of the normal suite                              |
+| `npm run recalc:workbook -- <file>`                 | Recalculate a metric workbook (`.xlsx`) or a post-intervention GeoPackage with LibreOffice in Docker — see **Metric workbook recalculation** |
+| `npm run test:resilience`                           | Downstream-failure tests through Toxiproxy, against the stack with `compose.resilience.yml` applied — see **Resilience tests**               |
 
 ### Resilience tests
 
