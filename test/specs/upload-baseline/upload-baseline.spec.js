@@ -304,20 +304,23 @@ function describeBaselineReplacement() {
 // delete without an integration test that re-uploads an invalid GeoPackage into
 // a populated project and asserts the stored document is untouched.
 // The failed replacement's files, in the run's template: a stored baseline and
-// its hedgerows, then a file the baseline upload refuses, and how the page
-// says so. A BNG Service template file is read for its Baseline tables here,
-// so its fault is in one: a vertical area habitat with no Area.
+// its hedgerows, then a file the baseline upload refuses, a hedgerow only the
+// refused file has (so a write of it would show), and how the page says so. A
+// BNG Service template file is read for its Baseline tables here, so its fault
+// is in one: a vertical area habitat with no Area.
 const FAILED_REPLACEMENT = isServiceTemplateRun()
   ? {
       stored: SMALL_SITE_BASELINE,
       storedHedgerows: ['HG001', 'HG005'],
       refused: VERTICAL_AREA_MISSING,
+      refusedOnlyHedgerow: 'HG010',
       rejectedHeading: 'This vertical area habitat V004 contains an error'
     }
   : {
       stored: ALTERNATE_BASELINE_FILE,
       storedHedgerows: ALTERNATE_HEDGEROW_REFS,
-      refused: INVALID_BASELINE_FILE
+      refused: INVALID_BASELINE_FILE,
+      refusedOnlyHedgerow: 'HG001'
     }
 
 function describeFailedReplacement() {
@@ -360,6 +363,11 @@ function describeFailedReplacement() {
         for (const ref of FAILED_REPLACEMENT.storedHedgerows) {
           await expect(hedgerowsBaselinePage.refLink(ref)).toBeVisible()
         }
+        // The refused file shares some refs with the stored one, so only a ref
+        // it alone has shows it was not written.
+        await expect(
+          hedgerowsBaselinePage.refLink(FAILED_REPLACEMENT.refusedOnlyHedgerow)
+        ).toHaveCount(0)
 
         // ...and the summary still renders its results rather than
         // redirecting to the upload-type page as a no-baseline project would.
