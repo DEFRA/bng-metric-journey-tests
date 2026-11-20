@@ -4587,6 +4587,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       // integration test (comment-import.test.js) saves it through the API,
       // and the frontend's controller-created-tree.test.js mocks the backend,
       // so neither shows the box on a real tree or the comment coming back.
+      // Also the Created half of BMD-1184's "no baseline link on a tree page":
+      // the baseline file has an N/A placeholder tree with the same ref, T005,
+      // for a by-ref link to land on. The Retained and Enhanced halves are the
+      // retained individual tree test and baseline-habitat-details.spec.js.
       test("saves a Created tree's comment trimmed, leaving its units alone", async ({
         browser,
         page,
@@ -4602,6 +4606,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await openPiFeatureDetails(page, id, 'area', CREATED_TREE_REF)
         await expect(details.commentInput).toHaveValue('')
         await expect(details.commentHint).toHaveText(CREATED_COMMENT_HINT)
+        await expect(details.viewBaselineLink).toHaveCount(0)
         await details.commentInput.fill(`  ${comment}  `)
         await details.saveButton.click()
 
