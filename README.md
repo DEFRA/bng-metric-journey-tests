@@ -173,7 +173,7 @@ GitHub → Actions → Run Journey Tests on GitHub → Run workflow
   template-run: both     (or legacy, or service-template)
 ```
 
-Every run has a job for each template run by default: **Run Journey Tests (legacy)** with `SERVICE_TEMPLATE_ENABLED=false`, and **Run Journey Tests (service-template)** with it `true`, each against its own stack started in that state. They run side by side, neither cancels the other, and each uploads its own report and logs (`playwright-report-<run>`, `docker-compose-logs-<run>`). PRs here, and the frontend's and backend's runs, always get both. A dispatched run can pick one with `template-run`. With a `profile` set, a `service-template` run with no tests that match it passes empty, as the profile's specs may still be left out of that run. A `legacy` run with none still fails, so a mistyped profile cannot pass.
+Every run has a job for each template run by default: **Run Journey Tests (legacy)** with `SERVICE_TEMPLATE_ENABLED=false`, and **Run Journey Tests (service-template)** with it `true`, each against its own stack started in that state. They run side by side, neither cancels the other, and each uploads its own report and logs (`playwright-report-<run>`, `docker-compose-logs-<run>`). PRs here, and the frontend's and backend's runs, always get both. A third job, **Run Journey Tests**, passes only when every run passed; it keeps the name the single job had, so it is the check to require. A dispatched run can pick one with `template-run`. With a `profile` set, a `service-template` run with no tests that match it passes empty, as the profile's specs may still be left out of that run. A `legacy` run with none still fails, so a mistyped profile cannot pass.
 
 ---
 

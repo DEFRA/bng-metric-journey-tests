@@ -225,3 +225,24 @@ jobs:
         with:
           name: docker-compose-logs-${{ matrix.run }}
           path: ./logs.txt
+
+  # One check for both runs, under the name the single job had, so a rule that
+  # requires "Run Journey Tests" needs no change and covers both runs. It runs
+  # even when a run fails or is skipped, and passes only when every job it
+  # needs succeeded: a bad template-run fails parse-depends-on and skips
+  # run-tests, and a skipped job would otherwise satisfy a required check.
+  all-runs:
+    name: Run Journey Tests
+    runs-on: ubuntu-latest
+    needs: [parse-depends-on, run-tests]
+    if: always()
+    steps:
+      - name: Check every run passed
+        env:
+          RESULTS: ${{ needs.parse-depends-on.result }} ${{ needs.run-tests.result }}
+        run: |
+          echo "Resolve branch dependencies, then the template runs: $RESULTS"
+          if [ "$RESULTS" != "success success" ]; then
+            echo "::error::Every journey run must pass ($RESULTS)"
+            exit 1
+          fi
