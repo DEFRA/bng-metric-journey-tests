@@ -193,6 +193,24 @@
       "source": "permutations/trading-rules/trading-lower-deficit-covered-from-above.gpkg",
       "sha256": "00a98aedef54fd5cd6fb98cdfff856b214e4a21bfa39bc30e505d75aa0b11f8d",
       "for": "A Low hedgerow loss (-1.24 units) covered by the Medium surplus (+5.22): hedgerow Medium and Low Met; no watercourses"
+    },
+    {
+      "file": "data-complete.gpkg",
+      "source": "permutations/data-completeness/data-complete.gpkg",
+      "sha256": "5e1ac9e9698ba16c19735f9dd47974b4cea28126a9e6b85f99e7ae1d708ae38a",
+      "for": "Every field filled: area habitats +34.9% and trading Met, while hedgerows (-24.1%) and watercourses (-77.9%) are Not met"
+    },
+    {
+      "file": "net-gain-met.gpkg",
+      "source": "permutations/net-gain/met.gpkg",
+      "sha256": "a2638545348d88d52792f7a6282c63cd48340991791066a2dc57176f8147c1e4",
+      "for": "Every unit type above the 10% target; area habitats +290.4% but their trading rules Not met, hedgerows and watercourses Met"
+    },
+    {
+      "file": "watercourse-enhanced-shorter.gpkg",
+      "source": "permutations/intervention/watercourse-enhanced-shorter.gpkg",
+      "sha256": "1aa030df340b6c58bb8fd03d811b6e66d2c13ffc7c6b3f49cd99dcdcc49bcda9",
+      "for": "R003 Enhanced on a course 20 m shorter than its parent: watercourses gain 2.7%, above zero and below the 10% target"
     }
   ]
 }
