@@ -29,15 +29,18 @@ on:
         required: false
         default: ''
         type: string
+      # The legacy run is off by default while the BNG Service template run is
+      # built (BMD-1088), to keep CI short. Put the default back to both, here,
+      # in workflow_call below and in the runs step, when that work is done.
       template-run:
-        description: 'Which template run: both, legacy (SERVICE_TEMPLATE_ENABLED=false) or service-template (true)'
+        description: 'Which template run: service-template (SERVICE_TEMPLATE_ENABLED=true), legacy (false) or both'
         required: false
-        default: both
+        default: service-template
         type: choice
         options:
+          - service-template
           - both
           - legacy
-          - service-template
 
   workflow_call:
     inputs:
@@ -57,11 +60,11 @@ on:
         required: false
         type: string
         default: ''
-      # both, legacy or service-template, as for workflow_dispatch.
+      # service-template, both or legacy, as for workflow_dispatch.
       template-run:
         required: false
         type: string
-        default: both
+        default: service-template
 
 jobs:
   # Parses Depends-On lines from the PR body (workflow_call context).
@@ -75,12 +78,13 @@ jobs:
       runs: ${{ steps.runs.outputs.matrix }}
     steps:
       # The run-tests matrix, from the template-run input. A PR, and a call
-      # that does not set it, gets both. A caller passes it as free text, so
-      # anything else fails here, before a stack is built.
+      # that does not set it, gets the service-template run only, for now (see
+      # the input above). A caller passes it as free text, so anything else
+      # fails here, before a stack is built.
       - name: Choose the template runs
         id: runs
         env:
-          TEMPLATE_RUN: ${{ inputs.template-run || 'both' }}
+          TEMPLATE_RUN: ${{ inputs.template-run || 'service-template' }}
         run: |
           legacy='{"run":"legacy","service-template":"false"}'
           service='{"run":"service-template","service-template":"true"}'
@@ -119,8 +123,9 @@ jobs:
 
   # One job for each state of the services' SERVICE_TEMPLATE_ENABLED flag,
   # each against its own stack started in that state: legacy with it off,
-  # service-template with it on. Both run by default, and on every PR and call;
-  # the template-run input can pick one. The suite reads the same variable to
+  # service-template with it on. For now only the service-template run is the
+  # default, on every PR and call; the template-run input can ask for legacy
+  # or both. The suite reads the same variable to
   # choose its Playwright project (test/utils/template-run.js), so setting it
   # on the job starts the stack and picks the run together. fail-fast is off
   # so one run failing never cancels the other.
@@ -226,8 +231,8 @@ jobs:
           name: docker-compose-logs-${{ matrix.run }}
           path: ./logs.txt
 
-  # One check for both runs, under the name the single job had, so a rule that
-  # requires "Run Journey Tests" needs no change and covers both runs. It runs
+  # One check for every run, under the name the single job had, so a rule that
+  # requires "Run Journey Tests" needs no change and covers whichever runs ran. It runs
   # even when a run fails or is skipped, and passes only when every job it
   # needs succeeded: a bad template-run fails parse-depends-on and skips
   # run-tests, and a skipped job would otherwise satisfy a required check.
