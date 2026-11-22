@@ -3,12 +3,19 @@ import { score, unitsTolerance } from '@utils/grid-values.js'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import {
   getAllUnitTypesPostInterventionProject,
-  getAreaGainProject,
-  getAreaInterventionTypesProject,
-  getTreesPostInterventionProject,
   getLongPaddedRefsProject,
+  getRunAllUnitTypesPostInterventionProject,
+  getRunAreaInterventionTypesProject,
+  getRunNoRetainedAreaProject,
+  getRunRetainedSignificanceProject,
+  getRunTreesPostInterventionProject,
   LONG_PADDED_REFS
 } from '@utils/summary-projects.js'
+import {
+  LEGACY_ONLY,
+  SERVICE_TEMPLATE_ONLY,
+  isServiceTemplateRun
+} from '@utils/template-run.js'
 import { openPiTabFor } from '@utils/post-intervention-grid.js'
 import {
   expectRefCut,
@@ -89,16 +96,21 @@ const HECTARES = /^\d+(\.\d+)?ha$/
 // "{label} ({score})". The score is REQUIRED: an optional group would let a
 // regression that dropped every multiplier pass.
 const LABEL_AND_SCORE = /^[^()]+ \(-?\d+(\.\d+)?\)$/
-const YEARS = /^\d+ years?$/
+// A time over the metric's 30 years reads "30+ years".
+const YEARS = /^\d+\+? years?$/
 // "{n} year(s) ({multiplier})" — the Final time to target shape.
-const YEARS_AND_SCORE = /^\d+ years? \(-?\d+(\.\d+)?\)$/
+const YEARS_AND_SCORE = /^\d+\+? years? \(-?\d+(\.\d+)?\)$/
 // Retained features carry their baseline strategic significance, fixed at
 // Low (1) for MVS (BMD-315 AC9).
 const FIXED_STRATEGIC_SIGNIFICANCE = 'Low (1)'
-// BMD-1051, all-unit-types PI file. On-site Retained parcels whose file value
-// is High (H046) and Medium (H002); an Enhanced parcel whose value is Medium
-// (H086, Fairly Good → Fairly Good).
-const RETAINED_ON_SITE_NON_LOW_REFS = ['H046', 'H002']
+// BMD-1051. On-site Retained parcels whose file gives a strategic
+// significance above Low: in the legacy all-unit-types PI file H046 (High) and
+// H002 (Medium); in the BNG Service template's baseline-significance-high.gpkg,
+// H002 (High). An Enhanced parcel whose value is Medium (H086, Fairly Good →
+// Fairly Good), which only the legacy template offers.
+const RETAINED_ON_SITE_NON_LOW_REFS = isServiceTemplateRun()
+  ? ['H002']
+  : ['H046', 'H002']
 const ENHANCED_REJECTED_REF = 'H086'
 
 // Column sets from `buildColumns` in post-intervention-habitat-grid.js, with
@@ -133,31 +145,186 @@ const TARGET_COLUMNS = [
   'Standard difficulty'
 ]
 
-// `Post-intervention - created area habitat.gpkg`, per tab, in the ascending
-// order AC7 requires. Pinned rather than counted loosely: a partial render is
-// exactly the failure a `> 0` check would wave through. The Created tab holds
-// the one real Created parcel (H2-7) plus seven parcels the GeoPackage marks
-// Lost — a Lost AREA habitat is persisted as Created (BMD-534 PO ruling). Its
-// numeric ordering also puts H2-10 after H2-9, not after H2-1.
-const RETAINED_REFS = ['H1', 'H2-2']
-const ENHANCED_REFS = ['H2-3', 'H3']
-const CREATED_REFS = [
-  'H2-1',
-  'H2-4',
-  'H2-5',
-  'H2-6',
-  'H2-7',
-  'H2-8',
-  'H2-9',
-  'H2-10'
+// Each run's three-tab project, its rows per tab in the ascending order AC7
+// requires, and a row on each tab with the broad habitat and type it shows.
+// Pinned rather than counted loosely: a partial render is exactly the failure
+// a `> 0` check would wave through.
+//
+// Legacy, `Post-intervention - created area habitat.gpkg`. The Created tab
+// holds the one real Created parcel (H2-7) plus seven parcels the GeoPackage
+// marks Lost — a Lost AREA habitat is persisted as Created (BMD-534 PO
+// ruling). Its numeric ordering also puts H2-10 after H2-9, not after H2-1.
+// Its many-row project is the all-unit-types pair: parcels plus urban trees
+// per tab (33 + 19 Retained, 25 + 24 Enhanced); its 62 Lost parcels become
+// Created, and its 17 Lost trees are dropped at import.
+//
+// BNG Service template, `default-site.gpkg`, for both: each tab lists its
+// area habitats, vertical area habitats (V001 Retained, V002 Enhanced, V003
+// and V005 Created) and trees together (AC7). H003 is a parcel kept in two
+// Retained parts, so its ref appears twice. A habitat the template removes has
+// no post-intervention row at all, so nothing reaches the grids as Lost.
+const GRID = isServiceTemplateRun()
+  ? {
+      retainedRefs: [
+        'H002',
+        'H003',
+        'H003',
+        'H012',
+        'H022',
+        'H026',
+        'H029',
+        'H034',
+        'H039',
+        'H044',
+        'H047',
+        'H049',
+        'H050',
+        'T004',
+        'T008',
+        'T010',
+        'T012',
+        'T014',
+        'T021',
+        'T025',
+        'V001'
+      ],
+      enhancedRefs: [
+        'H001',
+        'H004',
+        'H006',
+        'H008',
+        'H024',
+        'H030',
+        'H031',
+        'H037',
+        'H040',
+        'T001',
+        'T006',
+        'T011',
+        'T013',
+        'T015',
+        'T017',
+        'T019',
+        'T020',
+        'T024',
+        'V002'
+      ],
+      createdRefs: [
+        'H005',
+        'H007',
+        'H009',
+        'H010',
+        'H011',
+        'H013',
+        'H014',
+        'H015',
+        'H016',
+        'H017',
+        'H018',
+        'H019',
+        'H020',
+        'H021',
+        'H023',
+        'H025',
+        'H027',
+        'H028',
+        'H032',
+        'H033',
+        'H035',
+        'H036',
+        'H038',
+        'H041',
+        'H042',
+        'H043',
+        'H045',
+        'H046',
+        'H048',
+        'T005',
+        'V003',
+        'V005'
+      ],
+      retained: {
+        ref: 'H002',
+        broadHabitat: 'Woodland and forest',
+        habitatType: 'Other woodland; broadleaved'
+      },
+      enhanced: {
+        ref: 'H001',
+        broadHabitat: 'Grassland',
+        habitatType: 'Other lowland acid grassland'
+      },
+      created: {
+        ref: 'H005',
+        broadHabitat: 'Urban',
+        habitatType: 'Allotments'
+      },
+      lostAsCreatedRef: null,
+      manyRowCounts: { [RETAINED]: 21, [ENHANCED]: 19, [CREATED]: 32 }
+    }
+  : {
+      retainedRefs: ['H1', 'H2-2'],
+      enhancedRefs: ['H2-3', 'H3'],
+      createdRefs: [
+        'H2-1',
+        'H2-4',
+        'H2-5',
+        'H2-6',
+        'H2-7',
+        'H2-8',
+        'H2-9',
+        'H2-10'
+      ],
+      retained: {
+        ref: 'H1',
+        broadHabitat: 'Urban',
+        habitatType: 'Developed land; sealed surface'
+      },
+      enhanced: {
+        ref: 'H2-3',
+        broadHabitat: 'Grassland',
+        habitatType: 'Other neutral grassland'
+      },
+      created: {
+        ref: 'H2-7',
+        broadHabitat: 'Lakes',
+        habitatType: 'Ponds (non-priority habitat)'
+      },
+      lostAsCreatedRef: 'H2-1',
+      manyRowCounts: { [RETAINED]: 52, [ENHANCED]: 49, [CREATED]: 62 }
+    }
+// The BNG Service template's default site (AC5): the two strategic
+// significances its Enhanced and Created rows carry, its Enhanced trees, and
+// the baseline features it removes. A removed habitat or tree has a baseline
+// row and no post-intervention one: V004, a demolished structure, and the
+// felled trees.
+const SERVICE_TEMPLATE_SIGNIFICANCES = ['Low (1)', 'High (1.15)']
+const ENHANCED_TREE_REFS = [
+  'T001',
+  'T006',
+  'T011',
+  'T013',
+  'T015',
+  'T017',
+  'T019',
+  'T020',
+  'T024'
 ]
-const CREATED_ON_GRID_REF = 'H2-7'
-const LOST_AS_CREATED_REF = 'H2-1'
+const ENHANCED_TREE_REF = 'T006'
+const REMOVED_REFS = [
+  'V004',
+  'T002',
+  'T003',
+  'T007',
+  'T009',
+  'T016',
+  'T018',
+  'T022',
+  'T023'
+]
 
-// `Post-intervention - all unit and intervention types.gpkg`: parcels plus
-// urban trees per tab (33 + 19 Retained, 25 + 24 Enhanced). Its 62 Lost parcels
-// become Created; its 17 Lost trees are dropped at import.
-const MANY_ROW_COUNTS = { [RETAINED]: 52, [ENHANCED]: 49, [CREATED]: 62 }
+// Refs that appear once on a tab, so a Ref link finds one row.
+const singleRefs = (refs) =>
+  refs.filter((ref) => refs.indexOf(ref) === refs.lastIndexOf(ref))
 const TREE_REF = /^T\d+$/
 
 const detailsHrefPattern = (projectId) =>
@@ -171,13 +338,28 @@ const naturalOrder = (refs) =>
 const hectares = (values) =>
   values.map((value) => Number(value.replace('ha', '')))
 const sum = (values) => values.reduce((total, value) => total + value, 0)
-// BNG-587 AC1: the fixed area of each individual-tree size band, in hectares.
-const TREE_SIZE_BANDS = [
-  ['T001', '0.0041'], // Small
-  ['T002', '0.0163'], // Medium
-  ['T003', '0.0366'], // Large
-  ['T004', '0.0765'] // Very large
-]
+// BNG-587 AC1: the fixed area of each individual-tree size band, in hectares,
+// on a tree of each band, and how many trees the run's tree project has.
+const TREES = isServiceTemplateRun()
+  ? {
+      // size-and-setting.gpkg: 16 trees, two of each band and setting.
+      bands: [
+        ['T001', '0.0041'], // Small
+        ['T003', '0.0163'], // Medium
+        ['T005', '0.0366'], // Large
+        ['T007', '0.0765'] // Very large
+      ],
+      count: 16
+    }
+  : {
+      bands: [
+        ['T001', '0.0041'], // Small
+        ['T002', '0.0163'], // Medium
+        ['T003', '0.0366'], // Large
+        ['T004', '0.0765'] // Very large
+      ],
+      count: 4
+    }
 // The area-size tiles round to 2dp, so a sum of 4dp grid sizes can differ from
 // them by up to one rounding step.
 const AREA_TILE_TOLERANCE_HA = 0.01
@@ -309,7 +491,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // project-summary.spec.js and the BMD-997 describe below.
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getAllUnitTypesPostInterventionProject(browser)
+        project = await getRunAllUnitTypesPostInterventionProject(browser)
       })
 
       // AC4 and AC9. The `returnUrl` is built per page from the factory's
@@ -451,16 +633,16 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       // AC7b. `visibleInterventionTabs` runs on this page's own area features,
       // so the hedgerow and watercourse pages' tab tests witness none of it.
-      // `getAreaGainProject` has six Enhanced parcels and a Created tree but no
-      // Retained area habitat — the tab set skips Retained AND the default
-      // falls to the first VISIBLE tab, which a Retained-led project cannot
-      // show. Built in the module-scope cache by project-summary.spec.js and
-      // area-summary.spec.js.
+      // The legacy area gain project has six Enhanced parcels and a Created
+      // tree but no Retained area habitat, and the BNG Service template's
+      // thirty-plus.gpkg has Enhanced and Created habitats and trees only — the
+      // tab set skips Retained AND the default falls to the first VISIBLE tab,
+      // which a Retained-led project cannot show.
       test('a tab set with no Retained habitats skips that tab and selects the first visible one', async ({
         browser,
         areaPostInterventionPage
       }) => {
-        const gainProject = await getAreaGainProject(browser)
+        const gainProject = await getRunNoRetainedAreaProject(browser)
         const grid = areaPostInterventionPage
         await grid.open(gainProject.id)
 
@@ -508,9 +690,13 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // urban trees.
       let project
       let manyRowProject
+      let retainedSignificanceProject
       test.beforeAll(async ({ browser }) => {
-        project = await getAreaInterventionTypesProject(browser)
-        manyRowProject = await getAllUnitTypesPostInterventionProject(browser)
+        project = await getRunAreaInterventionTypesProject(browser)
+        manyRowProject =
+          await getRunAllUnitTypesPostInterventionProject(browser)
+        retainedSignificanceProject =
+          await getRunRetainedSignificanceProject(browser)
       })
 
       // AC1, AC4a, AC5, AC7 — the only tab with a Condition column and no
@@ -543,7 +729,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         }
 
         expect(await grid.columnHeadings(RETAINED)).toEqual(RETAINED_COLUMNS)
-        expect(await grid.columnValues(RETAINED, 'Ref')).toEqual(RETAINED_REFS)
+        expect(await grid.columnValues(RETAINED, 'Ref')).toEqual(
+          GRID.retainedRefs
+        )
         expect(await grid.sortStates(RETAINED)).toEqual(
           RETAINED_COLUMNS.map(() => 'none')
         )
@@ -557,14 +745,14 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         ).toEqual(new Set([FIXED_STRATEGIC_SIGNIFICANCE]))
 
         // Broad habitat and Habitat type read from the BASELINE record for a
-        // Retained feature — pinned to the fixture's values for H1.
-        const h1 = await grid.rowByRef(RETAINED, 'H1')
-        expect(h1['Broad habitat']).toBe('Urban')
-        expect(h1['Habitat type']).toBe('Developed land; sealed surface')
+        // Retained feature — pinned to the fixture's values.
+        const retained = await grid.rowByRef(RETAINED, GRID.retained.ref)
+        expect(retained['Broad habitat']).toBe(GRID.retained.broadHabitat)
+        expect(retained['Habitat type']).toBe(GRID.retained.habitatType)
 
         // AC4's Ref link — only a real import proves the feature has a
         // featureId to put in it; `buildRefCell` renders plain text otherwise.
-        for (const reference of RETAINED_REFS) {
+        for (const reference of singleRefs(GRID.retainedRefs)) {
           await expect(grid.refLink(RETAINED, reference)).toHaveAttribute(
             'href',
             detailsHrefPattern(project.id)
@@ -601,24 +789,27 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expect(grid.panelHeading(ENHANCED)).toBeVisible()
         await expect(grid.panelHeading(RETAINED)).toBeHidden()
         expect(await grid.columnHeadings(ENHANCED)).toEqual(TARGET_COLUMNS)
-        expect(await grid.columnValues(ENHANCED, 'Ref')).toEqual(ENHANCED_REFS)
+        expect(await grid.columnValues(ENHANCED, 'Ref')).toEqual(
+          GRID.enhancedRefs
+        )
 
-        for (const reference of ENHANCED_REFS) {
+        for (const reference of GRID.enhancedRefs) {
           await expectTargetBlock(await grid.rowByRef(ENHANCED, reference))
         }
 
         // Read from the PROPOSED record for an Enhanced feature.
-        const h23 = await grid.rowByRef(ENHANCED, 'H2-3')
-        expect(h23['Broad habitat']).toBe('Grassland')
-        expect(h23['Habitat type']).toBe('Other neutral grassland')
+        const enhanced = await grid.rowByRef(ENHANCED, GRID.enhanced.ref)
+        expect(enhanced['Broad habitat']).toBe(GRID.enhanced.broadHabitat)
+        expect(enhanced['Habitat type']).toBe(GRID.enhanced.habitatType)
 
         await expectTotalsRow(grid, ENHANCED)
       })
 
-      // AC3, AC4c, AC5. The Created tab here is reached two ways at once: a
-      // real Created parcel (H2-7) and Lost parcels the backend persists as
-      // Created. The unit test hands the tab a literal 'Created'.
-      test('the Created grid carries the same columns, including Lost parcels imported as Created', async ({
+      // AC3, AC4c, AC5. In the legacy run the Created tab is reached two ways
+      // at once: a real Created parcel (H2-7) and Lost parcels the backend
+      // persists as Created. A BNG Service template habitat is only ever
+      // Created as such. The unit test hands the tab a literal 'Created'.
+      test(`the Created grid carries the same columns${GRID.lostAsCreatedRef ? ', including Lost parcels imported as Created' : ''}`, async ({
         areaPostInterventionPage
       }) => {
         const grid = areaPostInterventionPage
@@ -627,18 +818,22 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
         await expect(grid.panelHeading(CREATED)).toBeVisible()
         expect(await grid.columnHeadings(CREATED)).toEqual(TARGET_COLUMNS)
-        expect(await grid.columnValues(CREATED, 'Ref')).toEqual(CREATED_REFS)
+        expect(await grid.columnValues(CREATED, 'Ref')).toEqual(
+          GRID.createdRefs
+        )
 
-        const created = await grid.rowByRef(CREATED, CREATED_ON_GRID_REF)
+        const created = await grid.rowByRef(CREATED, GRID.created.ref)
         await expectTargetBlock(created)
-        expect(created['Broad habitat']).toBe('Lakes')
-        expect(created['Habitat type']).toBe('Ponds (non-priority habitat)')
+        expect(created['Broad habitat']).toBe(GRID.created.broadHabitat)
+        expect(created['Habitat type']).toBe(GRID.created.habitatType)
 
         // A Lost parcel still renders a full row — the shape BMD-534 settled.
-        const lost = await grid.rowByRef(CREATED, LOST_AS_CREATED_REF)
-        expect(lost.Units).toMatch(GRID_UNITS_2DP)
-        expect(lost.Size).toMatch(HECTARES)
-        expect(lost['Habitat type']).not.toBe('')
+        if (GRID.lostAsCreatedRef) {
+          const lost = await grid.rowByRef(CREATED, GRID.lostAsCreatedRef)
+          expect(lost.Units).toMatch(GRID_UNITS_2DP)
+          expect(lost.Size).toMatch(HECTARES)
+          expect(lost['Habitat type']).not.toBe('')
+        }
 
         await expectTotalsRow(grid, CREATED)
       })
@@ -646,11 +841,11 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // BMD-1051 AC2: a Retained feature's strategic significance in the file
       // is ignored and it is priced at Low (×1). The column's "Low (1)" is a
       // frontend constant for Retained rows, so the witness is the arithmetic
-      // on two ON-SITE parcels (so it holds once spatial risk — stored on
-      // import, not yet priced — is applied to off-site ones):
-      // H046 carries High and H002 Medium in the all-unit-types file, which
-      // would put their units 15% / 10% above size × distinctiveness ×
-      // condition.
+      // on ON-SITE parcels (so it holds once spatial risk — stored on import,
+      // not yet priced — is applied to off-site ones): H046 carries High and
+      // H002 Medium in the legacy all-unit-types file, and H002 High in the
+      // BNG Service template's baseline-significance-high.gpkg, which would
+      // put their units 15% / 10% above size × distinctiveness × condition.
       //
       // Sole real-data witness: the backend proves it only on built test data
       // (enrich-post-intervention-strategic-significance.test.js:249).
@@ -658,7 +853,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         areaPostInterventionPage
       }) => {
         const grid = areaPostInterventionPage
-        await grid.open(manyRowProject.id)
+        await grid.open(retainedSignificanceProject.id)
 
         for (const reference of RETAINED_ON_SITE_NON_LOW_REFS) {
           const row = await grid.rowByRef(RETAINED, reference)
@@ -680,19 +875,22 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // instead of being priced at zero. Since BMD-1046 (frontend PR #532) its
       // Units cell shows 0.00, display only. The hedgerow grid has its own
       // witness; this is the area pricing path's.
-      test('an Enhanced parcel with a rejected strategic significance is left unpriced', async ({
-        areaPostInterventionPage
-      }) => {
-        const grid = areaPostInterventionPage
-        await grid.open(manyRowProject.id)
-        await grid.tab(ENHANCED).click()
+      // Legacy only: the BNG Service template offers no Medium.
+      test(
+        'an Enhanced parcel with a rejected strategic significance is left unpriced',
+        { tag: LEGACY_ONLY },
+        async ({ areaPostInterventionPage }) => {
+          const grid = areaPostInterventionPage
+          await grid.open(manyRowProject.id)
+          await grid.tab(ENHANCED).click()
 
-        const row = await grid.rowByRef(ENHANCED, ENHANCED_REJECTED_REF)
-        expect(row.Units).toBe('0.00')
-        expect(row.Distinctiveness).toBe('')
-        expect(row['Strategic significance']).toBe('')
-        expect(row['Standard difficulty']).toBe('')
-      })
+          const row = await grid.rowByRef(ENHANCED, ENHANCED_REJECTED_REF)
+          expect(row.Units).toBe('0.00')
+          expect(row.Distinctiveness).toBe('')
+          expect(row['Strategic significance']).toBe('')
+          expect(row['Standard difficulty']).toBe('')
+        }
+      )
 
       // AC5, AC7 over 50+ rows per tab, and the area-only rule that urban trees
       // join the parcels in the same grid (`collectAreaFeatures`).
@@ -708,7 +906,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           }
 
           const refs = await grid.columnValues(label, 'Ref')
-          expect(refs, `${label} rows`).toHaveLength(MANY_ROW_COUNTS[label])
+          expect(refs, `${label} rows`).toHaveLength(GRID.manyRowCounts[label])
           // AC7: ascending by ref, compared with numeric collation — the order
           // `sortHabitatFeatures` promises.
           expect(refs).toEqual(naturalOrder(refs))
@@ -749,7 +947,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           await sortButton.click()
           await expect(sizeHeader).toHaveAttribute('aria-sort', 'ascending')
           const ascending = hectares(await grid.columnValues(RETAINED, 'Size'))
-          expect(ascending).toHaveLength(MANY_ROW_COUNTS[RETAINED])
+          expect(ascending).toHaveLength(GRID.manyRowCounts[RETAINED])
           expect(ascending).toEqual([...ascending].sort((a, b) => a - b))
 
           await sortButton.click()
@@ -796,9 +994,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           const grid = areaPostInterventionPage
 
           for (const [label, reference] of [
-            [RETAINED, RETAINED_REFS[0]],
-            [ENHANCED, ENHANCED_REFS[0]],
-            [CREATED, CREATED_ON_GRID_REF]
+            [RETAINED, GRID.retained.ref],
+            [ENHANCED, GRID.enhanced.ref],
+            [CREATED, GRID.created.ref]
           ]) {
             await grid.open(project.id)
             if (label !== RETAINED) {
@@ -824,6 +1022,90 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       )
     }
   )
+  // ─── BNG Service template values (BMD-1088 AC5) ───────────────────────────────
+  //
+  // What only a BNG Service template project shows on these grids. Its
+  // strategic significance is Low or High, the two the template offers (a
+  // legacy file could give Medium, which the service rejects, tested above);
+  // a tree can be Enhanced; and a habitat the file removes has no
+  // post-intervention row at all, rather than a row marked Lost.
+
+  test.describe(
+    'Area post-intervention — BNG Service template values',
+    { tag: ['@regression', SERVICE_TEMPLATE_ONLY] },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      let project
+      test.beforeAll(async ({ browser }) => {
+        project = await getRunAreaInterventionTypesProject(browser)
+      })
+
+      test('Enhanced and Created habitats carry a Low or High strategic significance, and never Medium', async ({
+        areaPostInterventionPage
+      }) => {
+        const grid = areaPostInterventionPage
+        await grid.open(project.id)
+
+        const seen = new Set()
+        for (const label of [ENHANCED, CREATED]) {
+          await grid.tab(label).click()
+          const values = await grid.columnValues(
+            label,
+            'Strategic significance'
+          )
+          expect(values, `${label} rows`).toHaveLength(
+            GRID.manyRowCounts[label]
+          )
+          for (const value of values) {
+            expect(
+              SERVICE_TEMPLATE_SIGNIFICANCES,
+              `${label} ${value}`
+            ).toContain(value)
+            seen.add(value)
+          }
+        }
+        // Both, so the High multiplier is shown and priced somewhere.
+        expect([...seen].sort()).toEqual(
+          [...SERVICE_TEMPLATE_SIGNIFICANCES].sort()
+        )
+      })
+
+      test('an Enhanced tree is listed on the Enhanced tab with its target values', async ({
+        areaPostInterventionPage
+      }) => {
+        const grid = areaPostInterventionPage
+        await grid.open(project.id)
+        await grid.tab(ENHANCED).click()
+
+        const trees = (await grid.columnValues(ENHANCED, 'Ref')).filter((ref) =>
+          TREE_REF.test(ref)
+        )
+        expect(trees).toEqual(ENHANCED_TREE_REFS)
+        await expectTargetBlock(
+          await grid.rowByRef(ENHANCED, ENHANCED_TREE_REF)
+        )
+      })
+
+      test('a habitat or tree the file removes is on no tab', async ({
+        areaPostInterventionPage
+      }) => {
+        const grid = areaPostInterventionPage
+        await grid.open(project.id)
+
+        const listed = []
+        for (const label of ALL_TABS) {
+          await grid.tab(label).click()
+          listed.push(...(await grid.columnValues(label, 'Ref')))
+        }
+        for (const ref of REMOVED_REFS) {
+          expect(listed, ref).not.toContain(ref)
+        }
+      })
+    }
+  )
+
   // ─── Individual trees (BNG-587) ──────────────────────────────────────────────
   //
   // Moved from the post-intervention habitat list, which BMD-1043 (frontend
@@ -841,13 +1123,13 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getTreesPostInterventionProject(browser)
+        project = await getRunTreesPostInterventionProject(browser)
       })
 
       test('AC1/AC3 — each individual tree shows the area for its size band and a calculated unit value', async ({
         page
       }) => {
-        for (const [ref, area] of TREE_SIZE_BANDS) {
+        for (const [ref, area] of TREES.bands) {
           const { unitPage, label } = await openPiTabFor(
             page,
             project.id,
@@ -887,7 +1169,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           gridSizes.push(...sizes)
           treeSizes.push(...sizes.filter((_, i) => TREE_REF.test(refs[i])))
         }
-        expect(treeSizes).toHaveLength(TREE_SIZE_BANDS.length)
+        expect(treeSizes).toHaveLength(TREES.count)
 
         // AC5: the area tile is the tree-inclusive grid total.
         expect(Math.abs(postInterventionArea - sum(gridSizes))).toBeLessThan(
@@ -911,7 +1193,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
   // grid tests above and in the hedgerow and watercourse specs.
   test.describe(
     'Post-intervention grids — Status column',
-    { tag: '@regression' },
+    // Status is not asserted for the BNG Service template in this epic.
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
@@ -995,7 +1278,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
   // characters once trimmed, so the grid shows 'Café–Ω H00…'.
   test.describe(
     'Area post-intervention — long references',
-    { tag: '@regression' },
+    // The long and padded refs are cut into a legacy file by
+    // fixture-mutations.py; the BNG Service template corpus has none yet.
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)

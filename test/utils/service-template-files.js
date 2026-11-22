@@ -29,3 +29,22 @@ export const VERTICAL_AREA_MISSING = `${DIR}/vertical-area-missing.gpkg`
 // Every unit type's trading rules met, with the area habitats above the 10%
 // net gain target.
 export const TRADING_ALL_MET = `${DIR}/trading-all-met.gpkg`
+
+// Area habitats and trees only Enhanced or Created, none Retained.
+export const NO_RETAINED_AREA = `${DIR}/thirty-plus.gpkg`
+
+// 16 trees in every size band and setting: T001 Small, T003 Medium, T005
+// Large and T007 Very large among them.
+export const TREE_SIZES = `${DIR}/size-and-setting.gpkg`
+
+// The default site with the Retained H002's Baseline Strategic Significance
+// High, which the service prices at Low.
+export const BASELINE_SIGNIFICANCE_HIGH = `${DIR}/baseline-significance-high.gpkg`
+
+// A Medium deficit not covered from below: a Medium grassland lost (-153.69
+// units) and two Low grasslands enhanced (+166.54). Hedgerows, no watercourses.
+export const AREA_TRADING_DEFICIT = `${DIR}/trading-higher-deficit-not-covered-from-below.gpkg`
+
+// Vertical area habitats V001 Retained, V002 Enhanced, V003 Created (IGGI) and
+// V004 Lost: its IGGI trades in the merged intertidal group.
+export const EVERY_VERTICAL_RETENTION = `${DIR}/every-retention.gpkg`
