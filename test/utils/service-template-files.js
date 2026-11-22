@@ -54,3 +54,9 @@ export const AREA_TRADING_DEFICIT_BASELINE = `${DIR}/trading-higher-deficit-not-
 
 // Watercourses and no hedgerows: the degraded watercourse's baseline-stage file.
 export const WATERCOURSE_DEGRADED_BASELINE = `${DIR}/watercourse-degraded-baseline.gpkg`
+
+// A Very low hedgerow lost to development: Medium and Low Met, Very low not.
+export const VERY_LOW_HEDGEROW_LOST = `${DIR}/trading-lost-to-development.gpkg`
+
+// A Low hedgerow loss covered by the Medium surplus; no watercourses.
+export const LOW_LOSS_COVERED = `${DIR}/trading-lower-deficit-covered-from-above.gpkg`

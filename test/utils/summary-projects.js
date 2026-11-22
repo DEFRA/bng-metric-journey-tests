@@ -21,11 +21,13 @@ import {
   DEFAULT_SITE,
   DEFAULT_SITE_BASELINE,
   EVERY_VERTICAL_RETENTION,
+  LOW_LOSS_COVERED,
   NO_RETAINED_AREA,
   SMALL_SITE,
   SMALL_SITE_BASELINE,
   TRADING_ALL_MET,
   TREE_SIZES,
+  VERY_LOW_HEDGEROW_LOST,
   WATERCOURSE_DEGRADED_BASELINE
 } from '@utils/service-template-files.js'
 import { setupProject } from '@utils/project-helpers.js'
@@ -552,6 +554,31 @@ export function getRunHedgerowTradingNotMetProject(browser) {
   return isServiceTemplateRun()
     ? getServiceTemplatePostInterventionProject(browser, SMALL_SITE)
     : getAreaGainProject(browser)
+}
+
+/**
+ * Hedgerows trading summary stand-ins:
+ *
+ * - a Low loss covered by the Medium surplus, with no watercourses: the same
+ *   harness scenario in the BNG Service template,
+ *   trading-lower-deficit-covered-from-above.gpkg (legacy: the hedgerow
+ *   trading Met pair, built from that scenario);
+ * - a Very low band below zero under Met Medium and Low bands:
+ *   trading-lost-to-development.gpkg, which only the BNG Service template run
+ *   uses.
+ */
+export function getRunHedgerowLowLossCoveredProject(browser) {
+  return isServiceTemplateRun()
+    ? getServiceTemplatePostInterventionProject(browser, LOW_LOSS_COVERED)
+    : getHedgerowTradingMetProject(browser)
+}
+
+/** @see getRunHedgerowLowLossCoveredProject */
+export function getServiceTemplateVeryLowDeficitProject(browser) {
+  return getServiceTemplatePostInterventionProject(
+    browser,
+    VERY_LOW_HEDGEROW_LOST
+  )
 }
 
 /** A baseline-only project populating every unit type. */
