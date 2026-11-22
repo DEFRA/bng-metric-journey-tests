@@ -6,7 +6,7 @@ import {
   getRunAllUnitTypesProject,
   getRunHedgerowTradingMetProject,
   getRunNoWatercoursesProject
-} from '@utils/summary-projects.js'
+} from '@utils/run-projects.js'
 import { isServiceTemplateRun } from '@utils/template-run.js'
 import { expectStatusTag, STATUS_MET } from '@utils/unit-type-tiles.js'
 import {

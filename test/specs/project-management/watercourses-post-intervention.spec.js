@@ -7,11 +7,13 @@ import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
   buildPostInterventionProject,
-  getRunAllUnitTypesPostInterventionProject,
-  getRunWatercourseInterventionTypesProject,
-  getServiceTemplateRemeanderedWatercourseProject,
   WATERCOURSE_REFS_BASELINE_FILE
 } from '@utils/summary-projects.js'
+import {
+  getRunAllUnitTypesPostInterventionProject,
+  getRunWatercourseInterventionTypesProject,
+  getServiceTemplateRemeanderedWatercourseProject
+} from '@utils/run-projects.js'
 import {
   LEGACY_ONLY,
   SERVICE_TEMPLATE_ONLY,

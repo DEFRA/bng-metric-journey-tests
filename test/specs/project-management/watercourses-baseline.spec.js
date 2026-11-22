@@ -2,12 +2,12 @@ import { test, expect } from '@fixtures'
 import { WATERCOURSES_TRADING_SUMMARY_PATH } from '@pages/watercourses-trading-summary.page.js'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
+import { buildBaselineOnlyProject } from '@utils/summary-projects.js'
 import {
-  buildBaselineOnlyProject,
   getRunAllUnitTypesProject,
   getRunBaselineProject,
   getRunTargetMetProject
-} from '@utils/summary-projects.js'
+} from '@utils/run-projects.js'
 import { LEGACY_ONLY, isServiceTemplateRun } from '@utils/template-run.js'
 import { expectStatusTag, STATUS_MET } from '@utils/unit-type-tiles.js'
 import {

@@ -7,7 +7,7 @@ import {
   getRunHedgerowShortfallProject,
   getRunNoHedgerowsBaselineProject,
   getRunTargetMetProject
-} from '@utils/summary-projects.js'
+} from '@utils/run-projects.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
   AREA_HABITATS,
