@@ -64,3 +64,13 @@ export const LOW_LOSS_COVERED = `${DIR}/trading-lower-deficit-covered-from-above
 // R003, a 100 m ditch re-meandered into a 130 m Enhanced watercourse beside
 // the Retained R001 and R002.
 export const WATERCOURSE_REMEANDERED = `${DIR}/watercourse-remeandered.gpkg`
+
+// Every field filled: area habitats Met, hedgerows and watercourses Not met.
+export const DATA_COMPLETE = `${DIR}/data-complete.gpkg`
+
+// Every unit type above the 10% target, with the area trading rules Not met
+// and the hedgerow and watercourse ones Met.
+export const NET_GAIN_MET = `${DIR}/net-gain-met.gpkg`
+
+// Watercourses gaining 2.7%: above zero and below the 10% target.
+export const WATERCOURSE_ENHANCED_SHORTER = `${DIR}/watercourse-enhanced-shorter.gpkg`

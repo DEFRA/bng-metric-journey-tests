@@ -16,19 +16,31 @@ import { setupProject } from '@utils/project-helpers.js'
 import { createProjectCache } from '@utils/shared-project.js'
 import {
   buildPostInterventionProject,
-  getAllUnitTypesPostInterventionProject,
-  getAllUnitTypesProject,
-  getAreaGainProject,
-  getBaselineOnlyProject,
-  getHedgerowGainProject,
-  getHedgerowTradingMetProject,
-  getLinearInterventionTypesProject,
-  getNoHedgerowsPostInterventionProject,
-  getNoWatercoursesPostInterventionProject,
-  getNoWatercoursesProject,
-  getTargetMetProject,
   getWatercourseGainProject
 } from '@utils/summary-projects.js'
+import {
+  getRunAllUnitTypesPostInterventionProject,
+  getRunAllUnitTypesProject,
+  getRunAreaGainProject,
+  getRunAreaTradingOnlyMetProject,
+  getRunAreaTreesBaselineProject,
+  getRunHedgerowGainProject,
+  getRunHedgerowOneBandFailingProject,
+  getRunHedgerowTradingMetProject,
+  getRunNoHedgerowsBaselineProject,
+  getRunNoHedgerowsPostInterventionProject,
+  getRunNoWatercoursesPostInterventionProject,
+  getRunNoWatercoursesProject,
+  getRunTargetMetProject,
+  getRunWatercourseTradingMetProject,
+  getServiceTemplateNetGainMetProject,
+  getServiceTemplateWatercourseBelowTargetProject
+} from '@utils/run-projects.js'
+import {
+  LEGACY_ONLY,
+  SERVICE_TEMPLATE_ONLY,
+  isServiceTemplateRun
+} from '@utils/template-run.js'
 import {
   noBaselineSummaryRedirectHref,
   uploadFileHref
@@ -57,8 +69,17 @@ const UNIT_TYPES = [AREA_HABITATS, HEDGEROWS, WATERCOURSES]
 // BMD-854 made the unit-type sections conditional on the project having data
 // for that type. `Baseline - no hedgerows.gpkg` has 50 habitats, 25 urban trees
 // and 3 rivers but an EMPTY Hedgerows layer, so every describe built on
-// `getBaselineOnlyProject` sees these two sections and no Hedgerows one.
+// `getRunNoHedgerowsBaselineProject` sees these two sections and no Hedgerows
+// one. In the BNG Service template run it is the degraded watercourse's
+// baseline-stage file: one area habitat and four watercourses, no hedgerows.
 const BASELINE_ONLY_UNIT_TYPES = [AREA_HABITATS, WATERCOURSES]
+
+// The unit types whose units fall in the post-intervention variant's project.
+// Legacy: all three. The default site's hedgerows gain 13.95%, so in the BNG
+// Service template run only area habitats and watercourses lose units.
+const NET_LOSS_UNIT_TYPES = isServiceTemplateRun()
+  ? [AREA_HABITATS, WATERCOURSES]
+  : UNIT_TYPES
 
 // BMD-854 also removed the old casing mismatch: the navigation used to label
 // its area entry "Area Habitats" while the section heading read "Area
@@ -338,7 +359,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
     let project
     test.beforeAll(async ({ browser }) => {
-      project = await getBaselineOnlyProject(browser)
+      project = await getRunNoHedgerowsBaselineProject(browser)
     })
 
     // BMD-854 (frontend PR#237, 2026-08-25) made the unit-type sections
@@ -421,7 +442,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         projectSummaryPage,
         browser
       }) => {
-        const project = await getNoWatercoursesProject(browser)
+        const project = await getRunNoWatercoursesProject(browser)
         await projectSummaryPage.open(project.id)
 
         // The mirror of the no-hedgerows case in "page content": the same rule
@@ -438,7 +459,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         projectSummaryPage,
         browser
       }) => {
-        const project = await getNoHedgerowsPostInterventionProject(browser)
+        const project = await getRunNoHedgerowsPostInterventionProject(browser)
         await projectSummaryPage.open(project.id)
 
         // The project really does carry post-intervention data — the tile
@@ -463,7 +484,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         projectSummaryPage,
         browser
       }) => {
-        const project = await getNoWatercoursesPostInterventionProject(browser)
+        const project =
+          await getRunNoWatercoursesPostInterventionProject(browser)
         await projectSummaryPage.open(project.id)
 
         await expect(
@@ -505,7 +527,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getBaselineOnlyProject(browser)
+        project = await getRunNoHedgerowsBaselineProject(browser)
       })
 
       test('post-intervention is zero and net unit change negates the baseline for every unit type', async ({
@@ -565,11 +587,15 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // page can reach it now, because a section needs features to render and
       // features carry units.
 
+      // The degraded watercourse's baseline has no trees, so the BNG Service
+      // template run uses the default site's baseline-stage file here.
       test('the area habitats figure includes individual tree units, matching the area habitats baseline', async ({
+        browser,
         projectSummaryPage,
         areaBaselinePage
       }) => {
-        await projectSummaryPage.open(project.id)
+        const treesProject = await getRunAreaTreesBaselineProject(browser)
+        await projectSummaryPage.open(treesProject.id)
         const summaryAreaUnits = await projectSummaryPage.tileValue(
           AREA_HABITATS,
           TILE_BASELINE
@@ -578,7 +604,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         // BMD-1043 removed the habitat list this was compared against; the
         // area habitats baseline grid lists parcels and trees together and
         // totals both (collectAreaFeatures), so its Units total stands in.
-        await areaBaselinePage.open(project.id)
+        await areaBaselinePage.open(treesProject.id)
         const gridAreaUnits = await areaBaselinePage
           .totalsCell('units')
           .innerText()
@@ -618,7 +644,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getAllUnitTypesProject(browser)
+        project = await getRunAllUnitTypesProject(browser)
       })
 
       // Sole witness that `hedgerowsTotal` reaches the page from a real upload.
@@ -686,7 +712,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getAllUnitTypesPostInterventionProject(browser)
+        project = await getRunAllUnitTypesPostInterventionProject(browser)
       })
 
       test(
@@ -723,13 +749,13 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       }) => {
         await projectSummaryPage.open(project.id)
 
-        for (const label of UNIT_TYPES) {
+        for (const label of NET_LOSS_UNIT_TYPES) {
           const percentage = await projectSummaryPage.tileValue(
             label,
             TILE_NET_PERCENTAGE
           )
-          // Every habitat type in this fixture pair loses units, so each shows a
-          // negative percentage well below the 10% target.
+          // Each of these unit types loses units, so each shows a negative
+          // percentage well below the 10% target.
           expect(percentage).toMatch(/^-\d+\.\d{2}%$/)
           expect(Number.parseFloat(percentage)).toBeLessThan(0)
 
@@ -933,7 +959,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getHedgerowGainProject(browser)
+        project = await getRunHedgerowGainProject(browser)
       })
 
       // The baseline has no hedgerows and the post-intervention file does, so
@@ -992,28 +1018,34 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       //
       // Do not delete without moving these assertions onto another
       // project-summary test built on getWatercourseGainProject.
-      test('watercourses gained from a zero baseline render the same variant', async ({
-        projectSummaryPage,
-        browser
-      }) => {
-        // 'Baseline - no watercourses.gpkg' + 'Post-intervention - complete
-        // with watercourses.gpkg'. watercourses-summary.spec.js needs the same
-        // pair, and @utils/summary-projects.js caches it per worker, so whichever
-        // of the two runs first pays for the uploads and the other reuses them —
-        // the suite spends one build either way, not two.
-        const watercourseProject = await getWatercourseGainProject(browser)
-        await projectSummaryPage.open(watercourseProject.id)
+      //
+      // Legacy only: no BNG Service template file in the harness corpus has
+      // watercourses only post intervention.
+      test(
+        'watercourses gained from a zero baseline render the same variant',
+        {
+          tag: LEGACY_ONLY
+        },
+        async ({ projectSummaryPage, browser }) => {
+          // 'Baseline - no watercourses.gpkg' + 'Post-intervention - complete
+          // with watercourses.gpkg'. watercourses-summary.spec.js needs the same
+          // pair, and @utils/summary-projects.js caches it per worker, so whichever
+          // of the two runs first pays for the uploads and the other reuses them —
+          // the suite spends one build either way, not two.
+          const watercourseProject = await getWatercourseGainProject(browser)
+          await projectSummaryPage.open(watercourseProject.id)
 
-        await expectPostInterventionOnlySuppressedTiles(
-          projectSummaryPage,
-          WATERCOURSES
-        )
-        await expectPostInterventionOnlyGain(
-          projectSummaryPage,
-          WATERCOURSES,
-          watercourseProject.id
-        )
-      })
+          await expectPostInterventionOnlySuppressedTiles(
+            projectSummaryPage,
+            WATERCOURSES
+          )
+          await expectPostInterventionOnlyGain(
+            projectSummaryPage,
+            WATERCOURSES,
+            watercourseProject.id
+          )
+        }
+      )
     }
   )
 
@@ -1039,7 +1071,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         projectSummaryPage,
         browser
       }) => {
-        const project = await getAreaGainProject(browser)
+        const project = await getRunAreaGainProject(browser)
         await projectSummaryPage.open(project.id)
 
         const percentage = await expectStatusMatchesPercentage(
@@ -1057,7 +1089,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         projectSummaryPage,
         browser
       }) => {
-        const project = await getTargetMetProject(browser)
+        const project = await getRunTargetMetProject(browser)
         await projectSummaryPage.open(project.id)
 
         for (const label of [HEDGEROWS, WATERCOURSES]) {
@@ -1072,12 +1104,16 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       // The threshold is 10%, not 0. Every other "Not met" case in this file is
       // a net *loss*, so without this one an implementation that flipped the
-      // tag on any positive change would pass the whole suite.
+      // tag on any positive change would pass the whole suite. The BNG Service
+      // template run uses watercourse-enhanced-shorter.gpkg, whose
+      // watercourses gain 2.7%.
       test('a positive gain below the target still shows a red "Not met" tag', async ({
         projectSummaryPage,
         browser
       }) => {
-        const project = await getBelowTargetProject(browser)
+        const project = isServiceTemplateRun()
+          ? await getServiceTemplateWatercourseBelowTargetProject(browser)
+          : await getBelowTargetProject(browser)
         await projectSummaryPage.open(project.id)
 
         const percentage = await expectStatusMatchesPercentage(
@@ -1122,7 +1158,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         projectSummaryPage,
         browser
       }) => {
-        const project = await getAllUnitTypesPostInterventionProject(browser)
+        const project = await getRunAllUnitTypesPostInterventionProject(browser)
         await projectSummaryPage.open(project.id)
 
         await expectStatusTag(
@@ -1135,7 +1171,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         projectSummaryPage,
         browser
       }) => {
-        const project = await getAreaGainProject(browser)
+        const project = await getRunAreaGainProject(browser)
         await projectSummaryPage.open(project.id)
 
         await expectStatusTag(
@@ -1160,7 +1196,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         projectSummaryPage,
         browser
       }) => {
-        const project = await getAreaGainProject(browser)
+        const project = await getRunAreaGainProject(browser)
         await projectSummaryPage.open(project.id)
 
         await expect(
@@ -1172,6 +1208,29 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         ).toHaveCount(2)
       })
 
+      // What the test above could not show: the BNG Service template corpus has
+      // a file that separates the two verdicts. net-gain-met.gpkg's area
+      // habitats gain 290.4%, so the net-gain tag reads Met, while their
+      // trading rules are not met.
+      test(
+        'area habitats can clear the net gain target and still break the trading rules',
+        { tag: SERVICE_TEMPLATE_ONLY },
+        async ({ projectSummaryPage, browser }) => {
+          const project = await getServiceTemplateNetGainMetProject(browser)
+          await projectSummaryPage.open(project.id)
+
+          const percentage = await expectStatusMatchesPercentage(
+            projectSummaryPage,
+            AREA_HABITATS
+          )
+          expect(percentage).toBeGreaterThanOrEqual(NET_GAIN_TARGET_PERCENTAGE)
+          await expectStatusTag(
+            projectSummaryPage.tradingRulesTag(AREA_HABITATS),
+            STATUS_NOT_MET
+          )
+        }
+      )
+
       // BMD-1008 AC4. A project with no post-intervention document is a
       // verdict, not an unknown: nothing has been delivered to trade against,
       // so the backend returns Not met rather than null. The upload link is
@@ -1181,7 +1240,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         projectSummaryPage,
         browser
       }) => {
-        const project = await getBaselineOnlyProject(browser)
+        const project = await getRunNoHedgerowsBaselineProject(browser)
         await projectSummaryPage.open(project.id)
 
         await expect(
@@ -1225,7 +1284,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         projectSummaryPage,
         browser
       }) => {
-        const project = await getTargetMetProject(browser)
+        const project = await getRunWatercourseTradingMetProject(browser)
         await projectSummaryPage.open(project.id)
 
         await expectStatusTag(
@@ -1252,7 +1311,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         projectSummaryPage,
         browser
       }) => {
-        const project = await getAreaGainProject(browser)
+        const project = await getRunAreaTradingOnlyMetProject(browser)
         await projectSummaryPage.open(project.id)
 
         await expectStatusTag(
@@ -1288,7 +1347,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         projectSummaryPage,
         browser
       }) => {
-        const project = await getHedgerowTradingMetProject(browser)
+        const project = await getRunHedgerowTradingMetProject(browser)
         await projectSummaryPage.open(project.id)
 
         await expectStatusTag(
@@ -1307,16 +1366,19 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         )
       })
 
-      // AC4's OR: the Medium band is Met here and only Low and Very low fail,
-      // so a verdict built from the Medium band alone would read Met. A tile
+      // AC4's OR: the Medium band is Met here and only Low and Very low fail
+      // (in the BNG Service template run, trading-lost-to-development.gpkg:
+      // only Very low), so a verdict built from the Medium band alone would
+      // read Met. A tile
       // mis-wired to the watercourse function is caught by the "Met" test
-      // above, whose project has no watercourses. This project's watercourses
-      // read Not met since the BMD-1195 culvert recut, so they cannot.
+      // above, whose legacy project has no watercourses. This project's
+      // watercourses read Not met since the BMD-1195 culvert recut, so they
+      // cannot; the BNG Service template one has none.
       test('one failing hedgerow band is enough to show a red "Not met" tag', async ({
         projectSummaryPage,
         browser
       }) => {
-        const project = await getLinearInterventionTypesProject(browser)
+        const project = await getRunHedgerowOneBandFailingProject(browser)
         await projectSummaryPage.open(project.id)
 
         await expectStatusTag(
@@ -1326,13 +1388,14 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       })
 
       // The area-function mis-wiring guard: area habitats Met, hedgerows Not
-      // met. No shipped pairing gives the reverse (hedgerows Met, area Not
-      // met), so the Met test above cannot tell the two functions apart.
+      // met (in the BNG Service template run, data-complete.gpkg). No legacy
+      // pairing gives the reverse (hedgerows Met, area Not met), so the Met
+      // test above cannot tell the two functions apart.
       test('hedgerows show "Not met" while area habitats show "Met"', async ({
         projectSummaryPage,
         browser
       }) => {
-        const project = await getAreaGainProject(browser)
+        const project = await getRunAreaTradingOnlyMetProject(browser)
         await projectSummaryPage.open(project.id)
 
         await expectStatusTag(
@@ -1358,7 +1421,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getBaselineOnlyProject(browser)
+        project = await getRunNoHedgerowsBaselineProject(browser)
       })
 
       // BMD-870 scoped out the trading-rules clickthrough, the drill-down
@@ -1489,7 +1552,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getBaselineOnlyProject(browser)
+        project = await getRunNoHedgerowsBaselineProject(browser)
       })
 
       test('"Upload file" opens the file-type selection page, whose Back returns to the summary', async ({
@@ -1620,7 +1683,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       }) => {
         test.setTimeout(UPLOAD_TIMEOUT + 60_000)
 
-        const { id, name } = await getBaselineOnlyProject(browser)
+        const { id, name } = await getRunNoHedgerowsBaselineProject(browser)
 
         const otherContext = await browser.newContext({
           storageState: NO_PROJECTS_STORAGE_STATE,

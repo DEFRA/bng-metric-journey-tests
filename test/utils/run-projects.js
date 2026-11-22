@@ -9,17 +9,21 @@ import {
   AREA_TRADING_DEFICIT,
   AREA_TRADING_DEFICIT_BASELINE,
   BASELINE_SIGNIFICANCE_HIGH,
+  DATA_COMPLETE,
   DEFAULT_SITE,
   DEFAULT_SITE_BASELINE,
   EVERY_VERTICAL_RETENTION,
   LOW_LOSS_COVERED,
+  NET_GAIN_MET,
   NO_RETAINED_AREA,
   SMALL_SITE,
   SMALL_SITE_BASELINE,
   TRADING_ALL_MET,
   TREE_SIZES,
   VERY_LOW_HEDGEROW_LOST,
+  WATERCOURSE_DEGRADED,
   WATERCOURSE_DEGRADED_BASELINE,
+  WATERCOURSE_ENHANCED_SHORTER,
   WATERCOURSE_REMEANDERED
 } from '@utils/service-template-files.js'
 import {
@@ -39,6 +43,8 @@ import {
   getHedgerowTradingMetProject,
   getIntertidalTradingProject,
   getLinearInterventionTypesProject,
+  getNoHedgerowsPostInterventionProject,
+  getNoWatercoursesPostInterventionProject,
   getNoWatercoursesProject,
   getTargetMetProject,
   getTreesPostInterventionProject,
@@ -332,5 +338,81 @@ export function getServiceTemplateRemeanderedWatercourseProject(browser) {
   return getServiceTemplatePostInterventionProject(
     browser,
     WATERCOURSE_REMEANDERED
+  )
+}
+
+/**
+ * Project summary stand-ins:
+ *
+ * - trees in a baseline: the default site's baseline-stage file (legacy: the
+ *   baseline-only project, whose trees are in its area habitats);
+ * - hedgerows in neither document: the degraded watercourse's file;
+ * - watercourses in neither document: the Medium deficit scenario,
+ *   trading-higher-deficit-not-covered-from-below.gpkg;
+ * - watercourse trading rules Met while the area ones are not: net-gain-met.gpkg
+ *   (legacy: the target-met pair);
+ * - area trading rules Met while the hedgerow and watercourse ones are not:
+ *   data-complete.gpkg (legacy: the area gain pair);
+ * - one hedgerow band failing while the Medium band is Met:
+ *   trading-lost-to-development.gpkg, whose Very low band fails (legacy: the
+ *   linear intervention types pair, whose Low and Very low bands fail);
+ * - watercourses gaining less than the 10% target:
+ *   watercourse-enhanced-shorter.gpkg, which only the BNG Service template run
+ *   uses; the legacy pair is project-summary.spec.js's own.
+ */
+export function getRunAreaTreesBaselineProject(browser) {
+  return isServiceTemplateRun()
+    ? getRunAllUnitTypesProject(browser)
+    : getBaselineOnlyProject(browser)
+}
+
+/** @see getRunAreaTreesBaselineProject */
+export function getRunNoHedgerowsPostInterventionProject(browser) {
+  return isServiceTemplateRun()
+    ? getServiceTemplatePostInterventionProject(browser, WATERCOURSE_DEGRADED)
+    : getNoHedgerowsPostInterventionProject(browser)
+}
+
+/** @see getRunAreaTreesBaselineProject */
+export function getRunNoWatercoursesPostInterventionProject(browser) {
+  return isServiceTemplateRun()
+    ? getServiceTemplatePostInterventionProject(browser, AREA_TRADING_DEFICIT)
+    : getNoWatercoursesPostInterventionProject(browser)
+}
+
+/** @see getRunAreaTreesBaselineProject */
+export function getRunWatercourseTradingMetProject(browser) {
+  return isServiceTemplateRun()
+    ? getServiceTemplateNetGainMetProject(browser)
+    : getTargetMetProject(browser)
+}
+
+/**
+ * net-gain-met.gpkg: area habitats clear the 10% target (+290.4%) and still
+ * break their trading rules.
+ */
+export function getServiceTemplateNetGainMetProject(browser) {
+  return getServiceTemplatePostInterventionProject(browser, NET_GAIN_MET)
+}
+
+/** @see getRunAreaTreesBaselineProject */
+export function getRunAreaTradingOnlyMetProject(browser) {
+  return isServiceTemplateRun()
+    ? getServiceTemplatePostInterventionProject(browser, DATA_COMPLETE)
+    : getAreaGainProject(browser)
+}
+
+/** @see getRunAreaTreesBaselineProject */
+export function getRunHedgerowOneBandFailingProject(browser) {
+  return isServiceTemplateRun()
+    ? getServiceTemplateVeryLowDeficitProject(browser)
+    : getLinearInterventionTypesProject(browser)
+}
+
+/** @see getRunAreaTreesBaselineProject */
+export function getServiceTemplateWatercourseBelowTargetProject(browser) {
+  return getServiceTemplatePostInterventionProject(
+    browser,
+    WATERCOURSE_ENHANCED_SHORTER
   )
 }
