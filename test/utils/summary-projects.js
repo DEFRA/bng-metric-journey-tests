@@ -518,6 +518,42 @@ export function getRunHedgerowGainProject(browser) {
     : getHedgerowGainProject(browser)
 }
 
+/**
+ * Hedgerows post-intervention stand-ins:
+ *
+ * - hedgerows on all three tabs, and the grids' rows: the default site, whose
+ *   Enhanced and Created hedgerows are all priced;
+ * - Retained and Enhanced hedgerows but no Created one: trading-all-met.gpkg;
+ * - hedgerows that break the trading rules: the small site (legacy: the area
+ *   gain pair).
+ */
+export function getRunHedgerowInterventionTypesProject(browser) {
+  return isServiceTemplateRun()
+    ? getServiceTemplatePostInterventionProject(browser, DEFAULT_SITE)
+    : getHedgerowInterventionTypesProject(browser)
+}
+
+/** @see getRunHedgerowInterventionTypesProject */
+export function getRunLinearInterventionTypesProject(browser) {
+  return isServiceTemplateRun()
+    ? getServiceTemplatePostInterventionProject(browser, DEFAULT_SITE)
+    : getLinearInterventionTypesProject(browser)
+}
+
+/** @see getRunHedgerowInterventionTypesProject */
+export function getRunHedgerowNoCreatedProject(browser) {
+  return isServiceTemplateRun()
+    ? getServiceTemplatePostInterventionProject(browser, TRADING_ALL_MET)
+    : getAllUnitTypesPostInterventionProject(browser)
+}
+
+/** @see getRunHedgerowInterventionTypesProject */
+export function getRunHedgerowTradingNotMetProject(browser) {
+  return isServiceTemplateRun()
+    ? getServiceTemplatePostInterventionProject(browser, SMALL_SITE)
+    : getAreaGainProject(browser)
+}
+
 /** A baseline-only project populating every unit type. */
 export function getAllUnitTypesProject(browser) {
   return getOrBuildProject(projectKey(ALL_UNIT_TYPES_FILE), () =>
