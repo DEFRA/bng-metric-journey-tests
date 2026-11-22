@@ -151,6 +151,24 @@
       "source": "permutations/trading-rules/trading-all-met.gpkg",
       "sha256": "e21951ff93bf9c24237e72c477593c01c01649268cee13b32a2834ffa24c951b",
       "for": "Every unit type's trading rules met, and the area habitats' net gain above the 10% target: area trading Met, unit deficit 0"
+    },
+    {
+      "file": "thirty-plus.gpkg",
+      "source": "permutations/advance-delay/thirty-plus.gpkg",
+      "sha256": "1617730c4c4cc8bea9aa2829d74d230c98f7b1e687b5db98d5ad25da979a232c",
+      "for": "Area habitats and trees only Enhanced or Created, none Retained: the area post-intervention page skips its Retained tab"
+    },
+    {
+      "file": "size-and-setting.gpkg",
+      "source": "permutations/trees/size-and-setting.gpkg",
+      "sha256": "ccccb74d9aa0847263a88b1784b6b2f041c0870a72ab25e567faadbf88157c96",
+      "for": "16 trees, Retained, Enhanced and Created, in every size band (T001 Small, T003 Medium, T005 Large, T007 Very large) and both settings"
+    },
+    {
+      "file": "baseline-significance-high.gpkg",
+      "source": "attribute-problems/baseline-significance-high.gpkg",
+      "sha256": "23872e97b22643de5a07a5cc36c8ce399fc70712b613d6a821525ab7ab02a487",
+      "for": "The default site with the Retained H002's Baseline Strategic Significance High in both stages: accepted, priced at Low"
     }
   ]
 }

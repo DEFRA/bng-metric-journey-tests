@@ -15,10 +15,13 @@
 import { STORAGE_STATE, baseUrl } from '@utils/env.js'
 import { isServiceTemplateRun } from '@utils/template-run.js'
 import {
+  BASELINE_SIGNIFICANCE_HIGH,
   DEFAULT_SITE,
   DEFAULT_SITE_BASELINE,
+  NO_RETAINED_AREA,
   SMALL_SITE_BASELINE,
-  TRADING_ALL_MET
+  TRADING_ALL_MET,
+  TREE_SIZES
 } from '@utils/service-template-files.js'
 import { setupProject } from '@utils/project-helpers.js'
 import { createProjectCache } from '@utils/shared-project.js'
@@ -378,6 +381,46 @@ export function getRunAreaGainProject(browser) {
   return isServiceTemplateRun()
     ? getServiceTemplatePostInterventionProject(browser, TRADING_ALL_MET)
     : getAreaGainProject(browser)
+}
+
+/**
+ * Area post-intervention stand-ins, as above:
+ *
+ * - area habitats on all three tabs, priced: the default site, whose tabs also
+ *   hold its vertical area habitats and trees;
+ * - no Retained area habitat at all: thirty-plus.gpkg;
+ * - a tree in every size band: size-and-setting.gpkg;
+ * - a Retained habitat whose file gives a strategic significance above Low:
+ *   baseline-significance-high.gpkg (legacy: the all-unit-types pair).
+ */
+export function getRunAreaInterventionTypesProject(browser) {
+  return isServiceTemplateRun()
+    ? getServiceTemplatePostInterventionProject(browser, DEFAULT_SITE)
+    : getAreaInterventionTypesProject(browser)
+}
+
+/** @see getRunAreaInterventionTypesProject */
+export function getRunNoRetainedAreaProject(browser) {
+  return isServiceTemplateRun()
+    ? getServiceTemplatePostInterventionProject(browser, NO_RETAINED_AREA)
+    : getAreaGainProject(browser)
+}
+
+/** @see getRunAreaInterventionTypesProject */
+export function getRunTreesPostInterventionProject(browser) {
+  return isServiceTemplateRun()
+    ? getServiceTemplatePostInterventionProject(browser, TREE_SIZES)
+    : getTreesPostInterventionProject(browser)
+}
+
+/** @see getRunAreaInterventionTypesProject */
+export function getRunRetainedSignificanceProject(browser) {
+  return isServiceTemplateRun()
+    ? getServiceTemplatePostInterventionProject(
+        browser,
+        BASELINE_SIGNIFICANCE_HIGH
+      )
+    : getAllUnitTypesPostInterventionProject(browser)
 }
 
 /** A baseline-only project populating every unit type. */
