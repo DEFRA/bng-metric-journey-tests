@@ -2,11 +2,11 @@ import { test, expect } from '@fixtures'
 import { HEDGEROWS_TRADING_SUMMARY_PATH } from '@pages/hedgerows-trading-summary.page.js'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import {
-  getAllUnitTypesPostInterventionProject,
-  getAllUnitTypesProject,
-  getBaselineOnlyProject,
-  getHedgerowGainProject,
-  getTargetMetProject
+  getRunAllUnitTypesProject,
+  getRunHedgerowGainProject,
+  getRunHedgerowShortfallProject,
+  getRunNoHedgerowsBaselineProject,
+  getRunTargetMetProject
 } from '@utils/summary-projects.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
@@ -66,7 +66,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
     let project
     test.beforeAll(async ({ browser }) => {
-      project = await getAllUnitTypesProject(browser)
+      project = await getRunAllUnitTypesProject(browser)
     })
 
     test(
@@ -268,7 +268,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getAllUnitTypesProject(browser)
+        project = await getRunAllUnitTypesProject(browser)
       })
 
       // Sole witness that the hedgerow route INTO this page works. The same two
@@ -353,7 +353,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getTargetMetProject(browser)
+        project = await getRunTargetMetProject(browser)
       })
 
       test('the deficit is clamped to zero, not a negative surplus', async ({
@@ -388,7 +388,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getAllUnitTypesPostInterventionProject(browser)
+        project = await getRunHedgerowShortfallProject(browser)
       })
 
       test('the deficit is the shortfall between units required and post-intervention', async ({
@@ -448,7 +448,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getHedgerowGainProject(browser)
+        project = await getRunHedgerowGainProject(browser)
       })
 
       // project-summary.spec.js witnesses this variant on the PROJECT SUMMARY.
@@ -573,7 +573,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getBaselineOnlyProject(browser)
+        project = await getRunNoHedgerowsBaselineProject(browser)
       })
 
       // The nav entry is conditional on the project having hedgerow data; the

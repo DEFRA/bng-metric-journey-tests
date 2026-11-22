@@ -16,14 +16,17 @@ import { STORAGE_STATE, baseUrl } from '@utils/env.js'
 import { isServiceTemplateRun } from '@utils/template-run.js'
 import {
   AREA_TRADING_DEFICIT,
+  AREA_TRADING_DEFICIT_BASELINE,
   BASELINE_SIGNIFICANCE_HIGH,
   DEFAULT_SITE,
   DEFAULT_SITE_BASELINE,
   EVERY_VERTICAL_RETENTION,
   NO_RETAINED_AREA,
+  SMALL_SITE,
   SMALL_SITE_BASELINE,
   TRADING_ALL_MET,
-  TREE_SIZES
+  TREE_SIZES,
+  WATERCOURSE_DEGRADED_BASELINE
 } from '@utils/service-template-files.js'
 import { setupProject } from '@utils/project-helpers.js'
 import { createProjectCache } from '@utils/shared-project.js'
@@ -448,6 +451,107 @@ export function getRunIntertidalTradingProject(browser) {
         EVERY_VERTICAL_RETENTION
       )
     : getIntertidalTradingProject(browser)
+}
+
+/**
+ * Hedgerow stand-ins:
+ *
+ * - hedgerows and no watercourses, baseline only: the Medium deficit
+ *   scenario's baseline-stage file;
+ * - no hedgerows, baseline only: the degraded watercourse's baseline-stage
+ *   file (the legacy baseline-only project has none either);
+ * - hedgerows that fall short of the 10% target: the small site (legacy: the
+ *   all-unit-types pair; the default site's hedgerows clear the target);
+ * - hedgerows Met in every band, with both linear types clearing the target:
+ *   trading-all-met.gpkg;
+ * - hedgerows only post-intervention: thirty-plus.gpkg.
+ */
+export function getRunNoWatercoursesProject(browser) {
+  return isServiceTemplateRun()
+    ? getOrBuildProject(projectKey(AREA_TRADING_DEFICIT_BASELINE), () =>
+        buildBaselineOnlyProject(browser, AREA_TRADING_DEFICIT_BASELINE)
+      )
+    : getNoWatercoursesProject(browser)
+}
+
+/** @see getRunNoWatercoursesProject */
+export function getRunNoHedgerowsBaselineProject(browser) {
+  return isServiceTemplateRun()
+    ? getOrBuildProject(projectKey(WATERCOURSE_DEGRADED_BASELINE), () =>
+        buildBaselineOnlyProject(browser, WATERCOURSE_DEGRADED_BASELINE)
+      )
+    : getBaselineOnlyProject(browser)
+}
+
+/** @see getRunNoWatercoursesProject */
+export function getRunHedgerowShortfallProject(browser) {
+  return isServiceTemplateRun()
+    ? getServiceTemplatePostInterventionProject(browser, SMALL_SITE)
+    : getAllUnitTypesPostInterventionProject(browser)
+}
+
+/** @see getRunNoWatercoursesProject */
+export function getRunHedgerowTradingMetProject(browser) {
+  return isServiceTemplateRun()
+    ? getServiceTemplatePostInterventionProject(browser, TRADING_ALL_MET)
+    : getHedgerowTradingMetProject(browser)
+}
+
+/** @see getRunNoWatercoursesProject */
+export function getRunHedgerowTradingAllMetProject(browser) {
+  return isServiceTemplateRun()
+    ? getServiceTemplatePostInterventionProject(browser, TRADING_ALL_MET)
+    : getHedgerowTradingAllMetProject(browser)
+}
+
+/** @see getRunNoWatercoursesProject */
+export function getRunTargetMetProject(browser) {
+  return isServiceTemplateRun()
+    ? getServiceTemplatePostInterventionProject(browser, TRADING_ALL_MET)
+    : getTargetMetProject(browser)
+}
+
+/** @see getRunNoWatercoursesProject */
+export function getRunHedgerowGainProject(browser) {
+  return isServiceTemplateRun()
+    ? getServiceTemplatePostInterventionProject(browser, NO_RETAINED_AREA)
+    : getHedgerowGainProject(browser)
+}
+
+/**
+ * Hedgerows post-intervention stand-ins:
+ *
+ * - hedgerows on all three tabs, and the grids' rows: the default site, whose
+ *   Enhanced and Created hedgerows are all priced;
+ * - Retained and Enhanced hedgerows but no Created one: trading-all-met.gpkg;
+ * - hedgerows that break the trading rules: the small site (legacy: the area
+ *   gain pair).
+ */
+export function getRunHedgerowInterventionTypesProject(browser) {
+  return isServiceTemplateRun()
+    ? getServiceTemplatePostInterventionProject(browser, DEFAULT_SITE)
+    : getHedgerowInterventionTypesProject(browser)
+}
+
+/** @see getRunHedgerowInterventionTypesProject */
+export function getRunLinearInterventionTypesProject(browser) {
+  return isServiceTemplateRun()
+    ? getServiceTemplatePostInterventionProject(browser, DEFAULT_SITE)
+    : getLinearInterventionTypesProject(browser)
+}
+
+/** @see getRunHedgerowInterventionTypesProject */
+export function getRunHedgerowNoCreatedProject(browser) {
+  return isServiceTemplateRun()
+    ? getServiceTemplatePostInterventionProject(browser, TRADING_ALL_MET)
+    : getAllUnitTypesPostInterventionProject(browser)
+}
+
+/** @see getRunHedgerowInterventionTypesProject */
+export function getRunHedgerowTradingNotMetProject(browser) {
+  return isServiceTemplateRun()
+    ? getServiceTemplatePostInterventionProject(browser, SMALL_SITE)
+    : getAreaGainProject(browser)
 }
 
 /** A baseline-only project populating every unit type. */

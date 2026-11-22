@@ -3,10 +3,11 @@ import { HEDGEROWS_TRADING_SUMMARY_PATH } from '@pages/hedgerows-trading-summary
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
-  getAllUnitTypesProject,
-  getHedgerowTradingMetProject,
-  getNoWatercoursesProject
+  getRunAllUnitTypesProject,
+  getRunHedgerowTradingMetProject,
+  getRunNoWatercoursesProject
 } from '@utils/summary-projects.js'
+import { isServiceTemplateRun } from '@utils/template-run.js'
 import { expectStatusTag, STATUS_MET } from '@utils/unit-type-tiles.js'
 import {
   AREA_HABITATS,
@@ -31,10 +32,11 @@ const KILOMETRES = /^\d+(\.\d+)?km$/
 const FIXED_STRATEGIC_SIGNIFICANCE = 'Low (1)'
 const REF_SORT_LOCALE = 'en'
 
-// `Baseline - all unit and intervention types.gpkg` — 40 hedgerows. Pinned
-// rather than counted loosely: a partial render is exactly the failure a
-// `> 0` check would wave through.
-const EXPECTED_HEDGEROWS = 40
+// The hedgerows of the run's all-unit-types project: 40 in the legacy
+// `Baseline - all unit and intervention types.gpkg`, 13 in the BNG Service
+// template's `default-site-baseline.gpkg`. Pinned rather than counted loosely:
+// a partial render is exactly the failure a `> 0` check would wave through.
+const EXPECTED_HEDGEROWS = isServiceTemplateRun() ? 13 : 40
 
 // BMD-859 AC5: the same five tiles the project summary and the hedgerows
 // summary carry, in the same order. Baseline-only project, so the
@@ -81,7 +83,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
     let project
     test.beforeAll(async ({ browser }) => {
-      project = await getAllUnitTypesProject(browser)
+      project = await getRunAllUnitTypesProject(browser)
     })
 
     // `hedgerows-baseline/controller.test.js` covers this page through the
@@ -156,10 +158,14 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         )
 
         // BMD-1101 AC2: the status the backend saves on upload reaches the
-        // grid. Every row of this file is valid, so every row is Complete.
-        const status = await hedgerowsBaselinePage.columnValues('status')
-        expect(status).toHaveLength(EXPECTED_HEDGEROWS)
-        expect(new Set(status)).toEqual(new Set([STATUS_COMPLETE]))
+        // grid. Every row of this file is valid, so every row is Complete. The
+        // column renders for the BNG Service template too, but its values are
+        // not asserted in this epic (BMD-1088).
+        if (!isServiceTemplateRun()) {
+          const status = await hedgerowsBaselinePage.columnValues('status')
+          expect(status).toHaveLength(EXPECTED_HEDGEROWS)
+          expect(new Set(status)).toEqual(new Set([STATUS_COMPLETE]))
+        }
       }
     )
 
@@ -264,7 +270,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getAllUnitTypesProject(browser)
+        project = await getRunAllUnitTypesProject(browser)
       })
 
       // The unit suite covers all of this against mocked `wreck` literals,
@@ -383,7 +389,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // this project.
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getNoWatercoursesProject(browser)
+        project = await getRunNoWatercoursesProject(browser)
       })
 
       // The other half of AC3's condition. `projectHasHabitatData` is called
@@ -417,7 +423,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getAllUnitTypesProject(browser)
+        project = await getRunAllUnitTypesProject(browser)
       })
 
       // BMD-859 AC2. Sole witness for this route: project-summary.spec.js:984
@@ -495,7 +501,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         hedgerowsBaselinePage,
         browser
       }) => {
-        const project = await getHedgerowTradingMetProject(browser)
+        const project = await getRunHedgerowTradingMetProject(browser)
         await hedgerowsBaselinePage.open(project.id)
 
         await expectStatusTag(
@@ -511,7 +517,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         hedgerowsBaselinePage,
         browser
       }) => {
-        const project = await getHedgerowTradingMetProject(browser)
+        const project = await getRunHedgerowTradingMetProject(browser)
         await hedgerowsBaselinePage.open(project.id)
 
         const tradingSummaryHref = `/projects/${project.id}/${HEDGEROWS_TRADING_SUMMARY_PATH}`

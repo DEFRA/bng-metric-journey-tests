@@ -48,3 +48,9 @@ export const AREA_TRADING_DEFICIT = `${DIR}/trading-higher-deficit-not-covered-f
 // Vertical area habitats V001 Retained, V002 Enhanced, V003 Created (IGGI) and
 // V004 Lost: its IGGI trades in the merged intertidal group.
 export const EVERY_VERTICAL_RETENTION = `${DIR}/every-retention.gpkg`
+
+// Its baseline-stage file: hedgerows and no watercourses.
+export const AREA_TRADING_DEFICIT_BASELINE = `${DIR}/trading-higher-deficit-not-covered-from-below-baseline.gpkg`
+
+// Watercourses and no hedgerows: the degraded watercourse's baseline-stage file.
+export const WATERCOURSE_DEGRADED_BASELINE = `${DIR}/watercourse-degraded-baseline.gpkg`

@@ -4,11 +4,17 @@ import { HEDGEROWS_TRADING_SUMMARY_PATH } from '@pages/hedgerows-trading-summary
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
-  getAllUnitTypesPostInterventionProject,
-  getAreaGainProject,
-  getHedgerowInterventionTypesProject,
-  getLinearInterventionTypesProject
+  getRunAllUnitTypesPostInterventionProject,
+  getRunHedgerowInterventionTypesProject,
+  getRunHedgerowNoCreatedProject,
+  getRunHedgerowTradingNotMetProject,
+  getRunLinearInterventionTypesProject
 } from '@utils/summary-projects.js'
+import {
+  LEGACY_ONLY,
+  SERVICE_TEMPLATE_ONLY,
+  isServiceTemplateRun
+} from '@utils/template-run.js'
 import { expectStatusTag, STATUS_NOT_MET } from '@utils/unit-type-tiles.js'
 import {
   AREA_HABITATS,
@@ -83,22 +89,11 @@ const KILOMETRES = /^\d+(\.\d+)?km$/
 // it only for a non-finite multiplier, which no calculated row carries, and an
 // optional group would let a regression that dropped every multiplier pass.
 const LABEL_AND_SCORE = /^[^()]+ \(-?\d+(\.\d+)?\)$/
-const YEARS = /^\d+ years?$/
+// A time over the metric's 30 years reads "30+ years".
+const YEARS = /^\d+\+? years?$/
 // "{n} year(s) ({multiplier})" — the Final time to target shape.
-const YEARS_AND_SCORE = /^\d+ years? \(-?\d+(\.\d+)?\)$/
+const YEARS_AND_SCORE = /^\d+\+? years? \(-?\d+(\.\d+)?\)$/
 const FIXED_STRATEGIC_SIGNIFICANCE = 'Low (1)'
-// BMD-1038: an Enhanced or Created hedgerow is priced at its Proposed Strategic
-// Significance. HG018's is "Formally identified in local strategy" in the
-// all-unit-types fixture, which the metric's G-3 table prices at High (×1.15).
-const HG018_STRATEGIC_SIGNIFICANCE = 'High (1.15)'
-// BMD-1051 AC3, `created linear features` (journey-tests copy): the Created
-// hedgerows show their file's Low or High. HG013 is the only Created feature in
-// any shipped fixture carrying High, and is on-site.
-const CREATED_PRICED_STRATEGIC_SIGNIFICANCE = {
-  HG013: 'High (1.15)',
-  HG018: 'Low (1)'
-}
-const CREATED_HIGH_REF = 'HG013'
 
 // Column sets from `buildColumns` in
 // common/helpers/post-intervention-habitat-grid.js. Retained carries Condition;
@@ -134,48 +129,88 @@ const PROPOSED_COLUMNS = TARGET_COLUMNS.slice(
   TARGET_COLUMNS.indexOf('Habitat type')
 )
 
-// The refs `Post-intervention - created linear features.gpkg` carries per
-// intervention type, in the ascending order AC7 requires. Pinned rather than
-// counted loosely: a partial render is exactly the failure a `> 0` check would
-// wave through. Its other 5 hedgerows are Lost, which the backend drops at
-// import (BMD-531/534), so they reach no tab.
-const RETAINED_REFS = [
-  'HG004',
-  'HG007',
-  'HG008',
-  'HG012',
-  'HG015',
-  'HG016',
-  'HG017'
-]
-const CREATED_REFS = ['HG005', 'HG010', 'HG013', 'HG018']
-// The same file's Enhanced refs — used only to click one (AC10b); their VALUES
-// are uncalculated, see the Enhanced grid test.
-const ENHANCED_ON_GRID_REF = 'HG006'
-
-// `Post-intervention - all unit and intervention types.gpkg`, whose Enhanced
-// hedgerows are the only ones that can witness AC4b's column values.
-const ENHANCED_REFS = [
-  'HG011',
-  'HG012',
-  'HG018',
-  'HG026',
-  'HG030',
-  'HG031',
-  'HG032',
-  'HG034',
-  'HG040'
-]
-const ENHANCED_CALCULATED_REF = 'HG018'
+// Each run's hedgerow rows per tab, in the ascending order AC7 requires, and the
+// rows its tests read. Pinned rather than counted loosely: a partial render is
+// exactly the failure a `> 0` check would wave through.
+//
+// Legacy: the Retained and Created rows are `Post-intervention - created
+// linear features.gpkg`'s (its other 5 hedgerows are Lost, which the backend
+// drops at import, BMD-531/534); its Enhanced hedgerows (HG006) are
+// uncalculated, so the Enhanced grid's values come from `Post-intervention -
+// all unit and intervention types.gpkg`, whose HG018 is the one Enhanced
+// hedgerow with a real uplift. BMD-1038: an Enhanced or Created hedgerow is
+// priced at its Proposed Strategic Significance; HG018's is "Formally
+// identified in local strategy", which the metric's G-3 table prices at High
+// (×1.15). BMD-1051 AC3: the Created hedgerows show their file's Low or High;
+// HG013 is the only Created feature in any legacy fixture carrying High, and
+// is on-site.
+//
+// BNG Service template: the default site for every grid. Its Enhanced and
+// Created hedgerows are all priced; HG018 is split into a Retained part (a)
+// and a Created part (b); HG017 is the hedgerow that gets worse, Created
+// again in a lower condition 30+ years in advance. HG008 is a Created
+// hedgerow at High.
+const GRID = isServiceTemplateRun()
+  ? {
+      retainedRefs: ['HG001', 'HG003', 'HG010', 'HG012', 'HG018a'],
+      createdRefs: [
+        'HG008',
+        'HG009',
+        'HG014',
+        'HG015',
+        'HG016',
+        'HG017',
+        'HG018b'
+      ],
+      enhancedOnGridRef: 'HG002',
+      enhancedRefs: ['HG002', 'HG005', 'HG013'],
+      enhancedCalculated: { ref: 'HG002', significance: 'High (1.15)' },
+      createdSignificance: { HG008: 'High (1.15)', HG009: 'Low (1)' },
+      createdHighRef: 'HG008'
+    }
+  : {
+      retainedRefs: [
+        'HG004',
+        'HG007',
+        'HG008',
+        'HG012',
+        'HG015',
+        'HG016',
+        'HG017'
+      ],
+      createdRefs: ['HG005', 'HG010', 'HG013', 'HG018'],
+      enhancedOnGridRef: 'HG006',
+      enhancedRefs: [
+        'HG011',
+        'HG012',
+        'HG018',
+        'HG026',
+        'HG030',
+        'HG031',
+        'HG032',
+        'HG034',
+        'HG040'
+      ],
+      enhancedCalculated: { ref: 'HG018', significance: 'High (1.15)' },
+      createdSignificance: { HG013: 'High (1.15)', HG018: 'Low (1)' },
+      createdHighRef: 'HG013'
+    }
 // BMD-1051: HG032 (Moderate→Good, a valid enhancement) carries a Medium
 // Proposed Strategic Significance, which the backend rejects and prices at
 // zero. fixture-mutations.py sets its Good; the harness's copy has Poor, which
-// BMD-820 would reject first.
+// BMD-820 would reject first. Legacy only: the BNG Service template offers no
+// Medium.
 const ENHANCED_REJECTED_SIGNIFICANCE_REF = 'HG032'
 // BMD-820: HG031 (Moderate→Moderate; recut from Good→Moderate for BMD-1182,
 // which refuses a Good Medium baseline) breaks the medium-hedgerow rule,
-// so every proposed field is nulled before BMD-1051 is checked.
+// so every proposed field is nulled before BMD-1051 is checked. Legacy only:
+// its file is cut by fixture-mutations.py.
 const ENHANCED_INVALID_ENHANCEMENT_REF = 'HG031'
+// The default site's hedgerow significances, its degraded hedgerow, and the
+// baseline hedgerows it removes: they have no post-intervention row (AC5).
+const SERVICE_TEMPLATE_SIGNIFICANCES = ['Low (1)', 'High (1.15)']
+const DEGRADED_HEDGEROW_REF = 'HG017'
+const REMOVED_HEDGEROW_REFS = ['HG004', 'HG006', 'HG007', 'HG011']
 const LABEL_ONLY = /^[^()]+$/
 
 const detailsHrefPattern = (projectId) =>
@@ -283,7 +318,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
     let project
     test.beforeAll(async ({ browser }) => {
-      project = await getHedgerowInterventionTypesProject(browser)
+      project = await getRunHedgerowInterventionTypesProject(browser)
     })
 
     test(
@@ -424,13 +459,14 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       await expect(
         hedgerowsPostInterventionPage.navLink(AREA_HABITATS)
       ).toBeVisible()
-      // The conditional Watercourses item is absent: the baseline file has
-      // rivers, but since BMD-1056/BMD-1066 the PI upload replaces that
-      // baseline with one derived from `hedgerows mixed retention`, which has
-      // no Rivers layer, so neither document carries watercourses.
+      // The conditional Watercourses item follows the project. Legacy: absent —
+      // the baseline file has rivers, but since BMD-1056/BMD-1066 the PI upload
+      // replaces that baseline with one derived from `hedgerows mixed
+      // retention`, which has no Rivers layer, so neither document carries
+      // watercourses. The BNG Service template's default site has them.
       await expect(
         hedgerowsPostInterventionPage.navLink(WATERCOURSES)
-      ).toHaveCount(0)
+      ).toHaveCount(isServiceTemplateRun() ? 1 : 0)
     })
   })
 
@@ -461,7 +497,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getHedgerowInterventionTypesProject(browser)
+        project = await getRunHedgerowInterventionTypesProject(browser)
       })
 
       test(
@@ -538,7 +574,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // worker — always in CI (workers: 1), never when this file runs alone.
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getAllUnitTypesPostInterventionProject(browser)
+        project = await getRunHedgerowNoCreatedProject(browser)
       })
 
       // The other half of AC6's condition. `visibleInterventionTabs` filters
@@ -575,7 +611,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getHedgerowInterventionTypesProject(browser)
+        project = await getRunHedgerowInterventionTypesProject(browser)
       })
 
       // AC2a and AC2b. Two separate view-model paths that happen to share a
@@ -674,16 +710,19 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      // Two projects. The first is the grid fixture: several hedgerows in each
-      // of the three tabs, which is what a totals row, a default ordering and a
-      // re-sort all need. The second is free — `project-summary.spec.js` builds
-      // it in the same module-scope cache — and is here for one row only, see
-      // ENHANCED_CALCULATED_REF.
+      // Two projects in the legacy run. The first is the grid fixture: several
+      // hedgerows in each of the three tabs, which is what a totals row, a
+      // default ordering and a re-sort all need. The second is free —
+      // `project-summary.spec.js` builds it in the same module-scope cache —
+      // and is here for one row only, see GRID.enhancedCalculated. In the BNG
+      // Service template run both are the default site, whose Enhanced
+      // hedgerows are priced.
       let project
       let enhancedProject
       test.beforeAll(async ({ browser }) => {
-        project = await getLinearInterventionTypesProject(browser)
-        enhancedProject = await getAllUnitTypesPostInterventionProject(browser)
+        project = await getRunLinearInterventionTypesProject(browser)
+        enhancedProject =
+          await getRunAllUnitTypesPostInterventionProject(browser)
       })
 
       // AC4a, AC5, AC7 on the Retained grid — the only tab with a Condition
@@ -698,14 +737,14 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           // Retained is the first visible tab, so it is selected on load.
           expect(await grid.columnHeadings(RETAINED)).toEqual(RETAINED_COLUMNS)
           await expect(grid.featureRows(RETAINED)).toHaveCount(
-            RETAINED_REFS.length
+            GRID.retainedRefs.length
           )
 
           // AC7: sorted by ref ascending server-side. Pinned to the expected
           // refs rather than "is this array sorted" — a partial render is
           // exactly the failure a self-comparison would wave through.
           expect(await grid.columnValues(RETAINED, 'Ref')).toEqual(
-            RETAINED_REFS
+            GRID.retainedRefs
           )
           // ...and no column highlighted until the user clicks one.
           expect(await grid.sortStates(RETAINED)).toEqual(
@@ -731,7 +770,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           // featureId; only a real import proves the feature has one to put in
           // it — `buildRefCell` renders a plain text cell when it does not.
           await expect(
-            grid.refLink(RETAINED, RETAINED_REFS[0])
+            grid.refLink(RETAINED, GRID.retainedRefs[0])
           ).toHaveAttribute('href', detailsHrefPattern(project.id))
 
           await expectTotalsRow(grid, RETAINED)
@@ -749,8 +788,12 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
         expect(await grid.columnHeadings(CREATED)).toEqual(TARGET_COLUMNS)
         expect(await grid.columnHeadings(CREATED)).not.toContain('Condition')
-        await expect(grid.featureRows(CREATED)).toHaveCount(CREATED_REFS.length)
-        expect(await grid.columnValues(CREATED, 'Ref')).toEqual(CREATED_REFS)
+        await expect(grid.featureRows(CREATED)).toHaveCount(
+          GRID.createdRefs.length
+        )
+        expect(await grid.columnValues(CREATED, 'Ref')).toEqual(
+          GRID.createdRefs
+        )
         expect(await grid.sortStates(CREATED)).toEqual(
           TARGET_COLUMNS.map(() => 'none')
         )
@@ -792,14 +835,14 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         // not yet priced) is applied.
         const rows = {}
         for (const [ref, significance] of Object.entries(
-          CREATED_PRICED_STRATEGIC_SIGNIFICANCE
+          GRID.createdSignificance
         )) {
           rows[ref] = await targetRow(grid, CREATED, ref)
           expect(rows[ref]['Strategic significance'], ref).toBe(significance)
           expect(Number(rows[ref].Units), `${ref} Units`).toBeGreaterThan(0)
         }
 
-        const high = rows[CREATED_HIGH_REF]
+        const high = rows[GRID.createdHighRef]
         const product =
           Number.parseFloat(high.Size) *
           score(high.Distinctiveness) *
@@ -809,7 +852,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           score(high['Standard difficulty'])
         expect(
           Math.abs(Number(high.Units) - product),
-          `${CREATED_HIGH_REF}: ${high.Units} vs ${JSON.stringify(high)}`
+          `${GRID.createdHighRef}: ${high.Units} vs ${JSON.stringify(high)}`
         ).toBeLessThanOrEqual(unitsTolerance(product))
 
         await expectTotalsRow(grid, CREATED)
@@ -836,15 +879,19 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         expect(await grid.columnHeadings(ENHANCED)).toEqual(TARGET_COLUMNS)
         expect(await grid.columnHeadings(ENHANCED)).not.toContain('Condition')
         await expect(grid.featureRows(ENHANCED)).toHaveCount(
-          ENHANCED_REFS.length
+          GRID.enhancedRefs.length
         )
-        expect(await grid.columnValues(ENHANCED, 'Ref')).toEqual(ENHANCED_REFS)
+        expect(await grid.columnValues(ENHANCED, 'Ref')).toEqual(
+          GRID.enhancedRefs
+        )
 
-        const row = await targetRow(grid, ENHANCED, ENHANCED_CALCULATED_REF)
+        const row = await targetRow(grid, ENHANCED, GRID.enhancedCalculated.ref)
         expect(row.Units).toMatch(GRID_UNITS_2DP)
         expect(row.Size).toMatch(KILOMETRES)
         expect(row.Distinctiveness).toMatch(LABEL_AND_SCORE)
-        expect(row['Strategic significance']).toBe(HG018_STRATEGIC_SIGNIFICANCE)
+        expect(row['Strategic significance']).toBe(
+          GRID.enhancedCalculated.significance
+        )
         expect(row['Target condition']).toMatch(LABEL_AND_SCORE)
         expect(row['Standard time to target']).toMatch(YEARS)
         expect(row.Advance).toMatch(YEARS)
@@ -860,50 +907,54 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // BMD-1070, backend PR #498) the feature saved with null units. Units
       // shows 0.00 since BMD-1046 (frontend PR #532), display only. The user's own proposed condition and years survive, which
       // is what sets it apart from a BMD-820 rejection below.
-      test('an Enhanced hedgerow with a rejected strategic significance is left unpriced', async ({
-        hedgerowsPostInterventionPage
-      }) => {
-        const grid = hedgerowsPostInterventionPage
-        await grid.open(enhancedProject.id)
-        await grid.tab(ENHANCED).click()
+      test(
+        'an Enhanced hedgerow with a rejected strategic significance is left unpriced',
+        { tag: LEGACY_ONLY },
+        async ({ hedgerowsPostInterventionPage }) => {
+          const grid = hedgerowsPostInterventionPage
+          await grid.open(enhancedProject.id)
+          await grid.tab(ENHANCED).click()
 
-        const row = await targetRow(
-          grid,
-          ENHANCED,
-          ENHANCED_REJECTED_SIGNIFICANCE_REF
-        )
-        expect(row.Units).toBe('0.00')
-        expect(row.Distinctiveness).toBe('')
-        expect(row['Strategic significance']).toBe('')
-        expect(row['Target condition']).toMatch(LABEL_ONLY)
-        expect(row.Advance).toMatch(YEARS)
-        expect(row.Delay).toMatch(YEARS)
-        expect(row['Standard difficulty']).toBe('')
-      })
+          const row = await targetRow(
+            grid,
+            ENHANCED,
+            ENHANCED_REJECTED_SIGNIFICANCE_REF
+          )
+          expect(row.Units).toBe('0.00')
+          expect(row.Distinctiveness).toBe('')
+          expect(row['Strategic significance']).toBe('')
+          expect(row['Target condition']).toMatch(LABEL_ONLY)
+          expect(row.Advance).toMatch(YEARS)
+          expect(row.Delay).toMatch(YEARS)
+          expect(row['Standard difficulty']).toBe('')
+        }
+      )
 
       // BMD-820, backend PR #477: an enhancement that is not valid for its
       // baseline has every proposed field nulled on import. Since BMD-1070
       // (backend PR #498) its units are null too. Only the shape-derived Size
       // and, since BMD-1046 (frontend PR #532), a display-only 0.00 Units
       // render.
-      test('an Enhanced hedgerow that is not a valid enhancement of its baseline is left unpriced with no proposed values', async ({
-        hedgerowsPostInterventionPage
-      }) => {
-        const grid = hedgerowsPostInterventionPage
-        await grid.open(enhancedProject.id)
-        await grid.tab(ENHANCED).click()
+      test(
+        'an Enhanced hedgerow that is not a valid enhancement of its baseline is left unpriced with no proposed values',
+        { tag: LEGACY_ONLY },
+        async ({ hedgerowsPostInterventionPage }) => {
+          const grid = hedgerowsPostInterventionPage
+          await grid.open(enhancedProject.id)
+          await grid.tab(ENHANCED).click()
 
-        const row = await targetRow(
-          grid,
-          ENHANCED,
-          ENHANCED_INVALID_ENHANCEMENT_REF
-        )
-        expect(row.Units).toBe('0.00')
-        expect(row.Size).toMatch(KILOMETRES)
-        for (const column of PROPOSED_COLUMNS) {
-          expect(row[column], column).toBe('')
+          const row = await targetRow(
+            grid,
+            ENHANCED,
+            ENHANCED_INVALID_ENHANCEMENT_REF
+          )
+          expect(row.Units).toBe('0.00')
+          expect(row.Size).toMatch(KILOMETRES)
+          for (const column of PROPOSED_COLUMNS) {
+            expect(row[column], column).toBe('')
+          }
         }
-      })
+      )
 
       // AC8 and AC9. The `aria-sort` toggle itself is MOJ's own component
       // behaviour, already witnessed by real clicks in
@@ -933,7 +984,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           await sortButton.click()
           await expect(sizeHeader).toHaveAttribute('aria-sort', 'ascending')
           const ascending = await sizeValues(grid, RETAINED)
-          expect(ascending).toHaveLength(RETAINED_REFS.length)
+          expect(ascending).toHaveLength(GRID.retainedRefs.length)
           expect(ascending).toEqual([...ascending].sort((a, b) => a - b))
 
           await sortButton.click()
@@ -987,9 +1038,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           const grid = hedgerowsPostInterventionPage
 
           for (const [label, reference] of [
-            [RETAINED, RETAINED_REFS[0]],
-            [ENHANCED, ENHANCED_ON_GRID_REF],
-            [CREATED, CREATED_REFS[0]]
+            [RETAINED, GRID.retainedRefs[0]],
+            [ENHANCED, GRID.enhancedOnGridRef],
+            [CREATED, GRID.createdRefs[0]]
           ]) {
             await grid.open(project.id)
             if (label !== RETAINED) {
@@ -1024,6 +1075,91 @@ test.describe('project-management', { tag: '@project-management' }, () => {
   // AREA verdict is Met and the hedgerow one Not met — the only shared pairing
   // that separates them — so a mis-wiring to the area function fails here.
 
+  // ─── BNG Service template values (BMD-1088 AC5) ───────────────────────────────
+  //
+  // What only a BNG Service template project shows on this grid: strategic
+  // significance Low or High, the two the template offers (a legacy file could
+  // give Medium, which the service rejects, tested above); a hedgerow that
+  // gets worse, recorded as Created again in its own type; and a hedgerow the
+  // file removes, which has no post-intervention row at all.
+
+  test.describe(
+    'Hedgerows post-intervention — BNG Service template values',
+    { tag: ['@regression', SERVICE_TEMPLATE_ONLY] },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      let project
+      test.beforeAll(async ({ browser }) => {
+        project = await getRunHedgerowInterventionTypesProject(browser)
+      })
+
+      test('Enhanced and Created hedgerows carry a Low or High strategic significance, and never Medium', async ({
+        hedgerowsPostInterventionPage
+      }) => {
+        const grid = hedgerowsPostInterventionPage
+        await grid.open(project.id)
+
+        const seen = new Set()
+        for (const [label, refs] of [
+          [ENHANCED, GRID.enhancedRefs],
+          [CREATED, GRID.createdRefs]
+        ]) {
+          await grid.tab(label).click()
+          const values = await grid.columnValues(
+            label,
+            'Strategic significance'
+          )
+          expect(values, `${label} rows`).toHaveLength(refs.length)
+          for (const value of values) {
+            expect(
+              SERVICE_TEMPLATE_SIGNIFICANCES,
+              `${label} ${value}`
+            ).toContain(value)
+            seen.add(value)
+          }
+        }
+        expect([...seen].sort()).toEqual(
+          [...SERVICE_TEMPLATE_SIGNIFICANCES].sort()
+        )
+      })
+
+      test('a hedgerow that gets worse is listed as Created, in its own type, with its target values', async ({
+        hedgerowsPostInterventionPage
+      }) => {
+        const grid = hedgerowsPostInterventionPage
+        await grid.open(project.id)
+        await grid.tab(CREATED).click()
+
+        const row = await targetRow(grid, CREATED, DEGRADED_HEDGEROW_REF)
+        expect(row['Habitat type']).toBe(
+          'Ecologically valuable line of trees - associated with bank or ditch'
+        )
+        expect(Number(row.Units)).toBeGreaterThan(0)
+        expect(row['Target condition']).toMatch(LABEL_AND_SCORE)
+        expect(row.Advance).toMatch(YEARS)
+        expect(row['Final time to target']).toMatch(YEARS_AND_SCORE)
+      })
+
+      test('a hedgerow the file removes is on no tab', async ({
+        hedgerowsPostInterventionPage
+      }) => {
+        const grid = hedgerowsPostInterventionPage
+        await grid.open(project.id)
+
+        const listed = []
+        for (const label of ALL_TABS) {
+          await grid.tab(label).click()
+          listed.push(...(await grid.columnValues(label, 'Ref')))
+        }
+        for (const ref of REMOVED_HEDGEROW_REFS) {
+          expect(listed, ref).not.toContain(ref)
+        }
+      })
+    }
+  )
+
   test.describe(
     'Hedgerows post-intervention — trading rules status',
     { tag: '@regression' },
@@ -1035,7 +1171,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         hedgerowsPostInterventionPage,
         browser
       }) => {
-        const project = await getAreaGainProject(browser)
+        const project = await getRunHedgerowTradingNotMetProject(browser)
         await hedgerowsPostInterventionPage.open(project.id)
 
         await expectStatusTag(
