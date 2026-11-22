@@ -360,8 +360,10 @@ function getServiceTemplatePostInterventionProject(browser, file) {
  *
  * - every unit type, baseline only: the default site's baseline-stage file;
  * - every unit type, with a post-intervention document: the default site,
- *   whose area habitats fall short of the 10% target and break the area
- *   trading rules;
+ *   whose area habitats (267.48 -> 230.88 units) and watercourses (7.65 ->
+ *   2.45, against 8.42 required) fall short of the 10% target, and whose area
+ *   and watercourse trading rules are not met. Its hedgerows clear the target
+ *   (23.40 -> 26.67), so a hedgerow shortfall uses the small site;
  * - area habitats that meet the target and the trading rules:
  *   trading-all-met.gpkg.
  *
