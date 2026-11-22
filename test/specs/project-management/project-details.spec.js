@@ -10,9 +10,11 @@ import {
 } from '@utils/env.js'
 import {
   ALL_UNIT_TYPES_PI_FILE,
-  buildPostInterventionOnlyProject,
-  getAllUnitTypesPostInterventionProject
+  buildPostInterventionOnlyProject
 } from '@utils/summary-projects.js'
+import { getRunAllUnitTypesPostInterventionProject } from '@utils/run-projects.js'
+import { DEFAULT_SITE } from '@utils/service-template-files.js'
+import { isServiceTemplateRun } from '@utils/template-run.js'
 import { CreateProjectFlow } from '@flows/project-management/create-project.flow.js'
 import { ProjectDashboardPage } from '@pages/project-dashboard.page.js'
 import {
@@ -48,6 +50,10 @@ const DATE_MISSING_MONTH_AND_YEAR = 'Survey date must include month and year'
 const LPA_NOT_IN_LIST = 'Select a local planning authority from the list'
 const ERROR_CLASS = /govuk-input--error/
 const HEDGEROWS_POST_INTERVENTION = 'hedgerows-post-intervention'
+// A post-intervention file with hedgerows, in the template this run tests.
+const POST_INTERVENTION_FILE = isServiceTemplateRun()
+  ? DEFAULT_SITE
+  : ALL_UNIT_TYPES_PI_FILE
 
 async function setupProject(createProjectFlow, projectDashboardPage) {
   const name = `Project details test ${Date.now()}`
@@ -377,7 +383,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       let project
 
       test.beforeAll(async ({ browser }) => {
-        project = await getAllUnitTypesPostInterventionProject(browser)
+        project = await getRunAllUnitTypesPostInterventionProject(browser)
       })
 
       // BMD-849 AC1 and AC9. Sole witness that a real page's nav link carries
@@ -437,7 +443,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       test.beforeAll(async ({ browser }) => {
         project = await buildPostInterventionOnlyProject(
           browser,
-          ALL_UNIT_TYPES_PI_FILE
+          POST_INTERVENTION_FILE
         )
       })
 
