@@ -7,7 +7,7 @@ import {
   getRunHedgerowTradingAllMetProject,
   getRunLinearInterventionTypesProject,
   getServiceTemplateVeryLowDeficitProject
-} from '@utils/summary-projects.js'
+} from '@utils/run-projects.js'
 import {
   LEGACY_ONLY,
   SERVICE_TEMPLATE_ONLY,

@@ -4,13 +4,15 @@ import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import {
   getAllUnitTypesPostInterventionProject,
   getLongPaddedRefsProject,
+  LONG_PADDED_REFS
+} from '@utils/summary-projects.js'
+import {
   getRunAllUnitTypesPostInterventionProject,
   getRunAreaInterventionTypesProject,
   getRunNoRetainedAreaProject,
   getRunRetainedSignificanceProject,
-  getRunTreesPostInterventionProject,
-  LONG_PADDED_REFS
-} from '@utils/summary-projects.js'
+  getRunTreesPostInterventionProject
+} from '@utils/run-projects.js'
 import {
   LEGACY_ONLY,
   SERVICE_TEMPLATE_ONLY,

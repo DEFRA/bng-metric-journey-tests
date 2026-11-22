@@ -7,7 +7,7 @@ import {
 } from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
-import { getRunBaselineProject } from '@utils/summary-projects.js'
+import { getRunBaselineProject } from '@utils/run-projects.js'
 import {
   describeRoleEnforcement,
   describeUnauthenticatedAccess

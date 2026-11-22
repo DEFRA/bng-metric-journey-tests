@@ -10,10 +10,18 @@ import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
   getAllUnitTypesPostInterventionProject,
-  getBaselineOnlyProject,
-  getTargetMetProject,
   getWatercourseGainProject
 } from '@utils/summary-projects.js'
+import {
+  getRunAllUnitTypesPostInterventionProject,
+  getRunBaselineProject,
+  getRunTargetMetProject
+} from '@utils/run-projects.js'
+import {
+  LEGACY_ONLY,
+  SERVICE_TEMPLATE_ONLY,
+  isServiceTemplateRun
+} from '@utils/template-run.js'
 import {
   expectStatusTag,
   STATUS_MET,
@@ -28,6 +36,17 @@ import {
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 
 const UNIT_CHANGE_COLUMNS = ['Habitat type', 'Unit change']
+
+// The Medium band's rows where it has no deficit. Legacy: `linear net gain
+// met`, whose only watercourse type, Canals, gains 0.47 units. BNG Service
+// template: trading-all-met.gpkg, whose Canals hold their units and Ditches
+// gain 1.31.
+const MEDIUM_MET_ROWS = isServiceTemplateRun()
+  ? [
+      ['Canals', '0.00'],
+      ['Ditches', '1.31']
+    ]
+  : [['Canals', '0.47']]
 
 const tradingSummaryUrl = (id) =>
   new RegExp(`/projects/${id}/${WATERCOURSES_TRADING_SUMMARY_PATH}$`)
@@ -52,7 +71,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
   // Figures probed against the stack on 2026-10-15. Since BMD-1056 the
   // baseline is derived from the post-intervention file's Baseline columns, so
   // a fixture regeneration can move them — check the PI file first if one
-  // disagrees.
+  // disagrees. The BNG Service template figures are the backend's for the
+  // copies in test/example-files/service-template/, read on 2026-11-22.
   test.describe(
     'Watercourses trading summary — band sections',
     { tag: '@regression' },
@@ -60,13 +80,12 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      // `linear net gain met`: the only watercourse type, Canals, gains 0.47
-      // units and every watercourse is Medium.
+      // Every watercourse is Medium; see MEDIUM_MET_ROWS.
       test('a Medium band with no deficit reads "Met" and no Low band is listed', async ({
         browser,
         watercoursesTradingSummaryPage
       }) => {
-        const project = await getTargetMetProject(browser)
+        const project = await getRunTargetMetProject(browser)
         await watercoursesTradingSummaryPage.open(project.id)
 
         expect(await watercoursesTradingSummaryPage.bandNames()).toEqual([
@@ -91,7 +110,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         )
         expect(
           await watercoursesTradingSummaryPage.readBandGrid(MEDIUM)
-        ).toEqual({ headers: UNIT_CHANGE_COLUMNS, rows: [['Canals', '0.47']] })
+        ).toEqual({ headers: UNIT_CHANGE_COLUMNS, rows: MEDIUM_MET_ROWS })
         await expect(
           watercoursesTradingSummaryPage.bandSection(LOW)
         ).toHaveCount(0)
@@ -104,116 +123,204 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // figure was 0.32. SOLE witness on this page for the Low band, for its
       // tag on the cumulative tile (PR#387), and for
       // `showLowTotals: false` — neither grid has a totals row, unlike the
-      // area page.
-      test('a Medium deficit and a Low running total below zero both read "Not met"', async ({
-        browser,
-        watercoursesTradingSummaryPage
-      }) => {
-        const project = await getAllUnitTypesPostInterventionProject(browser)
-        await watercoursesTradingSummaryPage.open(project.id)
+      // area page. Legacy only: no BNG Service template file in the harness
+      // corpus has a Low watercourse band below zero, other than one the
+      // service refuses.
+      test(
+        'a Medium deficit and a Low running total below zero both read "Not met"',
+        {
+          tag: LEGACY_ONLY
+        },
+        async ({ browser, watercoursesTradingSummaryPage }) => {
+          const project = await getAllUnitTypesPostInterventionProject(browser)
+          await watercoursesTradingSummaryPage.open(project.id)
 
-        expect(await watercoursesTradingSummaryPage.bandNames()).toEqual([
-          MEDIUM,
-          LOW
-        ])
-        await expectStatusTag(
-          watercoursesTradingSummaryPage.statusTag(MEDIUM),
-          STATUS_NOT_MET
-        )
-        await expectStatusTag(
-          watercoursesTradingSummaryPage.statusTag(LOW),
-          STATUS_NOT_MET
-        )
-
-        expect(
-          await watercoursesTradingSummaryPage.bandTileValue(
+          expect(await watercoursesTradingSummaryPage.bandNames()).toEqual([
             MEDIUM,
-            MEDIUM_DEFICIT_TILE
+            LOW
+          ])
+          await expectStatusTag(
+            watercoursesTradingSummaryPage.statusTag(MEDIUM),
+            STATUS_NOT_MET
           )
-        ).toBe('-4.52 units')
-        await expectStatusTag(
-          watercoursesTradingSummaryPage.bandTileTag(
-            MEDIUM,
-            MEDIUM_DEFICIT_TILE
-          ),
-          STATUS_NOT_MET
-        )
-        expect(
-          await watercoursesTradingSummaryPage.readBandGrid(MEDIUM)
-        ).toEqual({
-          headers: UNIT_CHANGE_COLUMNS,
-          rows: [
-            ['Canals', '-4.52'],
-            ['Ditches', '0.00']
-          ]
-        })
+          await expectStatusTag(
+            watercoursesTradingSummaryPage.statusTag(LOW),
+            STATUS_NOT_MET
+          )
 
-        expect(
-          await watercoursesTradingSummaryPage.bandTileValue(
-            LOW,
-            LOW_TILES.netChange
+          expect(
+            await watercoursesTradingSummaryPage.bandTileValue(
+              MEDIUM,
+              MEDIUM_DEFICIT_TILE
+            )
+          ).toBe('-4.52 units')
+          await expectStatusTag(
+            watercoursesTradingSummaryPage.bandTileTag(
+              MEDIUM,
+              MEDIUM_DEFICIT_TILE
+            ),
+            STATUS_NOT_MET
           )
-        ).toBe('-1.94 units')
-        // A Medium deficit never carries down: available reads 0.00, not -4.52.
-        expect(
-          await watercoursesTradingSummaryPage.bandTileValue(
-            LOW,
-            LOW_TILES.mediumSurplus
+          expect(
+            await watercoursesTradingSummaryPage.readBandGrid(MEDIUM)
+          ).toEqual({
+            headers: UNIT_CHANGE_COLUMNS,
+            rows: [
+              ['Canals', '-4.52'],
+              ['Ditches', '0.00']
+            ]
+          })
+
+          expect(
+            await watercoursesTradingSummaryPage.bandTileValue(
+              LOW,
+              LOW_TILES.netChange
+            )
+          ).toBe('-1.94 units')
+          // A Medium deficit never carries down: available reads 0.00, not -4.52.
+          expect(
+            await watercoursesTradingSummaryPage.bandTileValue(
+              LOW,
+              LOW_TILES.mediumSurplus
+            )
+          ).toBe('0.00 units')
+          expect(
+            await watercoursesTradingSummaryPage.bandTileValue(
+              LOW,
+              LOW_TILES.cumulativeSurplus
+            )
+          ).toBe('-1.94 units')
+          await expectStatusTag(
+            watercoursesTradingSummaryPage.bandTileTag(
+              LOW,
+              LOW_TILES.cumulativeSurplus
+            ),
+            STATUS_NOT_MET
           )
-        ).toBe('0.00 units')
-        expect(
-          await watercoursesTradingSummaryPage.bandTileValue(
-            LOW,
-            LOW_TILES.cumulativeSurplus
+          await expect(
+            watercoursesTradingSummaryPage.bandTileTag(LOW, LOW_TILES.netChange)
+          ).toHaveCount(0)
+          expect(
+            await watercoursesTradingSummaryPage.readBandGrid(LOW)
+          ).toEqual({
+            headers: UNIT_CHANGE_COLUMNS,
+            rows: [['Culvert', '-1.94']]
+          })
+        }
+      )
+
+      // The default site: Ditches lose 5.69 units, a Medium deficit the Canals'
+      // 0.35 gain cannot cover, while the one Low type, Culvert, gains 0.14.
+      // The Medium surplus is offered to the Low band even though the Medium
+      // band fails, so the Low band's cumulative surplus is 0.49 and Met: the
+      // site-wide verdict is still Not met.
+      test(
+        'a Medium deficit reads "Not met" while the Low band above zero reads "Met"',
+        { tag: SERVICE_TEMPLATE_ONLY },
+        async ({ browser, watercoursesTradingSummaryPage }) => {
+          const project =
+            await getRunAllUnitTypesPostInterventionProject(browser)
+          await watercoursesTradingSummaryPage.open(project.id)
+
+          expect(await watercoursesTradingSummaryPage.bandNames()).toEqual([
+            MEDIUM,
+            LOW
+          ])
+          await expectStatusTag(
+            watercoursesTradingSummaryPage.statusTag(MEDIUM),
+            STATUS_NOT_MET
           )
-        ).toBe('-1.94 units')
-        await expectStatusTag(
-          watercoursesTradingSummaryPage.bandTileTag(
-            LOW,
-            LOW_TILES.cumulativeSurplus
-          ),
-          STATUS_NOT_MET
-        )
-        await expect(
-          watercoursesTradingSummaryPage.bandTileTag(LOW, LOW_TILES.netChange)
-        ).toHaveCount(0)
-        expect(await watercoursesTradingSummaryPage.readBandGrid(LOW)).toEqual({
-          headers: UNIT_CHANGE_COLUMNS,
-          rows: [['Culvert', '-1.94']]
-        })
-      })
+          await expectStatusTag(
+            watercoursesTradingSummaryPage.statusTag(LOW),
+            STATUS_MET
+          )
+
+          expect(
+            await watercoursesTradingSummaryPage.bandTileValue(
+              MEDIUM,
+              MEDIUM_DEFICIT_TILE
+            )
+          ).toBe('-5.69 units')
+          expect(
+            await watercoursesTradingSummaryPage.readBandGrid(MEDIUM)
+          ).toEqual({
+            headers: UNIT_CHANGE_COLUMNS,
+            rows: [
+              ['Canals', '0.35'],
+              ['Ditches', '-5.69']
+            ]
+          })
+
+          expect(
+            await watercoursesTradingSummaryPage.bandTileValue(
+              LOW,
+              LOW_TILES.netChange
+            )
+          ).toBe('0.14 units')
+          expect(
+            await watercoursesTradingSummaryPage.bandTileValue(
+              LOW,
+              LOW_TILES.mediumSurplus
+            )
+          ).toBe('0.35 units')
+          expect(
+            await watercoursesTradingSummaryPage.bandTileValue(
+              LOW,
+              LOW_TILES.cumulativeSurplus
+            )
+          ).toBe('0.49 units')
+          await expectStatusTag(
+            watercoursesTradingSummaryPage.bandTileTag(
+              LOW,
+              LOW_TILES.cumulativeSurplus
+            ),
+            STATUS_MET
+          )
+          expect(
+            await watercoursesTradingSummaryPage.readBandGrid(LOW)
+          ).toEqual({
+            headers: UNIT_CHANGE_COLUMNS,
+            rows: [['Culvert', '0.14']]
+          })
+        }
+      )
 
       // `created watercourses`: every watercourse is Created, so the derived
       // baseline has none and trading rules do not apply. The backend returns
       // null band statuses (watercourse-trading-rule-statuses.test.js:62) and
       // the page shows the band with NO tag rather than a red one — unknown is
-      // not failed. SOLE real-data witness for that null-verdict path.
-      test('watercourses that exist only post intervention get no verdict and no tag', async ({
-        browser,
-        watercoursesTradingSummaryPage
-      }) => {
-        const project = await getWatercourseGainProject(browser)
-        await watercoursesTradingSummaryPage.open(project.id)
+      // not failed. SOLE real-data witness for that null-verdict path. Legacy
+      // only: no BNG Service template file in the harness corpus has
+      // watercourses only post intervention.
+      test(
+        'watercourses that exist only post intervention get no verdict and no tag',
+        {
+          tag: LEGACY_ONLY
+        },
+        async ({ browser, watercoursesTradingSummaryPage }) => {
+          const project = await getWatercourseGainProject(browser)
+          await watercoursesTradingSummaryPage.open(project.id)
 
-        expect(await watercoursesTradingSummaryPage.bandNames()).toEqual([
-          MEDIUM
-        ])
-        await expect(
-          watercoursesTradingSummaryPage.statusTag(MEDIUM)
-        ).toHaveCount(0)
-        expect(
-          await watercoursesTradingSummaryPage.bandTileValue(
-            MEDIUM,
-            MEDIUM_DEFICIT_TILE
-          )
-        ).toBe('0.00 units')
-        await expect(
-          watercoursesTradingSummaryPage.bandTileTag(
-            MEDIUM,
-            MEDIUM_DEFICIT_TILE
-          )
-        ).toHaveCount(0)
-      })
+          expect(await watercoursesTradingSummaryPage.bandNames()).toEqual([
+            MEDIUM
+          ])
+          await expect(
+            watercoursesTradingSummaryPage.statusTag(MEDIUM)
+          ).toHaveCount(0)
+          expect(
+            await watercoursesTradingSummaryPage.bandTileValue(
+              MEDIUM,
+              MEDIUM_DEFICIT_TILE
+            )
+          ).toBe('0.00 units')
+          await expect(
+            watercoursesTradingSummaryPage.bandTileTag(
+              MEDIUM,
+              MEDIUM_DEFICIT_TILE
+            )
+          ).toHaveCount(0)
+        }
+      )
 
       // The redirect target is passed per controller (`summaryPath`), so the
       // area and hedgerow pages' guards say nothing about this one.
@@ -221,7 +328,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         browser,
         page
       }) => {
-        const project = await getBaselineOnlyProject(browser)
+        const project = await getRunBaselineProject(browser)
         await page.goto(
           `/projects/${project.id}/${WATERCOURSES_TRADING_SUMMARY_PATH}`
         )
@@ -256,7 +363,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
   // is followed in project-summary.spec.js. No frontend unit test can follow a
   // link — watercourses-trading-summary/controller.test.js:460-501 renders each
   // entry page against a fabricated project and reads the href off the markup.
-  // getTargetMetProject is already built by project-summary.spec.js and
+  // The target-met project is already built by project-summary.spec.js and
   // watercourses-baseline.spec.js, so in a shared worker this costs no upload.
   test.describe(
     'Watercourses trading summary — entry points',
@@ -273,7 +380,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         watercoursesSummaryPage,
         watercoursesTradingSummaryPage
       }) => {
-        const project = await getTargetMetProject(browser)
+        const project = await getRunTargetMetProject(browser)
         await watercoursesSummaryPage.open(project.id)
 
         // Nav-wide, but only the current section expands, so on the

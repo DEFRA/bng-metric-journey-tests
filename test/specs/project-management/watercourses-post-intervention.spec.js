@@ -1,13 +1,24 @@
 import { test, expect } from '@fixtures'
-import { WATERCOURSES_TRADING_SUMMARY_PATH } from '@pages/watercourses-trading-summary.page.js'
+import {
+  MEDIUM,
+  WATERCOURSES_TRADING_SUMMARY_PATH
+} from '@pages/watercourses-trading-summary.page.js'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
   buildPostInterventionProject,
-  getAllUnitTypesPostInterventionProject,
-  getWatercourseInterventionTypesProject,
   WATERCOURSE_REFS_BASELINE_FILE
 } from '@utils/summary-projects.js'
+import {
+  getRunAllUnitTypesPostInterventionProject,
+  getRunWatercourseInterventionTypesProject,
+  getServiceTemplateRemeanderedWatercourseProject
+} from '@utils/run-projects.js'
+import {
+  LEGACY_ONLY,
+  SERVICE_TEMPLATE_ONLY,
+  isServiceTemplateRun
+} from '@utils/template-run.js'
 import {
   AREA_HABITATS,
   BASELINE_NAV_CHILD,
@@ -20,7 +31,11 @@ import {
   VIEW_ON_SITE_WATERCOURSES_BASELINE,
   WATERCOURSES
 } from '@utils/unit-type-labels.js'
-import { expectStatusTag, STATUS_MET } from '@utils/unit-type-tiles.js'
+import {
+  expectStatusTag,
+  STATUS_MET,
+  STATUS_NOT_MET
+} from '@utils/unit-type-tiles.js'
 
 // The watercourses post-intervention page (BMD-862) —
 // `/projects/{id}/watercourses-post-intervention`. See
@@ -128,9 +143,10 @@ const KILOMETRES = /^\d+(\.\d+)?km$/
 // only for a non-finite multiplier, which no calculated row carries, and an
 // optional group would let a regression that dropped every multiplier pass.
 const LABEL_AND_SCORE = /^[^()]+ \(-?\d+(\.\d+)?\)$/
-const YEARS = /^\d+ years?$/
+// The frontend shows a time of more than 30 years as "30+ years".
+const YEARS = /^\d+\+? years?$/
 // "{n} year(s) ({multiplier})" — the Final time to target shape.
-const YEARS_AND_SCORE = /^\d+ years? \(-?\d+(\.\d+)?\)$/
+const YEARS_AND_SCORE = /^\d+\+? years? \(-?\d+(\.\d+)?\)$/
 // Pinned to Low (1) for MVS (BMD-315 AC9) regardless of what the GeoPackage
 // carried — the engine hardcodes the multiplier to 1.
 const FIXED_STRATEGIC_SIGNIFICANCE = 'Low (1)'
@@ -172,26 +188,61 @@ const TARGET_COLUMNS = [
   'Standard difficulty'
 ]
 
-// `Post-intervention - all unit and intervention types.gpkg`. Its other four
-// watercourses are Lost, which the backend drops at import (BMD-531/534), so
-// they reach no tab and it has no Created tab at all. Pinned rather than
-// counted loosely: a partial render is exactly the failure a `> 0` check would
-// wave through.
-const MULTI_RETAINED_REFS = ['R003', 'R005']
-const MULTI_ENHANCED_REFS = ['R007', 'R008']
-// R008 is `Good -> Good`, so the engine calculates no units and its Units,
-// Distinctiveness and whole target block render empty — the case the BMD-999
-// preconditions exclude ("units were successfully calculated on import").
-// R007 (`Fairly Poor -> Fairly Good`) is the only enhanced watercourse in any
-// shipped fixture with a real uplift, so it is the only row that can witness
-// AC4b's column VALUES.
-const ENHANCED_CALCULATED_REF = 'R007'
+// Legacy: `Post-intervention - all unit and intervention types.gpkg` for the
+// multi-row grids. Its other four watercourses are Lost, which the backend
+// drops at import (BMD-531/534), so they reach no tab and it has no Created
+// tab at all. Pinned rather than counted loosely: a partial render is exactly
+// the failure a `> 0` check would wave through. R008 is `Good -> Good`, so the
+// engine calculates no units and its Units, Distinctiveness and whole target
+// block render empty — the case the BMD-999 preconditions exclude ("units were
+// successfully calculated on import"). R007 (`Fairly Poor -> Fairly Good`) is
+// the only enhanced watercourse in any legacy fixture with a real uplift, so
+// it is the only row that can witness AC4b's column VALUES.
+// `Post-intervention - watercourses mixed retention.gpkg` holds one
+// watercourse per intervention type, and is the only legacy pairing with a
+// Created tab at all.
+//
+// BNG Service template: the default site for every grid. R003 is Created with
+// no parent at High significance, 30+ years delayed; R004 is Created from its
+// parent; R005 is Created and left Incomplete, so it lists no target values.
+const GRID = isServiceTemplateRun()
+  ? {
+      multiRetainedRefs: ['R001', 'R007'],
+      multiEnhancedRefs: ['R006'],
+      enhancedCalculatedRef: 'R006',
+      mixRetainedRef: 'R001',
+      mixEnhancedRef: 'R006',
+      mixCreatedRef: 'R004',
+      createdRefs: ['R003', 'R004', 'R005'],
+      createdPricedRefs: ['R003', 'R004']
+    }
+  : {
+      multiRetainedRefs: ['R003', 'R005'],
+      multiEnhancedRefs: ['R007', 'R008'],
+      enhancedCalculatedRef: 'R007',
+      mixRetainedRef: 'WC1',
+      mixEnhancedRef: 'WC2',
+      mixCreatedRef: 'WC3',
+      createdRefs: ['WC3'],
+      createdPricedRefs: ['WC3']
+    }
+const MULTI_RETAINED_REFS = GRID.multiRetainedRefs
+const MULTI_ENHANCED_REFS = GRID.multiEnhancedRefs
+const ENHANCED_CALCULATED_REF = GRID.enhancedCalculatedRef
+const MIX_RETAINED_REF = GRID.mixRetainedRef
+const MIX_ENHANCED_REF = GRID.mixEnhancedRef
+const MIX_CREATED_REF = GRID.mixCreatedRef
 
-// `Post-intervention - watercourses mixed retention.gpkg` — one watercourse per
-// intervention type, and the only shipped pairing with a Created tab at all.
-const MIX_RETAINED_REF = 'WC1'
-const MIX_ENHANCED_REF = 'WC2'
-const MIX_CREATED_REF = 'WC3'
+// The default site's significances, and the baseline watercourse it removes:
+// R002 has no post-intervention row (AC5).
+const SERVICE_TEMPLATE_SIGNIFICANCES = ['Low (1)', 'High (1.15)']
+const REMOVED_WATERCOURSE_REF = 'R002'
+
+// watercourse-remeandered.gpkg: R003, a 100 m ditch, re-meandered into a
+// 130 m Enhanced watercourse (AC8).
+const REMEANDERED_REF = 'R003'
+const REMEANDERED_BASELINE_KM = 0.1
+const REMEANDERED_KM = 0.13
 
 // `watercourses mixed retention uplift` with WC2's proposed watercourse
 // encroachment and WC3's proposed riparian encroachment emptied — built by
@@ -283,7 +334,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
     let project
     test.beforeAll(async ({ browser }) => {
-      project = await getWatercourseInterventionTypesProject(browser)
+      project = await getRunWatercourseInterventionTypesProject(browser)
     })
 
     // AC4 and AC8's href half.
@@ -347,9 +398,12 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // WC2 is improved to Good in the uplift copy of the PI file (see
       // fixture-mutations.py): with the derived baseline (BMD-1056/BMD-1066)
       // the original file's WC2 Moderate to Moderate left the verdict Not met.
+      // The default site's watercourses are Not met (a Medium Ditches
+      // deficit), as are its area habitats, so that run proves the tag is
+      // shown and red but not that it reads the watercourse verdict.
       await expectStatusTag(
         watercoursesPostInterventionPage.tradingRulesTag(),
-        STATUS_MET
+        isServiceTemplateRun() ? STATUS_NOT_MET : STATUS_MET
       )
 
       // AC5's exception. The baseline tile keeps its link while the
@@ -423,11 +477,12 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         ).toBeVisible()
       }
       // Since BMD-1056/BMD-1066 the PI upload replaces the baseline with one
-      // derived from its own rows, and the PI file has no hedgerows, so the
-      // conditional Hedgerows item is absent from both documents.
+      // derived from its own rows, and the legacy PI file has no hedgerows, so
+      // the conditional Hedgerows item is absent from both documents. The
+      // default site has hedgerows, so there it is present.
       await expect(
         watercoursesPostInterventionPage.navLink(HEDGEROWS)
-      ).toHaveCount(0)
+      ).toHaveCount(isServiceTemplateRun() ? 1 : 0)
 
       await expect(
         watercoursesPostInterventionPage.navLink(BASELINE_NAV_CHILD)
@@ -486,7 +541,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getWatercourseInterventionTypesProject(browser)
+        project = await getRunWatercourseInterventionTypesProject(browser)
       })
 
       // AC6.
@@ -534,7 +589,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getWatercourseInterventionTypesProject(browser)
+        project = await getRunWatercourseInterventionTypesProject(browser)
       })
 
       // AC2a and AC2b. Two separate view-model paths that happen to share a
@@ -651,8 +706,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       let mixProject
       let multiProject
       test.beforeAll(async ({ browser }) => {
-        mixProject = await getWatercourseInterventionTypesProject(browser)
-        multiProject = await getAllUnitTypesPostInterventionProject(browser)
+        mixProject = await getRunWatercourseInterventionTypesProject(browser)
+        multiProject = await getRunAllUnitTypesPostInterventionProject(browser)
       })
 
       // AC4a, AC5, AC7 on the Retained grid — the only tab with a Condition
@@ -784,41 +839,38 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expectTabSelected(grid, CREATED)
         expect(await grid.columnHeadings(CREATED)).toEqual(TARGET_COLUMNS)
         expect(await grid.columnHeadings(CREATED)).not.toContain('Condition')
-        await expect(grid.featureRows(CREATED)).toHaveCount(1)
-        expect(await grid.columnValues(CREATED, 'Ref')).toEqual([
-          MIX_CREATED_REF
-        ])
+        await expect(grid.featureRows(CREATED)).toHaveCount(
+          GRID.createdRefs.length
+        )
+        expect(await grid.columnValues(CREATED, 'Ref')).toEqual(
+          GRID.createdRefs
+        )
 
-        await expectColumn(grid, CREATED, 'Units', GRID_UNITS_2DP)
-        await expectColumn(grid, CREATED, 'Size', KILOMETRES)
-        await expectColumn(
-          grid,
-          CREATED,
-          'Watercourse encroachment',
-          LABEL_AND_SCORE
-        )
-        await expectColumn(
-          grid,
-          CREATED,
-          'Riparian encroachment',
-          LABEL_AND_SCORE
-        )
-        await expectColumn(grid, CREATED, 'Target condition', LABEL_AND_SCORE)
-        await expectColumn(grid, CREATED, 'Standard time to target', YEARS)
-        await expectColumn(grid, CREATED, 'Advance', YEARS)
-        await expectColumn(grid, CREATED, 'Delay', YEARS)
-        await expectColumn(
-          grid,
-          CREATED,
-          'Final time to target',
-          YEARS_AND_SCORE
-        )
-        await expectColumn(
-          grid,
-          CREATED,
-          'Standard difficulty',
-          LABEL_AND_SCORE
-        )
+        // Row by row over the priced watercourses: the default site's R005 is
+        // Incomplete, so it lists no target values.
+        for (const ref of GRID.createdPricedRefs) {
+          const row = await grid.rowByRef(CREATED, ref)
+          expect(row.Units, `${ref} Units`).toMatch(GRID_UNITS_2DP)
+          expect(row.Size, `${ref} Size`).toMatch(KILOMETRES)
+          for (const column of [
+            'Watercourse encroachment',
+            'Riparian encroachment',
+            'Target condition',
+            'Standard difficulty'
+          ]) {
+            expect(row[column], `${ref} ${column}`).toMatch(LABEL_AND_SCORE)
+          }
+          for (const column of [
+            'Standard time to target',
+            'Advance',
+            'Delay'
+          ]) {
+            expect(row[column], `${ref} ${column}`).toMatch(YEARS)
+          }
+          expect(row['Final time to target'], `${ref} final`).toMatch(
+            YEARS_AND_SCORE
+          )
+        }
 
         await expect(grid.refLink(CREATED, MIX_CREATED_REF)).toHaveAttribute(
           'href',
@@ -891,9 +943,11 @@ test.describe('project-management', { tag: '@project-management' }, () => {
   // encroachment alone from the rest. Redundant once an
   // `integration-tests/import-combinations.test.js` case nulls ONE proposed
   // encroachment on a Created/Enhanced watercourse and asserts null units.
+  //
+  // Legacy only: its file is cut by fixture-mutations.py.
   test.describe(
     'Watercourses post-intervention — null proposed encroachment',
-    { tag: '@regression' },
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
@@ -935,6 +989,146 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await grid.tab(CREATED).click()
         await expect(grid.featureRow(CREATED, MIX_CREATED_REF)).toBeVisible()
         expect(await unitsOf(CREATED, MIX_CREATED_REF)).toBe('0.00')
+      })
+    }
+  )
+
+  // ─── BNG Service template values (BMD-1088) ─────────────────────────────────
+  //
+  // What only a BNG Service template project shows on this grid: strategic
+  // significance Low or High, the two the template offers; and a baseline
+  // watercourse the file removes, which has no post-intervention row at all.
+
+  test.describe(
+    'Watercourses post-intervention — BNG Service template values',
+    { tag: ['@regression', SERVICE_TEMPLATE_ONLY] },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      let project
+      test.beforeAll(async ({ browser }) => {
+        project = await getRunWatercourseInterventionTypesProject(browser)
+      })
+
+      test('Enhanced and Created watercourses carry a Low or High strategic significance, and never Medium', async ({
+        watercoursesPostInterventionPage
+      }) => {
+        const grid = watercoursesPostInterventionPage
+        await grid.open(project.id)
+
+        const seen = new Set()
+        for (const [label, refs] of [
+          [ENHANCED, MULTI_ENHANCED_REFS],
+          [CREATED, GRID.createdPricedRefs]
+        ]) {
+          await grid.tab(label).click()
+          for (const ref of refs) {
+            const value = (await grid.rowByRef(label, ref))[
+              'Strategic significance'
+            ]
+            expect(SERVICE_TEMPLATE_SIGNIFICANCES, `${ref} ${value}`).toContain(
+              value
+            )
+            seen.add(value)
+          }
+        }
+        expect([...seen].sort()).toEqual(
+          [...SERVICE_TEMPLATE_SIGNIFICANCES].sort()
+        )
+      })
+
+      test('a watercourse the file removes is on no tab', async ({
+        watercoursesPostInterventionPage
+      }) => {
+        const grid = watercoursesPostInterventionPage
+        await grid.open(project.id)
+
+        const listed = []
+        for (const label of ALL_TABS) {
+          await grid.tab(label).click()
+          listed.push(...(await grid.columnValues(label, 'Ref')))
+        }
+        expect(listed).not.toContain(REMOVED_WATERCOURSE_REF)
+        // The control: the other baseline watercourses are all listed.
+        expect(listed).toEqual(expect.arrayContaining(MULTI_RETAINED_REFS))
+      })
+    }
+  )
+
+  // ─── A re-meandered watercourse (BMD-1088 AC8) ──────────────────────────────
+  //
+  // watercourse-remeandered.gpkg: R003, a 100 m ditch, re-meandered into a
+  // longer, 130 m, course and Enhanced. The service accepts it, lists it at its
+  // new length, and counts none of its parent's length as lost: the backend
+  // records a lost length only for a course shorter than its parent's
+  // (watercourse-enhanced-shorter.gpkg), and the page shows no lost length, so
+  // the witness is that the post-intervention length is the baseline's plus
+  // the 30 m gained, and the Ditches trade is a gain.
+
+  test.describe(
+    'Watercourses post-intervention — a re-meandered watercourse',
+    { tag: ['@regression', SERVICE_TEMPLATE_ONLY] },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      let project
+      test.beforeAll(async ({ browser }) => {
+        project = await getServiceTemplateRemeanderedWatercourseProject(browser)
+      })
+
+      test('a watercourse re-meandered to 130 m from a 100 m parent is accepted, listed at 130 m, and loses no length', async ({
+        watercoursesBaselinePage,
+        watercoursesPostInterventionPage,
+        watercoursesTradingSummaryPage
+      }) => {
+        const kilometres = (value) => Number(value.replace('km', ''))
+
+        await watercoursesBaselinePage.open(project.id)
+        const baselineRow =
+          await watercoursesBaselinePage.rowValues(REMEANDERED_REF)
+        expect(kilometres(baselineRow.size)).toBeCloseTo(
+          REMEANDERED_BASELINE_KM,
+          3
+        )
+        const baselineKm = kilometres(
+          (await watercoursesBaselinePage.totalsCell('size').innerText()).trim()
+        )
+
+        const grid = watercoursesPostInterventionPage
+        await grid.open(project.id)
+        await expect(grid.tabs).toHaveText([RETAINED, ENHANCED])
+        await grid.tab(ENHANCED).click()
+        const row = await grid.rowByRef(ENHANCED, REMEANDERED_REF)
+        expect(kilometres(row.Size)).toBeCloseTo(REMEANDERED_KM, 3)
+        expect(Number(row.Units)).toBeGreaterThan(0)
+
+        // Every course on the site, at its post-intervention length: the
+        // baseline's, with the 30 m the re-meander adds and nothing taken away.
+        let postInterventionKm = 0
+        for (const label of [RETAINED, ENHANCED]) {
+          await grid.tab(label).click()
+          postInterventionKm += kilometres(
+            (await (await grid.totalsCell(label, 'Size')).innerText()).trim()
+          )
+        }
+        expect(postInterventionKm).toBeCloseTo(
+          baselineKm + REMEANDERED_KM - REMEANDERED_BASELINE_KM,
+          3
+        )
+
+        await watercoursesTradingSummaryPage.open(project.id)
+        expect(
+          await watercoursesTradingSummaryPage.readBandGrid(MEDIUM)
+        ).toEqual({
+          headers: ['Habitat type', 'Unit change'],
+          rows: [['Ditches', '0.66']]
+        })
+        await expectStatusTag(
+          watercoursesTradingSummaryPage.statusTag(MEDIUM),
+          STATUS_MET
+        )
       })
     }
   )

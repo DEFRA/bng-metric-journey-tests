@@ -6,7 +6,7 @@ import {
   getRunAllUnitTypesProject,
   getRunAreaGainProject,
   getRunBaselineProject
-} from '@utils/summary-projects.js'
+} from '@utils/run-projects.js'
 import { isServiceTemplateRun } from '@utils/template-run.js'
 import {
   AREA_HABITATS,

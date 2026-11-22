@@ -12,12 +12,12 @@ import {
   VIEW_TRADING_RULES,
   WATERCOURSES
 } from '@utils/unit-type-labels.js'
+import { getWatercourseGainProject } from '@utils/summary-projects.js'
 import {
   getRunAllUnitTypesPostInterventionProject,
   getRunAllUnitTypesProject,
-  getRunTargetMetProject,
-  getWatercourseGainProject
-} from '@utils/summary-projects.js'
+  getRunTargetMetProject
+} from '@utils/run-projects.js'
 import { LEGACY_ONLY } from '@utils/template-run.js'
 import { expectStatusTag, STATUS_MET } from '@utils/unit-type-tiles.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'

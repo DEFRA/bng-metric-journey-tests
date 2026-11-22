@@ -5,11 +5,13 @@ import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
   buildBaselineOnlyProject,
   getLongPaddedRefsProject,
-  getRunAllUnitTypesProject,
-  getRunAreaGainProject,
-  getRunBaselineProject,
   LONG_PADDED_REFS
 } from '@utils/summary-projects.js'
+import {
+  getRunAllUnitTypesProject,
+  getRunAreaGainProject,
+  getRunBaselineProject
+} from '@utils/run-projects.js'
 import { LEGACY_ONLY, isServiceTemplateRun } from '@utils/template-run.js'
 import {
   expectRefCut,

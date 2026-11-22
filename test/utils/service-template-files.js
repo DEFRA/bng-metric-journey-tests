@@ -60,3 +60,7 @@ export const VERY_LOW_HEDGEROW_LOST = `${DIR}/trading-lost-to-development.gpkg`
 
 // A Low hedgerow loss covered by the Medium surplus; no watercourses.
 export const LOW_LOSS_COVERED = `${DIR}/trading-lower-deficit-covered-from-above.gpkg`
+
+// R003, a 100 m ditch re-meandered into a 130 m Enhanced watercourse beside
+// the Retained R001 and R002.
+export const WATERCOURSE_REMEANDERED = `${DIR}/watercourse-remeandered.gpkg`
