@@ -7,7 +7,7 @@ import {
   describeUnauthenticatedAccess
 } from '@utils/access-checks.js'
 import { setupProject } from '@utils/project-helpers.js'
-import { getBaselineOnlyProject } from '@utils/summary-projects.js'
+import { getRunBaselineProject } from '@utils/run-projects.js'
 import { noBaselineSummaryRedirectHref } from '@utils/upload-file-navigation.js'
 import { REPORTS } from '@utils/unit-type-labels.js'
 import {
@@ -29,9 +29,9 @@ const PDF_MAGIC_LENGTH = PDF_MAGIC.length
 const V4_PROJECT_ID = '00000000-0000-4000-8000-000000000000'
 
 // The reports page is READ-ONLY: it renders a project that was uploaded once.
-// `getBaselineOnlyProject` is shared with project-summary.spec.js and the
-// unit-type drill-downs through @utils/summary-projects.js, so in CI (one
-// worker) this whole file costs zero additional uploads.
+// `getRunBaselineProject` is the baseline-only project of the template this
+// run tests, shared with the other specs through @utils/run-projects.js, so in
+// CI (one worker) this whole file costs no extra upload.
 //
 // Serial for the same reason those specs are: the shared build must happen once,
 // and concurrent uploads clobber the single pendingUploadId yar key.
@@ -46,7 +46,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
     let project
     test.beforeAll(async ({ browser }) => {
-      project = await getBaselineOnlyProject(browser)
+      project = await getRunBaselineProject(browser)
     })
 
     // The frontend unit suite covers this page (project-reports/controller.test.js)
@@ -104,7 +104,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
     let project
     test.beforeAll(async ({ browser }) => {
-      project = await getBaselineOnlyProject(browser)
+      project = await getRunBaselineProject(browser)
     })
 
     // The nav item is the ONLY entry point to the site report — BMD-984 added
@@ -134,7 +134,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
     let project
     test.beforeAll(async ({ browser }) => {
-      project = await getBaselineOnlyProject(browser)
+      project = await getRunBaselineProject(browser)
     })
 
     // Sole witness for the frontend's filename override reaching a real browser.
