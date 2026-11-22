@@ -170,10 +170,10 @@ GitHub → Actions → Run Journey Tests on GitHub → Run workflow
   frontend-branch: main  (or a feature branch)
   backend-branch: main   (or a feature branch)
   browser: chromium
-  template-run: both     (or legacy, or service-template)
+  template-run: service-template  (or both, or legacy)
 ```
 
-Every run has a job for each template run by default: **Run Journey Tests (legacy)** with `SERVICE_TEMPLATE_ENABLED=false`, and **Run Journey Tests (service-template)** with it `true`, each against its own stack started in that state. They run side by side, neither cancels the other, and each uploads its own report and logs (`playwright-report-<run>`, `docker-compose-logs-<run>`). PRs here, and the frontend's and backend's runs, always get both. A third job, **Run Journey Tests**, passes only when every run passed; it keeps the name the single job had, so it is the check to require. A dispatched run can pick one with `template-run`. With a `profile` set, a `service-template` run with no tests that match it passes empty, as the profile's specs may still be left out of that run. A `legacy` run with none still fails, so a mistyped profile cannot pass.
+The workflow has a job for each template run it is asked for: **Run Journey Tests (legacy)** with `SERVICE_TEMPLATE_ENABLED=false`, and **Run Journey Tests (service-template)** with it `true`, each against its own stack started in that state. They run side by side, neither cancels the other, and each uploads its own report and logs (`playwright-report-<run>`, `docker-compose-logs-<run>`). **For now the default is the service-template run only**, for PRs here and the frontend's and backend's runs, to keep CI short while the BNG Service template run is built (BMD-1088); dispatch it with `template-run: both` or `legacy` for the legacy run. The default goes back to `both` when that work is done. A third job, **Run Journey Tests**, passes only when every run passed; it keeps the name the single job had, so it is the check to require. A dispatched run can pick one with `template-run`. With a `profile` set, a `service-template` run with no tests that match it passes empty, as the profile's specs may still be left out of that run. A `legacy` run with none still fails, so a mistyped profile cannot pass.
 
 ---
 
