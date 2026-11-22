@@ -175,6 +175,12 @@
       "source": "permutations/trading-rules/trading-higher-deficit-not-covered-from-below.gpkg",
       "sha256": "ed10e16b31503092f53d48f9390e08f18f5f32e1b91cddd1aeb247bc7220cbbb",
       "for": "A Medium grassland lost (Medium band Not met, -153.69 units) and two Low grasslands enhanced (Low band Met, +166.54); hedgerows, no watercourses. The same figures as the legacy scenario"
+    },
+    {
+      "file": "trading-higher-deficit-not-covered-from-below-baseline.gpkg",
+      "source": "permutations/trading-rules/trading-higher-deficit-not-covered-from-below-baseline.gpkg",
+      "sha256": "ca4088ca3d325d6399058dca53648e15c64362c4f36d4050a1a35e3baf7aeb40",
+      "for": "Baseline-stage file for trading-higher-deficit-not-covered-from-below.gpkg: 3 hedgerows and no watercourses"
     }
   ]
 }
