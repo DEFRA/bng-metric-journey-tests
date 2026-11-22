@@ -4,10 +4,11 @@ import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
   buildBaselineOnlyProject,
-  getAllUnitTypesProject,
-  getBaselineOnlyProject,
-  getTargetMetProject
+  getRunAllUnitTypesProject,
+  getRunBaselineProject,
+  getRunTargetMetProject
 } from '@utils/summary-projects.js'
+import { LEGACY_ONLY, isServiceTemplateRun } from '@utils/template-run.js'
 import { expectStatusTag, STATUS_MET } from '@utils/unit-type-tiles.js'
 import {
   AREA_HABITATS,
@@ -51,7 +52,10 @@ const REF_SORT_LOCALE = 'en'
 // cells. BMD-861's ACs are all written under a precondition that units were
 // calculated for every watercourse, so the grid is judged on a fixture that
 // meets it. See the flow doc's "Rows with no calculable units".
-const EXPECTED_WATERCOURSES = 3
+//
+// The BNG Service template run's baseline-only project is the small site's
+// baseline-stage file: six watercourses, every one priced.
+const EXPECTED_WATERCOURSES = isServiceTemplateRun() ? 6 : 3
 
 // BMD-861 AC5: the same five tiles the project summary and the watercourses
 // summary carry, in the same order. Baseline-only project, so the
@@ -98,7 +102,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
     let project
     test.beforeAll(async ({ browser }) => {
-      project = await getBaselineOnlyProject(browser)
+      project = await getRunBaselineProject(browser)
     })
 
     // `watercourses-baseline/controller.test.js` covers this page through the
@@ -173,10 +177,14 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         )
 
         // BMD-1101 AC2: the status the backend saves on upload reaches the
-        // grid. Every row of this file is valid, so every row is Complete.
-        const status = await watercoursesBaselinePage.columnValues('status')
-        expect(status).toHaveLength(EXPECTED_WATERCOURSES)
-        expect(new Set(status)).toEqual(new Set([STATUS_COMPLETE]))
+        // grid. Every row of this file is valid, so every row is Complete. The
+        // column renders for the BNG Service template too, but its values are
+        // not asserted in this epic (BMD-1088).
+        if (!isServiceTemplateRun()) {
+          const status = await watercoursesBaselinePage.columnValues('status')
+          expect(status).toHaveLength(EXPECTED_WATERCOURSES)
+          expect(new Set(status)).toEqual(new Set([STATUS_COMPLETE]))
+        }
       }
     )
 
@@ -291,7 +299,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // assertion in this describe reads the grid.
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getAllUnitTypesProject(browser)
+        project = await getRunAllUnitTypesProject(browser)
       })
 
       // The unit suite covers all of this against mocked `wreck` literals,
@@ -406,7 +414,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getAllUnitTypesProject(browser)
+        project = await getRunAllUnitTypesProject(browser)
       })
 
       // BMD-861 AC1, both routes. watercourses-summary.spec.js asserts the nav
@@ -496,7 +504,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         watercoursesBaselinePage,
         browser
       }) => {
-        const project = await getTargetMetProject(browser)
+        const project = await getRunTargetMetProject(browser)
         await watercoursesBaselinePage.open(project.id)
 
         await expectStatusTag(
@@ -512,7 +520,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         watercoursesBaselinePage,
         browser
       }) => {
-        const project = await getTargetMetProject(browser)
+        const project = await getRunTargetMetProject(browser)
         await watercoursesBaselinePage.open(project.id)
 
         const tradingSummaryHref = `/projects/${project.id}/${WATERCOURSES_TRADING_SUMMARY_PATH}`
@@ -540,7 +548,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
   // that the cleared units and the nulled field reach the page.
   test.describe(
     'Watercourses baseline — blank encroachment on import',
-    { tag: '@regression' },
+    // Its file is cut by fixture-mutations.py, and it asserts the Incomplete
+    // status, which is not asserted for the BNG Service template in this epic.
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
