@@ -30,10 +30,8 @@ const TOTAL_BROAD_HABITAT_CHANGE = 'Total broad habitat change'
 const TOTAL_ON_SITE_UNIT_CHANGE = 'Total on-site unit change'
 const IGGI_HABITAT_TYPE =
   'Artificial hard structures with integrated greening of grey infrastructure (IGGI)'
-// The IGGI habitat's unit change in the run's intertidal project: nil in the
-// legacy pair; +0.07 in every-retention.gpkg, where it is the Created vertical
-// area habitat V003.
-const IGGI_UNIT_CHANGE = isServiceTemplateRun() ? '0.07' : '0.00'
+// A unit change as the grid shows it, to 2 dp.
+const UNIT_CHANGE_2DP = /^-?\d+\.\d{2}$/
 
 // The area trading summary is read-only: it renders figures the backend
 // calculated and saved at post-intervention upload (BMD-993). Both projects
@@ -280,6 +278,11 @@ test.describe('project-management', { tag: '@project-management' }, () => {
   // figures moved when the engine changed between 2026-09-28 and 2026-10-01, and
   // its Medium verdict rests on a deficit that renders as "0.00 units" beside
   // "Not met" — precision a journey test should not pin.
+  //
+  // The BNG Service template run uploads every-retention.gpkg, whose IGGI is
+  // the Created vertical area habitat V003: a priced gain (+0.07 today), which
+  // the engine could move. So that run checks the merged grid's shape and that
+  // the gain is positive and is the group's whole total, not the figure.
 
   test.describe('Area trading summary — intertidal project', () => {
     test.use({ storageState: STORAGE_STATE })
@@ -316,13 +319,31 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           areaTradingSummaryPage.mediumSection,
           IGGI_HABITAT_TYPE
         )
-        expect(grid).toEqual({
-          headers: ['Broad habitat', 'Habitat type', 'On-site unit change'],
-          rows: [
-            ['Intertidal hard structures', IGGI_HABITAT_TYPE, IGGI_UNIT_CHANGE],
-            [TOTAL_BROAD_HABITAT_CHANGE, '', IGGI_UNIT_CHANGE]
-          ]
-        })
+        if (!isServiceTemplateRun()) {
+          expect(grid).toEqual({
+            headers: ['Broad habitat', 'Habitat type', 'On-site unit change'],
+            rows: [
+              ['Intertidal hard structures', IGGI_HABITAT_TYPE, '0.00'],
+              [TOTAL_BROAD_HABITAT_CHANGE, '', '0.00']
+            ]
+          })
+          return
+        }
+
+        expect(grid.headers).toEqual([
+          'Broad habitat',
+          'Habitat type',
+          'On-site unit change'
+        ])
+        expect(grid.rows.map(([broad, type]) => [broad, type])).toEqual([
+          ['Intertidal hard structures', IGGI_HABITAT_TYPE],
+          [TOTAL_BROAD_HABITAT_CHANGE, '']
+        ])
+        const [iggiChange, totalChange] = grid.rows.map((row) => row[2])
+        expect(iggiChange).toMatch(UNIT_CHANGE_2DP)
+        expect(Number(iggiChange)).toBeGreaterThan(0)
+        // The only habitat in the group, so it is the whole total.
+        expect(totalChange).toBe(iggiChange)
       }
     )
 
