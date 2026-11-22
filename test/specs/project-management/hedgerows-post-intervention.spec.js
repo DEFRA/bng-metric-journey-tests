@@ -89,9 +89,10 @@ const KILOMETRES = /^\d+(\.\d+)?km$/
 // it only for a non-finite multiplier, which no calculated row carries, and an
 // optional group would let a regression that dropped every multiplier pass.
 const LABEL_AND_SCORE = /^[^()]+ \(-?\d+(\.\d+)?\)$/
-const YEARS = /^\d+ years?$/
+// A time over the metric's 30 years reads "30+ years".
+const YEARS = /^\d+\+? years?$/
 // "{n} year(s) ({multiplier})" — the Final time to target shape.
-const YEARS_AND_SCORE = /^\d+ years? \(-?\d+(\.\d+)?\)$/
+const YEARS_AND_SCORE = /^\d+\+? years? \(-?\d+(\.\d+)?\)$/
 const FIXED_STRATEGIC_SIGNIFICANCE = 'Low (1)'
 
 // Column sets from `buildColumns` in
