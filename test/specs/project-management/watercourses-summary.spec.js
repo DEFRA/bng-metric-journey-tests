@@ -13,11 +13,12 @@ import {
   WATERCOURSES
 } from '@utils/unit-type-labels.js'
 import {
-  getAllUnitTypesPostInterventionProject,
-  getAllUnitTypesProject,
-  getTargetMetProject,
+  getRunAllUnitTypesPostInterventionProject,
+  getRunAllUnitTypesProject,
+  getRunTargetMetProject,
   getWatercourseGainProject
 } from '@utils/summary-projects.js'
+import { LEGACY_ONLY } from '@utils/template-run.js'
 import { expectStatusTag, STATUS_MET } from '@utils/unit-type-tiles.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 
@@ -70,7 +71,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
     let project
     test.beforeAll(async ({ browser }) => {
-      project = await getAllUnitTypesProject(browser)
+      project = await getRunAllUnitTypesProject(browser)
     })
 
     test(
@@ -234,7 +235,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getAllUnitTypesPostInterventionProject(browser)
+        project = await getRunAllUnitTypesPostInterventionProject(browser)
       })
 
       test('the five Results tiles agree with the project summary', async ({
@@ -341,7 +342,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   test.describe(
     'Watercourses summary — post-intervention-only watercourses',
-    { tag: '@regression' },
+    // Legacy only: no BNG Service template corpus file has watercourses only
+    // post-intervention, from a baseline with none.
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
@@ -480,7 +483,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         watercoursesSummaryPage,
         browser
       }) => {
-        const project = await getTargetMetProject(browser)
+        const project = await getRunTargetMetProject(browser)
         await watercoursesSummaryPage.open(project.id)
 
         await expectStatusTag(
