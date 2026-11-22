@@ -1,11 +1,18 @@
 import { test, expect } from '@fixtures'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import {
-  getAreaTradingDeficitProject,
-  getHedgerowTradingAllMetProject,
-  getHedgerowTradingMetProject,
-  getLinearInterventionTypesProject
+  getRunAreaTradingDeficitProject,
+  getRunHedgerowLowLossCoveredProject,
+  getRunHedgerowShortfallProject,
+  getRunHedgerowTradingAllMetProject,
+  getRunLinearInterventionTypesProject,
+  getServiceTemplateVeryLowDeficitProject
 } from '@utils/summary-projects.js'
+import {
+  LEGACY_ONLY,
+  SERVICE_TEMPLATE_ONLY,
+  isServiceTemplateRun
+} from '@utils/template-run.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
   expectStatusTag,
@@ -49,6 +56,92 @@ const VERY_LOW_TILES = [
   CUMULATIVE_SURPLUS_TILE
 ]
 
+// The figures each run's projects give, as the page shows them. Legacy: from
+// the BMD-1024 manual validation runs. BNG Service template: from the
+// documents bng-metric-backend saves for the harness corpus files these
+// projects upload (harness 95b3ff2), priced by the same engine.
+//
+// - deficit: the Medium deficit scenario, hedgerows only in Medium and Low;
+// - lowLossCovered: the lower-deficit-covered-from-above scenario, a Low loss
+//   the Medium surplus covers, in each run's own template;
+// - sections: legacy the linear intervention types pair, BNG Service template
+//   the default site — its Medium and Low grids. The default site's Low band
+//   is Met; the legacy pair's is not;
+// - allMet: a Low surplus carried down into a Met Very low band.
+const FIGURES = isServiceTemplateRun()
+  ? {
+      deficit: {
+        mediumDeficit: '-2.49 units',
+        lowTiles: ['2.35 units', '0.00 units', '2.35 units']
+      },
+      lowLossCovered: {
+        mediumDeficit: '5.22 units',
+        lowTiles: ['-1.24 units', '5.22 units', '3.98 units']
+      },
+      sections: {
+        mediumDeficit: '3.76 units',
+        mediumRows: [
+          ['Ecologically valuable line of trees', '-3.27'],
+          [
+            'Ecologically valuable line of trees - associated with bank or ditch',
+            '-0.24'
+          ],
+          ['Native hedgerow - associated with bank or ditch', '1.58'],
+          ['Native hedgerow with trees', '3.97'],
+          ['Species-rich native hedgerow', '1.72'],
+          [TOTAL_UNIT_CHANGE, '3.76']
+        ],
+        lowTiles: ['-1.45 units', '3.76 units', '2.30 units'],
+        lowStatus: STATUS_MET,
+        lowRows: [
+          ['Line of trees', '-0.57'],
+          ['Line of trees - associated with bank or ditch', '0.53'],
+          ['Native hedgerow', '-1.42'],
+          [TOTAL_UNIT_CHANGE, '-1.45']
+        ]
+      },
+      allMet: {
+        lowCumulative: '1.12 units',
+        veryLowTiles: ['0.00 units', '1.12 units', '1.12 units']
+      }
+    }
+  : {
+      deficit: {
+        mediumDeficit: '-2.56 units',
+        lowTiles: ['2.45 units', '0.00 units', '2.45 units']
+      },
+      lowLossCovered: {
+        mediumDeficit: '4.88 units',
+        lowTiles: ['-1.55 units', '4.88 units', '3.33 units']
+      },
+      sections: {
+        mediumDeficit: '2.22 units',
+        mediumRows: [
+          ['Ecologically valuable line of trees', '1.94'],
+          [
+            'Ecologically valuable line of trees - associated with bank or ditch',
+            '-1.56'
+          ],
+          ['Native hedgerow - associated with bank or ditch', '2.39'],
+          ['Native hedgerow with trees', '-0.56'],
+          ['Species-rich native hedgerow', '0.00'],
+          [TOTAL_UNIT_CHANGE, '2.22']
+        ],
+        lowTiles: ['-3.77 units', '2.22 units', '-1.55 units'],
+        lowStatus: STATUS_NOT_MET,
+        lowRows: [
+          ['Line of trees', '-1.76'],
+          ['Line of trees - associated with bank or ditch', '-2.01'],
+          ['Native hedgerow', '0.00'],
+          [TOTAL_UNIT_CHANGE, '-3.77']
+        ]
+      },
+      allMet: {
+        lowCumulative: '1.26 units',
+        veryLowTiles: ['0.00 units', '1.26 units', '1.26 units']
+      }
+    }
+
 const tradingSummaryUrl = (id) =>
   new RegExp(`/projects/${id}/${HEDGEROWS_TRADING_SUMMARY_PATH}$`)
 
@@ -85,7 +178,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         browser,
         hedgerowsTradingSummaryPage
       }) => {
-        const project = await getAreaTradingDeficitProject(browser)
+        const project = await getRunAreaTradingDeficitProject(browser)
         await hedgerowsTradingSummaryPage.open(project.id)
 
         // BMD-1028 AC3a.
@@ -99,7 +192,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
             MEDIUM,
             MEDIUM_DEFICIT_TILE
           )
-        ).toBe('-2.56 units')
+        ).toBe(FIGURES.deficit.mediumDeficit)
         await expectStatusTag(
           hedgerowsTradingSummaryPage.statusTag(MEDIUM),
           STATUS_NOT_MET
@@ -118,7 +211,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         // Tile 2 still equals Tile 3.
         expect(
           await hedgerowsTradingSummaryPage.bandTileValues(LOW, LOW_TILES)
-        ).toEqual(['2.45 units', '0.00 units', '2.45 units'])
+        ).toEqual(FIGURES.deficit.lowTiles)
         // AC3's precondition: no Very low hedgerow on the baseline, so the band
         // is not derived and the page lists no row for it.
         expect(await hedgerowsTradingSummaryPage.bandNames()).toEqual([
@@ -134,41 +227,45 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // gain relies on HG005 and HG010 carrying a Low Proposed Strategic
       // Significance: the harness file gives them Medium, which BMD-1051
       // rejects and prices at zero, leaving every band Not met.
-      test('Low and Very low running totals below zero read "Not met" under a Met Medium band', async ({
-        browser,
-        hedgerowsTradingSummaryPage
-      }) => {
-        const project = await getLinearInterventionTypesProject(browser)
-        await hedgerowsTradingSummaryPage.open(project.id)
+      // Legacy only: no BNG Service template corpus file has Low and Very low
+      // below zero under a Met Medium band. That run reads each band's Not met
+      // in the BNG Service template test below.
+      test(
+        'Low and Very low running totals below zero read "Not met" under a Met Medium band',
+        { tag: LEGACY_ONLY },
+        async ({ browser, hedgerowsTradingSummaryPage }) => {
+          const project = await getRunLinearInterventionTypesProject(browser)
+          await hedgerowsTradingSummaryPage.open(project.id)
 
-        await expectStatusTag(
-          hedgerowsTradingSummaryPage.statusTag(MEDIUM),
-          STATUS_MET
-        )
-        // AC2, the deficit branch — the cumulative figure, not the net change,
-        // decides it.
-        expect(
-          await hedgerowsTradingSummaryPage.bandTileValue(
-            LOW,
-            CUMULATIVE_SURPLUS_TILE
+          await expectStatusTag(
+            hedgerowsTradingSummaryPage.statusTag(MEDIUM),
+            STATUS_MET
           )
-        ).toBe('-1.55 units')
-        await expectStatusTag(
-          hedgerowsTradingSummaryPage.statusTag(LOW),
-          STATUS_NOT_MET
-        )
-        // AC3, the deficit branch.
-        expect(
-          await hedgerowsTradingSummaryPage.bandTileValue(
-            VERY_LOW,
-            CUMULATIVE_SURPLUS_TILE
+          // AC2, the deficit branch — the cumulative figure, not the net change,
+          // decides it.
+          expect(
+            await hedgerowsTradingSummaryPage.bandTileValue(
+              LOW,
+              CUMULATIVE_SURPLUS_TILE
+            )
+          ).toBe('-1.55 units')
+          await expectStatusTag(
+            hedgerowsTradingSummaryPage.statusTag(LOW),
+            STATUS_NOT_MET
           )
-        ).toBe('-1.04 units')
-        await expectStatusTag(
-          hedgerowsTradingSummaryPage.statusTag(VERY_LOW),
-          STATUS_NOT_MET
-        )
-      })
+          // AC3, the deficit branch.
+          expect(
+            await hedgerowsTradingSummaryPage.bandTileValue(
+              VERY_LOW,
+              CUMULATIVE_SURPLUS_TILE
+            )
+          ).toBe('-1.04 units')
+          await expectStatusTag(
+            hedgerowsTradingSummaryPage.statusTag(VERY_LOW),
+            STATUS_NOT_MET
+          )
+        }
+      )
 
       // harness trading-rules/lower-deficit-covered-from-above: the Low
       // hedgerow LOSES 1.55 units, but the Medium surplus of 4.88 carries down
@@ -178,7 +275,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         browser,
         hedgerowsTradingSummaryPage
       }) => {
-        const project = await getHedgerowTradingMetProject(browser)
+        const project = await getRunHedgerowLowLossCoveredProject(browser)
         await hedgerowsTradingSummaryPage.open(project.id)
 
         // AC1, the non-deficit branch.
@@ -187,7 +284,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
             MEDIUM,
             MEDIUM_DEFICIT_TILE
           )
-        ).toBe('4.88 units')
+        ).toBe(FIGURES.lowLossCovered.mediumDeficit)
         await expectStatusTag(
           hedgerowsTradingSummaryPage.statusTag(MEDIUM),
           STATUS_MET
@@ -200,7 +297,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         // what carries down.
         expect(
           await hedgerowsTradingSummaryPage.bandTileValues(LOW, LOW_TILES)
-        ).toEqual(['-1.55 units', '4.88 units', '3.33 units'])
+        ).toEqual(FIGURES.lowLossCovered.lowTiles)
         await expectStatusTag(
           hedgerowsTradingSummaryPage.statusTag(LOW),
           STATUS_MET
@@ -232,7 +329,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         browser,
         hedgerowsTradingSummaryPage
       }) => {
-        const project = await getLinearInterventionTypesProject(browser)
+        const project = await getRunLinearInterventionTypesProject(browser)
         await hedgerowsTradingSummaryPage.open(project.id)
 
         expect(
@@ -240,7 +337,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
             MEDIUM,
             MEDIUM_DEFICIT_TILE
           )
-        ).toBe('2.22 units')
+        ).toBe(FIGURES.sections.mediumDeficit)
         await expectStatusTag(
           hedgerowsTradingSummaryPage.bandTileTag(MEDIUM, MEDIUM_DEFICIT_TILE),
           STATUS_MET
@@ -249,17 +346,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         // for display on its own, so the two can differ by a penny.
         expect(await hedgerowsTradingSummaryPage.readBandGrid(MEDIUM)).toEqual({
           headers: UNIT_CHANGE_COLUMNS,
-          rows: [
-            ['Ecologically valuable line of trees', '1.94'],
-            [
-              'Ecologically valuable line of trees - associated with bank or ditch',
-              '-1.56'
-            ],
-            ['Native hedgerow - associated with bank or ditch', '2.39'],
-            ['Native hedgerow with trees', '-0.56'],
-            ['Species-rich native hedgerow', '0.00'],
-            [TOTAL_UNIT_CHANGE, '2.22']
-          ]
+          rows: FIGURES.sections.mediumRows
         })
       })
 
@@ -267,64 +354,62 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         browser,
         hedgerowsTradingSummaryPage
       }) => {
-        const project = await getLinearInterventionTypesProject(browser)
+        const project = await getRunLinearInterventionTypesProject(browser)
         await hedgerowsTradingSummaryPage.open(project.id)
 
         expect(
           await hedgerowsTradingSummaryPage.bandTileValues(LOW, LOW_TILES)
-        ).toEqual(['-3.77 units', '2.22 units', '-1.55 units'])
+        ).toEqual(FIGURES.sections.lowTiles)
         // Only the cumulative tile carries the band's status.
         await expectStatusTag(
           hedgerowsTradingSummaryPage.bandTileTag(LOW, CUMULATIVE_SURPLUS_TILE),
-          STATUS_NOT_MET
+          FIGURES.sections.lowStatus
         )
         await expect(
           hedgerowsTradingSummaryPage.bandTileTag(LOW, LOW_NET_CHANGE_TILE)
         ).toHaveCount(0)
         expect(await hedgerowsTradingSummaryPage.readBandGrid(LOW)).toEqual({
           headers: UNIT_CHANGE_COLUMNS,
-          rows: [
-            ['Line of trees', '-1.76'],
-            ['Line of trees - associated with bank or ditch', '-2.01'],
-            ['Native hedgerow', '0.00'],
-            [TOTAL_UNIT_CHANGE, '-3.77']
-          ]
+          rows: FIGURES.sections.lowRows
         })
       })
 
       // A Low cumulative deficit (-1.55) is never carried down, so "available"
       // reads 0.00. That alone cannot tell which figure the page passes — any
       // negative input floors to 0.00 — hence the all-met test below.
-      test('the Very low section shows a Low deficit carried down as 0.00 and its hedgerow type with a total', async ({
-        browser,
-        hedgerowsTradingSummaryPage
-      }) => {
-        const project = await getLinearInterventionTypesProject(browser)
-        await hedgerowsTradingSummaryPage.open(project.id)
+      // Legacy only: no BNG Service template corpus file has a Low deficit and
+      // a Very low band. That run's Very low section is the test below.
+      test(
+        'the Very low section shows a Low deficit carried down as 0.00 and its hedgerow type with a total',
+        { tag: LEGACY_ONLY },
+        async ({ browser, hedgerowsTradingSummaryPage }) => {
+          const project = await getRunLinearInterventionTypesProject(browser)
+          await hedgerowsTradingSummaryPage.open(project.id)
 
-        expect(
-          await hedgerowsTradingSummaryPage.bandTileValues(
-            VERY_LOW,
-            VERY_LOW_TILES
+          expect(
+            await hedgerowsTradingSummaryPage.bandTileValues(
+              VERY_LOW,
+              VERY_LOW_TILES
+            )
+          ).toEqual(['-1.04 units', '0.00 units', '-1.04 units'])
+          await expectStatusTag(
+            hedgerowsTradingSummaryPage.bandTileTag(
+              VERY_LOW,
+              CUMULATIVE_SURPLUS_TILE
+            ),
+            STATUS_NOT_MET
           )
-        ).toEqual(['-1.04 units', '0.00 units', '-1.04 units'])
-        await expectStatusTag(
-          hedgerowsTradingSummaryPage.bandTileTag(
-            VERY_LOW,
-            CUMULATIVE_SURPLUS_TILE
-          ),
-          STATUS_NOT_MET
-        )
-        expect(
-          await hedgerowsTradingSummaryPage.readBandGrid(VERY_LOW)
-        ).toEqual({
-          headers: UNIT_CHANGE_COLUMNS,
-          rows: [
-            ['Non-native and ornamental hedgerow', '-1.04'],
-            [TOTAL_UNIT_CHANGE, '-1.04']
-          ]
-        })
-      })
+          expect(
+            await hedgerowsTradingSummaryPage.readBandGrid(VERY_LOW)
+          ).toEqual({
+            headers: UNIT_CHANGE_COLUMNS,
+            rows: [
+              ['Non-native and ornamental hedgerow', '-1.04'],
+              [TOTAL_UNIT_CHANGE, '-1.04']
+            ]
+          })
+        }
+      )
 
       // harness trading-rules/all-met: the Low hedgerow is enhanced (+1.26) and
       // the Very low one retained (0.00). SOLE WITNESS that the Very low
@@ -337,7 +422,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         browser,
         hedgerowsTradingSummaryPage
       }) => {
-        const project = await getHedgerowTradingAllMetProject(browser)
+        const project = await getRunHedgerowTradingAllMetProject(browser)
         await hedgerowsTradingSummaryPage.open(project.id)
 
         expect(await hedgerowsTradingSummaryPage.bandNames()).toEqual([
@@ -350,13 +435,13 @@ test.describe('project-management', { tag: '@project-management' }, () => {
             LOW,
             CUMULATIVE_SURPLUS_TILE
           )
-        ).toBe('1.26 units')
+        ).toBe(FIGURES.allMet.lowCumulative)
         expect(
           await hedgerowsTradingSummaryPage.bandTileValues(
             VERY_LOW,
             VERY_LOW_TILES
           )
-        ).toEqual(['0.00 units', '1.26 units', '1.26 units'])
+        ).toEqual(FIGURES.allMet.veryLowTiles)
         await expectStatusTag(
           hedgerowsTradingSummaryPage.statusTag(VERY_LOW),
           STATUS_MET
@@ -387,6 +472,89 @@ test.describe('project-management', { tag: '@project-management' }, () => {
   // the href asserted in the entry-points describe below; following it is
   // project-summary.spec.js's job, since the destination does not depend on
   // the page.
+  // ─── BNG Service template bands (BMD-1088) ────────────────────────────────────
+  //
+  // The legacy run's band tests read Low and Very low below zero on one
+  // project, and a Low deficit carried down as 0.00. No BNG Service template
+  // corpus file has those, so this run reads each band's Not met on its own
+  // project, and the Very low section with a Low surplus carried down. The
+  // figures are the backend's for these corpus files (harness 95b3ff2).
+
+  test.describe(
+    'Hedgerows trading summary — BNG Service template bands',
+    { tag: ['@regression', SERVICE_TEMPLATE_ONLY] },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      test('a Low and a Very low running total below zero each read "Not met"', async ({
+        browser,
+        hedgerowsTradingSummaryPage
+      }) => {
+        // The small site: Low below zero, with no Very low hedgerow.
+        const lowDeficit = await getRunHedgerowShortfallProject(browser)
+        await hedgerowsTradingSummaryPage.open(lowDeficit.id)
+        expect(
+          await hedgerowsTradingSummaryPage.bandTileValue(
+            LOW,
+            CUMULATIVE_SURPLUS_TILE
+          )
+        ).toBe('-0.11 units')
+        await expectStatusTag(
+          hedgerowsTradingSummaryPage.statusTag(LOW),
+          STATUS_NOT_MET
+        )
+
+        // A Very low hedgerow lost to development, under Met Medium and Low.
+        const veryLowDeficit =
+          await getServiceTemplateVeryLowDeficitProject(browser)
+        await hedgerowsTradingSummaryPage.open(veryLowDeficit.id)
+        await expectStatusTag(
+          hedgerowsTradingSummaryPage.statusTag(MEDIUM),
+          STATUS_MET
+        )
+        await expectStatusTag(
+          hedgerowsTradingSummaryPage.statusTag(LOW),
+          STATUS_MET
+        )
+        expect(
+          await hedgerowsTradingSummaryPage.bandTileValues(
+            VERY_LOW,
+            VERY_LOW_TILES
+          )
+        ).toEqual(['-0.33 units', '0.00 units', '-0.33 units'])
+        await expectStatusTag(
+          hedgerowsTradingSummaryPage.statusTag(VERY_LOW),
+          STATUS_NOT_MET
+        )
+      })
+
+      test('the Very low section shows the Low surplus carried down and its hedgerow type with a total', async ({
+        browser,
+        hedgerowsTradingSummaryPage
+      }) => {
+        const project = await getRunLinearInterventionTypesProject(browser)
+        await hedgerowsTradingSummaryPage.open(project.id)
+
+        expect(
+          await hedgerowsTradingSummaryPage.bandTileValues(
+            VERY_LOW,
+            VERY_LOW_TILES
+          )
+        ).toEqual(['0.96 units', '2.30 units', '3.27 units'])
+        expect(
+          await hedgerowsTradingSummaryPage.readBandGrid(VERY_LOW)
+        ).toEqual({
+          headers: UNIT_CHANGE_COLUMNS,
+          rows: [
+            ['Non-native and ornamental hedgerow', '0.96'],
+            [TOTAL_UNIT_CHANGE, '0.96']
+          ]
+        })
+      })
+    }
+  )
+
   test.describe(
     'Hedgerows trading summary — navigation',
     { tag: '@regression' },
@@ -398,7 +566,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         browser,
         hedgerowsTradingSummaryPage
       }) => {
-        const project = await getLinearInterventionTypesProject(browser)
+        const project = await getRunLinearInterventionTypesProject(browser)
         await hedgerowsTradingSummaryPage.open(project.id)
 
         for (const [linkText, path] of [
@@ -440,7 +608,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         hedgerowsSummaryPage,
         hedgerowsTradingSummaryPage
       }) => {
-        const project = await getHedgerowTradingMetProject(browser)
+        const project = await getRunHedgerowLowLossCoveredProject(browser)
         await hedgerowsSummaryPage.open(project.id)
 
         // Nav-wide, but only the current section expands, so on the hedgerows

@@ -181,6 +181,18 @@
       "source": "permutations/trading-rules/trading-higher-deficit-not-covered-from-below-baseline.gpkg",
       "sha256": "ca4088ca3d325d6399058dca53648e15c64362c4f36d4050a1a35e3baf7aeb40",
       "for": "Baseline-stage file for trading-higher-deficit-not-covered-from-below.gpkg: 3 hedgerows and no watercourses"
+    },
+    {
+      "file": "trading-lost-to-development.gpkg",
+      "source": "permutations/trading-rules/trading-lost-to-development.gpkg",
+      "sha256": "0149252ba89cee81019a220d0b6697023a3a5f0a8acb2aef60a046b6ebdfab0b",
+      "for": "A Very low hedgerow lost to development: hedgerow Medium and Low Met, Very low Not met (-0.33 units); no watercourses"
+    },
+    {
+      "file": "trading-lower-deficit-covered-from-above.gpkg",
+      "source": "permutations/trading-rules/trading-lower-deficit-covered-from-above.gpkg",
+      "sha256": "00a98aedef54fd5cd6fb98cdfff856b214e4a21bfa39bc30e505d75aa0b11f8d",
+      "for": "A Low hedgerow loss (-1.24 units) covered by the Medium surplus (+5.22): hedgerow Medium and Low Met; no watercourses"
     }
   ]
 }

@@ -36,7 +36,6 @@ const SERVICE_TEMPLATE_ONLY = '@service-template-only'
 const LEGACY_ONLY_SPECS = [
   'specs/habitat-details/baseline-habitat-details.spec.js',
   'specs/habitat-details/post-intervention-habitat-details.spec.js',
-  'specs/project-management/hedgerows-trading-summary.spec.js',
   'specs/project-management/project-details.spec.js',
   'specs/project-management/project-reports.spec.js',
   'specs/project-management/project-summary.spec.js',
