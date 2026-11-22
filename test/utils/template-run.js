@@ -38,9 +38,7 @@ const LEGACY_ONLY_SPECS = [
   'specs/habitat-details/post-intervention-habitat-details.spec.js',
   'specs/project-management/project-details.spec.js',
   'specs/project-management/project-reports.spec.js',
-  'specs/project-management/project-summary.spec.js',
-  'specs/project-management/watercourses-post-intervention.spec.js',
-  'specs/project-management/watercourses-trading-summary.spec.js'
+  'specs/project-management/project-summary.spec.js'
 ]
 
 /**

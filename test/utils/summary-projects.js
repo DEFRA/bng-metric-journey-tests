@@ -28,7 +28,8 @@ import {
   TRADING_ALL_MET,
   TREE_SIZES,
   VERY_LOW_HEDGEROW_LOST,
-  WATERCOURSE_DEGRADED_BASELINE
+  WATERCOURSE_DEGRADED_BASELINE,
+  WATERCOURSE_REMEANDERED
 } from '@utils/service-template-files.js'
 import { setupProject } from '@utils/project-helpers.js'
 import { createProjectCache } from '@utils/shared-project.js'
@@ -580,6 +581,29 @@ export function getServiceTemplateVeryLowDeficitProject(browser) {
   return getServiceTemplatePostInterventionProject(
     browser,
     VERY_LOW_HEDGEROW_LOST
+  )
+}
+
+/**
+ * Watercourses post-intervention stand-ins:
+ *
+ * - watercourses on all three tabs: the default site, whose Created R005 is
+ *   left unpriced (Incomplete), and whose baseline R002 is removed;
+ * - a watercourse re-meandered to a longer course than its parent:
+ *   watercourse-remeandered.gpkg, which only the BNG Service template run
+ *   uses.
+ */
+export function getRunWatercourseInterventionTypesProject(browser) {
+  return isServiceTemplateRun()
+    ? getServiceTemplatePostInterventionProject(browser, DEFAULT_SITE)
+    : getWatercourseInterventionTypesProject(browser)
+}
+
+/** @see getRunWatercourseInterventionTypesProject */
+export function getServiceTemplateRemeanderedWatercourseProject(browser) {
+  return getServiceTemplatePostInterventionProject(
+    browser,
+    WATERCOURSE_REMEANDERED
   )
 }
 
