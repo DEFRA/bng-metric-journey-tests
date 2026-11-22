@@ -2,9 +2,11 @@ import { test, expect } from '@fixtures'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 import {
-  getAreaTradingDeficitProject,
-  getIntertidalTradingProject
+  getRunAllUnitTypesPostInterventionProject,
+  getRunAreaTradingDeficitProject,
+  getRunIntertidalTradingProject
 } from '@utils/summary-projects.js'
+import { isServiceTemplateRun } from '@utils/template-run.js'
 import {
   AREA_HABITATS,
   BASELINE_NAV_CHILD,
@@ -28,6 +30,10 @@ const TOTAL_BROAD_HABITAT_CHANGE = 'Total broad habitat change'
 const TOTAL_ON_SITE_UNIT_CHANGE = 'Total on-site unit change'
 const IGGI_HABITAT_TYPE =
   'Artificial hard structures with integrated greening of grey infrastructure (IGGI)'
+// The IGGI habitat's unit change in the run's intertidal project: nil in the
+// legacy pair; +0.07 in every-retention.gpkg, where it is the Created vertical
+// area habitat V003.
+const IGGI_UNIT_CHANGE = isServiceTemplateRun() ? '0.07' : '0.00'
 
 // The area trading summary is read-only: it renders figures the backend
 // calculated and saved at post-intervention upload (BMD-993). Both projects
@@ -54,7 +60,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
   // grassland lost (Medium band Not met, −153.69) and two Low grasslands
   // enhanced (Low band Met, +166.54); hedgerows, no rivers. Its pinned figures
   // come from the BMD-1024 manual validation runs, stable across 2026-09-28,
-  // 2026-10-01 and 2026-10-02.
+  // 2026-10-01 and 2026-10-02. The BNG Service template run uploads the same
+  // scenario in its own template, which the backend prices to the same
+  // figures.
 
   test.describe('Area trading summary — Medium deficit project', () => {
     test.use({ storageState: STORAGE_STATE })
@@ -62,7 +70,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
     let project
     test.beforeAll(async ({ browser }) => {
-      project = await getAreaTradingDeficitProject(browser)
+      project = await getRunAreaTradingDeficitProject(browser)
     })
 
     // Followed from the results link rather than opened by URL, so the entry
@@ -279,7 +287,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
     let project
     test.beforeAll(async ({ browser }) => {
-      project = await getIntertidalTradingProject(browser)
+      project = await getRunIntertidalTradingProject(browser)
     })
 
     // Sole witness for the intertidal merge on real data. The engine merges the
@@ -311,8 +319,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         expect(grid).toEqual({
           headers: ['Broad habitat', 'Habitat type', 'On-site unit change'],
           rows: [
-            ['Intertidal hard structures', IGGI_HABITAT_TYPE, '0.00'],
-            [TOTAL_BROAD_HABITAT_CHANGE, '', '0.00']
+            ['Intertidal hard structures', IGGI_HABITAT_TYPE, IGGI_UNIT_CHANGE],
+            [TOTAL_BROAD_HABITAT_CHANGE, '', IGGI_UNIT_CHANGE]
           ]
         })
       }
@@ -321,14 +329,19 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     test(
       'lists Watercourses in the navigation, linking to the watercourses summary',
       { tag: '@regression' },
-      async ({ areaTradingSummaryPage }) => {
-        await areaTradingSummaryPage.open(project.id)
+      async ({ areaTradingSummaryPage, browser }) => {
+        // The legacy intertidal pair has rivers; the BNG Service template's
+        // every-retention.gpkg has none, so that run uses the default site.
+        const withWatercourses = isServiceTemplateRun()
+          ? await getRunAllUnitTypesPostInterventionProject(browser)
+          : project
+        await areaTradingSummaryPage.open(withWatercourses.id)
 
         await expect(
           areaTradingSummaryPage.navLink(WATERCOURSES)
         ).toHaveAttribute(
           'href',
-          `/projects/${project.id}/watercourses-summary`
+          `/projects/${withWatercourses.id}/watercourses-summary`
         )
       }
     )

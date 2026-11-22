@@ -15,9 +15,11 @@
 import { STORAGE_STATE, baseUrl } from '@utils/env.js'
 import { isServiceTemplateRun } from '@utils/template-run.js'
 import {
+  AREA_TRADING_DEFICIT,
   BASELINE_SIGNIFICANCE_HIGH,
   DEFAULT_SITE,
   DEFAULT_SITE_BASELINE,
+  EVERY_VERTICAL_RETENTION,
   NO_RETAINED_AREA,
   SMALL_SITE_BASELINE,
   TRADING_ALL_MET,
@@ -421,6 +423,31 @@ export function getRunRetainedSignificanceProject(browser) {
         BASELINE_SIGNIFICANCE_HIGH
       )
     : getAllUnitTypesPostInterventionProject(browser)
+}
+
+/**
+ * Area trading summary stand-ins:
+ *
+ * - a Medium deficit not covered from below: the same harness scenario in the
+ *   BNG Service template, trading-higher-deficit-not-covered-from-below.gpkg,
+ *   with the same figures;
+ * - an IGGI habitat in the merged intertidal group: every-retention.gpkg,
+ *   whose IGGI is a vertical area habitat.
+ */
+export function getRunAreaTradingDeficitProject(browser) {
+  return isServiceTemplateRun()
+    ? getServiceTemplatePostInterventionProject(browser, AREA_TRADING_DEFICIT)
+    : getAreaTradingDeficitProject(browser)
+}
+
+/** @see getRunAreaTradingDeficitProject */
+export function getRunIntertidalTradingProject(browser) {
+  return isServiceTemplateRun()
+    ? getServiceTemplatePostInterventionProject(
+        browser,
+        EVERY_VERTICAL_RETENTION
+      )
+    : getIntertidalTradingProject(browser)
 }
 
 /** A baseline-only project populating every unit type. */

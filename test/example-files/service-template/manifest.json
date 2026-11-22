@@ -169,6 +169,12 @@
       "source": "attribute-problems/baseline-significance-high.gpkg",
       "sha256": "23872e97b22643de5a07a5cc36c8ce399fc70712b613d6a821525ab7ab02a487",
       "for": "The default site with the Retained H002's Baseline Strategic Significance High in both stages: accepted, priced at Low"
+    },
+    {
+      "file": "trading-higher-deficit-not-covered-from-below.gpkg",
+      "source": "permutations/trading-rules/trading-higher-deficit-not-covered-from-below.gpkg",
+      "sha256": "ed10e16b31503092f53d48f9390e08f18f5f32e1b91cddd1aeb247bc7220cbbb",
+      "for": "A Medium grassland lost (Medium band Not met, -153.69 units) and two Low grasslands enhanced (Low band Met, +166.54); hedgerows, no watercourses. The same figures as the legacy scenario"
     }
   ]
 }
