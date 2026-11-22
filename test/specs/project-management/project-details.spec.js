@@ -50,7 +50,11 @@ const DATE_MISSING_MONTH_AND_YEAR = 'Survey date must include month and year'
 const LPA_NOT_IN_LIST = 'Select a local planning authority from the list'
 const ERROR_CLASS = /govuk-input--error/
 const HEDGEROWS_POST_INTERVENTION = 'hedgerows-post-intervention'
-// A post-intervention file with hedgerows, in the template this run tests.
+// The file the save test builds its own project from, in the template this
+// run tests. The test opens Project details from the hedgerows
+// post-intervention page, so the file needs post-intervention hedgerows: the
+// default site has 15, on all three tabs. Like the legacy file, it holds both
+// stages, which the post-intervention upload writes into an empty project.
 const POST_INTERVENTION_FILE = isServiceTemplateRun()
   ? DEFAULT_SITE
   : ALL_UNIT_TYPES_PI_FILE
