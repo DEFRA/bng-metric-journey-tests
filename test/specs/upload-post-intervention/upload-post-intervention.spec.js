@@ -25,9 +25,14 @@ import {
   isServiceTemplateRun
 } from '@utils/template-run.js'
 import {
-  ADVANCE_AND_DELAY_BOTH_SET,
+  ADVANCE_AND_DELAY_EVERY_LAYER,
+  BASELINE_AREA_INCOMPLETE,
+  BASELINE_INCOMPLETE_EVERY_LAYER,
+  COMMENT_INVALID_CHARACTERS,
+  COMMENT_TOO_LONG,
   DEFAULT_SITE,
-  DISTINCTIVENESS_OUT_OF_SCOPE,
+  DISTINCTIVENESS_POST_INTERVENTION_ONLY,
+  HABITAT_REF_MISSING_AND_COMMENT_INVALID,
   HEDGEROW_DEGRADE_NO_ADVANCE,
   PARENT_SHAPE_CHANGED,
   POST_INTERVENTION_HABITAT_REF_BLANK,
@@ -1587,11 +1592,25 @@ const ST_REDLINE_MISMATCH =
   'Layer "Red Line Boundary" does not match the BNG Service template'
 const ST_REDLINE_WRONG_GEOMETRY_TYPE =
   'expected geometry type "POLYGON" in gpkg_geometry_columns but found "POINT"'
-const ST_OUT_OF_SCOPE_HABITAT =
-  'Feature Ref H001 — Grassland - Lowland meadows (Very high)'
 const ST_UNENHANCEABLE_TREE = 'Habitat Ref T008 — Individual trees - Rural tree'
-const ST_UNPRICED_AREA_REF = 'H001'
-const ST_PRICED_AREA_REF = 'H004'
+// Created, then Enhanced, on each layer.
+const ST_CONFLICTING_TIMING_REFS = [
+  ['area', 'H005'],
+  ['area', 'H001'],
+  ['hedgerow', 'HG009'],
+  ['hedgerow', 'HG002'],
+  ['watercourse', 'R003'],
+  ['watercourse', 'R006']
+]
+const ST_PRICED_AREA_REF = 'H006'
+const ST_COMMENT_INVALID_HEADING =
+  'One or more comments contain characters that are not valid UTF-8'
+const ST_COMMENT_ROW = 'fid 6'
+// Two error summary lines and the comment's bullet.
+const ST_REF_AND_COMMENT_BULLETS = 3
+const ST_COMMENT_TOO_LONG_ROW =
+  'Area Habitats Post-Intervention, H005: Comment has 1,151 characters. The maximum is 999'
+const ST_INCOMPLETE_AREA_REF = 'H002'
 // The small site's hedgerows, which a refused file must leave in place.
 const ST_STORED_HEDGEROW_REFS = ['HG001', 'HG005']
 
@@ -1740,11 +1759,10 @@ function describeServiceTemplateImports() {
         await expect(errorFilePage.backToProjectLink).toBeVisible()
       })
 
-      // H001 and H002 are out of scope in both stages. The Post-Intervention
-      // tables are checked for themselves, so the problem is listed twice:
-      // were only the Baseline tables read, it would show once, on the
-      // distinctiveness page.
-      test('a file whose habitats are High/Very High distinctiveness in both stages is refused once for each', async ({
+      // H005 is Created as Lowland meadows (Very High) in its
+      // post-intervention row only, so only a check of the Post-Intervention
+      // tables' proposed habitats finds it.
+      test('a file whose proposed habitat alone is High/Very High distinctiveness shows the distinctiveness single-error page', async ({
         createProjectFlow,
         projectDashboardPage,
         uploadPostInterventionFileFlow,
@@ -1758,21 +1776,21 @@ function describeServiceTemplateImports() {
             uploadPostInterventionFileFlow,
             page
           },
-          DISTINCTIVENESS_OUT_OF_SCOPE
+          DISTINCTIVENESS_POST_INTERVENTION_ONLY
         )
 
-        await expect(
-          errorFilePage.postInterventionRejectedHeading
-        ).toBeVisible()
-        await expect(
-          errorFilePage.singleErrorHeading(DISTINCTIVENESS_OUT_OF_SCOPE_COPY)
-        ).toHaveCount(2)
-        await expect(
-          page
-            .getByRole('listitem')
-            .filter({ hasText: ST_OUT_OF_SCOPE_HABITAT })
-        ).toHaveCount(2)
-        await expect(errorFilePage.distinctivenessHeading).not.toBeVisible()
+        await expect(errorFilePage.distinctivenessHeading).toBeVisible()
+        await expect(errorFilePage.errorSummary).not.toBeVisible()
+        await expect(errorFilePage.metricToolLink).toHaveAttribute(
+          'href',
+          METRIC_TOOL_URL
+        )
+        await expect(errorFilePage.metricToolLink).toHaveAttribute(
+          'target',
+          '_blank'
+        )
+        await expect(errorFilePage.uploadDifferentFileLink).not.toBeVisible()
+        await expect(errorFilePage.backToProjectLink).not.toBeVisible()
       })
 
       // Refused after the lineage checks, so the stored project is checked
@@ -1879,6 +1897,174 @@ function describeServiceTemplateImports() {
         ).toBeVisible()
         await expect(errorFilePage.serviceEligibilityHeading).not.toBeVisible()
       })
+
+      // The habitat with no ref is reported for each stage, which the page
+      // shows once, as a heading with nothing under it; the comment is listed
+      // by its fid. So the page's bullets are its two summary lines and the
+      // comment's one.
+      test('a habitat with no reference among other errors is a heading with no habitats listed', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadPostInterventionFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadPostInterventionFileFlow,
+            page
+          },
+          HABITAT_REF_MISSING_AND_COMMENT_INVALID
+        )
+
+        const main = page.getByRole('main')
+        await expect(
+          errorFilePage.postInterventionRejectedHeading
+        ).toBeVisible()
+        await expect(
+          errorFilePage.singleErrorHeading(HABITAT_REF_MISSING_COPY)
+        ).toHaveCount(1)
+        await expect(
+          errorFilePage.singleErrorHeading(ST_COMMENT_INVALID_HEADING)
+        ).toBeVisible()
+        await expect(main.getByRole('listitem')).toHaveCount(
+          ST_REF_AND_COMMENT_BULLETS
+        )
+        await expect(
+          main.getByRole('listitem').filter({ hasText: ST_COMMENT_ROW })
+        ).toBeVisible()
+      })
+
+      test('a comment longer than 999 characters is refused, giving its length', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadPostInterventionFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadPostInterventionFileFlow,
+            page
+          },
+          COMMENT_TOO_LONG
+        )
+
+        await expect(
+          errorFilePage.postInterventionRejectedHeading
+        ).toBeVisible()
+        await expect(errorFilePage.errorSummary).toBeVisible()
+        await expect(page.getByText(ST_COMMENT_TOO_LONG_ROW)).toBeVisible()
+      })
+
+      test('a comment that is not valid UTF-8 is refused on its own page', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadPostInterventionFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        const id = await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadPostInterventionFileFlow,
+            page
+          },
+          COMMENT_INVALID_CHARACTERS
+        )
+
+        await expect(errorFilePage.geopackageErrorHeading).toBeVisible()
+        await expect(errorFilePage.errorSummary).not.toBeVisible()
+        await expect(
+          page.getByText(COMMENT_INVALID_CHARACTERS_COPY)
+        ).toBeVisible()
+        await expect(errorFilePage.uploadNewFileLink).toHaveAttribute(
+          'href',
+          `/projects/${id}/upload-post-intervention-file`
+        )
+      })
+
+      // H002 has no Baseline Condition, so its baseline row is Incomplete,
+      // and a post-intervention upload, after which the baseline cannot be
+      // edited, refuses it. Uploaded over a stored baseline, which it leaves.
+      test('a file whose baseline has an incomplete area habitat is refused, naming it, and leaves the stored project as it was', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        uploadPostInterventionFileFlow,
+        projectSummaryPage,
+        errorFilePage,
+        page
+      }) => {
+        // Two real uploads back this test.
+        test.setTimeout(UPLOAD_TIMEOUT * 2)
+
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
+        )
+        await uploadBaselineFileFlow.uploadFileAndWaitForSummary(
+          id,
+          SMALL_SITE_BASELINE
+        )
+        const baselineUnits = await projectSummaryPage.tileValue(
+          AREA_HABITATS,
+          TILE_BASELINE
+        )
+
+        await uploadPostInterventionFileFlow.uploadFile(
+          id,
+          BASELINE_AREA_INCOMPLETE
+        )
+        await page.waitForURL(ERROR_FILE_URL, { timeout: UPLOAD_TIMEOUT })
+
+        await expect(errorFilePage.genericHeading).toBeVisible()
+        await expect(errorFilePage.layerHeadings).toHaveText([
+          'Habitat parcels'
+        ])
+        await expect(
+          errorFilePage.incompleteBaselineHabitatText(ST_INCOMPLETE_AREA_REF)
+        ).toBeVisible()
+        await expect(errorFilePage.errorSummary).not.toBeVisible()
+
+        await errorFilePage.backToProjectLink.click()
+        await expect(projectSummaryPage.heading).toBeVisible()
+        expect(
+          await projectSummaryPage.tileValue(AREA_HABITATS, TILE_BASELINE)
+        ).toBe(baselineUnits)
+        await expect(
+          projectSummaryPage.uploadPostInterventionLink(AREA_HABITATS)
+        ).toBeVisible()
+      })
+
+      // H002, HG001 and R007, one on each layer.
+      test('a file whose baseline has incomplete habitats on several layers is refused without naming one', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadPostInterventionFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadPostInterventionFileFlow,
+            page
+          },
+          BASELINE_INCOMPLETE_EVERY_LAYER
+        )
+
+        await expect(errorFilePage.genericHeading).toBeVisible()
+        await expect(errorFilePage.incompleteBaselineHabitatsText).toBeVisible()
+        await expect(errorFilePage.layerHeadings).toHaveCount(0)
+      })
     }
   )
 
@@ -1886,10 +2072,10 @@ function describeServiceTemplateImports() {
     'Upload post-intervention — BNG Service template imports',
     { tag: ['@regression', SERVICE_TEMPLATE_ONLY] },
     () => {
-      // H001 is Created 2 years in advance and delayed 3: accepted, both
-      // cleared, and left unpriced, as a Created area habitat's 0.00. H004,
-      // Created 3 years in advance alone, is the control: it is priced.
-      test('a Created area habitat that sets both advance and delay is accepted and left unpriced', async ({
+      // Advance 2 and delay 3 on a Created and an Enhanced feature of each
+      // layer: accepted, both cleared, and left unpriced, which each grid
+      // shows as 0.00. H006, Enhanced with neither, is the control: priced.
+      test('a file whose Created and Enhanced features set both advance and delay is accepted and those features are left unpriced', async ({
         createProjectFlow,
         projectDashboardPage,
         uploadPostInterventionFileFlow,
@@ -1902,12 +2088,15 @@ function describeServiceTemplateImports() {
         )
         await uploadPostInterventionFileFlow.uploadFileAndWaitForSummary(
           id,
-          ADVANCE_AND_DELAY_BOTH_SET
+          ADVANCE_AND_DELAY_EVERY_LAYER
         )
 
-        await expect(
-          await piUnitsCell(page, id, 'area', ST_UNPRICED_AREA_REF)
-        ).toHaveText('0.00')
+        for (const [type, ref] of ST_CONFLICTING_TIMING_REFS) {
+          await expect(
+            await piUnitsCell(page, id, type, ref),
+            `${type} ${ref}`
+          ).toHaveText('0.00')
+        }
         await expect(
           await piUnitsCell(page, id, 'area', ST_PRICED_AREA_REF)
         ).toHaveText(UNITS_2DP)

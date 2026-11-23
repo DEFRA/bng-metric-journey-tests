@@ -21,19 +21,21 @@ import {
 import {
   AREA_HABITATS_MISSING_COLUMNS,
   AREA_HABITATS_WRONG_GEOMETRY_TYPE,
+  AREA_SUM_MISMATCH,
   BOWTIE_PARCEL,
   DEFAULT_SITE,
   DEFAULT_SITE_BASELINE,
   DISTINCTIVENESS_OUT_OF_SCOPE,
   DUPLICATE_HABITAT_REF,
   HABITAT_REF_INVALID_CHARACTERS,
-  HABITAT_REF_MISSING,
+  HABITAT_REF_MISSING_EVERY_LAYER,
   IRREPLACEABLE_TREE,
   NO_AREA_HABITATS_TABLE,
   OVERLAPPING_PARCELS,
   PARCEL_OUTSIDE_REDLINE,
   PARCEL_TOO_SMALL,
   PUNCTUATED_NAME_BASELINE,
+  REDLINE_MISSING,
   REDLINE_NOT_IN_ENGLAND,
   REDLINE_SELF_INTERSECTING,
   SMALL_SITE_BASELINE,
@@ -1278,6 +1280,10 @@ const ST_CATCH_ALL_BODY =
 const ST_AREA_HABITATS_MISMATCH =
   'Layer "Area Habitats Baseline" does not match the BNG Service template'
 const ST_DUPLICATE_REF = 'DUP-1'
+const ST_REDLINE_MISSING_BODY =
+  'The redline boundary is missing. Draw the red line boundary and'
+const ST_AREA_SUM_MISMATCH =
+  'Sum of area habitat polygons (11600.00 sq m) does not equal redline boundary area (160000.00 sq m)'
 const ST_IRREPLACEABLE_TREE_HEADING =
   'Irreplaceable Habitat must be "No" for every tree, because the service does not accept irreplaceable trees, such as ancient and veteran trees. These trees have Irreplaceable Habitat "Yes", blank or another value'
 const ST_IRREPLACEABLE_TREE_ROW = 'Individual Trees Baseline Habitat Ref T025'
@@ -1336,8 +1342,10 @@ function describeServiceTemplateChecks() {
         await expect(areaBaselinePage.refLink(ST_DUPLICATE_REF)).toHaveCount(2)
       })
 
-      // One habitat in Area Habitats Baseline each. The page is the same text
-      // page as the legacy template's, and nothing from the file is saved.
+      // The page is the same text page as the legacy template's, one error
+      // for every habitat it applies to, and nothing from the file is saved.
+      // The invalid reference is on one area habitat; the missing ones are on
+      // an area habitat, a hedgerow and a watercourse.
       for (const { title, file, copy } of [
         {
           title: 'a habitat reference that is not valid UTF-8',
@@ -1345,8 +1353,8 @@ function describeServiceTemplateChecks() {
           copy: HABITAT_REF_INVALID_CHARACTERS_COPY
         },
         {
-          title: 'a habitat with no reference',
-          file: HABITAT_REF_MISSING,
+          title: 'a file missing habitat references on every layer',
+          file: HABITAT_REF_MISSING_EVERY_LAYER,
           copy: HABITAT_REF_MISSING_COPY
         }
       ]) {
@@ -1484,6 +1492,57 @@ function describeServiceTemplateChecks() {
         await expectProblemsList(errorFilePage, id, [
           'Redline boundary geometry is invalid'
         ])
+      })
+
+      // Its only problem, so the red line boundary's own page, linking back.
+      test('a file with no red line boundary shows the "redline boundary is missing" page', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        const id = await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            page
+          },
+          REDLINE_MISSING
+        )
+
+        await expect(errorFilePage.geopackageErrorHeading).toBeVisible()
+        await expect(errorFilePage.errorSummary).not.toBeVisible()
+        await expect(page.getByText(ST_REDLINE_MISSING_BODY)).toBeVisible()
+        await expect(errorFilePage.uploadDifferentFileLink).not.toBeVisible()
+        await errorFilePage.uploadNewFileLink.click()
+        await expect(page).toHaveURL(
+          new RegExp(`/projects/${id}/upload-baseline-file`)
+        )
+      })
+
+      // The template's checks never count the red line boundary's polygons:
+      // a second copy of it only leaves the parcels short of its area, so
+      // this is how the service sees a file with several.
+      test('habitat parcels that do not cover the redline boundary are refused, giving both areas', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        const id = await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            page
+          },
+          AREA_SUM_MISMATCH
+        )
+
+        await expectProblemsList(errorFilePage, id, [ST_AREA_SUM_MISMATCH])
       })
 
       test('a redline boundary outside England is refused in the problems list', async ({
