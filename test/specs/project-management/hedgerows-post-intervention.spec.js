@@ -8,7 +8,8 @@ import {
   getRunHedgerowInterventionTypesProject,
   getRunHedgerowNoCreatedProject,
   getRunHedgerowTradingNotMetProject,
-  getRunLinearInterventionTypesProject
+  getRunLinearInterventionTypesProject,
+  getServiceTemplateHedgerowInvalidEnhancementProject
 } from '@utils/run-projects.js'
 import {
   LEGACY_ONLY,
@@ -212,6 +213,10 @@ const SERVICE_TEMPLATE_SIGNIFICANCES = ['Low (1)', 'High (1.15)']
 const DEGRADED_HEDGEROW_REF = 'HG017'
 const REMOVED_HEDGEROW_REFS = ['HG004', 'HG006', 'HG007', 'HG011']
 const LABEL_ONLY = /^[^()]+$/
+// invalid-hedgerow-medium-type-change.gpkg: HG001, a Native hedgerow with
+// trees Enhanced into a Species-rich native hedgerow, a move the metric's G-6
+// table does not allow.
+const SERVICE_TEMPLATE_INVALID_ENHANCEMENT_REF = 'HG001'
 
 const detailsHrefPattern = (projectId) =>
   new RegExp(
@@ -1140,6 +1145,31 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         expect(row['Target condition']).toMatch(LABEL_AND_SCORE)
         expect(row.Advance).toMatch(YEARS)
         expect(row['Final time to target']).toMatch(YEARS_AND_SCORE)
+      })
+
+      // The BNG Service template's own file for the rule the legacy test above
+      // reads: an enhancement not valid for its baseline has every proposed
+      // field nulled on import and its units left null.
+      test('an Enhanced hedgerow that is not a valid enhancement of its baseline is left unpriced with no proposed values', async ({
+        browser,
+        hedgerowsPostInterventionPage
+      }) => {
+        const invalidProject =
+          await getServiceTemplateHedgerowInvalidEnhancementProject(browser)
+        const grid = hedgerowsPostInterventionPage
+        await grid.open(invalidProject.id)
+        await grid.tab(ENHANCED).click()
+
+        const row = await targetRow(
+          grid,
+          ENHANCED,
+          SERVICE_TEMPLATE_INVALID_ENHANCEMENT_REF
+        )
+        expect(row.Units).toBe('0.00')
+        expect(row.Size).toMatch(KILOMETRES)
+        for (const column of PROPOSED_COLUMNS) {
+          expect(row[column], column).toBe('')
+        }
       })
 
       test('a hedgerow the file removes is on no tab', async ({
