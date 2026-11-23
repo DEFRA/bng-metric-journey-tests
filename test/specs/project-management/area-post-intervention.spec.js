@@ -9,9 +9,12 @@ import {
 import {
   getRunAllUnitTypesPostInterventionProject,
   getRunAreaInterventionTypesProject,
+  getRunWatercourseInterventionTypesProject,
   getRunNoRetainedAreaProject,
   getRunRetainedSignificanceProject,
-  getRunTreesPostInterventionProject
+  getRunTreesPostInterventionProject,
+  getServiceTemplateHedgerowInvalidEnhancementProject,
+  getServiceTemplateIncompleteEnhancementsProject
 } from '@utils/run-projects.js'
 import {
   LEGACY_ONLY,
@@ -394,6 +397,40 @@ const HEDGEROW_STATUS_DESCENDING = [
   ...HEDGEROW_INCOMPLETE_REFS,
   STATUS_ROWS.hedgerows.complete
 ]
+
+// The BNG Service template's Status rows: a Complete and an Incomplete row on
+// one tab of each unit type's grid, each from the project that has them. The
+// area habitats of invalid-data-incomplete.gpkg are all Enhanced: H001-H003
+// and the tree T003 Complete, H004-H006 Incomplete with no proposed condition
+// or strategic significance. Its Enhanced grid ties on both sides, so a
+// descending sort that reversed the ascending one would read H006 first, not
+// H004.
+const SERVICE_TEMPLATE_STATUS_ROWS = {
+  area: { tab: ENHANCED, complete: 'H001', incomplete: 'H004' },
+  hedgerows: { tab: ENHANCED, complete: 'HG002', incomplete: 'HG001' },
+  watercourses: { tab: CREATED, complete: 'R003', incomplete: 'R005' }
+}
+const AREA_STATUS_ASCENDING = [
+  'H001',
+  'H002',
+  'H003',
+  'T003',
+  'H004',
+  'H005',
+  'H006'
+]
+const AREA_STATUS_DESCENDING = [
+  'H004',
+  'H005',
+  'H006',
+  'H001',
+  'H002',
+  'H003',
+  'T003'
+]
+// invalid-data-incomplete.gpkg's H004: Enhanced with no Proposed Condition or
+// Proposed Strategic Significance.
+const ENHANCED_UNPRICED_REF = 'H004'
 
 /** A row's Status tag, found by the row's Ref link and the tag's text. */
 function statusTag(grid, label, reference, status) {
@@ -1195,7 +1232,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
   // grid tests above and in the hedgerow and watercourse specs.
   test.describe(
     'Post-intervention grids — Status column',
-    // Status is not asserted for the BNG Service template in this epic.
+    // The BNG Service template run reads its own files' rows, below.
     { tag: ['@regression', LEGACY_ONLY] },
     () => {
       test.use({ storageState: STORAGE_STATE })
@@ -1270,6 +1307,118 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         // The other tabs' grids are not re-sorted.
         await grid.tab(RETAINED).click()
         expect(await grid.columnValues(RETAINED, 'Ref')).toEqual(retainedRefs)
+      })
+    }
+  )
+
+  // The Status column in the BNG Service template run. Its corpus has no
+  // project with a Complete and an Incomplete row on one tab of every grid, so
+  // each grid is read on the project that has them: an Enhanced parcel or
+  // hedgerow the import left unpriced, and the default site's Created R005.
+  test.describe(
+    'Post-intervention grids — BNG Service template Status column',
+    { tag: ['@regression', SERVICE_TEMPLATE_ONLY] },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      let areaProject
+      let hedgerowProject
+      let watercourseProject
+      test.beforeAll(async ({ browser }) => {
+        areaProject =
+          await getServiceTemplateIncompleteEnhancementsProject(browser)
+        hedgerowProject =
+          await getServiceTemplateHedgerowInvalidEnhancementProject(browser)
+        watercourseProject =
+          await getRunWatercourseInterventionTypesProject(browser)
+      })
+
+      test('each grid tags a Complete row grey and an Incomplete row blue, with no status in the totals', async ({
+        areaPostInterventionPage,
+        hedgerowsPostInterventionPage,
+        watercoursesPostInterventionPage
+      }) => {
+        const grids = [
+          [
+            areaPostInterventionPage,
+            areaProject,
+            SERVICE_TEMPLATE_STATUS_ROWS.area
+          ],
+          [
+            hedgerowsPostInterventionPage,
+            hedgerowProject,
+            SERVICE_TEMPLATE_STATUS_ROWS.hedgerows
+          ],
+          [
+            watercoursesPostInterventionPage,
+            watercourseProject,
+            SERVICE_TEMPLATE_STATUS_ROWS.watercourses
+          ]
+        ]
+        for (const [grid, project, { tab, complete, incomplete }] of grids) {
+          await grid.open(project.id)
+          await grid.tab(tab).click()
+
+          await expect(
+            statusTag(grid, tab, complete, STATUS_COMPLETE)
+          ).toHaveClass(/govuk-tag--grey/)
+          await expect(
+            statusTag(grid, tab, incomplete, STATUS_INCOMPLETE)
+          ).toHaveClass(/govuk-tag--blue/)
+          await expect(await grid.totalsCell(tab, STATUS_HEADING)).toHaveText(
+            ''
+          )
+        }
+      })
+
+      // The area grid, whose Enhanced tab ties on both sides of the sort.
+      test('clicking Status sorts Complete first, then Incomplete first, with ties in Ref order', async ({
+        areaPostInterventionPage
+      }) => {
+        const grid = areaPostInterventionPage
+        await grid.open(areaProject.id)
+        await grid.tab(ENHANCED).click()
+
+        const statusHeader = grid
+          .columnHeaders(ENHANCED)
+          .nth(await grid.columnIndex(ENHANCED, STATUS_HEADING))
+        const sortButton = grid.sortButton(ENHANCED, STATUS_HEADING)
+
+        await sortButton.click()
+        await expect(statusHeader).toHaveAttribute('aria-sort', 'ascending')
+        expect(await grid.columnValues(ENHANCED, 'Ref')).toEqual(
+          AREA_STATUS_ASCENDING
+        )
+
+        await sortButton.click()
+        await expect(statusHeader).toHaveAttribute('aria-sort', 'descending')
+        expect(await grid.columnValues(ENHANCED, 'Ref')).toEqual(
+          AREA_STATUS_DESCENDING
+        )
+        await expect(
+          grid.table(ENHANCED).getByRole('row').last()
+        ).toContainText('Total')
+      })
+
+      // The nearest the BNG Service template comes to a rejected strategic
+      // significance: it offers no Medium, but a file can leave an
+      // enhancement's proposed condition and strategic significance blank.
+      // The import saves the parcel Incomplete with null units, which the grid
+      // shows as 0.00, display only, with no value the engine would derive.
+      test('an Enhanced parcel with no proposed condition or strategic significance is left unpriced', async ({
+        areaPostInterventionPage
+      }) => {
+        const grid = areaPostInterventionPage
+        await grid.open(areaProject.id)
+        await grid.tab(ENHANCED).click()
+
+        const row = await grid.rowByRef(ENHANCED, ENHANCED_UNPRICED_REF)
+        expect(row.Units).toBe('0.00')
+        expect(row.Distinctiveness).toBe('')
+        expect(row['Strategic significance']).toBe('')
+        expect(row['Target condition']).toBe('')
+        expect(row['Standard difficulty']).toBe('')
       })
     }
   )
