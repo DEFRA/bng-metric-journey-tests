@@ -1426,6 +1426,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
       // BMD-870 scoped out the trading-rules clickthrough, the drill-down
       // links and the project-details link; all rendered as text with no href.
+      // BMD-849 later removed the project-details section altogether.
       // The original test pinned all of them together and noted that "when one
       // lands, this test fails and is replaced by a navigation assertion rather
       // than the deferred state quietly persisting". BMD-854 and BMD-857 landed
@@ -1460,8 +1461,11 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           projectSummaryPage.watercoursesTradingRulesLink()
         ).toHaveCount(0)
 
-        await expect(projectSummaryPage.projectDetailsHeading).toBeVisible()
-        await expect(projectSummaryPage.projectDetailsBody).toBeVisible()
+        // BMD-849 (frontend PR#545) removed the project details section from
+        // the foot of the page: the left navigation's "Project details" item
+        // is the way in (project-details.spec.js).
+        await expect(projectSummaryPage.projectDetailsHeading).toHaveCount(0)
+        await expect(projectSummaryPage.projectDetailsBody).toHaveCount(0)
         await expect(projectSummaryPage.projectDetailsLink).toHaveCount(0)
       })
 
