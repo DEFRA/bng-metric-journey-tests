@@ -13,10 +13,31 @@ import { UploadBaselineFileFlow } from '@flows/upload-baseline/upload-baseline-f
 import { ProjectDashboardPage } from '@pages/project-dashboard.page.js'
 import { ErrorFilePage } from '@pages/error-file.page.js'
 import { AREA_HABITATS } from '@utils/unit-type-labels.js'
-import { LEGACY_ONLY, isServiceTemplateRun } from '@utils/template-run.js'
 import {
+  LEGACY_ONLY,
+  SERVICE_TEMPLATE_ONLY,
+  isServiceTemplateRun
+} from '@utils/template-run.js'
+import {
+  AREA_HABITATS_MISSING_COLUMNS,
+  AREA_HABITATS_WRONG_GEOMETRY_TYPE,
+  AREA_SUM_MISMATCH,
+  BOWTIE_PARCEL,
   DEFAULT_SITE,
   DEFAULT_SITE_BASELINE,
+  DISTINCTIVENESS_OUT_OF_SCOPE,
+  DUPLICATE_HABITAT_REF,
+  HABITAT_REF_INVALID_CHARACTERS,
+  HABITAT_REF_MISSING_EVERY_LAYER,
+  IRREPLACEABLE_TREE,
+  NO_AREA_HABITATS_TABLE,
+  OVERLAPPING_PARCELS,
+  PARCEL_OUTSIDE_REDLINE,
+  PARCEL_TOO_SMALL,
+  PUNCTUATED_NAME_BASELINE,
+  REDLINE_MISSING,
+  REDLINE_NOT_IN_ENGLAND,
+  REDLINE_SELF_INTERSECTING,
   SMALL_SITE_BASELINE,
   VERTICAL_AREA_MISSING
 } from '@utils/service-template-files.js'
@@ -74,11 +95,10 @@ const VALID_BASELINE_FILE = isServiceTemplateRun()
   : COMPLETE_BASELINE_FILE
 
 // The describes tagged LEGACY_ONLY upload legacy-template files to show the
-// legacy template's own file checks. The BNG Service template's checks are
-// held by the harness's corpus (npm run test:uploads there), and its
-// drop-outs by upload-post-intervention.spec.js. The filename rule runs
-// before a byte of the file is read, the same for either template, so the
-// legacy run covers it.
+// legacy template's own file checks. The BNG Service template's are in
+// describeServiceTemplateChecks below, one harness corpus file to a check;
+// the corpus itself is held to its expected outcomes by npm run test:uploads
+// in the harness.
 
 // ─── E2E happy path ─────────────────────────────────────────────────────────
 
@@ -1246,6 +1266,476 @@ function describeIrreplaceableHabitat() {
   )
 }
 
+// ─── BNG Service template file checks ───────────────────────────────────────
+
+// The BNG Service template's counterparts of the legacy file checks above,
+// one corpus file to a check. Each refusal's wording is the frontend's
+// (src/server/common/error-text/error-text.yaml) and each habitat it lists is
+// the backend's, as the drop-out page shows them. Most spatial faults also
+// leave the parcels short of the red line boundary, so AREA_SUM_MISMATCH comes
+// with them and the page lists both rather than showing one problem's page.
+const ST_SUMMARY_TITLE = 'There is a problem with your file'
+const ST_CATCH_ALL_BODY =
+  'The layer names and column names do not match the BNG Service template. Rename the layers and columns and'
+const ST_AREA_HABITATS_MISMATCH =
+  'Layer "Area Habitats Baseline" does not match the BNG Service template'
+const ST_DUPLICATE_REF = 'DUP-1'
+const ST_REDLINE_MISSING_BODY =
+  'The redline boundary is missing. Draw the red line boundary and'
+const ST_AREA_SUM_MISMATCH =
+  'Sum of area habitat polygons (11600.00 sq m) does not equal redline boundary area (160000.00 sq m)'
+const ST_IRREPLACEABLE_TREE_HEADING =
+  'Irreplaceable Habitat must be "No" for every tree, because the service does not accept irreplaceable trees, such as ancient and veteran trees. These trees have Irreplaceable Habitat "Yes", blank or another value'
+const ST_IRREPLACEABLE_TREE_ROW = 'Individual Trees Baseline Habitat Ref T025'
+
+// A refusal listed with others: the problems list, with the way back.
+async function expectProblemsList(errorFilePage, id, headings) {
+  await expect(errorFilePage.errorSummary).toContainText(ST_SUMMARY_TITLE)
+  for (const heading of headings) {
+    await expect(errorFilePage.errorSummary).toContainText(heading)
+  }
+  await expect(errorFilePage.baselineRejectedHeading).toBeVisible()
+  await expect(errorFilePage.uploadDifferentFileLink).toHaveAttribute(
+    'href',
+    `/projects/${id}/upload-baseline-file`
+  )
+}
+
+// The bullet the problems list names a habitat or a fault by.
+function listItem(page, text) {
+  return page.getByRole('listitem').filter({ hasText: text })
+}
+
+function describeServiceTemplateChecks() {
+  test.describe(
+    'Upload baseline — BNG Service template file checks',
+    { tag: ['@regression', SERVICE_TEMPLATE_ONLY] },
+    () => {
+      // A byte-for-byte copy of the small site's baseline-stage file under
+      // another name, so a refusal here is about the name alone.
+      test('a filename with leading punctuation and brackets is accepted and reaches the project summary', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        projectSummaryPage
+      }) => {
+        await uploadToProjectSummary(
+          { createProjectFlow, projectDashboardPage, uploadBaselineFileFlow },
+          PUNCTUATED_NAME_BASELINE
+        )
+
+        await expect(projectSummaryPage.heading).toBeVisible()
+      })
+
+      test('a file whose area habitats share a reference is accepted, listing both', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        areaBaselinePage
+      }) => {
+        const { id } = await uploadToProjectSummary(
+          { createProjectFlow, projectDashboardPage, uploadBaselineFileFlow },
+          DUPLICATE_HABITAT_REF
+        )
+
+        await areaBaselinePage.open(id)
+        await expect(areaBaselinePage.refLink(ST_DUPLICATE_REF)).toHaveCount(2)
+      })
+
+      // The page is the same text page as the legacy template's, one error
+      // for every habitat it applies to, and nothing from the file is saved.
+      // The invalid reference is on one area habitat; the missing ones are on
+      // an area habitat, a hedgerow and a watercourse.
+      for (const { title, file, copy } of [
+        {
+          title: 'a habitat reference that is not valid UTF-8',
+          file: HABITAT_REF_INVALID_CHARACTERS,
+          copy: HABITAT_REF_INVALID_CHARACTERS_COPY
+        },
+        {
+          title: 'a file missing habitat references on every layer',
+          file: HABITAT_REF_MISSING_EVERY_LAYER,
+          copy: HABITAT_REF_MISSING_COPY
+        }
+      ]) {
+        test(`${title} is refused on its own page, and nothing is saved`, async ({
+          createProjectFlow,
+          projectDashboardPage,
+          uploadBaselineFileFlow,
+          errorFilePage,
+          projectSummaryPage,
+          page
+        }) => {
+          const id = await uploadToErrorFile(
+            {
+              createProjectFlow,
+              projectDashboardPage,
+              uploadBaselineFileFlow,
+              page
+            },
+            file
+          )
+
+          await expect(errorFilePage.projectProblemHeading).toBeVisible()
+          await expect(errorFilePage.habitatParcelsHeading).toBeVisible()
+          await expect(errorFilePage.errorSummary).not.toBeVisible()
+          await expect(page.getByText(copy)).toHaveCount(1)
+          await expect(errorFilePage.uploadDifferentFileLink).toHaveAttribute(
+            'href',
+            `/projects/${id}/upload-baseline-file`
+          )
+
+          await projectSummaryPage.open(id)
+          await expect(page).toHaveURL(noBaselineSummaryRedirectHref(id))
+        })
+      }
+
+      // The table's two missing columns are a problem each, under the same
+      // heading.
+      test('an Area Habitats Baseline table with missing columns is refused, naming each column', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        const id = await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            page
+          },
+          AREA_HABITATS_MISSING_COLUMNS
+        )
+
+        await expectProblemsList(errorFilePage, id, [ST_AREA_HABITATS_MISMATCH])
+        await expect(
+          listItem(page, 'missing column "Baseline Condition"')
+        ).toBeVisible()
+        await expect(listItem(page, 'missing column "Area"')).toBeVisible()
+      })
+
+      test('an Area Habitats Baseline table with the wrong geometry type is refused', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        const id = await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            page
+          },
+          AREA_HABITATS_WRONG_GEOMETRY_TYPE
+        )
+
+        await expectProblemsList(errorFilePage, id, [ST_AREA_HABITATS_MISMATCH])
+        await expect(
+          listItem(
+            page,
+            'expected geometry type "POLYGON" in gpkg_geometry_columns but found "LINESTRING"'
+          )
+        ).toBeVisible()
+      })
+
+      // The template's own catch-all, as the legacy template's is Natural
+      // England's: the file's only problem is in its layers.
+      test('a file with no Area Habitats Baseline table shows the BNG Service template catch-all page', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        const id = await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            page
+          },
+          NO_AREA_HABITATS_TABLE
+        )
+
+        await expect(errorFilePage.geopackageErrorHeading).toBeVisible()
+        await expect(errorFilePage.errorSummary).not.toBeVisible()
+        await expect(page.getByText(ST_CATCH_ALL_BODY)).toBeVisible()
+        await expect(errorFilePage.uploadNewFileLink).toHaveAttribute(
+          'href',
+          `/projects/${id}/upload-baseline-file`
+        )
+        await expect(errorFilePage.uploadDifferentFileLink).not.toBeVisible()
+        await expect(errorFilePage.backToProjectLink).not.toBeVisible()
+      })
+
+      test('a self-intersecting redline boundary is refused', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        const id = await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            page
+          },
+          REDLINE_SELF_INTERSECTING
+        )
+
+        await expectProblemsList(errorFilePage, id, [
+          'Redline boundary geometry is invalid'
+        ])
+      })
+
+      // Its only problem, so the red line boundary's own page, linking back.
+      test('a file with no red line boundary shows the "redline boundary is missing" page', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        const id = await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            page
+          },
+          REDLINE_MISSING
+        )
+
+        await expect(errorFilePage.geopackageErrorHeading).toBeVisible()
+        await expect(errorFilePage.errorSummary).not.toBeVisible()
+        await expect(page.getByText(ST_REDLINE_MISSING_BODY)).toBeVisible()
+        await expect(errorFilePage.uploadDifferentFileLink).not.toBeVisible()
+        await errorFilePage.uploadNewFileLink.click()
+        await expect(page).toHaveURL(
+          new RegExp(`/projects/${id}/upload-baseline-file`)
+        )
+      })
+
+      // The template's checks never count the red line boundary's polygons:
+      // a second copy of it only leaves the parcels short of its area, so
+      // this is how the service sees a file with several.
+      test('habitat parcels that do not cover the redline boundary are refused, giving both areas', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        const id = await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            page
+          },
+          AREA_SUM_MISMATCH
+        )
+
+        await expectProblemsList(errorFilePage, id, [ST_AREA_SUM_MISMATCH])
+      })
+
+      test('a redline boundary outside England is refused in the problems list', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        const id = await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            page
+          },
+          REDLINE_NOT_IN_ENGLAND
+        )
+
+        await expectProblemsList(errorFilePage, id, [
+          REDLINE_OUTSIDE_ENGLAND_COPY
+        ])
+        await expect(
+          page.getByRole('heading', { name: REDLINE_OUTSIDE_ENGLAND_COPY })
+        ).toBeVisible()
+      })
+
+      test('a self-intersecting parcel is refused, naming it', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        const id = await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            page
+          },
+          BOWTIE_PARCEL
+        )
+
+        await expectProblemsList(errorFilePage, id, [
+          'One or more area habitat polygons have invalid geometry'
+        ])
+        await expect(
+          listItem(page, 'Feature Ref H002 (Self-intersection)')
+        ).toBeVisible()
+      })
+
+      test('overlapping parcels are refused in the problems list, naming both, with the ways back', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        const id = await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            page
+          },
+          OVERLAPPING_PARCELS
+        )
+
+        await expectProblemsList(errorFilePage, id, [
+          'One or more area habitat parcels overlap with other parcels'
+        ])
+        await expect(
+          listItem(page, 'Feature Ref H002 ↔ Feature Ref H003')
+        ).toBeVisible()
+        await expect(errorFilePage.backToProjectLink).toHaveAttribute(
+          'href',
+          `/projects/${id}/project-summary`
+        )
+      })
+
+      test('a parcel under 1 square metre is refused, naming the parcel and its area', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        const id = await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            page
+          },
+          PARCEL_TOO_SMALL
+        )
+
+        await expectProblemsList(errorFilePage, id, [
+          'One or more area habitat parcels are smaller than 1 square metre'
+        ])
+        await expect(
+          listItem(page, 'Feature Ref H002 — ~0.81 sq m')
+        ).toBeVisible()
+      })
+
+      test('a parcel outside the redline boundary is listed once, without its slivers', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        const id = await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            page
+          },
+          PARCEL_OUTSIDE_REDLINE
+        )
+
+        await expectProblemsList(errorFilePage, id, [
+          'One or more area habitat polygons are not entirely within the redline boundary'
+        ])
+        await expect(errorFilePage.errorSummary).not.toContainText(
+          'Baseline file contains habitat parcel parts outside the redline boundary'
+        )
+      })
+
+      // Two habitats, H001 and H002, are out of scope, and the page has no
+      // separate wording for several, so it is the distinctiveness page.
+      test('a file with High/Very High distinctiveness habitats shows the distinctiveness single-error page', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            page
+          },
+          DISTINCTIVENESS_OUT_OF_SCOPE
+        )
+
+        await expect(errorFilePage.distinctivenessHeading).toBeVisible()
+        await expect(errorFilePage.errorSummary).not.toBeVisible()
+        await expect(errorFilePage.metricToolLink).toHaveAttribute(
+          'href',
+          'https://www.gov.uk/government/publications/statutory-biodiversity-metric-tools-and-guides'
+        )
+        await expect(errorFilePage.metricToolLink).toHaveAttribute(
+          'target',
+          '_blank'
+        )
+        await expect(errorFilePage.uploadDifferentFileLink).not.toBeVisible()
+        await expect(errorFilePage.backToProjectLink).not.toBeVisible()
+      })
+
+      // The service does not accept irreplaceable habitats. A tree is the one
+      // it checks so far: the corpus's irreplaceable area habitat is still
+      // accepted, a known gap.
+      test('an irreplaceable tree is refused, naming the tree', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        const id = await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            page
+          },
+          IRREPLACEABLE_TREE
+        )
+
+        await expectProblemsList(errorFilePage, id, [
+          ST_IRREPLACEABLE_TREE_HEADING
+        ])
+        await expect(listItem(page, ST_IRREPLACEABLE_TREE_ROW)).toBeVisible()
+      })
+    }
+  )
+}
+
 // ─── Suite ───────────────────────────────────────────────────────────────────
 
 test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
@@ -1271,4 +1761,5 @@ test.describe('upload-baseline', { tag: '@upload-baseline' }, () => {
   describeSingleErrorDropout()
   describeUploaderRejection()
   describeIrreplaceableHabitat()
+  describeServiceTemplateChecks()
 })
