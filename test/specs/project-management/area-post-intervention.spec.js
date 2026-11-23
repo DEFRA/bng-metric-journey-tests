@@ -13,6 +13,7 @@ import {
   getRunNoRetainedAreaProject,
   getRunRetainedSignificanceProject,
   getRunTreesPostInterventionProject,
+  getServiceTemplateCreatedIncompleteProject,
   getServiceTemplateHedgerowInvalidEnhancementProject,
   getServiceTemplateIncompleteEnhancementsProject,
   getServiceTemplateLongRefsProject
@@ -25,6 +26,7 @@ import {
 import { openPiTabFor } from '@utils/post-intervention-grid.js'
 import {
   expectRefCut,
+  expectRefTailHidden,
   expectRefWhole,
   gridRefName
 } from '@utils/habitat-ref-display.js'
@@ -402,33 +404,16 @@ const HEDGEROW_STATUS_DESCENDING = [
 // The BNG Service template's Status rows: a Complete and an Incomplete row on
 // one tab of each unit type's grid, each from the project that has them. The
 // area habitats of invalid-data-incomplete.gpkg are all Enhanced: H001-H003
-// and the tree T003 Complete, H004-H006 Incomplete with no proposed condition
-// or strategic significance. Its Enhanced grid ties on both sides, so a
-// descending sort that reversed the ascending one would read H006 first, not
-// H004.
+// Complete, H004-H006 Incomplete with no proposed condition or strategic
+// significance.
 const SERVICE_TEMPLATE_STATUS_ROWS = {
   area: { tab: ENHANCED, complete: 'H001', incomplete: 'H004' },
   hedgerows: { tab: ENHANCED, complete: 'HG002', incomplete: 'HG001' },
   watercourses: { tab: CREATED, complete: 'R003', incomplete: 'R005' }
 }
-const AREA_STATUS_ASCENDING = [
-  'H001',
-  'H002',
-  'H003',
-  'T003',
-  'H004',
-  'H005',
-  'H006'
-]
-const AREA_STATUS_DESCENDING = [
-  'H004',
-  'H005',
-  'H006',
-  'H001',
-  'H002',
-  'H003',
-  'T003'
-]
+// area-created-no-condition-or-timing.gpkg: the default site with H005, one
+// of its 32 Created area habitats, saved Incomplete.
+const CREATED_INCOMPLETE_REF = 'H005'
 // invalid-data-incomplete.gpkg's H004: Enhanced with no Proposed Condition or
 // Proposed Strategic Significance.
 const ENHANCED_UNPRICED_REF = 'H004'
@@ -1333,9 +1318,12 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
       let areaProject
+      let createdIncompleteProject
       let hedgerowProject
       let watercourseProject
       test.beforeAll(async ({ browser }) => {
+        createdIncompleteProject =
+          await getServiceTemplateCreatedIncompleteProject(browser)
         areaProject =
           await getServiceTemplateIncompleteEnhancementsProject(browser)
         hedgerowProject =
@@ -1382,33 +1370,48 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         }
       })
 
-      // The area grid, whose Enhanced tab ties on both sides of the sort.
+      // The default site's Created tab, with H005 its one Incomplete row: the
+      // 31 Complete rows tie, so a descending sort that reversed the ascending
+      // one would list them backwards. The Retained tab, sorted by nobody,
+      // must keep its order.
       test('clicking Status sorts Complete first, then Incomplete first, with ties in Ref order', async ({
         areaPostInterventionPage
       }) => {
         const grid = areaPostInterventionPage
-        await grid.open(areaProject.id)
-        await grid.tab(ENHANCED).click()
+        await grid.open(createdIncompleteProject.id)
+        const retainedRefs = await grid.columnValues(RETAINED, 'Ref')
+        expect(retainedRefs.length).toBeGreaterThan(1)
+        await grid.tab(CREATED).click()
+        const complete = (await grid.columnValues(CREATED, 'Ref')).filter(
+          (ref) => ref !== CREATED_INCOMPLETE_REF
+        )
+        expect(complete.length).toBeGreaterThan(1)
 
         const statusHeader = grid
-          .columnHeaders(ENHANCED)
-          .nth(await grid.columnIndex(ENHANCED, STATUS_HEADING))
-        const sortButton = grid.sortButton(ENHANCED, STATUS_HEADING)
+          .columnHeaders(CREATED)
+          .nth(await grid.columnIndex(CREATED, STATUS_HEADING))
+        const sortButton = grid.sortButton(CREATED, STATUS_HEADING)
 
         await sortButton.click()
         await expect(statusHeader).toHaveAttribute('aria-sort', 'ascending')
-        expect(await grid.columnValues(ENHANCED, 'Ref')).toEqual(
-          AREA_STATUS_ASCENDING
-        )
+        expect(await grid.columnValues(CREATED, 'Ref')).toEqual([
+          ...complete,
+          CREATED_INCOMPLETE_REF
+        ])
 
         await sortButton.click()
         await expect(statusHeader).toHaveAttribute('aria-sort', 'descending')
-        expect(await grid.columnValues(ENHANCED, 'Ref')).toEqual(
-          AREA_STATUS_DESCENDING
+        expect(await grid.columnValues(CREATED, 'Ref')).toEqual([
+          CREATED_INCOMPLETE_REF,
+          ...complete
+        ])
+        await expect(grid.table(CREATED).getByRole('row').last()).toContainText(
+          'Total'
         )
-        await expect(
-          grid.table(ENHANCED).getByRole('row').last()
-        ).toContainText('Total')
+
+        // The other tabs' grids are not re-sorted.
+        await grid.tab(RETAINED).click()
+        expect(await grid.columnValues(RETAINED, 'Ref')).toEqual(retainedRefs)
       })
 
       // The nearest the BNG Service template comes to a rejected strategic
@@ -1491,10 +1494,12 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await areaPostInterventionPage.tab(RETAINED).click()
 
         for (const ref of SERVICE_TEMPLATE_LONG_REFS) {
-          await expectRefCut(
-            areaPostInterventionPage.refLink(RETAINED, gridRefName(ref)),
-            ref
+          const link = areaPostInterventionPage.refLink(
+            RETAINED,
+            gridRefName(ref)
           )
+          await expectRefCut(link, ref)
+          await expectRefTailHidden(link, ref)
         }
         await expectRefWhole(
           areaPostInterventionPage.refLink(
