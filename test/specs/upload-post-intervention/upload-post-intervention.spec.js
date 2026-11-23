@@ -13,6 +13,7 @@ import { ProjectDashboardPage } from '@pages/project-dashboard.page.js'
 import { ErrorFilePage } from '@pages/error-file.page.js'
 import { findPiRef, openPiTabFor } from '@utils/post-intervention-grid.js'
 import { getLinearInterventionTypesProject } from '@utils/summary-projects.js'
+import { getRunAllUnitTypesPostInterventionProject } from '@utils/run-projects.js'
 import {
   AREA_HABITATS,
   HEDGEROWS,
@@ -24,11 +25,21 @@ import {
   isServiceTemplateRun
 } from '@utils/template-run.js'
 import {
+  ADVANCE_AND_DELAY_BOTH_SET,
   DEFAULT_SITE,
+  DISTINCTIVENESS_OUT_OF_SCOPE,
   HEDGEROW_DEGRADE_NO_ADVANCE,
   PARENT_SHAPE_CHANGED,
+  POST_INTERVENTION_HABITAT_REF_BLANK,
+  REDLINE_MULTIPLE_GEOMETRY_COLUMNS,
+  REDLINE_NO_GEOMETRY_COLUMN,
+  REDLINE_WRONG_GEOMETRY_TYPE,
   SMALL_SITE,
   SMALL_SITE_BASELINE,
+  UNENHANCEABLE_AREA,
+  UNENHANCEABLE_TREE,
+  UNENHANCEABLE_VERY_LOW_HEDGEROW,
+  UNENHANCEABLE_WATERCOURSE,
   WATERCOURSE_DEGRADED
 } from '@utils/service-template-files.js'
 
@@ -1563,6 +1574,403 @@ function describeServiceTemplateChecks() {
   )
 }
 
+// ─── BNG Service template refusals and imports ─────────────────────────────
+
+// The BNG Service template's counterparts of the legacy describes above, one
+// corpus file to a check, each uploaded at the baseline + post-intervention
+// upload. Such an upload checks the file's Baseline tables as well as its
+// Post-Intervention ones, so a fault in a habitat both stages hold is reported
+// once for each.
+const ST_CATCH_ALL_BODY =
+  'The layer names and column names do not match the BNG Service template. Rename the layers and columns and'
+const ST_REDLINE_MISMATCH =
+  'Layer "Red Line Boundary" does not match the BNG Service template'
+const ST_REDLINE_WRONG_GEOMETRY_TYPE =
+  'expected geometry type "POLYGON" in gpkg_geometry_columns but found "POINT"'
+const ST_OUT_OF_SCOPE_HABITAT =
+  'Feature Ref H001 — Grassland - Lowland meadows (Very high)'
+const ST_UNENHANCEABLE_TREE = 'Habitat Ref T008 — Individual trees - Rural tree'
+const ST_UNPRICED_AREA_REF = 'H001'
+const ST_PRICED_AREA_REF = 'H004'
+// The small site's hedgerows, which a refused file must leave in place.
+const ST_STORED_HEDGEROW_REFS = ['HG001', 'HG005']
+
+// The default site's Lost and Created features. Lost: a baseline row with no
+// post-intervention row. Created with no parent: a post-intervention row only.
+const ST_LOST_HEDGEROW_REFS = ['HG004', 'HG006', 'HG007', 'HG011']
+const ST_CREATED_HEDGEROW_REFS = ['HG008', 'HG009', 'HG014', 'HG015', 'HG016']
+const ST_BASELINE_HEDGEROW_COUNT = 13
+const ST_LOST_HEDGEROW = {
+  ref: 'HG011',
+  habitatType: 'Ecologically valuable line of trees',
+  condition: 'Moderate (2)',
+  km: 0.408
+}
+const ST_BASELINE_WATERCOURSE_REFS = [
+  'R001',
+  'R002',
+  'R004',
+  'R005',
+  'R006',
+  'R007'
+]
+const ST_LOST_WATERCOURSE_REF = 'R002'
+const ST_CREATED_WATERCOURSE_REF = 'R003'
+const ST_LOST_TREE_REFS = [
+  'T002',
+  'T003',
+  'T007',
+  'T009',
+  'T016',
+  'T018',
+  'T022',
+  'T023'
+]
+const ST_BASELINE_TREE_COUNT = 24
+const ST_CREATED_TREE_REF = 'T005'
+
+function describeServiceTemplateImports() {
+  test.describe(
+    'Upload post-intervention — BNG Service template refusals',
+    { tag: ['@regression', SERVICE_TEMPLATE_ONLY] },
+    () => {
+      // The file's only problem is in its Red Line Boundary table, so the
+      // page is the template's catch-all, linking back to this upload.
+      for (const { name, file } of [
+        {
+          name: 'a Red Line Boundary table with no geometry column',
+          file: REDLINE_NO_GEOMETRY_COLUMN
+        },
+        {
+          name: 'a Red Line Boundary table with two geometry columns',
+          file: REDLINE_MULTIPLE_GEOMETRY_COLUMNS
+        }
+      ]) {
+        test(`${name} is refused on the BNG Service template catch-all page`, async ({
+          createProjectFlow,
+          projectDashboardPage,
+          uploadPostInterventionFileFlow,
+          errorFilePage,
+          page
+        }) => {
+          const id = await uploadToErrorFile(
+            {
+              createProjectFlow,
+              projectDashboardPage,
+              uploadPostInterventionFileFlow,
+              page
+            },
+            file
+          )
+
+          await expect(errorFilePage.geopackageErrorHeading).toBeVisible()
+          await expect(errorFilePage.errorSummary).not.toBeVisible()
+          await expect(page.getByText(ST_CATCH_ALL_BODY)).toBeVisible()
+          await expect(errorFilePage.uploadNewFileLink).toHaveAttribute(
+            'href',
+            `/projects/${id}/upload-post-intervention-file`
+          )
+          await expect(errorFilePage.uploadDifferentFileLink).not.toBeVisible()
+          await expect(errorFilePage.backToProjectLink).not.toBeVisible()
+        })
+      }
+
+      // Its geometry type and its geometry column's type are two problems.
+      test('a Red Line Boundary table with the wrong geometry type is refused in the problems list', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadPostInterventionFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        const id = await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadPostInterventionFileFlow,
+            page
+          },
+          REDLINE_WRONG_GEOMETRY_TYPE
+        )
+
+        await expect(
+          errorFilePage.postInterventionRejectedHeading
+        ).toBeVisible()
+        await expect(errorFilePage.errorSummary).toContainText(
+          ST_REDLINE_MISMATCH
+        )
+        await expect(
+          page.getByRole('listitem').filter({
+            hasText: ST_REDLINE_WRONG_GEOMETRY_TYPE
+          })
+        ).toBeVisible()
+        await expect(errorFilePage.uploadDifferentFileLink).toHaveAttribute(
+          'href',
+          `/projects/${id}/upload-post-intervention-file`
+        )
+      })
+
+      // The blank Habitat Ref is on a post-intervention row only, so this
+      // proves the Post-Intervention tables' refs are checked.
+      test('a post-intervention habitat with no reference is refused on its own page', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadPostInterventionFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        const id = await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadPostInterventionFileFlow,
+            page
+          },
+          POST_INTERVENTION_HABITAT_REF_BLANK
+        )
+
+        await expect(errorFilePage.projectProblemHeading).toBeVisible()
+        await expect(errorFilePage.habitatParcelsHeading).toBeVisible()
+        await expect(errorFilePage.errorSummary).not.toBeVisible()
+        await expect(page.getByText(HABITAT_REF_MISSING_COPY)).toHaveCount(1)
+        await expect(errorFilePage.uploadDifferentFileLink).toHaveAttribute(
+          'href',
+          `/projects/${id}/upload-post-intervention-file`
+        )
+        await expect(errorFilePage.backToProjectLink).toBeVisible()
+      })
+
+      // H001 and H002 are out of scope in both stages. The Post-Intervention
+      // tables are checked for themselves, so the problem is listed twice:
+      // were only the Baseline tables read, it would show once, on the
+      // distinctiveness page.
+      test('a file whose habitats are High/Very High distinctiveness in both stages is refused once for each', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadPostInterventionFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadPostInterventionFileFlow,
+            page
+          },
+          DISTINCTIVENESS_OUT_OF_SCOPE
+        )
+
+        await expect(
+          errorFilePage.postInterventionRejectedHeading
+        ).toBeVisible()
+        await expect(
+          errorFilePage.singleErrorHeading(DISTINCTIVENESS_OUT_OF_SCOPE_COPY)
+        ).toHaveCount(2)
+        await expect(
+          page
+            .getByRole('listitem')
+            .filter({ hasText: ST_OUT_OF_SCOPE_HABITAT })
+        ).toHaveCount(2)
+        await expect(errorFilePage.distinctivenessHeading).not.toBeVisible()
+      })
+
+      // Refused after the lineage checks, so the stored project is checked
+      // again here.
+      test('a file enhancing a Medium area habitat in Good condition is refused and leaves the stored baseline as it was', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        uploadPostInterventionFileFlow,
+        projectSummaryPage,
+        hedgerowsBaselinePage,
+        errorFilePage,
+        page
+      }) => {
+        // Two real uploads back this test.
+        test.setTimeout(UPLOAD_TIMEOUT * 2)
+
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
+        )
+        await uploadBaselineFileFlow.uploadFileAndWaitForSummary(
+          id,
+          SMALL_SITE_BASELINE
+        )
+        const baselineUnits = await projectSummaryPage.tileValue(
+          AREA_HABITATS,
+          TILE_BASELINE
+        )
+
+        await uploadPostInterventionFileFlow.uploadFile(id, UNENHANCEABLE_AREA)
+        await page.waitForURL(ERROR_FILE_URL, { timeout: UPLOAD_TIMEOUT })
+
+        await assertUnenhanceableDropout(errorFilePage)
+
+        await projectSummaryPage.open(id)
+        expect(
+          await projectSummaryPage.tileValue(AREA_HABITATS, TILE_BASELINE)
+        ).toBe(baselineUnits)
+        await expect(
+          projectSummaryPage.uploadPostInterventionLink(AREA_HABITATS)
+        ).toBeVisible()
+        await hedgerowsBaselinePage.open(id)
+        for (const ref of ST_STORED_HEDGEROW_REFS) {
+          await expect(hedgerowsBaselinePage.refLink(ref)).toBeVisible()
+        }
+      })
+
+      for (const { name, file } of [
+        {
+          name: 'a Medium distinctiveness watercourse in Good condition',
+          file: UNENHANCEABLE_WATERCOURSE
+        },
+        {
+          name: 'a Very Low distinctiveness hedgerow',
+          file: UNENHANCEABLE_VERY_LOW_HEDGEROW
+        }
+      ]) {
+        test(`a file enhancing ${name} is refused on the service eligibility page`, async ({
+          createProjectFlow,
+          projectDashboardPage,
+          uploadPostInterventionFileFlow,
+          errorFilePage,
+          page
+        }) => {
+          await uploadToErrorFile(
+            {
+              createProjectFlow,
+              projectDashboardPage,
+              uploadPostInterventionFileFlow,
+              page
+            },
+            file
+          )
+
+          await assertUnenhanceableDropout(errorFilePage)
+        })
+      }
+
+      test('a file enhancing a tree in Good condition is refused, naming the tree', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadPostInterventionFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadPostInterventionFileFlow,
+            page
+          },
+          UNENHANCEABLE_TREE
+        )
+
+        await expect(
+          errorFilePage.postInterventionRejectedHeading
+        ).toBeVisible()
+        await expect(errorFilePage.treeNotEnhanceableHeading).toBeVisible()
+        await expect(
+          page.getByText(ST_UNENHANCEABLE_TREE, { exact: true })
+        ).toBeVisible()
+        await expect(errorFilePage.serviceEligibilityHeading).not.toBeVisible()
+      })
+    }
+  )
+
+  test.describe(
+    'Upload post-intervention — BNG Service template imports',
+    { tag: ['@regression', SERVICE_TEMPLATE_ONLY] },
+    () => {
+      // H001 is Created 2 years in advance and delayed 3: accepted, both
+      // cleared, and left unpriced, as a Created area habitat's 0.00. H004,
+      // Created 3 years in advance alone, is the control: it is priced.
+      test('a Created area habitat that sets both advance and delay is accepted and left unpriced', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadPostInterventionFileFlow,
+        page
+      }) => {
+        const { id } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
+        )
+        await uploadPostInterventionFileFlow.uploadFileAndWaitForSummary(
+          id,
+          ADVANCE_AND_DELAY_BOTH_SET
+        )
+
+        await expect(
+          await piUnitsCell(page, id, 'area', ST_UNPRICED_AREA_REF)
+        ).toHaveText('0.00')
+        await expect(
+          await piUnitsCell(page, id, 'area', ST_PRICED_AREA_REF)
+        ).toHaveText(UNITS_2DP)
+      })
+
+      // The upload saves the file's own Baseline tables as the baseline, Lost
+      // features among them, and its Post-Intervention tables as the
+      // post-intervention document, Created features among them. Read off the
+      // shared default-site project, which no test edits. That a Lost feature
+      // is on no post-intervention tab is the post-intervention grids' specs'.
+      test('Lost features are in the baseline the file brings, and Created ones only in the post-intervention grids', async ({
+        browser,
+        hedgerowsBaselinePage,
+        watercoursesBaselinePage,
+        areaBaselinePage,
+        areaPostInterventionPage
+      }) => {
+        // One real upload backs this project when no earlier spec in the
+        // worker has built it.
+        test.setTimeout(UPLOAD_TIMEOUT)
+        const { id } = await getRunAllUnitTypesPostInterventionProject(browser)
+
+        await hedgerowsBaselinePage.open(id)
+        const hedgerowRefs = await hedgerowsBaselinePage.columnValues('ref')
+        expect(hedgerowRefs).toHaveLength(ST_BASELINE_HEDGEROW_COUNT)
+        expect(hedgerowRefs).toEqual(
+          expect.arrayContaining(ST_LOST_HEDGEROW_REFS)
+        )
+        for (const ref of ST_CREATED_HEDGEROW_REFS) {
+          expect(hedgerowRefs).not.toContain(ref)
+        }
+        expectLinearRowMatchesFile(
+          await hedgerowsBaselinePage.rowValues(ST_LOST_HEDGEROW.ref),
+          ST_LOST_HEDGEROW
+        )
+
+        await watercoursesBaselinePage.open(id)
+        const watercourseRefs =
+          await watercoursesBaselinePage.columnValues('ref')
+        expect([...watercourseRefs].sort()).toEqual(
+          ST_BASELINE_WATERCOURSE_REFS
+        )
+        expect(watercourseRefs).toContain(ST_LOST_WATERCOURSE_REF)
+        expect(watercourseRefs).not.toContain(ST_CREATED_WATERCOURSE_REF)
+
+        await areaBaselinePage.open(id)
+        const treeRefs = (await areaBaselinePage.columnValues('ref')).filter(
+          (ref) => TREE_REF.test(ref)
+        )
+        expect(treeRefs).toHaveLength(ST_BASELINE_TREE_COUNT)
+        expect(treeRefs).toEqual(expect.arrayContaining(ST_LOST_TREE_REFS))
+        expect(treeRefs).not.toContain(ST_CREATED_TREE_REF)
+
+        await areaPostInterventionPage.open(id)
+        await areaPostInterventionPage.tab('Created').click()
+        expect(
+          await areaPostInterventionPage.columnValues('Created', 'Ref')
+        ).toContain(ST_CREATED_TREE_REF)
+      })
+    }
+  )
+}
+
 // ─── Suite ───────────────────────────────────────────────────────────────────
 
 test.describe(
@@ -1591,5 +1999,6 @@ test.describe(
     describeUploaderRejection()
     describeUploadTimeout()
     describeServiceTemplateChecks()
+    describeServiceTemplateImports()
   }
 )
