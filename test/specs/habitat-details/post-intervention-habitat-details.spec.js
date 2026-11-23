@@ -1283,9 +1283,10 @@ const ST_CREATED_WATERCOURSE_EXACT_UNITS = 0.5244
 const ST_NO_PARENT_WATERCOURSE_REF = 'R003'
 const ST_INCOMPLETE_WATERCOURSE_REF = 'R005'
 const ST_ENHANCED_WATERCOURSE_REF = 'R006'
-// Trading-all-met's HG002, a Native hedgerow enhanced from Poor to Good: the
-// only BNG Service template Enhanced hedgerow whose baseline can become
-// another type (the Metric's G-6 moves), as the legacy HG018 can.
+// Trading-all-met's HG002, a Native hedgerow enhanced from Poor to Good: a
+// complete Enhanced hedgerow whose baseline can become another type (the
+// Metric's G-6 moves), as the legacy HG018 can, which none of the default
+// site's can.
 const ST_ENHANCED_HEDGEROW_REF = 'HG002'
 const ST_ENHANCED_HEDGEROW_UNITS = '1.78'
 const ST_ENHANCED_HEDGEROW_EXACT_UNITS = 1.7838
@@ -6246,12 +6247,16 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           ST_CREATED_WATERCOURSE_REF
         )
 
+        // With its 10 years in advance, any time to target up to 10 years
+        // reads "0 years (1)", so clear them first.
+        await details.advanceYearsSelect.selectOption('0')
         await details.targetConditionSelect.selectOption('Good')
         await expectCreatedAreaValues(
           details,
           {
             ...ST_CREATED_WATERCOURSE_VALUES,
-            standardTime: 'Fairly Poor to Good - 10 years'
+            standardTime: 'Fairly Poor to Good - 10 years',
+            finalTime: '10 years (0.7002822742)'
           },
           { baselineLink: true }
         )
@@ -6266,7 +6271,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         )
         await expectCreatedAreaSelections(details, {
           ...ST_CREATED_WATERCOURSE_SELECTIONS,
-          condition: ''
+          condition: '',
+          advance: '0'
         })
         await expect(details.habitatUnitsValue).toHaveText(
           ST_CREATED_WATERCOURSE_UNITS
@@ -6871,8 +6877,85 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         })
       })
 
-      // Trading-all-met's HG002, the one Enhanced hedgerow that can change
-      // type, in a copy of its own.
+      // R006, re-meandered: a better condition and less encroachment on
+      // both sides, priced on its own length.
+      test('saving a changed Enhanced watercourse condition and encroachments recalculates the row, the units and the total', async ({
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        // As imported, and as the significance edit above starts from.
+        const unitsBefore = 0.6945
+        // The backend's units for Fairly Good (2.5), Minor (0.8) and
+        // Minor/Minor (0.95) over 4 years (0.8671800006), from Fairly Poor.
+        const expectedUnits = 1.0265
+        const chosen = {
+          type: 'Canals',
+          significance: 'Low',
+          condition: 'Fairly Good',
+          watercourse: 'Minor',
+          riparian: 'Minor/Minor',
+          advance: '0',
+          delay: '0'
+        }
+        await openPiTabFor(
+          page,
+          projectId,
+          'watercourse',
+          ST_ENHANCED_WATERCOURSE_REF
+        )
+        const totalBefore = await watercoursePostInterventionUnits(page)
+        await openPiFeatureDetails(
+          page,
+          projectId,
+          'watercourse',
+          ST_ENHANCED_WATERCOURSE_REF
+        )
+
+        await chooseCreatedAreaSelections(details, {
+          condition: chosen.condition,
+          watercourse: chosen.watercourse,
+          riparian: chosen.riparian
+        })
+        await expectEnhancedFormValues(details, {
+          standardTime: 'Fairly Poor to Fairly Good - 4 years',
+          finalTime: '4 years (0.8671800006)'
+        })
+        await details.saveButton.click()
+
+        await expectOnPiPage(page, projectId, 'watercourse')
+        const totalAfter = await watercoursePostInterventionUnits(page)
+        expect(
+          Math.abs(totalAfter - (totalBefore - unitsBefore + expectedUnits))
+        ).toBeLessThan(TILE_ROUNDING)
+        expect(
+          await watercourseRowByRef(
+            page,
+            projectId,
+            ST_ENHANCED_WATERCOURSE_REF
+          )
+        ).toMatchObject({
+          Status: STATUS_COMPLETE,
+          Units: expectedUnits.toFixed(2),
+          'Target condition': 'Fairly Good (2.5)',
+          'Watercourse encroachment': 'Minor (0.8)',
+          'Riparian encroachment': 'Minor/Minor (0.95)',
+          'Final time to target': '4 years (0.8671800006)'
+        })
+
+        await openPiFeatureDetails(
+          page,
+          projectId,
+          'watercourse',
+          ST_ENHANCED_WATERCOURSE_REF
+        )
+        await expectCreatedAreaSelections(details, chosen)
+        await expect(details.habitatUnitsValue).toHaveText(
+          expectedUnits.toFixed(2)
+        )
+      })
+
+      // Trading-all-met's HG002, an Enhanced hedgerow that can change type, in
+      // a copy of its own.
       test('saving a complete Enhanced hedgerow edit recalculates the enhanced units, the row and the total', async ({
         browser,
         page,
