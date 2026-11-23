@@ -1122,8 +1122,6 @@ async function creatorFeatureId(browser, projectId, type, ref) {
   }
 }
 
-// The page heading: the ref, after the feature type on most pages ("Habitat
-// H002"), alone on a vertical area habitat's or an edit page ("V001").
 // BMD-1088: an edit on each BNG Service template edit form, the default site's
 // Created and Enhanced area habitat, hedgerow, watercourse and tree. Each
 // changes the strategic significance alone, which every form offers and no
@@ -1222,6 +1220,8 @@ function piTileUnits(page, type) {
     : piPage(page, type).tileUnits(POST_INTERVENTION_TILE)
 }
 
+// The page heading: the ref, after the feature type on most pages ("Habitat
+// H002"), alone on a vertical area habitat's or an edit page ("V001").
 const piDetailsHeading = (page, ref) =>
   page.getByRole('heading', { level: 1, name: new RegExp(`(^| )${ref}$`) })
 
