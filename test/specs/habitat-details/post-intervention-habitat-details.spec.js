@@ -26,6 +26,12 @@ import {
 import { gridRefName } from '@utils/habitat-ref-display.js'
 import { readTileUnits } from '@utils/tile-value.js'
 import { STATUS_COMPLETE, STATUS_INCOMPLETE } from '@utils/unit-type-labels.js'
+import { getRunAllUnitTypesPostInterventionProject } from '@utils/run-projects.js'
+import {
+  LEGACY_ONLY,
+  SERVICE_TEMPLATE_ONLY,
+  isServiceTemplateRun
+} from '@utils/template-run.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 const HTTP_BAD_REQUEST = 400
@@ -1056,6 +1062,51 @@ function getTreesProject(browser) {
   )
 }
 
+// The project the run's generic tests open features of: legacy, the complete
+// pair; BNG Service template, the default site.
+function getRunDetailsProject(browser) {
+  return isServiceTemplateRun()
+    ? getRunAllUnitTypesPostInterventionProject(browser)
+    : getCompleteProject(browser)
+}
+
+// ─── BNG Service template features (BMD-1088) ──────────────────────────────
+//
+// The default site's features. A BNG Service template feature names its
+// parent, so "View baseline details" follows the parent, whatever the
+// feature's own ref: HG018 is split into a Retained HG018a and a Created
+// HG018b. A feature with no parent links to nothing, nor does any tree.
+const SERVICE_TEMPLATE_RETAINED_AREA = {
+  ref: 'H002',
+  habitatType: 'Other woodland; broadleaved'
+}
+const SERVICE_TEMPLATE_ENHANCED_WATERCOURSE_REF = 'R006'
+const SERVICE_TEMPLATE_BASELINE_LINKS = [
+  { type: 'area', ref: 'H002', parentHeading: 'Habitat H002' },
+  { type: 'area', ref: 'V001', parentHeading: 'Habitat V001' },
+  { type: 'area', ref: 'V003', parentHeading: 'Habitat V003' },
+  { type: 'hedgerow', ref: 'HG018a', parentHeading: 'Hedgerow HG018' },
+  { type: 'hedgerow', ref: 'HG018b', parentHeading: 'Hedgerow HG018' },
+  { type: 'watercourse', ref: 'R006', parentHeading: 'Watercourse R006' }
+]
+const SERVICE_TEMPLATE_UNLINKED = [
+  { type: 'hedgerow', ref: 'HG008' },
+  { type: 'watercourse', ref: 'R003' },
+  { type: 'area', ref: 'T010' },
+  { type: 'area', ref: 'T001' },
+  { type: 'area', ref: 'T005' }
+]
+// A Retained feature's page shows its parent's comment, not its own: HG010's
+// own is "Gaps planted up" and T010's "Guarded and staked".
+const SERVICE_TEMPLATE_RETAINED_COMMENTS = [
+  { type: 'hedgerow', ref: 'HG010', comment: 'Cut annually' },
+  { type: 'area', ref: 'T010', comment: 'Ivy on the trunk' },
+  { type: 'area', ref: 'H002', comment: 'No data' }
+]
+
+const piDetailsHeading = (page, ref) =>
+  page.getByRole('heading', { level: 1, name: new RegExp(` ${ref}$`) })
+
 test.describe('habitat-details', { tag: '@habitat-details' }, () => {
   // The whole file runs sequentially in one worker (mode 'default' overrides
   // fullyParallel without serial-mode failure cascades). Post-intervention
@@ -1129,7 +1180,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         browser,
         page
       }) => {
-        const shared = await getCompleteProject(browser)
+        const shared = await getRunDetailsProject(browser)
         const response = await page.goto(
           detailsUrl({ projectId: shared.id, featureId: VALID_UUID_V4 })
         )
@@ -1179,7 +1230,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
   test.describe('Post-intervention habitat details — complete-project scenarios', () => {
     // ─── Retained area habitat — reference form (BMD-608, BMD-1180) ──────────
 
-    test.describe('retained area habitat display', () => {
+    test.describe('retained area habitat display', { tag: LEGACY_ONLY }, () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
@@ -1481,7 +1532,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
     test.describe(
       'Created area habitats render the edit form',
-      { tag: '@regression' },
+      { tag: ['@regression', LEGACY_ONLY] },
       () => {
         test.use({ storageState: STORAGE_STATE })
         test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
@@ -1610,7 +1661,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
     test.describe(
       'Created area habitats — editing',
-      { tag: '@regression' },
+      { tag: ['@regression', LEGACY_ONLY] },
       () => {
         test.use({ storageState: STORAGE_STATE })
         test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
@@ -2102,7 +2153,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
     test.describe(
       'Enhanced area habitats — editing',
-      { tag: '@regression' },
+      { tag: ['@regression', LEGACY_ONLY] },
       () => {
         test.use({ storageState: STORAGE_STATE })
         test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
@@ -2338,9 +2389,18 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       test.skip(skipInE2e(NO_PROJECTS_STORAGE_STATE), E2E_SKIP_REASON)
 
       test('a feature in one user’s project cannot be opened directly by a different user', async ({
-        browser
+        browser,
+        page
       }) => {
-        const shared = await getCompleteProject(browser)
+        const shared = await getRunDetailsProject(browser)
+        const featureId = isServiceTemplateRun()
+          ? await featureIdByRef(
+              page,
+              shared.id,
+              'area',
+              SERVICE_TEMPLATE_RETAINED_AREA.ref
+            )
+          : shared.retainedNoBaseline
         const otherContext = await browser.newContext({
           storageState: NO_PROJECTS_STORAGE_STATE,
           baseURL: baseUrl
@@ -2350,12 +2410,18 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           const response = await otherPage.goto(
             detailsUrl({
               projectId: shared.id,
-              featureId: shared.retainedNoBaseline
+              featureId
             })
           )
           expect(response.status()).toBe(HTTP_NOT_FOUND)
           // None of the creator's feature data is rendered.
-          await expect(otherPage.getByText('Modified grassland')).toBeHidden()
+          await expect(
+            otherPage.getByText(
+              isServiceTemplateRun()
+                ? SERVICE_TEMPLATE_RETAINED_AREA.habitatType
+                : 'Modified grassland'
+            )
+          ).toBeHidden()
           await expect(otherPage.getByText(shared.name)).toBeHidden()
         } finally {
           await otherContext.close()
@@ -2368,219 +2434,229 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
   // Every test in this block reads the same shared mixed-fixture project;
   // none of them mutate it.
 
-  test.describe('Post-intervention habitat details — mixed-project scenarios', () => {
-    // ─── Retained area habitat — baseline-side value sourcing ────────────────
-    // For a retained feature the engine derives everything from the baseline
-    // side, so the view-only page reads descriptive values from the
-    // feature's baseline sub-object. The mixed fixture's H1 has entirely
-    // blank proposed columns — if the page read proposed-side values these
-    // rows would be empty.
+  test.describe(
+    'Post-intervention habitat details — mixed-project scenarios',
+    { tag: LEGACY_ONLY },
+    () => {
+      // ─── Retained area habitat — baseline-side value sourcing ────────────────
+      // For a retained feature the engine derives everything from the baseline
+      // side, so the view-only page reads descriptive values from the
+      // feature's baseline sub-object. The mixed fixture's H1 has entirely
+      // blank proposed columns — if the page read proposed-side values these
+      // rows would be empty.
 
-    test.describe('retained value sourcing', { tag: '@regression' }, () => {
-      test.use({ storageState: STORAGE_STATE })
-      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+      test.describe('retained value sourcing', { tag: '@regression' }, () => {
+        test.use({ storageState: STORAGE_STATE })
+        test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      // Restored 2026-11-16 (BMD-1043 signed off). A post-intervention-only
-      // upload now derives its baseline from the file (BMD-1056, backend
-      // PR#478), so the unit-type post-intervention page lists H1 and its
-      // featureId is harvested from the grid again.
-      test('retained parcel with blank proposed columns shows baseline-side values', async ({
-        browser,
-        postInterventionHabitatDetailsPage,
-        page
-      }) => {
-        const shared = await getMixedProject(browser)
-        await postInterventionHabitatDetailsPage.open(
-          shared.id,
-          shared.retainedBlankProposed
-        )
+        // Restored 2026-11-16 (BMD-1043 signed off). A post-intervention-only
+        // upload now derives its baseline from the file (BMD-1056, backend
+        // PR#478), so the unit-type post-intervention page lists H1 and its
+        // featureId is harvested from the grid again.
+        test('retained parcel with blank proposed columns shows baseline-side values', async ({
+          browser,
+          postInterventionHabitatDetailsPage,
+          page
+        }) => {
+          const shared = await getMixedProject(browser)
+          await postInterventionHabitatDetailsPage.open(
+            shared.id,
+            shared.retainedBlankProposed
+          )
 
-        await expect(
-          postInterventionHabitatDetailsPage.viewOnlyHeading
-        ).toBeVisible()
-        await expect(page.getByText(RETAINED, { exact: true })).toBeVisible()
-        // Baseline-side values (the proposed columns are blank in the
-        // fixture).
-        await expect(page.getByText('Urban', { exact: true })).toBeVisible()
-        await expect(
-          page.getByText('Developed land; sealed surface', { exact: true })
-        ).toBeVisible()
-        // Condition "6. N/A - Other" renders with its list prefix stripped
-        // (unanchored: getByText regexes match raw, un-normalised text).
-        await expect(page.getByText(/N\/A - Other/)).toBeVisible()
-        await expect(
-          postInterventionHabitatDetailsPage.habitatUnitsValue
-        ).toHaveText(shared.retainedBlankProposedUnits)
-        // The baseline derived from the same file holds H1, so the link
-        // resolves (it was hidden before BMD-1056, with no baseline at all).
-        await expect(
-          postInterventionHabitatDetailsPage.viewBaselineLink
-        ).toBeVisible()
+          await expect(
+            postInterventionHabitatDetailsPage.viewOnlyHeading
+          ).toBeVisible()
+          await expect(page.getByText(RETAINED, { exact: true })).toBeVisible()
+          // Baseline-side values (the proposed columns are blank in the
+          // fixture).
+          await expect(page.getByText('Urban', { exact: true })).toBeVisible()
+          await expect(
+            page.getByText('Developed land; sealed surface', { exact: true })
+          ).toBeVisible()
+          // Condition "6. N/A - Other" renders with its list prefix stripped
+          // (unanchored: getByText regexes match raw, un-normalised text).
+          await expect(page.getByText(/N\/A - Other/)).toBeVisible()
+          await expect(
+            postInterventionHabitatDetailsPage.habitatUnitsValue
+          ).toHaveText(shared.retainedBlankProposedUnits)
+          // The baseline derived from the same file holds H1, so the link
+          // resolves (it was hidden before BMD-1056, with no baseline at all).
+          await expect(
+            postInterventionHabitatDetailsPage.viewBaselineLink
+          ).toBeVisible()
+        })
       })
-    })
-  })
+    }
+  )
 
   // ─── Retained hedgerow — reference form (BMD-723, BMD-1180) ────────────────
 
-  test.describe('Post-intervention habitat details — retained hedgerow display', () => {
-    test.use({ storageState: STORAGE_STATE })
-    test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+  test.describe(
+    'Post-intervention habitat details — retained hedgerow display',
+    { tag: LEGACY_ONLY },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-    // BMD-1180: "Habitat <ref>" on every retained type (PO ruling 2026-11-03,
-    // frontend PR#482), though the baseline hedgerow page reads "Hedgerow <ref>".
-    test(
-      'retained hedgerow heading is "Habitat" followed by its reference',
-      { tag: '@regression' },
-      async ({ browser, postInterventionHabitatDetailsPage, page }) => {
-        const shared = await getHedgerowsProject(browser)
-        await postInterventionHabitatDetailsPage.open(
-          shared.id,
-          shared.retainedHedgerow
-        )
+      // BMD-1180: "Habitat <ref>" on every retained type (PO ruling 2026-11-03,
+      // frontend PR#482), though the baseline hedgerow page reads "Hedgerow <ref>".
+      test(
+        'retained hedgerow heading is "Habitat" followed by its reference',
+        { tag: '@regression' },
+        async ({ browser, postInterventionHabitatDetailsPage, page }) => {
+          const shared = await getHedgerowsProject(browser)
+          await postInterventionHabitatDetailsPage.open(
+            shared.id,
+            shared.retainedHedgerow
+          )
 
-        await expect(
-          page.getByRole('heading', {
-            name: `Habitat ${RETAINED_HEDGEROW_REF}`,
-            exact: true
+          await expect(
+            page.getByRole('heading', {
+              name: `Habitat ${RETAINED_HEDGEROW_REF}`,
+              exact: true
+            })
+          ).toBeVisible()
+        }
+      )
+
+      test(
+        'retained hedgerow renders its rows read-only, with only its reference editable and no Broad habitat row',
+        { tag: '@smoke' },
+        async ({ browser, postInterventionHabitatDetailsPage, page }) => {
+          const shared = await getHedgerowsProject(browser)
+          await postInterventionHabitatDetailsPage.open(
+            shared.id,
+            shared.retainedHedgerow
+          )
+
+          const detailsPage = postInterventionHabitatDetailsPage
+          await expect(detailsPage.viewOnlyHeading).toBeVisible()
+          await expect(detailsPage.interventionKey).toBeVisible()
+          await expect(detailsPage.sizeKilometresKey).toBeVisible()
+          await expect(detailsPage.lengthKey).toBeHidden()
+          await expect(detailsPage.habitatTypeKey).toBeVisible()
+          // Hedgerows have no broad-habitat dimension and no area size row.
+          await expect(detailsPage.broadHabitatKey).toBeHidden()
+          await expect(detailsPage.sizeHectaresKey).toBeHidden()
+          await expect(
+            page.getByText('Native hedgerow', { exact: true })
+          ).toBeVisible()
+          await detailsPage.assertRetainedRefForm({
+            ref: RETAINED_HEDGEROW_REF
           })
-        ).toBeVisible()
-      }
-    )
+          await expect(detailsPage.habitatTypeSelect).toBeHidden()
 
-    test(
-      'retained hedgerow renders its rows read-only, with only its reference editable and no Broad habitat row',
-      { tag: '@smoke' },
-      async ({ browser, postInterventionHabitatDetailsPage, page }) => {
-        const shared = await getHedgerowsProject(browser)
-        await postInterventionHabitatDetailsPage.open(
-          shared.id,
-          shared.retainedHedgerow
-        )
+          // The back-link witness for every hedgerow page (BMD-723, BMD-733 and
+          // BMD-737 AC2): the controller sets the back href from the feature type
+          // alone — see the Created area back-link test.
+          await detailsPage.backLink.click()
+          await expectOnPiPage(page, shared.id, 'hedgerow')
+        }
+      )
 
-        const detailsPage = postInterventionHabitatDetailsPage
-        await expect(detailsPage.viewOnlyHeading).toBeVisible()
-        await expect(detailsPage.interventionKey).toBeVisible()
-        await expect(detailsPage.sizeKilometresKey).toBeVisible()
-        await expect(detailsPage.lengthKey).toBeHidden()
-        await expect(detailsPage.habitatTypeKey).toBeVisible()
-        // Hedgerows have no broad-habitat dimension and no area size row.
-        await expect(detailsPage.broadHabitatKey).toBeHidden()
-        await expect(detailsPage.sizeHectaresKey).toBeHidden()
-        await expect(
-          page.getByText('Native hedgerow', { exact: true })
-        ).toBeVisible()
-        await detailsPage.assertRetainedRefForm({ ref: RETAINED_HEDGEROW_REF })
-        await expect(detailsPage.habitatTypeSelect).toBeHidden()
+      test(
+        'retained hedgerow shows its saved values with multiplier formatting',
+        { tag: '@regression' },
+        async ({ browser, postInterventionHabitatDetailsPage, page }) => {
+          const shared = await getHedgerowsProject(browser)
+          // Arrive the way the user does (BMD-723 AC1): open the hedgerows grid
+          // tab and click the hedgerow's ref link rather than deep-linking.
+          await openPiFeatureDetails(
+            page,
+            shared.id,
+            'hedgerow',
+            RETAINED_HEDGEROW_REF
+          )
+          await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
-        // The back-link witness for every hedgerow page (BMD-723, BMD-733 and
-        // BMD-737 AC2): the controller sets the back href from the feature type
-        // alone — see the Created area back-link test.
-        await detailsPage.backLink.click()
-        await expectOnPiPage(page, shared.id, 'hedgerow')
-      }
-    )
+          await expect(postInterventionHabitatDetailsPage.caption).toHaveText(
+            shared.name
+          )
+          await expect(
+            postInterventionHabitatDetailsPage.habitatReferenceInput
+          ).toHaveValue(RETAINED_HEDGEROW_REF)
+          // HR1: Native hedgerow / Moderate / 90 m (fixture values); "Low (2)"
+          // and "Moderate (2)" are the engine's reference distinctiveness and
+          // condition for that habitat type. The "Size (kilometres)" label
+          // carries the unit, so the value renders bare with trailing zeros
+          // trimmed.
+          await expect(page.getByText(RETAINED, { exact: true })).toBeVisible()
+          await expect(
+            postInterventionHabitatDetailsPage.stackedSizeValue
+          ).toHaveText(/^\s*0\.09\s*$/)
+          await expect(page.getByText('Low (2)', { exact: true })).toBeVisible()
+          await expect(
+            page.getByText('Moderate (2)', { exact: true })
+          ).toBeVisible()
+          await expect(
+            postInterventionHabitatDetailsPage.strategicSignificanceValue
+          ).toBeVisible()
+          // "Habitat units delivered" matches the Units cell of the same
+          // hedgerow's grid row.
+          await expect(
+            postInterventionHabitatDetailsPage.habitatUnitsValue
+          ).toHaveText(shared.retainedHedgerowUnits)
+        }
+      )
 
-    test(
-      'retained hedgerow shows its saved values with multiplier formatting',
-      { tag: '@regression' },
-      async ({ browser, postInterventionHabitatDetailsPage, page }) => {
-        const shared = await getHedgerowsProject(browser)
-        // Arrive the way the user does (BMD-723 AC1): open the hedgerows grid
-        // tab and click the hedgerow's ref link rather than deep-linking.
-        await openPiFeatureDetails(
-          page,
-          shared.id,
-          'hedgerow',
-          RETAINED_HEDGEROW_REF
-        )
-        await expect(page).toHaveURL(DETAILS_URL_PATTERN)
+      test(
+        '"View baseline details" links to the ref-matched baseline hedgerow',
+        { tag: '@regression' },
+        async ({ browser, postInterventionHabitatDetailsPage, page }) => {
+          const shared = await getHedgerowsProject(browser)
+          await postInterventionHabitatDetailsPage.open(
+            shared.id,
+            shared.retainedHedgerow
+          )
 
-        await expect(postInterventionHabitatDetailsPage.caption).toHaveText(
-          shared.name
-        )
-        await expect(
-          postInterventionHabitatDetailsPage.habitatReferenceInput
-        ).toHaveValue(RETAINED_HEDGEROW_REF)
-        // HR1: Native hedgerow / Moderate / 90 m (fixture values); "Low (2)"
-        // and "Moderate (2)" are the engine's reference distinctiveness and
-        // condition for that habitat type. The "Size (kilometres)" label
-        // carries the unit, so the value renders bare with trailing zeros
-        // trimmed.
-        await expect(page.getByText(RETAINED, { exact: true })).toBeVisible()
-        await expect(
-          postInterventionHabitatDetailsPage.stackedSizeValue
-        ).toHaveText(/^\s*0\.09\s*$/)
-        await expect(page.getByText('Low (2)', { exact: true })).toBeVisible()
-        await expect(
-          page.getByText('Moderate (2)', { exact: true })
-        ).toBeVisible()
-        await expect(
-          postInterventionHabitatDetailsPage.strategicSignificanceValue
-        ).toBeVisible()
-        // "Habitat units delivered" matches the Units cell of the same
-        // hedgerow's grid row.
-        await expect(
-          postInterventionHabitatDetailsPage.habitatUnitsValue
-        ).toHaveText(shared.retainedHedgerowUnits)
-      }
-    )
+          await expect(
+            postInterventionHabitatDetailsPage.viewBaselineLink
+          ).toBeVisible()
+          await postInterventionHabitatDetailsPage.viewBaselineLink.click()
+          await expect(page).toHaveURL(BASELINE_DETAILS_URL_PATTERN)
 
-    test(
-      '"View baseline details" links to the ref-matched baseline hedgerow',
-      { tag: '@regression' },
-      async ({ browser, postInterventionHabitatDetailsPage, page }) => {
-        const shared = await getHedgerowsProject(browser)
-        await postInterventionHabitatDetailsPage.open(
-          shared.id,
-          shared.retainedHedgerow
-        )
+          // The baseline and PI uploads assign independent featureIds, so the
+          // link must resolve the baseline feature by parcel ref — a different
+          // featureId from the PI feature the user came from.
+          const baselineFeatureId = new URL(page.url()).searchParams.get(
+            'featureId'
+          )
+          expect(baselineFeatureId).not.toBe(shared.retainedHedgerow)
+          await expect(postInterventionHabitatDetailsPage.heading).toHaveText(
+            `Hedgerow ${RETAINED_HEDGEROW_REF}`
+          )
+        }
+      )
 
-        await expect(
-          postInterventionHabitatDetailsPage.viewBaselineLink
-        ).toBeVisible()
-        await postInterventionHabitatDetailsPage.viewBaselineLink.click()
-        await expect(page).toHaveURL(BASELINE_DETAILS_URL_PATTERN)
+      // BMD-1180 AC5. Sole real-data witness for renaming a Retained hedgerow
+      // through this page: backend integration-tests/features.test.js renames a
+      // retained area parcel and a tree, and the hedgerow rename is covered only
+      // by apply-retained-ref-edit.test.js on a fabricated project. Do not delete
+      // without adding a hedgerow PUT to that integration test first.
+      test(
+        'saving a new reference on a retained hedgerow returns to the hedgerow page and leaves the units alone',
+        { tag: '@regression' },
+        async ({ browser, page, postInterventionHabitatDetailsPage }) => {
+          const { id } = await getHedgerowsProject(
+            browser,
+            'retained-hedgerow-rename'
+          )
+          const newRef = `${RETAINED_HEDGEROW_REF}-NEW`
 
-        // The baseline and PI uploads assign independent featureIds, so the
-        // link must resolve the baseline feature by parcel ref — a different
-        // featureId from the PI feature the user came from.
-        const baselineFeatureId = new URL(page.url()).searchParams.get(
-          'featureId'
-        )
-        expect(baselineFeatureId).not.toBe(shared.retainedHedgerow)
-        await expect(postInterventionHabitatDetailsPage.heading).toHaveText(
-          `Hedgerow ${RETAINED_HEDGEROW_REF}`
-        )
-      }
-    )
-
-    // BMD-1180 AC5. Sole real-data witness for renaming a Retained hedgerow
-    // through this page: backend integration-tests/features.test.js renames a
-    // retained area parcel and a tree, and the hedgerow rename is covered only
-    // by apply-retained-ref-edit.test.js on a fabricated project. Do not delete
-    // without adding a hedgerow PUT to that integration test first.
-    test(
-      'saving a new reference on a retained hedgerow returns to the hedgerow page and leaves the units alone',
-      { tag: '@regression' },
-      async ({ browser, page, postInterventionHabitatDetailsPage }) => {
-        const { id } = await getHedgerowsProject(
-          browser,
-          'retained-hedgerow-rename'
-        )
-        const newRef = `${RETAINED_HEDGEROW_REF}-NEW`
-
-        await expectRetainedRename(page, postInterventionHabitatDetailsPage, {
-          projectId: id,
-          type: 'hedgerow',
-          ref: RETAINED_HEDGEROW_REF,
-          typed: newRef,
-          newRef,
-          rowByRef: hedgerowRowByRef,
-          tileUnits: hedgerowPostInterventionUnits
-        })
-      }
-    )
-  })
+          await expectRetainedRename(page, postInterventionHabitatDetailsPage, {
+            projectId: id,
+            type: 'hedgerow',
+            ref: RETAINED_HEDGEROW_REF,
+            typed: newRef,
+            newRef,
+            rowByRef: hedgerowRowByRef,
+            tileUnits: hedgerowPostInterventionUnits
+          })
+        }
+      )
+    }
+  )
 
   // ─── Enhanced hedgerow — edit form (BMD-1046) ───────────────────────────────
   // Since frontend PR #526 and backend PR #660 an Enhanced hedgerow opens the
@@ -2593,7 +2669,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
   test.describe(
     'Enhanced hedgerow habitats — editing',
-    { tag: '@regression' },
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
@@ -2917,7 +2993,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
   test.describe(
     'Created hedgerow habitats are editable',
-    { tag: '@regression' },
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
@@ -3078,7 +3154,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
   // every other test reuses the read-only created-linear project.
   test.describe(
     'Created hedgerow habitats — editing',
-    { tag: '@regression' },
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
@@ -3519,188 +3595,194 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
   // ─── Retained watercourse — reference form (BMD-724, BMD-1180) ─────────────
 
-  test.describe('Post-intervention habitat details — retained watercourse display', () => {
-    test.use({ storageState: STORAGE_STATE })
-    test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+  test.describe(
+    'Post-intervention habitat details — retained watercourse display',
+    { tag: LEGACY_ONLY },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-    // BMD-1180: "Habitat <ref>" on every retained type (PO ruling 2026-11-03,
-    // frontend PR#482), though the baseline watercourse page reads
-    // "Watercourse <ref>".
-    test(
-      'retained watercourse heading is "Habitat" followed by its reference',
-      { tag: '@regression' },
-      async ({ browser, postInterventionHabitatDetailsPage, page }) => {
-        const shared = await getWatercoursesProject(browser)
-        await postInterventionHabitatDetailsPage.open(
-          shared.id,
-          shared.retainedWatercourse
-        )
+      // BMD-1180: "Habitat <ref>" on every retained type (PO ruling 2026-11-03,
+      // frontend PR#482), though the baseline watercourse page reads
+      // "Watercourse <ref>".
+      test(
+        'retained watercourse heading is "Habitat" followed by its reference',
+        { tag: '@regression' },
+        async ({ browser, postInterventionHabitatDetailsPage, page }) => {
+          const shared = await getWatercoursesProject(browser)
+          await postInterventionHabitatDetailsPage.open(
+            shared.id,
+            shared.retainedWatercourse
+          )
 
-        await expect(
-          page.getByRole('heading', {
-            name: `Habitat ${RETAINED_WATERCOURSE_REF}`,
-            exact: true
+          await expect(
+            page.getByRole('heading', {
+              name: `Habitat ${RETAINED_WATERCOURSE_REF}`,
+              exact: true
+            })
+          ).toBeVisible()
+        }
+      )
+
+      test(
+        'retained watercourse renders both encroachment rows read-only, with only its reference editable',
+        { tag: '@smoke' },
+        async ({ browser, postInterventionHabitatDetailsPage, page }) => {
+          const shared = await getWatercoursesProject(browser)
+          await postInterventionHabitatDetailsPage.open(
+            shared.id,
+            shared.retainedWatercourse
+          )
+
+          const detailsPage = postInterventionHabitatDetailsPage
+          // BMD-724 (PR#192) moved this page to the stacked sections layout: the
+          // parcel ref is in the H1, and the size label is "Size (kilometres)".
+          await expect(detailsPage.viewOnlyHeading).toBeVisible()
+          await expect(detailsPage.interventionKey).toBeVisible()
+          await expect(detailsPage.sizeKilometresKey).toBeVisible()
+          await expect(detailsPage.lengthKey).toBeHidden()
+          await expect(detailsPage.watercourseEncroachmentKey).toBeVisible()
+          await expect(detailsPage.riparianEncroachmentKey).toBeVisible()
+          await expect(
+            detailsPage.stackedStrategicSignificanceKey
+          ).toBeVisible()
+          await expect(page.getByText('Ditches', { exact: true })).toBeVisible()
+          // Encroachment values come from the baseline side and render as
+          // "Value (multiplier)"; the multiplier is engine data, so assert the
+          // value prefix. WC1: "No Encroachment" / "No Encroachment/No
+          // Encroachment" (fixture values). getByText regexes match raw,
+          // un-normalised text, so allow surrounding whitespace; the anchors
+          // keep the two rows distinct (the riparian value contains the
+          // watercourse value as a substring).
+          await expect(
+            page.getByText(/^\s*No Encroachment( \(.+\))?\s*$/)
+          ).toBeVisible()
+          await expect(
+            page.getByText(/^\s*No Encroachment\/No Encroachment( \(.+\))?\s*$/)
+          ).toBeVisible()
+          // BMD-1180: the reference is the only editable value, so no dropdowns
+          // (including the watercourse-only encroachment selects).
+          await detailsPage.assertRetainedRefForm({
+            ref: RETAINED_WATERCOURSE_REF
           })
-        ).toBeVisible()
-      }
-    )
+          await expect(detailsPage.watercourseEncroachmentSelect).toBeHidden()
+          await expect(detailsPage.riparianEncroachmentSelect).toBeHidden()
+          // Baseline WC1 shares the parcel ref, so the link renders.
+          await expect(detailsPage.viewBaselineLink).toBeVisible()
 
-    test(
-      'retained watercourse renders both encroachment rows read-only, with only its reference editable',
-      { tag: '@smoke' },
-      async ({ browser, postInterventionHabitatDetailsPage, page }) => {
-        const shared = await getWatercoursesProject(browser)
-        await postInterventionHabitatDetailsPage.open(
-          shared.id,
-          shared.retainedWatercourse
-        )
+          // The back-link witness for every watercourse page (BMD-724, BMD-735
+          // and BMD-739 AC2): the controller sets the back href from the feature
+          // type alone, and all three watercourse pages share one layout.
+          await detailsPage.backLink.click()
+          await expectOnPiPage(page, shared.id, 'watercourse')
+        }
+      )
 
-        const detailsPage = postInterventionHabitatDetailsPage
-        // BMD-724 (PR#192) moved this page to the stacked sections layout: the
-        // parcel ref is in the H1, and the size label is "Size (kilometres)".
-        await expect(detailsPage.viewOnlyHeading).toBeVisible()
-        await expect(detailsPage.interventionKey).toBeVisible()
-        await expect(detailsPage.sizeKilometresKey).toBeVisible()
-        await expect(detailsPage.lengthKey).toBeHidden()
-        await expect(detailsPage.watercourseEncroachmentKey).toBeVisible()
-        await expect(detailsPage.riparianEncroachmentKey).toBeVisible()
-        await expect(detailsPage.stackedStrategicSignificanceKey).toBeVisible()
-        await expect(page.getByText('Ditches', { exact: true })).toBeVisible()
-        // Encroachment values come from the baseline side and render as
-        // "Value (multiplier)"; the multiplier is engine data, so assert the
-        // value prefix. WC1: "No Encroachment" / "No Encroachment/No
-        // Encroachment" (fixture values). getByText regexes match raw,
-        // un-normalised text, so allow surrounding whitespace; the anchors
-        // keep the two rows distinct (the riparian value contains the
-        // watercourse value as a substring).
-        await expect(
-          page.getByText(/^\s*No Encroachment( \(.+\))?\s*$/)
-        ).toBeVisible()
-        await expect(
-          page.getByText(/^\s*No Encroachment\/No Encroachment( \(.+\))?\s*$/)
-        ).toBeVisible()
-        // BMD-1180: the reference is the only editable value, so no dropdowns
-        // (including the watercourse-only encroachment selects).
-        await detailsPage.assertRetainedRefForm({
-          ref: RETAINED_WATERCOURSE_REF
-        })
-        await expect(detailsPage.watercourseEncroachmentSelect).toBeHidden()
-        await expect(detailsPage.riparianEncroachmentSelect).toBeHidden()
-        // Baseline WC1 shares the parcel ref, so the link renders.
-        await expect(detailsPage.viewBaselineLink).toBeVisible()
+      test(
+        'retained watercourse shows its saved values with multiplier formatting',
+        { tag: '@regression' },
+        async ({ browser, postInterventionHabitatDetailsPage, page }) => {
+          const shared = await getWatercoursesProject(browser)
+          // Arrive the way the user does (BMD-724 AC1): select the
+          // Watercourses tab and click the watercourse's ref link rather than
+          // deep-linking.
+          await openPiFeatureDetails(
+            page,
+            shared.id,
+            'watercourse',
+            RETAINED_WATERCOURSE_REF
+          )
+          await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
-        // The back-link witness for every watercourse page (BMD-724, BMD-735
-        // and BMD-739 AC2): the controller sets the back href from the feature
-        // type alone, and all three watercourse pages share one layout.
-        await detailsPage.backLink.click()
-        await expectOnPiPage(page, shared.id, 'watercourse')
-      }
-    )
+          await expect(postInterventionHabitatDetailsPage.caption).toHaveText(
+            shared.name
+          )
+          await expect(
+            postInterventionHabitatDetailsPage.habitatReferenceInput
+          ).toHaveValue(RETAINED_WATERCOURSE_REF)
+          // WC1: Ditches / Moderate / 90 m (fixture values); "Medium (n)" and
+          // "Moderate (n)" are the engine's reference distinctiveness and
+          // condition for that river type. The "Size (kilometres)" label carries
+          // the unit, so the value renders bare with trailing zeros trimmed.
+          await expect(page.getByText(RETAINED, { exact: true })).toBeVisible()
+          await expect(
+            postInterventionHabitatDetailsPage.stackedSizeValue
+          ).toHaveText(/^\s*0\.09\s*$/)
+          await expect(
+            page.getByText(/^\s*Medium \(\d+(\.\d+)?\)\s*$/)
+          ).toBeVisible()
+          await expect(
+            page.getByText(/^\s*Moderate \(\d+(\.\d+)?\)\s*$/)
+          ).toBeVisible()
+          await expect(
+            postInterventionHabitatDetailsPage.strategicSignificanceValue
+          ).toBeVisible()
+          // "Habitat units delivered" matches the Units cell of the same
+          // watercourse's grid row.
+          await expect(
+            postInterventionHabitatDetailsPage.habitatUnitsValue
+          ).toHaveText(shared.retainedWatercourseUnits)
+        }
+      )
 
-    test(
-      'retained watercourse shows its saved values with multiplier formatting',
-      { tag: '@regression' },
-      async ({ browser, postInterventionHabitatDetailsPage, page }) => {
-        const shared = await getWatercoursesProject(browser)
-        // Arrive the way the user does (BMD-724 AC1): select the
-        // Watercourses tab and click the watercourse's ref link rather than
-        // deep-linking.
-        await openPiFeatureDetails(
-          page,
-          shared.id,
-          'watercourse',
-          RETAINED_WATERCOURSE_REF
-        )
-        await expect(page).toHaveURL(DETAILS_URL_PATTERN)
+      test(
+        '"View baseline details" links to the ref-matched baseline watercourse',
+        { tag: '@regression' },
+        async ({ browser, postInterventionHabitatDetailsPage, page }) => {
+          const shared = await getWatercoursesProject(browser)
+          await postInterventionHabitatDetailsPage.open(
+            shared.id,
+            shared.retainedWatercourse
+          )
 
-        await expect(postInterventionHabitatDetailsPage.caption).toHaveText(
-          shared.name
-        )
-        await expect(
-          postInterventionHabitatDetailsPage.habitatReferenceInput
-        ).toHaveValue(RETAINED_WATERCOURSE_REF)
-        // WC1: Ditches / Moderate / 90 m (fixture values); "Medium (n)" and
-        // "Moderate (n)" are the engine's reference distinctiveness and
-        // condition for that river type. The "Size (kilometres)" label carries
-        // the unit, so the value renders bare with trailing zeros trimmed.
-        await expect(page.getByText(RETAINED, { exact: true })).toBeVisible()
-        await expect(
-          postInterventionHabitatDetailsPage.stackedSizeValue
-        ).toHaveText(/^\s*0\.09\s*$/)
-        await expect(
-          page.getByText(/^\s*Medium \(\d+(\.\d+)?\)\s*$/)
-        ).toBeVisible()
-        await expect(
-          page.getByText(/^\s*Moderate \(\d+(\.\d+)?\)\s*$/)
-        ).toBeVisible()
-        await expect(
-          postInterventionHabitatDetailsPage.strategicSignificanceValue
-        ).toBeVisible()
-        // "Habitat units delivered" matches the Units cell of the same
-        // watercourse's grid row.
-        await expect(
-          postInterventionHabitatDetailsPage.habitatUnitsValue
-        ).toHaveText(shared.retainedWatercourseUnits)
-      }
-    )
+          await expect(
+            postInterventionHabitatDetailsPage.viewBaselineLink
+          ).toBeVisible()
+          await postInterventionHabitatDetailsPage.viewBaselineLink.click()
+          await expect(page).toHaveURL(BASELINE_DETAILS_URL_PATTERN)
 
-    test(
-      '"View baseline details" links to the ref-matched baseline watercourse',
-      { tag: '@regression' },
-      async ({ browser, postInterventionHabitatDetailsPage, page }) => {
-        const shared = await getWatercoursesProject(browser)
-        await postInterventionHabitatDetailsPage.open(
-          shared.id,
-          shared.retainedWatercourse
-        )
+          // The baseline and PI uploads assign independent featureIds, so the
+          // link must resolve the baseline feature by parcel ref — a different
+          // featureId from the PI feature the user came from.
+          const baselineFeatureId = new URL(page.url()).searchParams.get(
+            'featureId'
+          )
+          expect(baselineFeatureId).not.toBe(shared.retainedWatercourse)
+          await expect(postInterventionHabitatDetailsPage.heading).toHaveText(
+            `Watercourse ${RETAINED_WATERCOURSE_REF}`
+          )
+        }
+      )
 
-        await expect(
-          postInterventionHabitatDetailsPage.viewBaselineLink
-        ).toBeVisible()
-        await postInterventionHabitatDetailsPage.viewBaselineLink.click()
-        await expect(page).toHaveURL(BASELINE_DETAILS_URL_PATTERN)
+      // BMD-1180 AC5. Sole real-data witness for renaming a Retained
+      // watercourse through this page: backend integration-tests/features.test.js
+      // renames a retained area parcel and a tree, and the watercourse rename is
+      // covered only by apply-retained-ref-edit.test.js on a fabricated project.
+      // Do not delete without adding a watercourse PUT to that integration test
+      // first.
+      test(
+        'saving a new reference on a retained watercourse returns to the watercourse page and leaves the units alone',
+        { tag: '@regression' },
+        async ({ browser, page, postInterventionHabitatDetailsPage }) => {
+          const { id } = await getWatercoursesProjectCopy(
+            browser,
+            'retained-watercourse-rename'
+          )
+          const newRef = `${RETAINED_WATERCOURSE_REF}-NEW`
 
-        // The baseline and PI uploads assign independent featureIds, so the
-        // link must resolve the baseline feature by parcel ref — a different
-        // featureId from the PI feature the user came from.
-        const baselineFeatureId = new URL(page.url()).searchParams.get(
-          'featureId'
-        )
-        expect(baselineFeatureId).not.toBe(shared.retainedWatercourse)
-        await expect(postInterventionHabitatDetailsPage.heading).toHaveText(
-          `Watercourse ${RETAINED_WATERCOURSE_REF}`
-        )
-      }
-    )
-
-    // BMD-1180 AC5. Sole real-data witness for renaming a Retained
-    // watercourse through this page: backend integration-tests/features.test.js
-    // renames a retained area parcel and a tree, and the watercourse rename is
-    // covered only by apply-retained-ref-edit.test.js on a fabricated project.
-    // Do not delete without adding a watercourse PUT to that integration test
-    // first.
-    test(
-      'saving a new reference on a retained watercourse returns to the watercourse page and leaves the units alone',
-      { tag: '@regression' },
-      async ({ browser, page, postInterventionHabitatDetailsPage }) => {
-        const { id } = await getWatercoursesProjectCopy(
-          browser,
-          'retained-watercourse-rename'
-        )
-        const newRef = `${RETAINED_WATERCOURSE_REF}-NEW`
-
-        await expectRetainedRename(page, postInterventionHabitatDetailsPage, {
-          projectId: id,
-          type: 'watercourse',
-          ref: RETAINED_WATERCOURSE_REF,
-          typed: newRef,
-          newRef,
-          rowByRef: watercourseRowByRef,
-          tileUnits: watercoursePostInterventionUnits
-        })
-      }
-    )
-  })
+          await expectRetainedRename(page, postInterventionHabitatDetailsPage, {
+            projectId: id,
+            type: 'watercourse',
+            ref: RETAINED_WATERCOURSE_REF,
+            typed: newRef,
+            newRef,
+            rowByRef: watercourseRowByRef,
+            tileUnits: watercoursePostInterventionUnits
+          })
+        }
+      )
+    }
+  )
 
   // ─── Enhanced watercourse — values, navigation and baseline link (BMD-735) ──
   // The Enhanced watercourse page's *structure* is asserted in the
@@ -3713,67 +3795,73 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
   // reach. R007 in the "all unit and intervention types" pair is Enhanced,
   // improves Fairly Poor → Fairly Good, and exists in the baseline upload.
 
-  test.describe('Post-intervention habitat details — Enhanced watercourse display', () => {
-    test.use({ storageState: STORAGE_STATE })
-    test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+  test.describe(
+    'Post-intervention habitat details — Enhanced watercourse display',
+    { tag: LEGACY_ONLY },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-    test(
-      'Enhanced watercourse shows its km length, proposed-side encroachments and section-2 values',
-      { tag: '@regression' },
-      async ({ browser, postInterventionHabitatDetailsPage, page }) => {
-        const shared = await getAllTypesProject(browser)
-        await postInterventionHabitatDetailsPage.open(
-          shared.id,
-          shared.enhancedUpliftWatercourse
-        )
+      test(
+        'Enhanced watercourse shows its km length, proposed-side encroachments and section-2 values',
+        { tag: '@regression' },
+        async ({ browser, postInterventionHabitatDetailsPage, page }) => {
+          const shared = await getAllTypesProject(browser)
+          await postInterventionHabitatDetailsPage.open(
+            shared.id,
+            shared.enhancedUpliftWatercourse
+          )
 
-        const detailsPage = postInterventionHabitatDetailsPage
-        // BMD-735's headline deviation from the area-habitat design: the size
-        // row is "Length" and the value carries the km unit — asserting the
-        // label alone would pass on an "expressed in hectares" regression.
-        await expect(detailsPage.enhancedLengthKey).toBeVisible()
-        await expect(detailsPage.stackedSizeValue).toHaveText(LENGTH_KM_PATTERN)
+          const detailsPage = postInterventionHabitatDetailsPage
+          // BMD-735's headline deviation from the area-habitat design: the size
+          // row is "Length" and the value carries the km unit — asserting the
+          // label alone would pass on an "expressed in hectares" regression.
+          await expect(detailsPage.enhancedLengthKey).toBeVisible()
+          await expect(detailsPage.stackedSizeValue).toHaveText(
+            LENGTH_KM_PATTERN
+          )
 
-        // Encroachments are read from `proposed` on a Created/Enhanced
-        // watercourse — the opposite of the retained page's baseline-first
-        // read. R007 differs on both sides (watercourse Major → No
-        // Encroachment; riparian No Encroachment/No Encroachment → Minor/No
-        // Encroachment), so asserting the proposed values *and* the absence of
-        // the baseline ones is what distinguishes the two sourcing rules.
-        // getByText regexes match raw, un-normalised text, so allow
-        // surrounding whitespace; the anchors keep the rows distinct, since
-        // one encroachment value is a substring of the other.
-        await expect(
-          page.getByText(/^\s*No Encroachment( \(.+\))?\s*$/)
-        ).toBeVisible()
-        await expect(
-          page.getByText(/^\s*Minor\/No Encroachment( \(.+\))?\s*$/)
-        ).toBeVisible()
-        await expect(page.getByText(/^\s*Major( \(.+\))?\s*$/)).toHaveCount(0)
-        await expect(
-          page.getByText(/^\s*No Encroachment\/No Encroachment( \(.+\))?\s*$/)
-        ).toHaveCount(0)
+          // Encroachments are read from `proposed` on a Created/Enhanced
+          // watercourse — the opposite of the retained page's baseline-first
+          // read. R007 differs on both sides (watercourse Major → No
+          // Encroachment; riparian No Encroachment/No Encroachment → Minor/No
+          // Encroachment), so asserting the proposed values *and* the absence of
+          // the baseline ones is what distinguishes the two sourcing rules.
+          // getByText regexes match raw, un-normalised text, so allow
+          // surrounding whitespace; the anchors keep the rows distinct, since
+          // one encroachment value is a substring of the other.
+          await expect(
+            page.getByText(/^\s*No Encroachment( \(.+\))?\s*$/)
+          ).toBeVisible()
+          await expect(
+            page.getByText(/^\s*Minor\/No Encroachment( \(.+\))?\s*$/)
+          ).toBeVisible()
+          await expect(page.getByText(/^\s*Major( \(.+\))?\s*$/)).toHaveCount(0)
+          await expect(
+            page.getByText(/^\s*No Encroachment\/No Encroachment( \(.+\))?\s*$/)
+          ).toHaveCount(0)
 
-        // The standard time-to-target value proves the section-2 values render
-        // *and* pins the dynamic condition transition frontend PR#193
-        // introduced: "<baseline condition> to <target condition> - N years".
-        // A shape-only assertion would also pass on the old static "Baseline
-        // condition to target condition" wording, so assert the exact
-        // transition and exclude that stale text.
-        await expect(detailsPage.standardTimeToTargetValue).toHaveText(
-          ENHANCED_UPLIFT_WATERCOURSE_TIME
-        )
-        await expect(detailsPage.standardTimeToTargetValue).not.toContainText(
-          STALE_TIME_TO_TARGET_TEXT
-        )
-        // "Habitat units delivered" matches the Units cell of the same
-        // watercourse's grid row.
-        await expect(detailsPage.habitatUnitsValue).toHaveText(
-          shared.enhancedUpliftWatercourseUnits
-        )
-      }
-    )
-  })
+          // The standard time-to-target value proves the section-2 values render
+          // *and* pins the dynamic condition transition frontend PR#193
+          // introduced: "<baseline condition> to <target condition> - N years".
+          // A shape-only assertion would also pass on the old static "Baseline
+          // condition to target condition" wording, so assert the exact
+          // transition and exclude that stale text.
+          await expect(detailsPage.standardTimeToTargetValue).toHaveText(
+            ENHANCED_UPLIFT_WATERCOURSE_TIME
+          )
+          await expect(detailsPage.standardTimeToTargetValue).not.toContainText(
+            STALE_TIME_TO_TARGET_TEXT
+          )
+          // "Habitat units delivered" matches the Units cell of the same
+          // watercourse's grid row.
+          await expect(detailsPage.habitatUnitsValue).toHaveText(
+            shared.enhancedUpliftWatercourseUnits
+          )
+        }
+      )
+    }
+  )
 
   // ─── Created / Enhanced watercourses (BMD-739, BMD-735, BMD-1050) ───────────
   // An Enhanced watercourse renders its own two-section read-only template
@@ -3787,7 +3875,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
   test.describe(
     'non-retained watercourse habitats',
-    { tag: '@regression' },
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
@@ -3988,7 +4076,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
   // test, as for Created hedgerows.
   test.describe(
     'Created watercourse habitats — editing',
-    { tag: '@regression' },
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
@@ -4499,7 +4587,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
   test.describe(
     'Post-intervention habitat details — retained individual tree',
-    { tag: '@regression' },
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
@@ -4578,7 +4666,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
   test.describe(
     'Post-intervention habitat details — Created individual tree',
-    { tag: '@regression' },
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
@@ -4642,7 +4730,23 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         browser,
         page
       }) => {
-        const shared = await getAllTypesProject(browser)
+        const shared = isServiceTemplateRun()
+          ? await getRunAllUnitTypesPostInterventionProject(browser)
+          : await getAllTypesProject(browser)
+        const enhancedWatercourse = isServiceTemplateRun()
+          ? {
+              ref: SERVICE_TEMPLATE_ENHANCED_WATERCOURSE_REF,
+              featureId: await featureIdByRef(
+                page,
+                shared.id,
+                'watercourse',
+                SERVICE_TEMPLATE_ENHANCED_WATERCOURSE_REF
+              )
+            }
+          : {
+              ref: ENHANCED_UPLIFT_WATERCOURSE_REF,
+              featureId: shared.enhancedUpliftWatercourse
+            }
         // No read-only page renders a form, so there is no crumb-carrying HTML
         // form to submit via a real browser action. Any response sets the
         // httpOnly `crumb` cookie (@hapi/crumb, restful: false); read it from
@@ -4657,8 +4761,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           {
             data: {
               projectId: shared.id,
-              featureId: shared.enhancedUpliftWatercourse,
-              ref: ENHANCED_UPLIFT_WATERCOURSE_REF,
+              featureId: enhancedWatercourse.featureId,
+              ref: enhancedWatercourse.ref,
               habitatType: '',
               condition: '',
               strategicSignificance: '',
@@ -4680,7 +4784,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
   // extract-post-intervention.test.js:1188 against made-up features only.
   test.describe(
     'Post-intervention habitat details — habitat reference cleaning',
-    { tag: '@regression' },
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
@@ -4701,6 +4805,72 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(
           postInterventionHabitatDetailsPage.viewBaselineLink
         ).toBeVisible()
+      })
+    }
+  )
+
+  // ─── BNG Service template features (BMD-1088 AC7) ───────────────────────────
+
+  test.describe(
+    'Post-intervention habitat details — BNG Service template features',
+    { tag: ['@regression', SERVICE_TEMPLATE_ONLY] },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+      test.describe.configure({ timeout: SHARED_BUILD_TEST_TIMEOUT })
+
+      let project
+      test.beforeAll(async ({ browser }) => {
+        project = await getRunAllUnitTypesPostInterventionProject(browser)
+      })
+
+      test('"View baseline details" opens the baseline feature each one names as its parent', async ({
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        for (const {
+          type,
+          ref,
+          parentHeading
+        } of SERVICE_TEMPLATE_BASELINE_LINKS) {
+          await openPiFeatureDetails(page, project.id, type, ref)
+          await expect(piDetailsHeading(page, ref), ref).toBeVisible()
+
+          await details.viewBaselineLink.click()
+          await expect(page).toHaveURL(BASELINE_DETAILS_URL_PATTERN)
+          await expect(
+            page.getByRole('heading', { name: parentHeading, exact: true }),
+            ref
+          ).toBeVisible()
+        }
+      })
+
+      test('a feature with no parent, and every tree, has no "View baseline details" link', async ({
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        for (const { type, ref } of SERVICE_TEMPLATE_UNLINKED) {
+          await openPiFeatureDetails(page, project.id, type, ref)
+          await expect(piDetailsHeading(page, ref), ref).toBeVisible()
+          await expect(details.viewBaselineLink, ref).toBeHidden()
+        }
+      })
+
+      test("a Retained feature shows its parent's comment as its supporting information", async ({
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        for (const {
+          type,
+          ref,
+          comment
+        } of SERVICE_TEMPLATE_RETAINED_COMMENTS) {
+          await openPiFeatureDetails(page, project.id, type, ref)
+          await expect(piDetailsHeading(page, ref), ref).toBeVisible()
+          await expect(details.supportingInformationValue, ref).toHaveText(
+            comment
+          )
+        }
       })
     }
   )

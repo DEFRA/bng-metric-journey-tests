@@ -33,9 +33,7 @@ const SERVICE_TEMPLATE_ONLY = '@service-template-only'
 // upload legacy fixtures or assert legacy values and have no new-template
 // version yet. Each entry comes off this list when its spec gains the
 // new-template fixtures and assertions. The legacy run ignores this list.
-const LEGACY_ONLY_SPECS = [
-  'specs/habitat-details/post-intervention-habitat-details.spec.js'
-]
+const LEGACY_ONLY_SPECS = []
 
 /**
  * Read the flag strictly: `true`, `false` or unset (off). These are the only
