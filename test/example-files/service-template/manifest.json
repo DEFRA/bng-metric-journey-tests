@@ -1,6 +1,6 @@
 {
   "description": "Each file here is a copy of a file in bng-metric-harness/example-files/service-template/ (source), built by the harness's corpus recipes or bng-library's generator; its README says how. Refresh them with npm run check:fixtures -- --sync, never by hand.",
-  "harnessCommit": "ebe73bf0a1f96d64fddc7a802c0b51aeaaf17eea",
+  "harnessCommit": "a7a080d02bd5a993d2d7d2bdae59d9bc25211ff0",
   "files": [
     {
       "file": "small-site-baseline.gpkg",
@@ -205,6 +205,12 @@
       "source": "permutations/data-completeness/invalid-data-incomplete.gpkg",
       "sha256": "10912578eb69cfa32160c6fba1d65fa46dafd6ec56ac6cbaf588050b282d38ec",
       "for": "H004 to H006, Enhanced Other neutral grassland with no target condition or strategic significance: accepted, each saved Incomplete with zero units"
+    },
+    {
+      "file": "long-and-padded-refs.gpkg",
+      "source": "valid/long-and-padded-refs.gpkg",
+      "sha256": "5cd1016d4d4eb88a9ea98b514a4b8136c11ef0063a4b021aae0595275aab5b09",
+      "for": "The default site with four Retained area habitats renamed in both stages, H034 padded with three spaces each side and H029 a ref with letters outside ASCII: accepted, the padded ref saved trimmed and the others whole"
     },
     {
       "file": "net-gain-met.gpkg",

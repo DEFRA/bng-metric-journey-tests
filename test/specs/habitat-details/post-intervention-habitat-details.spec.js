@@ -27,7 +27,8 @@ import {
 import {
   AREA_CREATED_INCOMPLETE,
   AREA_ENHANCED_INCOMPLETE,
-  DEFAULT_SITE
+  DEFAULT_SITE,
+  LONG_AND_PADDED_REFS
 } from '@utils/service-template-files.js'
 import { gridRefName } from '@utils/habitat-ref-display.js'
 import { readTileUnits } from '@utils/tile-value.js'
@@ -1271,6 +1272,10 @@ const SERVICE_TEMPLATE_INCOMPLETE_CREATED_AREA = {
 // Moderate, its type kept and its target condition and strategic
 // significance left blank.
 const SERVICE_TEMPLATE_INCOMPLETE_ENHANCED_AREA = 'H004'
+// In LONG_AND_PADDED_REFS, both stages: H034 spelt '   H034   ', and H029
+// renamed with letters outside ASCII, long enough that the grids cut it.
+const SERVICE_TEMPLATE_PADDED_REF = 'H034'
+const SERVICE_TEMPLATE_NON_ASCII_REF = 'Étang-du-Moulin-Ælfrīc'
 
 // A feature's id, read from its grid in the creator's own session: for a
 // test whose page has no session, or another user's.
@@ -6134,6 +6139,57 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await expect(details.commentInput).toHaveValue(comment)
         }
       )
+    }
+  )
+
+  // The PI and baseline rows both spell H034 '   H034   '. The heading
+  // carries the ref as saved, so it proves the trim, and the parent's
+  // heading that the baseline row was trimmed too. A BNG Service template
+  // feature finds its parent by id, so the link does not depend on the
+  // trimmed refs matching, as a legacy one's does.
+  test.describe(
+    'Post-intervention habitat details — BNG Service template habitat reference cleaning',
+    { tag: ['@regression', SERVICE_TEMPLATE_ONLY] },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+      test.describe.configure({ timeout: SHARED_BUILD_TEST_TIMEOUT })
+
+      let projectId
+      test.beforeAll(async ({ browser }) => {
+        ;({ id: projectId } = await buildPostInterventionOnlyProject(
+          browser,
+          LONG_AND_PADDED_REFS
+        ))
+      })
+
+      test('saves a padded ref trimmed, and a ref with letters outside ASCII whole, each linked to its parent', async ({
+        page,
+        postInterventionHabitatDetailsPage: details,
+        baselineHabitatDetailsPage
+      }) => {
+        for (const ref of [
+          SERVICE_TEMPLATE_PADDED_REF,
+          SERVICE_TEMPLATE_NON_ASCII_REF
+        ]) {
+          const name = gridRefName(ref)
+          const { unitPage, label } = await openPiTabFor(
+            page,
+            projectId,
+            'area',
+            name
+          )
+          expect(label, ref).toBe(RETAINED)
+          await unitPage.refLink(label, name).click()
+
+          expect(await details.rawHeadingText(), ref).toBe(`Habitat ${ref}`)
+          await details.viewBaselineLink.click()
+          await expect(page).toHaveURL(BASELINE_DETAILS_URL_PATTERN)
+          expect(await baselineHabitatDetailsPage.rawHeadingText(), ref).toBe(
+            `Habitat ${ref}`
+          )
+        }
+      })
     }
   )
 
