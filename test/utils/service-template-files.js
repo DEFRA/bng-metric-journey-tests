@@ -105,7 +105,7 @@ export const LONG_PADDED_REFS_BASELINE = `${DIR}/long-and-padded-refs-baseline.g
 
 // A baseline-stage file with one incomplete habitat per layer: H002 and HG001
 // with no Baseline Condition, R007 with no riparian encroachment.
-export const BASELINE_INCOMPLETE_EVERY_LAYER = `${DIR}/baseline-incomplete-every-layer-baseline.gpkg`
+export const BASELINE_STAGE_INCOMPLETE = `${DIR}/baseline-incomplete-every-layer-baseline.gpkg`
 
 // The Enhanced R006 and the Created R004 each missing a Proposed Encroachment.
 export const WATERCOURSE_PROPOSED_ENCROACHMENT_BLANK = `${DIR}/watercourse-proposed-encroachment-blank.gpkg`

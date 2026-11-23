@@ -10,7 +10,7 @@ import {
   AREA_ENHANCED_INCOMPLETE,
   AREA_TRADING_DEFICIT,
   AREA_TRADING_DEFICIT_BASELINE,
-  BASELINE_INCOMPLETE_EVERY_LAYER,
+  BASELINE_STAGE_INCOMPLETE,
   BASELINE_SIGNIFICANCE_HIGH,
   DATA_COMPLETE,
   DEFAULT_SITE,
@@ -531,8 +531,8 @@ export function getServiceTemplateLongRefsBaselineProject(browser) {
 
 /** @see getServiceTemplateLongRefsProject */
 export function getServiceTemplateIncompleteBaselineProject(browser) {
-  return getOrBuildProject(projectKey(BASELINE_INCOMPLETE_EVERY_LAYER), () =>
-    buildBaselineOnlyProject(browser, BASELINE_INCOMPLETE_EVERY_LAYER)
+  return getOrBuildProject(projectKey(BASELINE_STAGE_INCOMPLETE), () =>
+    buildBaselineOnlyProject(browser, BASELINE_STAGE_INCOMPLETE)
   )
 }
 
