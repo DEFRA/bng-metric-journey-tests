@@ -34,7 +34,6 @@ const SERVICE_TEMPLATE_ONLY = '@service-template-only'
 // version yet. Each entry comes off this list when its spec gains the
 // new-template fixtures and assertions. The legacy run ignores this list.
 const LEGACY_ONLY_SPECS = [
-  'specs/habitat-details/baseline-habitat-details.spec.js',
   'specs/habitat-details/post-intervention-habitat-details.spec.js'
 ]
 

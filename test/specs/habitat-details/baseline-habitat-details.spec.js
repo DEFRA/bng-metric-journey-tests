@@ -25,6 +25,16 @@ import {
 } from '@utils/post-intervention-grid.js'
 import { UNITS_TWO_DP_PATTERN } from '@pages/post-intervention-habitat-details.page.js'
 import { STATUS_COMPLETE, STATUS_INCOMPLETE } from '@utils/unit-type-labels.js'
+import { getRunAllUnitTypesProject } from '@utils/run-projects.js'
+import {
+  DEFAULT_SITE,
+  DEFAULT_SITE_BASELINE
+} from '@utils/service-template-files.js'
+import {
+  LEGACY_ONLY,
+  SERVICE_TEMPLATE_ONLY,
+  isServiceTemplateRun
+} from '@utils/template-run.js'
 
 const E2E_SKIP_REASON = 'Requires stub auth — not available in e2e mode'
 // The edit/save describes each run their own real-CDP upload; under e2e load the
@@ -75,7 +85,13 @@ const OUT_OF_SCOPE_WATERCOURSE_TYPES = [
   'Other rivers and streams'
 ]
 const IN_SCOPE_WATERCOURSE_TYPES = ['Canals', 'Culvert', 'Ditches']
-const COMPLETE_BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
+// The baseline every edit and content describe uploads, and picks its area
+// habitat, hedgerow and watercourse from. BNG Service template: the default
+// site's baseline-stage file, whose area grid also lists its vertical area
+// habitats and trees.
+const COMPLETE_BASELINE_FILE = isServiceTemplateRun()
+  ? DEFAULT_SITE_BASELINE
+  : 'Baseline - complete with area refs.gpkg'
 const PROJECT_LABEL = 'Habitat details test'
 
 // BMD-1112 — the habitat's comment, shown as "Supporting information". Harness
@@ -141,6 +157,27 @@ const ENHANCED_TREE_REF = 'T005'
 // GOV.UK's character count message, which the box must not have.
 const CHARACTER_COUNT_PATTERN = /You (can enter up to|have) \d+ characters?/
 const POST_INTERVENTION_TILE = 'On-site post-intervention'
+
+// The blank-reference refusal's project and area habitat: legacy, the
+// hedgerow refs baseline; BNG Service template, the default site's
+// baseline-stage file.
+const REF_REFUSALS_FILE = isServiceTemplateRun()
+  ? DEFAULT_SITE_BASELINE
+  : HEDGEROW_REFS_BASELINE_FILE
+const BLANK_REF_AREA = isServiceTemplateRun() ? 'H001' : 'H2'
+
+// BNG Service template: the default site's baseline comments. H003, HG002 and
+// T003 carry one; H001 and the watercourses carry none.
+const SERVICE_TEMPLATE_BASELINE_COMMENTS = [
+  ['area', 'H003', 'Grazed by sheep'],
+  ['hedgerow', 'HG002', 'Gappy at the eastern end'],
+  ['area', 'T003', 'Crown lifted'],
+  ['area', 'H001', ''],
+  ['watercourse', 'R002', '']
+]
+// A Retained area habitat on the default site, measured against the baseline
+// habitat of the same ref.
+const SERVICE_TEMPLATE_RETAINED_AREA_REF = 'H002'
 
 // BMD-1061 — editing the habitat reference. All wording is interim
 // (error-text.yaml `wording: interim`).
@@ -352,6 +389,7 @@ async function readGridFeatures(page, projectId, type) {
     features.push({
       ...(await refAndFeatureIdFromLink(link)),
       size: (await text('size')).replace(/km$/, ''),
+      habitatType: await text('habitatType'),
       distinctiveness: await text('distinctiveness'),
       condition: await text('condition')
     })
@@ -373,9 +411,13 @@ async function pickRichAreaHabitat(page, projectId) {
 
 // Pick a linear feature (hedgerow or watercourse) for the content ACs,
 // preferring one with a saved condition so AC8a's "selected" value can be
-// verified; fall back to the first.
+// verified; fall back to the first. Never a Culvert: the watercourse content
+// tests expect the graded encroachment options, which a Culvert does not
+// offer, and the default site's first watercourse is one.
 async function pickLinearFeature(page, projectId, type) {
-  const features = await readGridFeatures(page, projectId, type)
+  const features = (await readGridFeatures(page, projectId, type)).filter(
+    (f) => f.habitatType !== CULVERT_TYPE
+  )
   const { ref, featureId, size } =
     features.find((f) => f.condition) ?? features[0]
   return { ref, featureId, length: size }
@@ -2077,7 +2119,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
   // the stored value.
   test.describe(
     'Baseline habitat details — habitat reference cleaning',
-    { tag: '@regression' },
+    // Legacy only: no BNG Service template file in the harness corpus has
+    // padded or 99-character refs.
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
@@ -2149,7 +2193,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       test.beforeAll(async ({ browser }) => {
         ;({ id: projectId } = await buildBaselineOnlyProject(
           browser,
-          HEDGEROW_REFS_BASELINE_FILE
+          REF_REFUSALS_FILE
         ))
       })
 
@@ -2184,7 +2228,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         baselineHabitatDetailsPage,
         page
       }) => {
-        await openFromGrid(page, 'area', 'H2')
+        await openFromGrid(page, 'area', BLANK_REF_AREA)
         const { saved, submitted } = await changeOtherFields(
           baselineHabitatDetailsPage
         )
@@ -2199,53 +2243,59 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           baselineHabitatDetailsPage.inlineError(REF_INVALID_INLINE)
         ).toBeVisible()
         await expect(baselineHabitatDetailsPage.heading).toHaveText(
-          'Habitat H2'
+          `Habitat ${BLANK_REF_AREA}`
         )
         await expectFields(baselineHabitatDetailsPage, submitted)
 
         await baselineHabitatDetailsPage.cancelLink.click()
-        await openFromGrid(page, 'area', 'H2')
+        await openFromGrid(page, 'area', BLANK_REF_AREA)
         await expect(
           baselineHabitatDetailsPage.habitatReferenceInput
-        ).toHaveValue('H2')
+        ).toHaveValue(BLANK_REF_AREA)
         await expectFields(baselineHabitatDetailsPage, saved)
       })
 
       // Hedgerows and watercourses share one reference scope, so a hedgerow
       // cannot take the watercourse's ref either.
-      test("refuses a hedgerow taking a watercourse's reference on a legacy project", async ({
-        baselineHabitatDetailsPage,
-        page
-      }) => {
-        await openFromGrid(page, 'hedgerow', 'HR1')
-        const { saved, submitted } = await changeOtherFields(
-          baselineHabitatDetailsPage
-        )
-        await baselineHabitatDetailsPage.habitatReferenceInput.fill('R1')
-        await baselineHabitatDetailsPage.saveButton.click()
+      // Legacy only: the backend checks a rename against the other baseline
+      // references only for a legacy project. A BNG Service template feature
+      // is joined to its post-intervention features by its id, not its ref.
+      test(
+        "refuses a hedgerow taking a watercourse's reference on a legacy project",
+        {
+          tag: LEGACY_ONLY
+        },
+        async ({ baselineHabitatDetailsPage, page }) => {
+          await openFromGrid(page, 'hedgerow', 'HR1')
+          const { saved, submitted } = await changeOtherFields(
+            baselineHabitatDetailsPage
+          )
+          await baselineHabitatDetailsPage.habitatReferenceInput.fill('R1')
+          await baselineHabitatDetailsPage.saveButton.click()
 
-        await expect(page).toHaveTitle(/^Error:/)
-        await expect(
-          baselineHabitatDetailsPage.errorSummaryLink(REF_IN_USE_SUMMARY)
-        ).toHaveAttribute('href', '#habitatRef')
-        await expect(
-          baselineHabitatDetailsPage.inlineError(REF_IN_USE_INLINE)
-        ).toBeVisible()
-        await expect(
-          baselineHabitatDetailsPage.habitatReferenceInput
-        ).toHaveValue('R1')
-        await expect(baselineHabitatDetailsPage.heading).toHaveText(
-          'Hedgerow HR1'
-        )
-        await expectFields(baselineHabitatDetailsPage, submitted)
+          await expect(page).toHaveTitle(/^Error:/)
+          await expect(
+            baselineHabitatDetailsPage.errorSummaryLink(REF_IN_USE_SUMMARY)
+          ).toHaveAttribute('href', '#habitatRef')
+          await expect(
+            baselineHabitatDetailsPage.inlineError(REF_IN_USE_INLINE)
+          ).toBeVisible()
+          await expect(
+            baselineHabitatDetailsPage.habitatReferenceInput
+          ).toHaveValue('R1')
+          await expect(baselineHabitatDetailsPage.heading).toHaveText(
+            'Hedgerow HR1'
+          )
+          await expectFields(baselineHabitatDetailsPage, submitted)
 
-        await baselineHabitatDetailsPage.cancelLink.click()
-        await openFromGrid(page, 'hedgerow', 'HR1')
-        await expect(
-          baselineHabitatDetailsPage.habitatReferenceInput
-        ).toHaveValue('HR1')
-        await expectFields(baselineHabitatDetailsPage, saved)
-      })
+          await baselineHabitatDetailsPage.cancelLink.click()
+          await openFromGrid(page, 'hedgerow', 'HR1')
+          await expect(
+            baselineHabitatDetailsPage.habitatReferenceInput
+          ).toHaveValue('HR1')
+          await expectFields(baselineHabitatDetailsPage, saved)
+        }
+      )
     }
   )
 
@@ -2258,7 +2308,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
   // row and reads both back. Its own upload, because it renames.
   test.describe(
     'Baseline habitat details — habitat reference rename',
-    { tag: '@regression' },
+    // Legacy only: a legacy Retained row takes its baseline habitat's ref. The
+    // BNG Service template's version is below.
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
@@ -2300,7 +2352,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
   test.describe(
     'Baseline habitat details — supporting information',
-    { tag: '@regression' },
+    // Legacy only: these refs and comments are COMMENTS_FILE's, and a BNG
+    // Service template Retained habitat carries a comment of its own. The
+    // BNG Service template's baseline comments are checked below.
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
@@ -2843,7 +2898,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
   test.describe(
     'Baseline habitat details — supporting information on a tree',
-    { tag: '@regression' },
+    // Legacy only: these refs are TREES_COMMENT_FILE's.
+    { tag: ['@regression', LEGACY_ONLY] },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
@@ -2990,6 +3046,78 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         const grid = await openBaselineGrid(page, projectId, 'area')
         await grid.refLink(ENHANCED_TREE_REF).click()
         await expect(baselineHabitatDetailsPage.commentInput).toHaveValue('')
+      })
+    }
+  )
+
+  // ─── BNG Service template references and comments (BMD-1088) ─────────────────
+  //
+  // What a BNG Service template project does where the legacy describes above
+  // are legacy only: the baseline comments its file carries, and a baseline
+  // rename, which leaves the post-intervention features' own refs alone.
+
+  test.describe(
+    'Baseline habitat details — BNG Service template references and comments',
+    { tag: ['@regression', SERVICE_TEMPLATE_ONLY] },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+      test.skip(runMode === 'e2e', E2E_UPLOAD_SKIP_REASON)
+      test.describe.configure({ timeout: SHARED_PAIR_BUILD_TIMEOUT })
+
+      test("shows each baseline habitat's imported comment, a tree's among them, and an empty box without one", async ({
+        browser,
+        baselineHabitatDetailsPage,
+        page
+      }) => {
+        const { id: projectId } = await getRunAllUnitTypesProject(browser)
+
+        for (const [type, ref, comment] of SERVICE_TEMPLATE_BASELINE_COMMENTS) {
+          const grid = await openBaselineGrid(page, projectId, type)
+          await grid.refLink(ref).click()
+          await expect(page).toHaveURL(/\/baseline-habitat-details/)
+          await expect(
+            baselineHabitatDetailsPage.commentInput,
+            ref
+          ).toHaveValue(comment)
+        }
+      })
+
+      test("saves a new reference without changing its Retained post-intervention habitat's own", async ({
+        browser,
+        baselineHabitatDetailsPage,
+        page
+      }) => {
+        // Ten characters at most, so the grids show it whole rather than cut.
+        const newRef = `${SERVICE_TEMPLATE_RETAINED_AREA_REF}-NEW`
+        // Its own project: the save renames a habitat.
+        const { id: projectId } = await buildPostInterventionOnlyProject(
+          browser,
+          DEFAULT_SITE
+        )
+
+        const grid = await openBaselineGrid(page, projectId, 'area')
+        await grid.refLink(SERVICE_TEMPLATE_RETAINED_AREA_REF).click()
+        await baselineHabitatDetailsPage.habitatReferenceInput.fill(newRef)
+        await baselineHabitatDetailsPage.saveButton.click()
+
+        await expect(page).toHaveURL(baselinePageUrl(projectId, 'area'))
+        await expect(grid.refLink(newRef)).toBeVisible()
+        await expect(
+          grid.refLink(SERVICE_TEMPLATE_RETAINED_AREA_REF)
+        ).toHaveCount(0)
+
+        expect(
+          (
+            await findPiRef(
+              page,
+              projectId,
+              'area',
+              SERVICE_TEMPLATE_RETAINED_AREA_REF
+            )
+          )?.label
+        ).toBe(RETAINED)
+        expect(await findPiRef(page, projectId, 'area', newRef)).toBeNull()
       })
     }
   )
