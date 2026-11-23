@@ -38,6 +38,22 @@ async function snap(page, name) {
   })
 }
 
+// The processing page meta-refreshes to the project summary as soon as the
+// scan completes, so it may be gone before the capture. Waiting for either
+// page never blocks on one that has passed, and a missed page still takes its
+// index, leaving a numbering gap rather than shifting later screens.
+async function snapProcessingPage(page, processingUrl, summaryUrl, name) {
+  await page.waitForURL(
+    (url) => processingUrl.test(url.pathname) || summaryUrl.test(url.pathname),
+    { timeout: UPLOAD_TIMEOUT }
+  )
+  if (processingUrl.test(new URL(page.url()).pathname)) {
+    await snap(page, name).catch(() => {})
+  } else {
+    step += 1
+  }
+}
+
 test.describe('happy-path-screenshots', { tag: '@screenshots' }, () => {
   test.describe.configure({ mode: 'serial' })
 
@@ -113,16 +129,16 @@ test.describe('happy-path-screenshots', { tag: '@screenshots' }, () => {
       await uploadBaselineFilePage.continueButton.click()
 
       // ── Checking your file (transient processing page) ──────────────────
-      // The page meta-refreshes away as soon as the scan completes — a missed
-      // page or a capture interrupted by that redirect leaves a numbering gap
-      // instead of failing.
-      await page
-        .waitForURL(/\/upload-received/, { timeout: UPLOAD_TIMEOUT })
-        .catch(() => {})
-      await snap(page, 'checking-your-file').catch(() => {})
+      const summaryUrl = new RegExp(`/projects/${id}/project-summary`)
+      await snapProcessingPage(
+        page,
+        /\/upload-received$/,
+        summaryUrl,
+        'checking-your-file'
+      )
 
       // ── Project summary with baseline results ───────────────────────────
-      await page.waitForURL(new RegExp(`/projects/${id}/project-summary`), {
+      await page.waitForURL(summaryUrl, {
         timeout: UPLOAD_TIMEOUT
       })
       await expect(projectSummaryPage.heading).toBeVisible()
@@ -166,15 +182,15 @@ test.describe('happy-path-screenshots', { tag: '@screenshots' }, () => {
       await uploadPostInterventionFilePage.continueButton.click()
 
       // ── Checking your file, post intervention (transient) ───────────────
-      await page
-        .waitForURL(/\/post-intervention-upload-received/, {
-          timeout: UPLOAD_TIMEOUT
-        })
-        .catch(() => {})
-      await snap(page, 'checking-your-file-post-intervention').catch(() => {})
+      await snapProcessingPage(
+        page,
+        /\/post-intervention-upload-received$/,
+        summaryUrl,
+        'checking-your-file-post-intervention'
+      )
 
       // ── Project summary with post-intervention results ──────────────────
-      await page.waitForURL(new RegExp(`/projects/${id}/project-summary`), {
+      await page.waitForURL(summaryUrl, {
         timeout: UPLOAD_TIMEOUT
       })
       await expect(projectSummaryPage.heading).toBeVisible()
