@@ -113,9 +113,12 @@ test.describe('happy-path-screenshots', { tag: '@screenshots' }, () => {
       await uploadBaselineFilePage.continueButton.click()
 
       // ── Checking your file (transient processing page) ──────────────────
-      await page.waitForURL(/\/upload-received/, { timeout: UPLOAD_TIMEOUT })
-      // The page meta-refreshes away as soon as the scan completes — a capture
-      // interrupted by that redirect leaves a numbering gap instead of failing.
+      // The page meta-refreshes away as soon as the scan completes — a missed
+      // page or a capture interrupted by that redirect leaves a numbering gap
+      // instead of failing.
+      await page
+        .waitForURL(/\/upload-received/, { timeout: UPLOAD_TIMEOUT })
+        .catch(() => {})
       await snap(page, 'checking-your-file').catch(() => {})
 
       // ── Project summary with baseline results ───────────────────────────
@@ -163,9 +166,11 @@ test.describe('happy-path-screenshots', { tag: '@screenshots' }, () => {
       await uploadPostInterventionFilePage.continueButton.click()
 
       // ── Checking your file, post intervention (transient) ───────────────
-      await page.waitForURL(/\/post-intervention-upload-received/, {
-        timeout: UPLOAD_TIMEOUT
-      })
+      await page
+        .waitForURL(/\/post-intervention-upload-received/, {
+          timeout: UPLOAD_TIMEOUT
+        })
+        .catch(() => {})
       await snap(page, 'checking-your-file-post-intervention').catch(() => {})
 
       // ── Project summary with post-intervention results ──────────────────
