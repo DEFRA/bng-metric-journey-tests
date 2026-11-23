@@ -27,13 +27,20 @@ import {
 import {
   AREA_CREATED_INCOMPLETE,
   AREA_ENHANCED_INCOMPLETE,
+  CREATED_HEDGEROW_INCOMPLETE,
   DEFAULT_SITE,
-  LONG_AND_PADDED_REFS
+  HEDGEROW_ENHANCEMENT_NOT_POSSIBLE,
+  LONG_AND_PADDED_REFS,
+  TRADING_ALL_MET,
+  WATERCOURSE_ENCROACHMENT_REDUCED
 } from '@utils/service-template-files.js'
 import { gridRefName } from '@utils/habitat-ref-display.js'
 import { readTileUnits } from '@utils/tile-value.js'
 import { STATUS_COMPLETE, STATUS_INCOMPLETE } from '@utils/unit-type-labels.js'
-import { getRunAllUnitTypesPostInterventionProject } from '@utils/run-projects.js'
+import {
+  getRunAllUnitTypesPostInterventionProject,
+  getRunAreaGainProject
+} from '@utils/run-projects.js'
 import {
   LEGACY_ONLY,
   SERVICE_TEMPLATE_ONLY,
@@ -1395,6 +1402,181 @@ function piTileUnits(page, type) {
 // H002"), alone on a vertical area habitat's or an edit page ("V001").
 const piDetailsHeading = (page, ref) =>
   page.getByRole('heading', { level: 1, name: new RegExp(`(^| )${ref}$`) })
+
+// ─── BNG Service template: hedgerows and watercourses (BMD-1088) ────────────
+//
+// The default site's linear features, as its import prices them. HG015 is
+// created with no parent, so its time to target names the target alone;
+// HG018b is the part of HG018 that gets worse, recorded as lost and created
+// again in a lower condition, so it names the transition from its parent and
+// links to it. R004's encroachment alone increases, with 10 years created in
+// advance; R005's condition gets worse with neither advance nor delay, which
+// saves it Incomplete. R006 is Enhanced, re-meandered onto a longer route.
+// Every value below is the backend's and the frontend's for the same feature,
+// read from their code.
+const ST_RETAINED_HEDGEROW_REF = 'HG010'
+const ST_RETAINED_WATERCOURSE_REF = 'R007'
+const ST_CREATED_HEDGEROW_REF = 'HG015'
+const ST_CREATED_HEDGEROW_UNITS = '2.06'
+const ST_CREATED_HEDGEROW_SELECTIONS = {
+  type: NATIVE_HEDGEROW_WITH_TREES,
+  significance: 'Low',
+  condition: 'Good',
+  advance: '0',
+  delay: '0'
+}
+// The same Native hedgerow with trees, Good, over 20 years as the legacy HG013.
+const ST_CREATED_HEDGEROW_VALUES = CREATED_HEDGEROW_VALUES
+// 0.3500455 km x 4 x 3 x 1 x 0.4903952635 x 1
+const ST_CREATED_HEDGEROW_EXACT_UNITS = 2.0599
+const ST_WORSE_HEDGEROW_REF = 'HG018b'
+const ST_CREATED_WATERCOURSE_REF = 'R004'
+const ST_CREATED_WATERCOURSE_UNITS = '0.52'
+const ST_CREATED_WATERCOURSE_SELECTIONS = {
+  type: 'Ditches',
+  significance: 'Low',
+  condition: 'Fairly Poor',
+  watercourse: 'Minor',
+  riparian: 'Major/Minor',
+  advance: '10',
+  delay: '0'
+}
+// Its 10 years in advance outrun its 2 years to target.
+const ST_CREATED_WATERCOURSE_VALUES = {
+  distinctiveness: 'Medium (4)',
+  standardTime: 'Fairly Poor to Fairly Poor - 2 years',
+  difficulty: 'Low',
+  finalTime: '0 years (1)',
+  applied: '1'
+}
+// 0.1300647 km x 4 x 1.5 x 1 x 1 x 1 x 0.8 x 0.84
+const ST_CREATED_WATERCOURSE_EXACT_UNITS = 0.5244
+const ST_NO_PARENT_WATERCOURSE_REF = 'R003'
+const ST_INCOMPLETE_WATERCOURSE_REF = 'R005'
+const ST_ENHANCED_WATERCOURSE_REF = 'R006'
+// Trading-all-met's HG002, a Native hedgerow enhanced from Poor to Good: a
+// complete Enhanced hedgerow whose baseline can become another type (the
+// Metric's G-6 moves), as the legacy HG018 can, which none of the default
+// site's can.
+const ST_ENHANCED_HEDGEROW_REF = 'HG002'
+const ST_ENHANCED_HEDGEROW_UNITS = '1.78'
+const ST_ENHANCED_HEDGEROW_EXACT_UNITS = 1.7838
+const ST_ENHANCED_HEDGEROW_SELECTIONS = {
+  type: 'Native hedgerow',
+  significance: 'Low',
+  condition: 'Good',
+  advance: '0',
+  delay: '0'
+}
+const ST_ENHANCED_HEDGEROW_VALUES = {
+  distinctiveness: 'Low (2)',
+  standardTime: 'Poor to Good - 5 years',
+  difficulty: 'Low',
+  finalTime: '5 years (0.8368287006)',
+  applied: '1'
+}
+const ST_ENHANCED_HEDGEROW_TYPES = [
+  'Choose habitat type',
+  'Native hedgerow',
+  'Native hedgerow - associated with bank or ditch',
+  NATIVE_HEDGEROW_WITH_TREES,
+  'Species-rich native hedgerow'
+]
+// The default site's HG013, Enhanced from Moderate to Good at High
+// significance: 0.3333874 km x 4 x (2 + (3 - 2) x 0.8671800006) x 1.15
+const ST_HIGH_ENHANCED_HEDGEROW_REF = 'HG013'
+const ST_HIGH_ENHANCED_HEDGEROW_EXACT_UNITS = 4.3971
+const WATERCOURSE_ENHANCED_CONDITIONS = [
+  'Choose target condition',
+  'Good (3)',
+  'Fairly Good (2.5)',
+  'Moderate (2)'
+]
+
+// The read-only default site, and the trading-all-met site for its Enhanced
+// hedgerow HG002.
+function getServiceTemplateLinearProject(browser) {
+  return getRunAllUnitTypesPostInterventionProject(browser)
+}
+
+function getServiceTemplateEnhancedHedgerowProject(browser) {
+  return getRunAreaGainProject(browser)
+}
+
+// A unit type's row for `ref`, from its post-intervention page.
+async function piRowByRef(page, projectId, type, ref) {
+  const { unitPage, label } = await openPiTabFor(page, projectId, type, ref)
+  return unitPage.rowByRef(label, ref)
+}
+
+// A Retained BNG Service template row is renamed alone: it names its parent,
+// so the link to it survives, and the parent keeps its own reference.
+async function expectServiceTemplateRetainedRename(
+  page,
+  details,
+  { projectId, type, ref, newRef }
+) {
+  const before = await piRowByRef(page, projectId, type, ref)
+  const totalBefore = await piTileUnits(page, type)
+  await openPiFeatureDetails(page, projectId, type, ref)
+  const baselineHref = await details.viewBaselineLink.getAttribute('href')
+  await details.habitatReferenceInput.fill(newRef)
+  await details.saveButton.click()
+
+  await expectOnPiPage(page, projectId, type)
+  expect(await piTileUnits(page, type)).toBe(totalBefore)
+  expect(await findPiRef(page, projectId, type, ref)).toBeNull()
+  expect(await piRowByRef(page, projectId, type, newRef)).toEqual({
+    ...before,
+    Ref: newRef
+  })
+  await openPiFeatureDetails(page, projectId, type, newRef)
+  await expect(details.habitatReferenceInput).toHaveValue(newRef)
+  await expect(details.headingTitle).toHaveText(`Habitat ${newRef}`)
+  await expect(details.habitatUnitsValue).toHaveText(before.Units)
+  await expect(details.viewBaselineLink).toHaveAttribute('href', baselineHref)
+
+  await details.viewBaselineLink.click()
+  await expect(page).toHaveURL(BASELINE_DETAILS_URL_PATTERN)
+  await expect(details.habitatReferenceInput).toHaveValue(ref)
+}
+
+// Clicking Upload file leaves the page with no prompt, and saves nothing.
+async function leaveForUploadFile(page, details, uploadFilePage, projectId) {
+  let dialogs = 0
+  page.on('dialog', async (dialog) => {
+    dialogs += 1
+    await dialog.dismiss()
+  })
+  await details.uploadFileButton.click()
+
+  await expect(page).toHaveURL(new RegExp(`/projects/${projectId}/upload-file`))
+  await expect(uploadFilePage.heading).toBeVisible()
+  expect(dialogs).toBe(0)
+}
+
+// A save that breaks both the reference rule and the timing rule.
+async function expectBothRulesRefused(details, entered) {
+  await expect(details.errorSummary.getByRole('link')).toHaveCount(2)
+  await expect(details.errorSummaryLink(INVALID_REF_SUMMARY)).toHaveAttribute(
+    'href',
+    '#ref'
+  )
+  await expect(
+    details.errorSummaryLink(TIMING_CONFLICT_SUMMARY)
+  ).toHaveAttribute('href', '#advanceYears')
+  await expect(details.inlineError(INVALID_REF_INLINE)).toBeVisible()
+  await expect(details.inlineError(TIMING_CONFLICT_INLINE)).toBeVisible()
+  await expect(details.habitatReferenceInput).toHaveValue('')
+  await expectCreatedAreaSelections(details, entered)
+}
+
+// Fills the form's dropdowns, as expectCreatedAreaSelections names them.
+async function chooseCreatedAreaSelections(details, chosen) {
+  for (const [name, value] of Object.entries(chosen)) {
+    await details[CREATED_AREA_SELECTS[name]].selectOption(value)
+  }
+}
 
 test.describe('habitat-details', { tag: '@habitat-details' }, () => {
   // The whole file runs sequentially in one worker (mode 'default' overrides
@@ -6326,6 +6508,1856 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           })
         })
       }
+    }
+  )
+
+  // ─── BNG Service template hedgerows and watercourses (BMD-1088) ─────────────
+  // The legacy hedgerow and watercourse describes above, on BNG Service
+  // template features. A feature that gets worse is Created, in its own type,
+  // naming its parent; a Retained one is renamed alone. The read-only tests
+  // share the default site (and trading-all-met for its Enhanced hedgerow);
+  // the saves have their own copy below.
+
+  test.describe(
+    'Post-intervention habitat details — BNG Service template hedgerows',
+    { tag: ['@regression', SERVICE_TEMPLATE_ONLY] },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+      test.describe.configure({ timeout: SHARED_BUILD_TEST_TIMEOUT })
+
+      test(
+        'a Retained hedgerow is headed "Habitat" and its reference, with its saved values read-only and only its reference editable',
+        { tag: '@smoke' },
+        async ({
+          browser,
+          page,
+          postInterventionHabitatDetailsPage: details
+        }) => {
+          const shared = await getServiceTemplateLinearProject(browser)
+          const units = await unitsByRef(
+            page,
+            shared.id,
+            'hedgerow',
+            ST_RETAINED_HEDGEROW_REF
+          )
+          await openPiFeatureDetails(
+            page,
+            shared.id,
+            'hedgerow',
+            ST_RETAINED_HEDGEROW_REF
+          )
+
+          await expect(
+            page.getByRole('heading', {
+              name: `Habitat ${ST_RETAINED_HEDGEROW_REF}`,
+              exact: true
+            })
+          ).toBeVisible()
+          await expect(details.caption).toHaveText(shared.name)
+          await expect(details.viewOnlyHeading).toBeVisible()
+          await expect(details.interventionKey).toBeVisible()
+          await expect(page.getByText(RETAINED, { exact: true })).toBeVisible()
+          await expect(details.sizeKilometresKey).toBeVisible()
+          await expect(details.stackedSizeValue).toHaveText(
+            /^\s*0\.3569333\s*$/
+          )
+          await expect(details.lengthKey).toBeHidden()
+          await expect(details.broadHabitatKey).toBeHidden()
+          await expect(details.sizeHectaresKey).toBeHidden()
+          await expect(details.habitatTypeKey).toBeVisible()
+          await expect(
+            page.getByText(NATIVE_HEDGEROW_WITH_TREES, { exact: true })
+          ).toBeVisible()
+          await expect(
+            page.getByText('Medium (4)', { exact: true })
+          ).toBeVisible()
+          await expect(
+            page.getByText('Moderate (2)', { exact: true })
+          ).toBeVisible()
+          await expect(details.strategicSignificanceValue).toBeVisible()
+          await expect(details.habitatUnitsValue).toHaveText(units)
+          await details.assertRetainedRefForm({ ref: ST_RETAINED_HEDGEROW_REF })
+          await expect(details.habitatTypeSelect).toBeHidden()
+
+          await details.backLink.click()
+          await expectOnPiPage(page, shared.id, 'hedgerow')
+        }
+      )
+
+      // Its parent's condition is Good, so the time to target names the
+      // transition, as the legacy HR3's does.
+      test('a hedgerow that gets worse renders the Created hedgerow form with the transition from its parent', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const shared = await getServiceTemplateLinearProject(browser)
+        const units = await unitsByRef(
+          page,
+          shared.id,
+          'hedgerow',
+          ST_WORSE_HEDGEROW_REF
+        )
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'hedgerow',
+          ST_WORSE_HEDGEROW_REF
+        )
+
+        await details.assertCreatedHedgerowEditForm({
+          ref: ST_WORSE_HEDGEROW_REF
+        })
+        await expectCreatedAreaSelections(details, {
+          type: 'Native hedgerow',
+          significance: 'Low',
+          condition: 'Moderate'
+        })
+        await expect(details.habitatTypeSelect.getByRole('option')).toHaveText(
+          HEDGEROW_CREATION_OPTIONS
+        )
+        await expect(
+          details.targetConditionSelect.getByRole('option')
+        ).toHaveText(HEDGEROW_CREATION_CONDITIONS)
+        await expect(details.createdLengthValue).toHaveText('0.05454062km')
+        await expect(details.standardTimeToTargetValue).toHaveText(
+          'Good to Moderate - 5 years'
+        )
+        await expect(details.standardTimeToTargetValue).not.toContainText(
+          STALE_TIME_TO_TARGET_TEXT
+        )
+        await expect(details.viewBaselineLink).toBeVisible()
+        await expect(details.habitatUnitsValue).toHaveText(units)
+      })
+
+      test('a Created hedgerow with no parent shows its section-2 values and units delivered', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const shared = await getServiceTemplateLinearProject(browser)
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'hedgerow',
+          ST_CREATED_HEDGEROW_REF
+        )
+
+        await details.assertCreatedHedgerowEditForm({
+          ref: ST_CREATED_HEDGEROW_REF
+        })
+        await details.assertCreatedAbsentBaselineValues({
+          projectName: shared.name,
+          timeToTarget: CREATED_LINEAR_HEDGEROW_TIME_TO_TARGET,
+          units: ST_CREATED_HEDGEROW_UNITS
+        })
+        await expectCreatedHedgerowSelections(details, {
+          habitatType: NATIVE_HEDGEROW_WITH_TREES,
+          condition: 'Good',
+          significance: 'Low'
+        })
+        await expect(details.createdLengthValue).toHaveText('0.3500455km')
+        await expect(details.viewBaselineLink).toBeHidden()
+        await expectCreatedAreaValues(details, ST_CREATED_HEDGEROW_VALUES)
+        await expect(
+          details.strategicSignificanceSelect.getByRole('option')
+        ).toHaveText(STRATEGIC_SIGNIFICANCE_OPTIONS)
+        await expect(details.advanceYearsSelect.getByRole('option')).toHaveText(
+          ['Choose advance', ...TIMING_YEARS]
+        )
+        await expect(details.delayYearsSelect.getByRole('option')).toHaveText([
+          'Choose delay',
+          ...TIMING_YEARS
+        ])
+      })
+
+      // HG015 with no target condition, advance or delay: saved Incomplete,
+      // its type and significance kept.
+      test('an incomplete Created hedgerow shows its saved values, default options and zero units', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const shared = await getSharedProject(
+          browser,
+          'st-created-hedgerow-incomplete',
+          { piFile: CREATED_HEDGEROW_INCOMPLETE },
+          async () => ({})
+        )
+        expect(
+          await hedgerowRowByRef(page, shared.id, ST_CREATED_HEDGEROW_REF)
+        ).toMatchObject({ Status: STATUS_INCOMPLETE, Units: '0.00' })
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'hedgerow',
+          ST_CREATED_HEDGEROW_REF
+        )
+
+        await expect(details.habitatReferenceInput).toHaveValue(
+          ST_CREATED_HEDGEROW_REF
+        )
+        await expectCreatedAreaSelections(details, {
+          ...ST_CREATED_HEDGEROW_SELECTIONS,
+          condition: '',
+          advance: '',
+          delay: ''
+        })
+        await expect(
+          details.targetConditionSelect.getByRole('option')
+        ).toHaveText(HEDGEROW_CREATION_CONDITIONS)
+        await expectCreatedAreaValues(details, {
+          ...ST_CREATED_HEDGEROW_VALUES,
+          standardTime: '',
+          finalTime: ''
+        })
+        await expect(details.standardTimeToTargetKey).toBeVisible()
+        await expect(details.finalTimeToTargetMultiplierKey).toBeVisible()
+        await expect(details.habitatUnitsValue).toHaveText('0.00')
+        await expect(details.saveButton).toBeVisible()
+        await expect(details.uploadFileButton).toBeVisible()
+      })
+
+      test('choosing a Created hedgerow type resets the target condition and shows its values, and clearing it blanks them', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const shared = await getServiceTemplateLinearProject(browser)
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'hedgerow',
+          ST_CREATED_HEDGEROW_REF
+        )
+
+        await details.habitatTypeSelect.selectOption('Native hedgerow')
+        await expectCreatedAreaSelections(details, {
+          ...ST_CREATED_HEDGEROW_SELECTIONS,
+          type: 'Native hedgerow',
+          condition: ''
+        })
+        await expect(
+          details.targetConditionSelect.getByRole('option')
+        ).toHaveText(HEDGEROW_CREATION_CONDITIONS)
+        await expectCreatedAreaValues(details, {
+          distinctiveness: 'Low (2)',
+          standardTime: '',
+          difficulty: 'Low',
+          finalTime: '',
+          applied: '1'
+        })
+
+        await details.habitatTypeSelect.selectOption(
+          'Non-native and ornamental hedgerow'
+        )
+        await expect(
+          details.targetConditionSelect.getByRole('option')
+        ).toHaveText(['Choose target condition', 'Poor (1)'])
+        await expect(details.createdFormValue('distinctiveness')).toHaveText(
+          'V.Low (1)'
+        )
+
+        await details.habitatTypeSelect.selectOption({
+          label: 'Choose habitat type'
+        })
+        await expect(
+          details.targetConditionSelect.getByRole('option')
+        ).toHaveText(['Choose target condition'])
+        await expectCreatedAreaValues(details, {
+          distinctiveness: '',
+          standardTime: '',
+          difficulty: '',
+          finalTime: '',
+          applied: ''
+        })
+        await expect(details.habitatUnitsValue).toHaveText(
+          ST_CREATED_HEDGEROW_UNITS
+        )
+      })
+
+      test('choosing and clearing a Created hedgerow target condition updates only the time to target', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const shared = await getServiceTemplateLinearProject(browser)
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'hedgerow',
+          ST_CREATED_HEDGEROW_REF
+        )
+
+        await details.targetConditionSelect.selectOption('Moderate')
+        await expectCreatedAreaValues(details, {
+          ...ST_CREATED_HEDGEROW_VALUES,
+          standardTime: 'Moderate - 10 years',
+          finalTime: '10 years (0.7002822742)'
+        })
+
+        await details.targetConditionSelect.selectOption({
+          label: 'Choose target condition'
+        })
+        await expectCreatedAreaValues(details, {
+          ...ST_CREATED_HEDGEROW_VALUES,
+          standardTime: '',
+          finalTime: ''
+        })
+        await expectCreatedAreaSelections(details, {
+          ...ST_CREATED_HEDGEROW_SELECTIONS,
+          condition: ''
+        })
+        await expect(details.habitatUnitsValue).toHaveText(
+          ST_CREATED_HEDGEROW_UNITS
+        )
+      })
+
+      test('advance and delay recalculate a Created hedgerow final time to target', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const shared = await getServiceTemplateLinearProject(browser)
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'hedgerow',
+          ST_CREATED_HEDGEROW_REF
+        )
+        const finalTime = details.createdFormValue('finalTime')
+
+        await details.delayYearsSelect.selectOption('3')
+        await expect(finalTime).toHaveText('23 years (0.4406849377)')
+        await details.advanceYearsSelect.selectOption('2')
+        await expect(finalTime).toHaveText('')
+        await expect(details.errorSummary).toBeHidden()
+
+        await details.delayYearsSelect.selectOption('0')
+        await details.advanceYearsSelect.selectOption('5')
+        await expect(finalTime).toHaveText('15 years (0.5860163055)')
+        await details.advanceYearsSelect.selectOption('30')
+        await expect(finalTime).toHaveText('0 years (1)')
+
+        await details.advanceYearsSelect.selectOption('0')
+        await details.delayYearsSelect.selectOption('30+')
+        await expect(finalTime).toHaveText('30+ years (0.3197967361)')
+        await details.advanceYearsSelect.selectOption({
+          label: 'Choose advance'
+        })
+        await expectCreatedAreaValues(details, {
+          ...ST_CREATED_HEDGEROW_VALUES,
+          finalTime: ''
+        })
+        await expect(details.habitatUnitsValue).toHaveText(
+          ST_CREATED_HEDGEROW_UNITS
+        )
+      })
+
+      test('Cancel discards the Created hedgerow changes and returns to the hedgerow page', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const shared = await getServiceTemplateLinearProject(browser)
+        await openPiTabFor(page, shared.id, 'hedgerow', ST_CREATED_HEDGEROW_REF)
+        const totalBefore = await hedgerowPostInterventionUnits(page)
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'hedgerow',
+          ST_CREATED_HEDGEROW_REF
+        )
+
+        await details.habitatReferenceInput.fill('Not saved')
+        await expectCreatedAreaSelections(
+          details,
+          ST_CREATED_HEDGEROW_SELECTIONS
+        )
+        await expectCreatedAreaValues(details, ST_CREATED_HEDGEROW_VALUES)
+        await chooseCreatedAreaSelections(details, {
+          type: 'Line of trees',
+          significance: 'High',
+          delay: '4'
+        })
+
+        await details.cancelLink.click()
+
+        await expectOnPiPage(page, shared.id, 'hedgerow')
+        expect(await hedgerowPostInterventionUnits(page)).toBe(totalBefore)
+        expect(
+          await hedgerowRowByRef(page, shared.id, ST_CREATED_HEDGEROW_REF)
+        ).toMatchObject({
+          Units: ST_CREATED_HEDGEROW_UNITS,
+          'Habitat type': NATIVE_HEDGEROW_WITH_TREES
+        })
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'hedgerow',
+          ST_CREATED_HEDGEROW_REF
+        )
+        await expect(details.habitatReferenceInput).toHaveValue(
+          ST_CREATED_HEDGEROW_REF
+        )
+        await expectCreatedAreaSelections(
+          details,
+          ST_CREATED_HEDGEROW_SELECTIONS
+        )
+      })
+
+      test('a Created hedgerow save breaking both rules shows one error per rule, keeps the input and saves nothing', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const shared = await getServiceTemplateLinearProject(browser)
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'hedgerow',
+          ST_CREATED_HEDGEROW_REF
+        )
+        const entered = {
+          type: 'Native hedgerow',
+          significance: 'High',
+          condition: 'Poor',
+          advance: '2',
+          delay: '3'
+        }
+        await details.habitatReferenceInput.fill('')
+        await chooseCreatedAreaSelections(details, entered)
+
+        await details.saveButton.click()
+
+        await expectBothRulesRefused(details, entered)
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'hedgerow',
+          ST_CREATED_HEDGEROW_REF
+        )
+        await expectCreatedAreaSelections(
+          details,
+          ST_CREATED_HEDGEROW_SELECTIONS
+        )
+      })
+
+      test('Upload file leaves unsaved Created hedgerow changes behind without a prompt', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage: details,
+        uploadFilePage
+      }) => {
+        const shared = await getServiceTemplateLinearProject(browser)
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'hedgerow',
+          ST_CREATED_HEDGEROW_REF
+        )
+        await details.habitatReferenceInput.fill('Not saved')
+        await details.strategicSignificanceSelect.selectOption('High')
+
+        await leaveForUploadFile(page, details, uploadFilePage, shared.id)
+
+        expect(
+          await hedgerowRowByRef(page, shared.id, ST_CREATED_HEDGEROW_REF)
+        ).toMatchObject({
+          Units: ST_CREATED_HEDGEROW_UNITS,
+          'Strategic significance': 'Low (1)'
+        })
+      })
+
+      test(
+        'an Enhanced hedgerow opens the hedgerow edit form, offering only valid enhancements of its baseline',
+        { tag: '@smoke' },
+        async ({
+          browser,
+          page,
+          postInterventionHabitatDetailsPage: details,
+          baselineHabitatDetailsPage
+        }) => {
+          const shared =
+            await getServiceTemplateEnhancedHedgerowProject(browser)
+          await openPiFeatureDetails(
+            page,
+            shared.id,
+            'hedgerow',
+            ST_ENHANCED_HEDGEROW_REF
+          )
+
+          await details.assertEnhancedHedgerowEditForm({
+            ref: ST_ENHANCED_HEDGEROW_REF
+          })
+          await expect(details.caption).toHaveText(shared.name)
+          await expectCreatedAreaSelections(
+            details,
+            ST_ENHANCED_HEDGEROW_SELECTIONS
+          )
+          await expect(
+            details.habitatTypeSelect.getByRole('option')
+          ).toHaveText(ST_ENHANCED_HEDGEROW_TYPES)
+          await expect(
+            details.targetConditionSelect.getByRole('option')
+          ).toHaveText(['Choose target condition', 'Good (3)', 'Moderate (2)'])
+          await expect(
+            details.strategicSignificanceSelect.getByRole('option')
+          ).toHaveText(STRATEGIC_SIGNIFICANCE_OPTIONS)
+          await expect(
+            details.advanceYearsSelect.getByRole('option')
+          ).toHaveText(['Choose advance', ...TIMING_YEARS])
+          await expect(details.delayYearsSelect.getByRole('option')).toHaveText(
+            ['Choose delay', ...TIMING_YEARS]
+          )
+          await expectEnhancedFormValues(details, {
+            intervention: ENHANCED,
+            size: '0.3335871',
+            ...ST_ENHANCED_HEDGEROW_VALUES
+          })
+          await expect(details.habitatUnitsValue).toHaveText(
+            ST_ENHANCED_HEDGEROW_UNITS
+          )
+
+          // Unsaved changes are left behind.
+          await details.habitatReferenceInput.fill('Not saved')
+          await details.viewBaselineLink.click()
+          await expect(page).toHaveURL(BASELINE_DETAILS_URL_PATTERN)
+          await expect(baselineHabitatDetailsPage.headingTitle).toHaveText(
+            `Hedgerow ${ST_ENHANCED_HEDGEROW_REF}`
+          )
+          await openPiFeatureDetails(
+            page,
+            shared.id,
+            'hedgerow',
+            ST_ENHANCED_HEDGEROW_REF
+          )
+          await expect(details.habitatReferenceInput).toHaveValue(
+            ST_ENHANCED_HEDGEROW_REF
+          )
+        }
+      )
+
+      // A Native hedgerow, Poor, can be enhanced in its own type or moved to a
+      // Medium one, which takes the metric's G-6 type-to-type time.
+      test('the Enhanced hedgerow choices stay within the valid enhancements of the baseline as they change', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const shared = await getServiceTemplateEnhancedHedgerowProject(browser)
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'hedgerow',
+          ST_ENHANCED_HEDGEROW_REF
+        )
+
+        await details.targetConditionSelect.selectOption('Moderate')
+        await expectEnhancedFormValues(details, {
+          ...ST_ENHANCED_HEDGEROW_VALUES,
+          standardTime: 'Poor to Moderate - 3 years',
+          finalTime: '3 years (0.898632125)'
+        })
+
+        await details.habitatTypeSelect.selectOption(NATIVE_HEDGEROW_WITH_TREES)
+        await expectCreatedAreaSelections(details, {
+          ...ST_ENHANCED_HEDGEROW_SELECTIONS,
+          type: NATIVE_HEDGEROW_WITH_TREES,
+          condition: ''
+        })
+        await expect(
+          details.targetConditionSelect.getByRole('option')
+        ).toHaveText(HEDGEROW_CREATION_CONDITIONS)
+        await expectEnhancedFormValues(details, {
+          distinctiveness: 'Medium (4)',
+          standardTime: '',
+          difficulty: 'Low',
+          finalTime: '',
+          applied: '1'
+        })
+
+        await details.targetConditionSelect.selectOption('Poor')
+        await expectEnhancedFormValues(details, {
+          standardTime: 'Poor to Poor - 10 years',
+          finalTime: '10 years (0.7002822742)'
+        })
+        await details.targetConditionSelect.selectOption('Good')
+        await expectEnhancedFormValues(details, {
+          standardTime: 'Poor to Good - 10 years'
+        })
+
+        const finalTime = details.createdFormValue('finalTime', {
+          baselineLink: true
+        })
+        await details.delayYearsSelect.selectOption('2')
+        await expect(finalTime).toHaveText('12 years (0.6521203607)')
+        await details.advanceYearsSelect.selectOption('2')
+        await expect(finalTime).toHaveText('')
+        await expect(details.errorSummary).toBeHidden()
+        await details.delayYearsSelect.selectOption('0')
+        await details.advanceYearsSelect.selectOption('25')
+        await expect(finalTime).toHaveText('0 years (1)')
+
+        await details.habitatTypeSelect.selectOption({
+          label: 'Choose habitat type'
+        })
+        await expect(
+          details.targetConditionSelect.getByRole('option')
+        ).toHaveText(['Choose target condition'])
+        await expectEnhancedFormValues(details, {
+          distinctiveness: '',
+          standardTime: '',
+          difficulty: '',
+          finalTime: '',
+          applied: ''
+        })
+        await expect(details.habitatUnitsValue).toHaveText(
+          ST_ENHANCED_HEDGEROW_UNITS
+        )
+      })
+
+      // The template offers no Medium significance to reject, so the nearest
+      // incomplete Enhanced hedgerow is one whose enhancement the Metric does
+      // not allow: the import clears every proposed value.
+      test('an Enhanced hedgerow whose enhancement was refused on import shows the default options and zero units', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const shared = await getSharedProject(
+          browser,
+          'st-enhancement-not-possible',
+          { piFile: HEDGEROW_ENHANCEMENT_NOT_POSSIBLE },
+          async () => ({})
+        )
+        expect(await hedgerowRowByRef(page, shared.id, 'HG001')).toMatchObject({
+          Status: STATUS_INCOMPLETE,
+          Units: '0.00'
+        })
+        await openPiFeatureDetails(page, shared.id, 'hedgerow', 'HG001')
+
+        await expect(details.habitatReferenceInput).toHaveValue('HG001')
+        await expectCreatedAreaSelections(details, {
+          type: '',
+          significance: '',
+          condition: '',
+          advance: '',
+          delay: ''
+        })
+        await expect(details.habitatTypeSelect.getByRole('option')).toHaveText(
+          ST_ENHANCED_HEDGEROW_TYPES
+        )
+        await expect(
+          details.targetConditionSelect.getByRole('option')
+        ).toHaveText(['Choose target condition'])
+        await expect(
+          details.strategicSignificanceSelect.getByRole('option')
+        ).toHaveText(STRATEGIC_SIGNIFICANCE_OPTIONS)
+        await expect(details.habitatUnitsValue).toHaveText('0.00')
+        await expect(details.saveButton).toBeVisible()
+      })
+    }
+  )
+
+  test.describe(
+    'Post-intervention habitat details — BNG Service template watercourses',
+    { tag: ['@regression', SERVICE_TEMPLATE_ONLY] },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+      test.describe.configure({ timeout: SHARED_BUILD_TEST_TIMEOUT })
+
+      test(
+        'a Retained watercourse is headed "Habitat" and its reference, with both encroachments and its saved values read-only and only its reference editable',
+        { tag: '@smoke' },
+        async ({
+          browser,
+          page,
+          postInterventionHabitatDetailsPage: details
+        }) => {
+          const shared = await getServiceTemplateLinearProject(browser)
+          const units = await unitsByRef(
+            page,
+            shared.id,
+            'watercourse',
+            ST_RETAINED_WATERCOURSE_REF
+          )
+          await openPiFeatureDetails(
+            page,
+            shared.id,
+            'watercourse',
+            ST_RETAINED_WATERCOURSE_REF
+          )
+
+          await expect(
+            page.getByRole('heading', {
+              name: `Habitat ${ST_RETAINED_WATERCOURSE_REF}`,
+              exact: true
+            })
+          ).toBeVisible()
+          await expect(details.caption).toHaveText(shared.name)
+          await expect(details.viewOnlyHeading).toBeVisible()
+          await expect(page.getByText(RETAINED, { exact: true })).toBeVisible()
+          await expect(details.sizeKilometresKey).toBeVisible()
+          // Shorter than its parent: its own length, not the parent's.
+          await expect(details.stackedSizeValue).toHaveText(
+            /^\s*0\.1067453\s*$/
+          )
+          await expect(details.lengthKey).toBeHidden()
+          await expect(page.getByText('Ditches', { exact: true })).toBeVisible()
+          await expect(
+            page.getByText('Medium (4)', { exact: true })
+          ).toBeVisible()
+          await expect(
+            page.getByText('Poor (1)', { exact: true })
+          ).toBeVisible()
+          await expect(details.watercourseEncroachmentKey).toBeVisible()
+          await expect(details.riparianEncroachmentKey).toBeVisible()
+          await expect(
+            page.getByText('No Encroachment (1)', { exact: true })
+          ).toBeVisible()
+          await expect(
+            page.getByText('Major/Minor (0.84)', { exact: true })
+          ).toBeVisible()
+          await expect(details.stackedStrategicSignificanceKey).toBeVisible()
+          await expect(details.strategicSignificanceValue).toBeVisible()
+          await expect(details.habitatUnitsValue).toHaveText(units)
+          await details.assertRetainedRefForm({
+            ref: ST_RETAINED_WATERCOURSE_REF
+          })
+          await expect(details.watercourseEncroachmentSelect).toBeHidden()
+          await expect(details.riparianEncroachmentSelect).toBeHidden()
+
+          await details.backLink.click()
+          await expectOnPiPage(page, shared.id, 'watercourse')
+        }
+      )
+
+      test('"View baseline details" on a Retained watercourse opens its parent', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const shared = await getServiceTemplateLinearProject(browser)
+        const featureId = await featureIdByRef(
+          page,
+          shared.id,
+          'watercourse',
+          ST_RETAINED_WATERCOURSE_REF
+        )
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'watercourse',
+          ST_RETAINED_WATERCOURSE_REF
+        )
+
+        await details.viewBaselineLink.click()
+        await expect(page).toHaveURL(BASELINE_DETAILS_URL_PATTERN)
+        expect(new URL(page.url()).searchParams.get('featureId')).not.toBe(
+          featureId
+        )
+        await expect(details.heading).toHaveText(
+          `Watercourse ${ST_RETAINED_WATERCOURSE_REF}`
+        )
+      })
+
+      // An Enhanced watercourse has been edited on the watercourse form since
+      // the Enhanced watercourse read-only page gave way to it.
+      test('an Enhanced watercourse opens the watercourse edit form, offering only valid enhancements of its baseline', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const shared = await getServiceTemplateLinearProject(browser)
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'watercourse',
+          ST_ENHANCED_WATERCOURSE_REF
+        )
+
+        await details.assertCreatedEditForm({
+          ref: ST_ENHANCED_WATERCOURSE_REF,
+          kind: 'watercourse',
+          intervention: ENHANCED,
+          sizeKey: details.sizeKilometresKey
+        })
+        await expect(details.viewBaselineLink).toBeVisible()
+        await expect(details.backLink).toBeVisible()
+        await expect(details.caption).toHaveText(shared.name)
+        await expect(details.habitatTypeSelect.getByRole('option')).toHaveText([
+          'Choose habitat type',
+          'Canals'
+        ])
+        await expect(
+          details.targetConditionSelect.getByRole('option')
+        ).toHaveText(WATERCOURSE_ENHANCED_CONDITIONS)
+        await expect(
+          details.watercourseEncroachmentSelect.getByRole('option')
+        ).toHaveText(WATERCOURSE_ENCROACHMENTS)
+        await expect(
+          details.riparianEncroachmentSelect.getByRole('option')
+        ).toHaveText(RIPARIAN_ENCROACHMENTS)
+        await expect(details.broadHabitatKey).toBeHidden()
+      })
+
+      // Re-meandered onto a longer route, it is priced on its own length. In
+      // this copy of the default site its encroachments are reduced on both
+      // sides, so the form shows, and prices, the proposed ones: Minor (0.8)
+      // and No Encroachment/No Encroachment (1), not its baseline's Major and
+      // Moderate/Minor.
+      test('an Enhanced watercourse shows its own length, its proposed encroachments and its section-2 values', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const shared = await getSharedProject(
+          browser,
+          'st-watercourse-encroachment-reduced',
+          { piFile: WATERCOURSE_ENCROACHMENT_REDUCED },
+          async () => ({})
+        )
+        const units = await unitsByRef(
+          page,
+          shared.id,
+          'watercourse',
+          ST_ENHANCED_WATERCOURSE_REF
+        )
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'watercourse',
+          ST_ENHANCED_WATERCOURSE_REF
+        )
+
+        await expectCreatedAreaSelections(details, {
+          type: 'Canals',
+          significance: 'Low',
+          condition: 'Good',
+          watercourse: 'Minor',
+          riparian: 'No Encroachment/No Encroachment',
+          advance: '0',
+          delay: '0'
+        })
+        await expectEnhancedFormValues(details, {
+          intervention: ENHANCED,
+          size: '0.1439403',
+          distinctiveness: 'Medium (4)',
+          standardTime: 'Fairly Poor to Good - 6 years',
+          difficulty: 'Low',
+          finalTime: '6 years (0.8075396961)',
+          applied: '1'
+        })
+        await expect(details.standardTimeToTargetValue).not.toContainText(
+          STALE_TIME_TO_TARGET_TEXT
+        )
+        await expect(details.habitatUnitsValue).toHaveText(units)
+        // The backend's units on the proposed encroachments: 0.69 on the
+        // default site, with its baseline ones.
+        expect(units).toBe('1.23')
+      })
+
+      test('a Created watercourse renders the Created edit form', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const shared = await getServiceTemplateLinearProject(browser)
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'watercourse',
+          ST_CREATED_WATERCOURSE_REF
+        )
+
+        await details.assertCreatedWatercourseEditForm({
+          ref: ST_CREATED_WATERCOURSE_REF
+        })
+        await expect(details.backLink).toBeVisible()
+        await expect(details.caption).toHaveText(shared.name)
+        await expect(details.createdLengthValue).toHaveText('0.1300647km')
+        await expectCreatedAreaSelections(
+          details,
+          ST_CREATED_WATERCOURSE_SELECTIONS
+        )
+        await expect(details.habitatTypeSelect.getByRole('option')).toHaveText(
+          WATERCOURSE_CREATION_TYPES
+        )
+        await expect(
+          details.targetConditionSelect.getByRole('option')
+        ).toHaveText(AREA_CREATION_CONDITIONS)
+        await expect(
+          details.strategicSignificanceSelect.getByRole('option')
+        ).toHaveText(STRATEGIC_SIGNIFICANCE_OPTIONS)
+        await expect(
+          details.watercourseEncroachmentSelect.getByRole('option')
+        ).toHaveText(WATERCOURSE_ENCROACHMENTS)
+        await expect(
+          details.riparianEncroachmentSelect.getByRole('option')
+        ).toHaveText(RIPARIAN_ENCROACHMENTS)
+        await expect(details.advanceYearsSelect.getByRole('option')).toHaveText(
+          ['Choose advance', ...TIMING_YEARS]
+        )
+        await expect(details.delayYearsSelect.getByRole('option')).toHaveText([
+          'Choose delay',
+          ...TIMING_YEARS
+        ])
+      })
+
+      // R004 names its parent, so its time to target names the transition.
+      test('a Created watercourse whose encroachment alone increases shows its section-2 values and units delivered', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const shared = await getServiceTemplateLinearProject(browser)
+        const units = await unitsByRef(
+          page,
+          shared.id,
+          'watercourse',
+          ST_CREATED_WATERCOURSE_REF
+        )
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'watercourse',
+          ST_CREATED_WATERCOURSE_REF
+        )
+
+        await expect(details.standardTimeToTargetValue).toHaveText(
+          ST_CREATED_WATERCOURSE_VALUES.standardTime
+        )
+        await expect(details.standardTimeToTargetValue).not.toContainText(
+          STALE_TIME_TO_TARGET_TEXT
+        )
+        await expectCreatedAreaValues(details, ST_CREATED_WATERCOURSE_VALUES, {
+          baselineLink: true
+        })
+        await expect(details.viewBaselineLink).toBeVisible()
+        await expect(details.habitatUnitsValue).toHaveText(UNITS_TWO_DP_PATTERN)
+        await expect(details.habitatUnitsValue).toHaveText(units)
+        expect(units).toBe(ST_CREATED_WATERCOURSE_UNITS)
+      })
+
+      test('a Created watercourse with no parent shows its section-2 values and units delivered', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const shared = await getServiceTemplateLinearProject(browser)
+        const units = await unitsByRef(
+          page,
+          shared.id,
+          'watercourse',
+          ST_NO_PARENT_WATERCOURSE_REF
+        )
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'watercourse',
+          ST_NO_PARENT_WATERCOURSE_REF
+        )
+
+        await details.assertCreatedWatercourseEditForm({
+          ref: ST_NO_PARENT_WATERCOURSE_REF
+        })
+        await details.assertCreatedAbsentBaselineValues({
+          projectName: shared.name,
+          timeToTarget: 'Poor - 1 years',
+          units
+        })
+        await expect(details.createdLengthValue).toHaveText('0.4317485km')
+        await expect(details.viewBaselineLink).toBeHidden()
+      })
+
+      // Its condition gets worse with neither advance nor delay, so it is saved
+      // Incomplete, its values kept and its timing cleared.
+      test('an incomplete Created watercourse shows its saved values, default timing and zero units', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const shared = await getServiceTemplateLinearProject(browser)
+        expect(
+          await watercourseRowByRef(
+            page,
+            shared.id,
+            ST_INCOMPLETE_WATERCOURSE_REF
+          )
+        ).toMatchObject({ Status: STATUS_INCOMPLETE, Units: '0.00' })
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'watercourse',
+          ST_INCOMPLETE_WATERCOURSE_REF
+        )
+
+        await expect(details.habitatReferenceInput).toHaveValue(
+          ST_INCOMPLETE_WATERCOURSE_REF
+        )
+        await expectCreatedAreaSelections(details, {
+          type: 'Ditches',
+          significance: 'Low',
+          condition: 'Poor',
+          watercourse: 'Minor',
+          riparian: 'Major/Major',
+          advance: '',
+          delay: ''
+        })
+        await expectCreatedAreaValues(
+          details,
+          {
+            distinctiveness: 'Medium (4)',
+            standardTime: 'Moderate to Poor - 1 years',
+            difficulty: 'Medium',
+            finalTime: '',
+            applied: '0.67'
+          },
+          { baselineLink: true }
+        )
+        await expect(details.standardTimeToTargetKey).toBeVisible()
+        await expect(details.finalTimeToTargetMultiplierKey).toBeVisible()
+        await expect(details.habitatUnitsValue).toHaveText('0.00')
+        await expect(details.saveButton).toBeVisible()
+        await expect(details.uploadFileButton).toBeVisible()
+      })
+
+      // A Culvert can only be created to Poor.
+      test('choosing a Created watercourse type resets the target condition and shows its values, and clearing it blanks them', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const shared = await getServiceTemplateLinearProject(browser)
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'watercourse',
+          ST_CREATED_WATERCOURSE_REF
+        )
+
+        await details.habitatTypeSelect.selectOption('Culvert')
+        await expectCreatedAreaSelections(details, {
+          ...ST_CREATED_WATERCOURSE_SELECTIONS,
+          type: 'Culvert',
+          condition: ''
+        })
+        await expect(
+          details.targetConditionSelect.getByRole('option')
+        ).toHaveText(['Choose target condition', 'Poor (1)'])
+        await expectCreatedAreaValues(
+          details,
+          {
+            distinctiveness: 'Low (2)',
+            standardTime: '',
+            difficulty: 'Medium',
+            finalTime: '',
+            applied: '0.67'
+          },
+          { baselineLink: true }
+        )
+
+        await details.habitatTypeSelect.selectOption({
+          label: 'Choose habitat type'
+        })
+        await expect(
+          details.targetConditionSelect.getByRole('option')
+        ).toHaveText(['Choose target condition'])
+        await expectCreatedAreaValues(
+          details,
+          {
+            distinctiveness: '',
+            standardTime: '',
+            difficulty: '',
+            finalTime: '',
+            applied: ''
+          },
+          { baselineLink: true }
+        )
+        await expect(details.habitatUnitsValue).toHaveText(
+          ST_CREATED_WATERCOURSE_UNITS
+        )
+      })
+
+      test('choosing and clearing a Created watercourse target condition updates only the time to target', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const shared = await getServiceTemplateLinearProject(browser)
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'watercourse',
+          ST_CREATED_WATERCOURSE_REF
+        )
+
+        // With its 10 years in advance, any time to target up to 10 years
+        // reads "0 years (1)", so clear them first.
+        await details.advanceYearsSelect.selectOption('0')
+        await details.targetConditionSelect.selectOption('Good')
+        await expectCreatedAreaValues(
+          details,
+          {
+            ...ST_CREATED_WATERCOURSE_VALUES,
+            standardTime: 'Fairly Poor to Good - 10 years',
+            finalTime: '10 years (0.7002822742)'
+          },
+          { baselineLink: true }
+        )
+
+        await details.targetConditionSelect.selectOption({
+          label: 'Choose target condition'
+        })
+        await expectCreatedAreaValues(
+          details,
+          { ...ST_CREATED_WATERCOURSE_VALUES, standardTime: '', finalTime: '' },
+          { baselineLink: true }
+        )
+        await expectCreatedAreaSelections(details, {
+          ...ST_CREATED_WATERCOURSE_SELECTIONS,
+          condition: '',
+          advance: '0'
+        })
+        await expect(details.habitatUnitsValue).toHaveText(
+          ST_CREATED_WATERCOURSE_UNITS
+        )
+      })
+
+      test('a Created watercourse strategic significance and each encroachment change alone, with no derived value changing', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const shared = await getServiceTemplateLinearProject(browser)
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'watercourse',
+          ST_CREATED_WATERCOURSE_REF
+        )
+
+        await details.strategicSignificanceSelect.selectOption('High')
+        await details.watercourseEncroachmentSelect.selectOption('Major')
+        await expectCreatedAreaSelections(details, {
+          ...ST_CREATED_WATERCOURSE_SELECTIONS,
+          significance: 'High',
+          watercourse: 'Major'
+        })
+        await details.riparianEncroachmentSelect.selectOption('Minor/Minor')
+        await expect(details.watercourseEncroachmentSelect).toHaveValue('Major')
+
+        await details.watercourseEncroachmentSelect.selectOption({
+          label: 'Choose watercourse encroachment'
+        })
+        await expect(details.riparianEncroachmentSelect).toHaveValue(
+          'Minor/Minor'
+        )
+        await details.riparianEncroachmentSelect.selectOption({
+          label: 'Choose riparian encroachment'
+        })
+        await details.strategicSignificanceSelect.selectOption({
+          label: 'Choose strategic significance'
+        })
+        await expectCreatedAreaSelections(details, {
+          ...ST_CREATED_WATERCOURSE_SELECTIONS,
+          significance: '',
+          watercourse: '',
+          riparian: ''
+        })
+        await expectCreatedAreaValues(details, ST_CREATED_WATERCOURSE_VALUES, {
+          baselineLink: true
+        })
+        await expect(details.habitatUnitsValue).toHaveText(
+          ST_CREATED_WATERCOURSE_UNITS
+        )
+      })
+
+      test('advance and delay recalculate a Created watercourse final time to target', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const shared = await getServiceTemplateLinearProject(browser)
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'watercourse',
+          ST_CREATED_WATERCOURSE_REF
+        )
+        const finalTime = details.createdFormValue('finalTime', {
+          baselineLink: true
+        })
+
+        await details.advanceYearsSelect.selectOption('0')
+        await details.delayYearsSelect.selectOption('3')
+        await expect(finalTime).toHaveText('5 years (0.8368287006)')
+        await details.advanceYearsSelect.selectOption('2')
+        await expect(finalTime).toHaveText('')
+        await expect(details.errorSummary).toBeHidden()
+
+        await details.delayYearsSelect.selectOption('0')
+        await details.advanceYearsSelect.selectOption('30')
+        await expect(finalTime).toHaveText('0 years (1)')
+
+        await details.advanceYearsSelect.selectOption('0')
+        await details.delayYearsSelect.selectOption('30+')
+        await expect(finalTime).toHaveText('30+ years (0.3197967361)')
+        await details.advanceYearsSelect.selectOption({
+          label: 'Choose advance'
+        })
+        await expectCreatedAreaValues(
+          details,
+          { ...ST_CREATED_WATERCOURSE_VALUES, finalTime: '' },
+          { baselineLink: true }
+        )
+        await expect(details.habitatUnitsValue).toHaveText(
+          ST_CREATED_WATERCOURSE_UNITS
+        )
+      })
+
+      test('Cancel discards the Created watercourse changes and returns to the watercourse page', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const shared = await getServiceTemplateLinearProject(browser)
+        await openPiTabFor(
+          page,
+          shared.id,
+          'watercourse',
+          ST_CREATED_WATERCOURSE_REF
+        )
+        const totalBefore = await watercoursePostInterventionUnits(page)
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'watercourse',
+          ST_CREATED_WATERCOURSE_REF
+        )
+
+        await details.habitatReferenceInput.fill('Not saved')
+        await expectCreatedAreaSelections(
+          details,
+          ST_CREATED_WATERCOURSE_SELECTIONS
+        )
+        await expectCreatedAreaValues(details, ST_CREATED_WATERCOURSE_VALUES, {
+          baselineLink: true
+        })
+        await chooseCreatedAreaSelections(details, {
+          type: 'Canals',
+          significance: 'High',
+          watercourse: 'Major',
+          delay: '4'
+        })
+
+        await details.cancelLink.click()
+
+        await expectOnPiPage(page, shared.id, 'watercourse')
+        expect(await watercoursePostInterventionUnits(page)).toBe(totalBefore)
+        expect(
+          await watercourseRowByRef(page, shared.id, ST_CREATED_WATERCOURSE_REF)
+        ).toMatchObject({
+          Units: ST_CREATED_WATERCOURSE_UNITS,
+          'Habitat type': ST_CREATED_WATERCOURSE_SELECTIONS.type
+        })
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'watercourse',
+          ST_CREATED_WATERCOURSE_REF
+        )
+        await expect(details.habitatReferenceInput).toHaveValue(
+          ST_CREATED_WATERCOURSE_REF
+        )
+        await expectCreatedAreaSelections(
+          details,
+          ST_CREATED_WATERCOURSE_SELECTIONS
+        )
+      })
+
+      test('a Created watercourse save breaking both rules shows one error per rule, keeps the input and saves nothing', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const shared = await getServiceTemplateLinearProject(browser)
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'watercourse',
+          ST_CREATED_WATERCOURSE_REF
+        )
+        const entered = {
+          type: 'Canals',
+          significance: 'High',
+          condition: 'Poor',
+          watercourse: 'Major',
+          riparian: 'Moderate/Minor',
+          advance: '2',
+          delay: '3'
+        }
+        await details.habitatReferenceInput.fill('')
+        await chooseCreatedAreaSelections(details, entered)
+
+        await details.saveButton.click()
+
+        await expectBothRulesRefused(details, entered)
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'watercourse',
+          ST_CREATED_WATERCOURSE_REF
+        )
+        await expectCreatedAreaSelections(
+          details,
+          ST_CREATED_WATERCOURSE_SELECTIONS
+        )
+      })
+
+      test('Upload file leaves unsaved Created watercourse changes behind without a prompt', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage: details,
+        uploadFilePage
+      }) => {
+        const shared = await getServiceTemplateLinearProject(browser)
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'watercourse',
+          ST_CREATED_WATERCOURSE_REF
+        )
+        await details.habitatReferenceInput.fill('Not saved')
+        await details.strategicSignificanceSelect.selectOption('High')
+        await details.watercourseEncroachmentSelect.selectOption('Major')
+
+        await leaveForUploadFile(page, details, uploadFilePage, shared.id)
+
+        expect(
+          await watercourseRowByRef(page, shared.id, ST_CREATED_WATERCOURSE_REF)
+        ).toMatchObject({
+          Units: ST_CREATED_WATERCOURSE_UNITS,
+          'Strategic significance': 'Low (1)',
+          'Watercourse encroachment': expect.stringMatching(/^Minor/)
+        })
+      })
+    }
+  )
+
+  test.describe(
+    'Post-intervention habitat details — BNG Service template hedgerow and watercourse saves',
+    { tag: ['@regression', SERVICE_TEMPLATE_ONLY] },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+      test.describe.configure({ timeout: SHARED_BUILD_TEST_TIMEOUT })
+
+      // Its own copy of the default site, as the edits above have. Each test
+      // saves a different feature and reads the total it starts from, so none
+      // depends on another, and a retry's fresh copy serves it as well. The
+      // units are the backend's for the same save, replayed through its PUT
+      // route's payload schema, edit check and applyFeatureUpdate.
+      let projectId
+      test.beforeAll(async ({ browser }) => {
+        ;({ id: projectId } = await buildPostInterventionOnlyProject(
+          browser,
+          DEFAULT_SITE
+        ))
+      })
+
+      test(
+        'saves a Created hedgerow reference and target condition and reloads the edited row',
+        { tag: '@happy-path' },
+        async ({ page, postInterventionHabitatDetailsPage: details }) => {
+          // Within the grids' 10 characters, so it is shown whole.
+          const updatedRef = 'HG009 new'
+          await openPiFeatureDetails(page, projectId, 'hedgerow', 'HG009')
+          await details.habitatReferenceInput.fill(updatedRef)
+          await details.targetConditionSelect.selectOption('Moderate')
+          await details.saveButton.click()
+
+          await expectOnPiPage(page, projectId, 'hedgerow')
+          // 0.3157582 km of Line of trees - associated with bank or ditch,
+          // Moderate over 20 years: 0.3157582 x 2 x 2 x 1 x 0.4903952635.
+          expect(
+            await unitsByRef(page, projectId, 'hedgerow', updatedRef)
+          ).toBe('0.62')
+          await openPiFeatureDetails(page, projectId, 'hedgerow', updatedRef)
+          await expect(details.habitatReferenceInput).toHaveValue(updatedRef)
+          await expect(details.targetConditionSelect).toHaveValue('Moderate')
+          await expect(details.habitatUnitsValue).toHaveText('0.62')
+        }
+      )
+
+      test('saving a complete Created hedgerow edit recalculates the row, the units and the total', async ({
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const editedRef = `${ST_CREATED_HEDGEROW_REF}-new`
+        // Species-rich native hedgerow (Medium 4), Moderate (2), Low (1),
+        // delay 2 on 5 years: 0.3500455 x 4 x 2 x 1 x 0.7792758067.
+        const expectedUnits = 2.1823
+        await openPiTabFor(page, projectId, 'hedgerow', ST_CREATED_HEDGEROW_REF)
+        const totalBefore = await hedgerowPostInterventionUnits(page)
+        await openPiFeatureDetails(
+          page,
+          projectId,
+          'hedgerow',
+          ST_CREATED_HEDGEROW_REF
+        )
+
+        await details.habitatReferenceInput.fill(editedRef)
+        await chooseCreatedAreaSelections(details, {
+          type: 'Species-rich native hedgerow',
+          significance: 'Low',
+          condition: 'Moderate',
+          delay: '2'
+        })
+        await details.saveButton.click()
+
+        await expectOnPiPage(page, projectId, 'hedgerow')
+        const totalAfter = await hedgerowPostInterventionUnits(page)
+        expect(
+          Math.abs(
+            totalAfter -
+              (totalBefore - ST_CREATED_HEDGEROW_EXACT_UNITS + expectedUnits)
+          )
+        ).toBeLessThan(TILE_ROUNDING)
+        expect(
+          await hedgerowRowByRef(page, projectId, editedRef)
+        ).toMatchObject({
+          Status: STATUS_COMPLETE,
+          Units: expectedUnits.toFixed(2),
+          'Habitat type': 'Species-rich native hedgerow',
+          Distinctiveness: 'Medium (4)',
+          'Strategic significance': 'Low (1)',
+          'Target condition': 'Moderate (2)',
+          Delay: '2 years',
+          'Final time to target': '7 years (0.7792758067)'
+        })
+
+        await openPiFeatureDetails(page, projectId, 'hedgerow', editedRef)
+        await expect(details.habitatReferenceInput).toHaveValue(editedRef)
+        await expectCreatedAreaSelections(details, {
+          type: 'Species-rich native hedgerow',
+          significance: 'Low',
+          condition: 'Moderate',
+          advance: '0',
+          delay: '2'
+        })
+        await expect(details.habitatUnitsValue).toHaveText(
+          expectedUnits.toFixed(2)
+        )
+      })
+
+      test('saving a Created hedgerow with the target condition cleared shows zero units and leaves it out of the total', async ({
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        // HG014: 0.429584 km of Non-native and ornamental hedgerow, Poor, High,
+        // created a year in advance: 0.429584 x 1 x 1 x 1.15.
+        const ref = 'HG014'
+        const unitsBefore = 0.494
+        expect(await hedgerowRowByRef(page, projectId, ref)).toMatchObject({
+          Status: STATUS_COMPLETE
+        })
+        const totalBefore = await hedgerowPostInterventionUnits(page)
+        await openPiFeatureDetails(page, projectId, 'hedgerow', ref)
+
+        await details.targetConditionSelect.selectOption({
+          label: 'Choose target condition'
+        })
+        await details.saveButton.click()
+
+        await expectOnPiPage(page, projectId, 'hedgerow')
+        const totalAfter = await hedgerowPostInterventionUnits(page)
+        expect(Math.abs(totalAfter - (totalBefore - unitsBefore))).toBeLessThan(
+          TILE_ROUNDING
+        )
+        expect(await hedgerowRowByRef(page, projectId, ref)).toMatchObject({
+          Status: STATUS_INCOMPLETE,
+          Units: '0.00',
+          'Target condition': ''
+        })
+
+        await openPiFeatureDetails(page, projectId, 'hedgerow', ref)
+        await expect(details.targetConditionSelect).toHaveValue('')
+        await expect(details.habitatUnitsValue).toHaveText('0.00')
+      })
+
+      test('a reference another Created hedgerow already carries is saved', async ({
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const duplicatedRef = 'HG016'
+        await openPiFeatureDetails(page, projectId, 'hedgerow', 'HG008')
+        await details.habitatReferenceInput.fill(duplicatedRef)
+        await details.saveButton.click()
+
+        await expectOnPiPage(page, projectId, 'hedgerow')
+        const unitPage = piPage(page, 'hedgerow')
+        await unitPage.tab(CREATED).click()
+        await expect(unitPage.refLink(CREATED, duplicatedRef)).toHaveCount(2)
+        await expect(unitPage.refLink(CREATED, 'HG008')).toHaveCount(0)
+      })
+
+      test('saving an Enhanced hedgerow with the significance cleared shows zero units and leaves it out of the total', async ({
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        await openPiTabFor(
+          page,
+          projectId,
+          'hedgerow',
+          ST_HIGH_ENHANCED_HEDGEROW_REF
+        )
+        const totalBefore = await hedgerowPostInterventionUnits(page)
+        await openPiFeatureDetails(
+          page,
+          projectId,
+          'hedgerow',
+          ST_HIGH_ENHANCED_HEDGEROW_REF
+        )
+
+        await details.strategicSignificanceSelect.selectOption({
+          label: 'Choose strategic significance'
+        })
+        await details.saveButton.click()
+
+        await expectOnPiPage(page, projectId, 'hedgerow')
+        const totalAfter = await hedgerowPostInterventionUnits(page)
+        expect(
+          Math.abs(
+            totalAfter - (totalBefore - ST_HIGH_ENHANCED_HEDGEROW_EXACT_UNITS)
+          )
+        ).toBeLessThan(TILE_ROUNDING)
+        expect(
+          await hedgerowRowByRef(page, projectId, ST_HIGH_ENHANCED_HEDGEROW_REF)
+        ).toMatchObject({ Status: STATUS_INCOMPLETE, Units: '0.00' })
+
+        await openPiFeatureDetails(
+          page,
+          projectId,
+          'hedgerow',
+          ST_HIGH_ENHANCED_HEDGEROW_REF
+        )
+        await expectCreatedAreaSelections(details, {
+          type: NATIVE_HEDGEROW_WITH_TREES,
+          significance: '',
+          condition: 'Good',
+          advance: '0',
+          delay: '0'
+        })
+        await expect(details.habitatUnitsValue).toHaveText('0.00')
+      })
+
+      test('saving a new reference on a Retained hedgerow renames it alone and leaves its units and its parent alone', async ({
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        await expectServiceTemplateRetainedRename(page, details, {
+          projectId,
+          type: 'hedgerow',
+          ref: ST_RETAINED_HEDGEROW_REF,
+          newRef: `${ST_RETAINED_HEDGEROW_REF}-NEW`
+        })
+      })
+
+      test('saving a complete Created watercourse edit recalculates the row, the units and the total', async ({
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const editedRef = `${ST_NO_PARENT_WATERCOURSE_REF}-new`
+        // R003 was a Culvert, Poor, High, delayed 30+ years:
+        // 0.4317485 km x 2 x 1 x 1.15 x 0.3197967361 x 0.67 x 0.68 x 1.
+        const unitsBefore = 0.1447
+        // Ditches (Medium 4), Good (3), Low (1), Minor (0.8), Minor/Minor
+        // (0.95), delay 2 on 10 years:
+        // 0.4317485 x 4 x 3 x 1 x 0.6521203607 x 0.67 x 0.8 x 0.95.
+        const expectedUnits = 1.7204
+        await openPiTabFor(
+          page,
+          projectId,
+          'watercourse',
+          ST_NO_PARENT_WATERCOURSE_REF
+        )
+        const totalBefore = await watercoursePostInterventionUnits(page)
+        await openPiFeatureDetails(
+          page,
+          projectId,
+          'watercourse',
+          ST_NO_PARENT_WATERCOURSE_REF
+        )
+
+        await details.habitatReferenceInput.fill(editedRef)
+        const chosen = {
+          type: 'Ditches',
+          significance: 'Low',
+          condition: 'Good',
+          watercourse: 'Minor',
+          riparian: 'Minor/Minor',
+          advance: '0',
+          delay: '2'
+        }
+        await chooseCreatedAreaSelections(details, chosen)
+        await details.commentInput.fill(` ${CREATED_WATERCOURSE_COMMENT} `)
+        await details.saveButton.click()
+
+        await expectOnPiPage(page, projectId, 'watercourse')
+        const totalAfter = await watercoursePostInterventionUnits(page)
+        expect(
+          Math.abs(totalAfter - (totalBefore - unitsBefore + expectedUnits))
+        ).toBeLessThan(TILE_ROUNDING)
+        expect(
+          await watercourseRowByRef(page, projectId, editedRef)
+        ).toMatchObject({
+          Status: STATUS_COMPLETE,
+          Units: expectedUnits.toFixed(2),
+          'Habitat type': 'Ditches',
+          Distinctiveness: 'Medium (4)',
+          'Strategic significance': 'Low (1)',
+          'Target condition': 'Good (3)',
+          'Watercourse encroachment': 'Minor (0.8)',
+          'Riparian encroachment': 'Minor/Minor (0.95)',
+          Delay: '2 years',
+          'Final time to target': '12 years (0.6521203607)'
+        })
+
+        await openPiFeatureDetails(page, projectId, 'watercourse', editedRef)
+        await expect(details.habitatReferenceInput).toHaveValue(editedRef)
+        await expectCreatedAreaSelections(details, chosen)
+        await expect(details.habitatUnitsValue).toHaveText(
+          expectedUnits.toFixed(2)
+        )
+        await expect(details.commentInput).toHaveValue(
+          CREATED_WATERCOURSE_COMMENT
+        )
+      })
+
+      test('saving a Created watercourse with the riparian encroachment cleared shows zero units and leaves it out of the total', async ({
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        expect(
+          await watercourseRowByRef(page, projectId, ST_CREATED_WATERCOURSE_REF)
+        ).toMatchObject({ Status: STATUS_COMPLETE })
+        const totalBefore = await watercoursePostInterventionUnits(page)
+        await openPiFeatureDetails(
+          page,
+          projectId,
+          'watercourse',
+          ST_CREATED_WATERCOURSE_REF
+        )
+
+        await details.riparianEncroachmentSelect.selectOption({
+          label: 'Choose riparian encroachment'
+        })
+        await details.saveButton.click()
+
+        await expectOnPiPage(page, projectId, 'watercourse')
+        const totalAfter = await watercoursePostInterventionUnits(page)
+        expect(
+          Math.abs(
+            totalAfter - (totalBefore - ST_CREATED_WATERCOURSE_EXACT_UNITS)
+          )
+        ).toBeLessThan(TILE_ROUNDING)
+        expect(
+          await watercourseRowByRef(page, projectId, ST_CREATED_WATERCOURSE_REF)
+        ).toMatchObject({
+          Status: STATUS_INCOMPLETE,
+          Units: '0.00',
+          'Watercourse encroachment': 'Minor',
+          'Riparian encroachment': ''
+        })
+
+        await openPiFeatureDetails(
+          page,
+          projectId,
+          'watercourse',
+          ST_CREATED_WATERCOURSE_REF
+        )
+        await expectCreatedAreaSelections(details, {
+          ...ST_CREATED_WATERCOURSE_SELECTIONS,
+          riparian: ''
+        })
+        await expect(details.habitatUnitsValue).toHaveText('0.00')
+      })
+
+      test('a reference a Retained watercourse already carries is saved on a Created one', async ({
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        // R001 is the site's Retained culvert.
+        const duplicatedRef = 'R001'
+        await openPiFeatureDetails(
+          page,
+          projectId,
+          'watercourse',
+          ST_INCOMPLETE_WATERCOURSE_REF
+        )
+        await details.habitatReferenceInput.fill(duplicatedRef)
+        await details.saveButton.click()
+
+        await expectOnPiPage(page, projectId, 'watercourse')
+        const unitPage = piPage(page, 'watercourse')
+        await unitPage.tab(CREATED).click()
+        await expect(unitPage.refLink(CREATED, duplicatedRef)).toHaveCount(1)
+        await expect(
+          unitPage.refLink(CREATED, ST_INCOMPLETE_WATERCOURSE_REF)
+        ).toHaveCount(0)
+        await unitPage.tab(RETAINED).click()
+        await expect(unitPage.refLink(RETAINED, duplicatedRef)).toHaveCount(1)
+      })
+
+      test('saving a new reference on a Retained watercourse renames it alone and leaves its units and its parent alone', async ({
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        await expectServiceTemplateRetainedRename(page, details, {
+          projectId,
+          type: 'watercourse',
+          ref: ST_RETAINED_WATERCOURSE_REF,
+          newRef: `${ST_RETAINED_WATERCOURSE_REF}-NEW`
+        })
+      })
+
+      // R006, re-meandered: a better condition and less encroachment on
+      // both sides, priced on its own length.
+      test('saving a changed Enhanced watercourse condition and encroachments recalculates the row, the units and the total', async ({
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        // As imported, and as the significance edit above starts from.
+        const unitsBefore = 0.6945
+        // The backend's units for Fairly Good (2.5), Minor (0.8) and
+        // Minor/Minor (0.95) over 4 years (0.8671800006), from Fairly Poor.
+        const expectedUnits = 1.0265
+        const chosen = {
+          type: 'Canals',
+          significance: 'Low',
+          condition: 'Fairly Good',
+          watercourse: 'Minor',
+          riparian: 'Minor/Minor',
+          advance: '0',
+          delay: '0'
+        }
+        await openPiTabFor(
+          page,
+          projectId,
+          'watercourse',
+          ST_ENHANCED_WATERCOURSE_REF
+        )
+        const totalBefore = await watercoursePostInterventionUnits(page)
+        await openPiFeatureDetails(
+          page,
+          projectId,
+          'watercourse',
+          ST_ENHANCED_WATERCOURSE_REF
+        )
+
+        await chooseCreatedAreaSelections(details, {
+          condition: chosen.condition,
+          watercourse: chosen.watercourse,
+          riparian: chosen.riparian
+        })
+        await expectEnhancedFormValues(details, {
+          standardTime: 'Fairly Poor to Fairly Good - 4 years',
+          finalTime: '4 years (0.8671800006)'
+        })
+        await details.saveButton.click()
+
+        await expectOnPiPage(page, projectId, 'watercourse')
+        const totalAfter = await watercoursePostInterventionUnits(page)
+        expect(
+          Math.abs(totalAfter - (totalBefore - unitsBefore + expectedUnits))
+        ).toBeLessThan(TILE_ROUNDING)
+        expect(
+          await watercourseRowByRef(
+            page,
+            projectId,
+            ST_ENHANCED_WATERCOURSE_REF
+          )
+        ).toMatchObject({
+          Status: STATUS_COMPLETE,
+          Units: expectedUnits.toFixed(2),
+          'Target condition': 'Fairly Good (2.5)',
+          'Watercourse encroachment': 'Minor (0.8)',
+          'Riparian encroachment': 'Minor/Minor (0.95)',
+          'Final time to target': '4 years (0.8671800006)'
+        })
+
+        await openPiFeatureDetails(
+          page,
+          projectId,
+          'watercourse',
+          ST_ENHANCED_WATERCOURSE_REF
+        )
+        await expectCreatedAreaSelections(details, chosen)
+        await expect(details.habitatUnitsValue).toHaveText(
+          expectedUnits.toFixed(2)
+        )
+      })
+
+      // Trading-all-met's HG002, an Enhanced hedgerow that can change type, in
+      // a copy of its own.
+      test('saving a complete Enhanced hedgerow edit recalculates the enhanced units, the row and the total', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const { id } = await getSharedProject(
+          browser,
+          'st-enhanced-hedgerow-save',
+          { piFile: TRADING_ALL_MET },
+          async () => ({})
+        )
+        const newRef = `${ST_ENHANCED_HEDGEROW_REF}-new`
+        // Native hedgerow with trees (Medium 4), Moderate (2), Low (1), delay
+        // 2 on the 10-year G-6 move: 12 years (0.6521203607).
+        // B = 0.3335871 x 2 x 1, T = 0.3335871 x 4 x 2,
+        // (B + (T - B) x 0.6521203607 x 1) x 1 = 1.9724
+        const expectedUnits = 1.9724
+        await openPiTabFor(page, id, 'hedgerow', ST_ENHANCED_HEDGEROW_REF)
+        const totalBefore = await hedgerowPostInterventionUnits(page)
+        await openPiFeatureDetails(
+          page,
+          id,
+          'hedgerow',
+          ST_ENHANCED_HEDGEROW_REF
+        )
+
+        await details.habitatReferenceInput.fill(newRef)
+        await chooseCreatedAreaSelections(details, {
+          type: NATIVE_HEDGEROW_WITH_TREES,
+          condition: 'Moderate',
+          significance: 'Low',
+          delay: '2'
+        })
+        await details.saveButton.click()
+
+        await expectOnPiPage(page, id, 'hedgerow')
+        const totalAfter = await hedgerowPostInterventionUnits(page)
+        expect(
+          Math.abs(
+            totalAfter -
+              (totalBefore - ST_ENHANCED_HEDGEROW_EXACT_UNITS + expectedUnits)
+          )
+        ).toBeLessThan(TILE_ROUNDING)
+        expect(await hedgerowRowByRef(page, id, newRef)).toMatchObject({
+          Status: STATUS_COMPLETE,
+          Units: expectedUnits.toFixed(2),
+          'Habitat type': NATIVE_HEDGEROW_WITH_TREES,
+          Distinctiveness: 'Medium (4)',
+          'Strategic significance': 'Low (1)',
+          'Target condition': 'Moderate (2)',
+          Delay: '2 years',
+          'Final time to target': '12 years (0.6521203607)'
+        })
+      })
     }
   )
 })

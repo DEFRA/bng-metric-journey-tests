@@ -86,3 +86,20 @@ export const AREA_ENHANCED_INCOMPLETE = `${DIR}/invalid-data-incomplete.gpkg`
 // The default site with four Retained area habitats renamed in both stages:
 // H034 padded with three spaces each side, H029 `Étang-du-Moulin-Ælfrīc`.
 export const LONG_AND_PADDED_REFS = `${DIR}/long-and-padded-refs.gpkg`
+
+// The default site's baseline-stage file with long and padded area refs:
+// '   H034   ', and H050 padded with x to 99 characters, among them.
+export const LONG_PADDED_REFS_BASELINE = `${DIR}/long-and-padded-refs-baseline.gpkg`
+
+// HG001, an Enhanced hedgerow whose enhancement the Metric does not allow:
+// saved Incomplete, its proposed values cleared.
+export const HEDGEROW_ENHANCEMENT_NOT_POSSIBLE = `${DIR}/invalid-hedgerow-low-not-possible.gpkg`
+
+// The default site with the Created HG015 given no target condition or
+// timing: saved Incomplete.
+export const CREATED_HEDGEROW_INCOMPLETE = `${DIR}/hedgerow-created-no-condition-or-timing.gpkg`
+
+// The default site with the Enhanced R006's encroachments reduced on both
+// sides: Minor and No Encroachment/No Encroachment, from Major and
+// Moderate/Minor.
+export const WATERCOURSE_ENCROACHMENT_REDUCED = `${DIR}/watercourse-enhanced-encroachment-reduced.gpkg`
