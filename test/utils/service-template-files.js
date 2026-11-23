@@ -26,6 +26,57 @@ export const WATERCOURSE_DEGRADED = `${DIR}/watercourse-degraded.gpkg`
 // V004, a vertical area habitat with no Area: refused at the baseline upload.
 export const VERTICAL_AREA_MISSING = `${DIR}/vertical-area-missing.gpkg`
 
+// The small site's baseline-stage file under a name that starts with
+// punctuation and holds brackets, which the filename rule allows.
+export const PUNCTUATED_NAME_BASELINE = `${DIR}/(Copy) small-site-baseline.gpkg`
+
+// Two area habitats share the Habitat Ref DUP-1: accepted.
+export const DUPLICATE_HABITAT_REF = `${DIR}/duplicate-habitat-ref.gpkg`
+
+// The file checks each upload refuses, one fault to a file. Each holds both
+// stages unless its name ends -baseline.
+export const HABITAT_REF_INVALID_CHARACTERS = `${DIR}/habitat-ref-invalid-characters.gpkg`
+export const HABITAT_REF_MISSING = `${DIR}/missing-habitat-ref.gpkg`
+// The blank Habitat Ref is on a post-intervention row only, so only the
+// baseline + post-intervention upload refuses it.
+export const POST_INTERVENTION_HABITAT_REF_BLANK = `${DIR}/degrade-habitat-ref-blank.gpkg`
+// H001 (Very High) and H002 (High), in both stages.
+export const DISTINCTIVENESS_OUT_OF_SCOPE = `${DIR}/distinctiveness-out-of-scope.gpkg`
+// T025, a Retained tree marked irreplaceable.
+export const IRREPLACEABLE_TREE = `${DIR}/irreplaceable-tree.gpkg`
+export const REDLINE_SELF_INTERSECTING = `${DIR}/self-intersecting-redline-baseline.gpkg`
+export const REDLINE_NOT_IN_ENGLAND = `${DIR}/redline-not-in-england-baseline.gpkg`
+// H002, drawn as a bowtie.
+export const BOWTIE_PARCEL = `${DIR}/bowtie-parcel-baseline.gpkg`
+// H002 and H003 overlap.
+export const OVERLAPPING_PARCELS = `${DIR}/overlapping-parcels-baseline.gpkg`
+// H002, 0.81 square metres.
+export const PARCEL_TOO_SMALL = `${DIR}/parcel-too-small-baseline.gpkg`
+// H001, outside the red line boundary.
+export const PARCEL_OUTSIDE_REDLINE = `${DIR}/parcel-outside-redline-baseline.gpkg`
+export const NO_AREA_HABITATS_TABLE = `${DIR}/no-area-habitats-baseline-table.gpkg`
+// Area Habitats Baseline has no Baseline Condition or Area column.
+export const AREA_HABITATS_MISSING_COLUMNS = `${DIR}/missing-columns-in-area-habitats.gpkg`
+// Area Habitats Baseline declares LINESTRING geometry.
+export const AREA_HABITATS_WRONG_GEOMETRY_TYPE = `${DIR}/wrong-geometry-type-in-area-habitats.gpkg`
+export const REDLINE_NO_GEOMETRY_COLUMN = `${DIR}/no-geometry-column-in-red-line-boundary.gpkg`
+export const REDLINE_MULTIPLE_GEOMETRY_COLUMNS = `${DIR}/multiple-geometry-columns-in-red-line-boundary.gpkg`
+// Red Line Boundary declares POINT geometry.
+export const REDLINE_WRONG_GEOMETRY_TYPE = `${DIR}/wrong-geometry-type-in-red-line-boundary.gpkg`
+
+// H001, a Created area habitat with both advance and delay years: accepted
+// and left unpriced. H004, Created 3 years in advance, is priced.
+export const ADVANCE_AND_DELAY_BOTH_SET = `${DIR}/advance-delay-both-set.gpkg`
+
+// Each Enhances one baseline habitat the service cannot price an enhancement
+// of: H001, a Medium area habitat in Good condition; R001, a Medium
+// watercourse in Good condition; HG001, a Very Low hedgerow; T008, a tree in
+// Good condition.
+export const UNENHANCEABLE_AREA = `${DIR}/invalid-area-medium-good-enhanced.gpkg`
+export const UNENHANCEABLE_WATERCOURSE = `${DIR}/invalid-watercourse-medium-good-enhanced.gpkg`
+export const UNENHANCEABLE_VERY_LOW_HEDGEROW = `${DIR}/invalid-hedgerow-very-low-enhanced.gpkg`
+export const UNENHANCEABLE_TREE = `${DIR}/tree-enhanced-from-good.gpkg`
+
 // Every unit type's trading rules met, with the area habitats above the 10%
 // net gain target.
 export const TRADING_ALL_MET = `${DIR}/trading-all-met.gpkg`
