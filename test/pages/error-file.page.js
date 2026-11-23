@@ -51,6 +51,11 @@ export class ErrorFilePage extends BasePage {
     this.unenhanceableHelpText = page.getByText(
       'Your project contains habitats that have been enhanced to a level which is not yet included in this service.'
     )
+    // TREE_NOT_ENHANCEABLE (BMD-1172, frontend PR#520, interim wording): a
+    // tree in Good condition, Enhanced, listed with what to record instead.
+    this.treeNotEnhanceableHeading = page.getByRole('heading', {
+      name: /^One or more trees are enhanced, but their baseline tree is in Good condition, and a tree in Good condition cannot be enhanced\. Record each as Retained or, if its condition will get worse, as lost and Created in a lower condition 30\+ years in advance$/
+    })
     // BMD-1195 (frontend PR#487, interim wording). The single-habitat page puts
     // the habitat's layer above the text; the several-habitats page has a layer
     // subheading only when they share one.

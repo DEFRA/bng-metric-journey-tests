@@ -1032,13 +1032,15 @@ async function assertUnenhanceableDropout(errorFilePage) {
   )
 }
 
-// Sole witness for BASELINE_NOT_ENHANCEABLE from a real GeoPackage. The backend's
-// refuse-unenhanceable-baselines tests hand-build their documents and no
-// integration test mentions the code. Break a layer's extraction and they keep
-// passing, but that layer's file stops being refused and this page never shows.
-// The page names no habitat (frontend PR #447), so these tests prove the file is
-// refused, not which habitat caused it. Do not delete without an integration test
-// that uploads these fixtures.
+// Sole witness for BASELINE_NOT_ENHANCEABLE, and for TREE_NOT_ENHANCEABLE (a
+// tree in Good condition, refused with its own code since BMD-1172), from a
+// real GeoPackage. The backend's refuse-unenhanceable-baselines tests
+// hand-build their documents and no integration test mentions the codes. Break
+// a layer's extraction and they keep passing, but that layer's file stops being
+// refused and this page never shows. BASELINE_NOT_ENHANCEABLE's page names no
+// habitat (frontend PR #447), so its tests prove the file is refused, not which
+// habitat caused it; the tree test also asserts the tree its list names. Do not
+// delete without an integration test that uploads these fixtures.
 //
 // One test per extraction path, not per rule: AC2 and AC5 share the hedgerow
 // path and this page with the Very Low test, and the backend's tests run their
@@ -1047,17 +1049,6 @@ async function assertUnenhanceableDropout(errorFilePage) {
 // them and this one keeps the page covered.
 function describeUnenhanceableBaseline() {
   const cases = [
-    {
-      name: 'an individual tree in Good condition',
-      file: UNENHANCEABLE_TREE_FILE,
-      // FIXME(BMD-1172): parked 2026-11-16. Backend PR #651 (56c7cac) refuses
-      // an Enhanced tree in Good condition with its own TREE_NOT_ENHANCEABLE,
-      // which frontend PR #520 words as a single file error ("There is a
-      // problem with your file"), not this drop-out page. Restore as its own
-      // test asserting that page once BMD-1172 is picked up and the team
-      // confirms the change.
-      parked: true
-    },
     {
       name: 'a Medium distinctiveness watercourse in Good condition',
       file: UNENHANCEABLE_WATERCOURSE_FILE
@@ -1119,31 +1110,59 @@ function describeUnenhanceableBaseline() {
         ).toBeVisible()
       })
 
-      for (const { name, file, parked } of cases) {
-        const unenhanceableTest = parked ? test.fixme : test
-        unenhanceableTest(
-          `a file enhancing ${name} is refused`,
-          async ({
+      for (const { name, file } of cases) {
+        test(`a file enhancing ${name} is refused`, async ({
+          createProjectFlow,
+          projectDashboardPage,
+          uploadPostInterventionFileFlow,
+          errorFilePage,
+          page
+        }) => {
+          await uploadToErrorFile(
+            {
+              createProjectFlow,
+              projectDashboardPage,
+              uploadPostInterventionFileFlow,
+              page
+            },
+            file
+          )
+
+          await assertUnenhanceableDropout(errorFilePage)
+        })
+      }
+
+      // A tree in Good condition has its own code and copy: the problems
+      // list names it and says to record it as Retained, or lost and Created
+      // lower, rather than sending the user to the metric tool.
+      test('a file enhancing an individual tree in Good condition is refused, naming the tree', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadPostInterventionFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        await uploadToErrorFile(
+          {
             createProjectFlow,
             projectDashboardPage,
             uploadPostInterventionFileFlow,
-            errorFilePage,
             page
-          }) => {
-            await uploadToErrorFile(
-              {
-                createProjectFlow,
-                projectDashboardPage,
-                uploadPostInterventionFileFlow,
-                page
-              },
-              file
-            )
-
-            await assertUnenhanceableDropout(errorFilePage)
-          }
+          },
+          UNENHANCEABLE_TREE_FILE
         )
-      }
+
+        await expect(
+          errorFilePage.postInterventionRejectedHeading
+        ).toBeVisible()
+        await expect(errorFilePage.treeNotEnhanceableHeading).toBeVisible()
+        await expect(
+          page.getByText('Habitat Ref T001 — Individual trees - Rural tree', {
+            exact: true
+          })
+        ).toBeVisible()
+        await expect(errorFilePage.serviceEligibilityHeading).not.toBeVisible()
+      })
     }
   )
 }
