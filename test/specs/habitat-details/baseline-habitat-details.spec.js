@@ -3088,7 +3088,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         baselineHabitatDetailsPage,
         page
       }) => {
-        const newRef = `${SERVICE_TEMPLATE_RETAINED_AREA_REF}-RENAMED`
+        // Ten characters at most, so the grids show it whole rather than cut.
+        const newRef = `${SERVICE_TEMPLATE_RETAINED_AREA_REF}-NEW`
         // Its own project: the save renames a habitat.
         const { id: projectId } = await buildPostInterventionOnlyProject(
           browser,
