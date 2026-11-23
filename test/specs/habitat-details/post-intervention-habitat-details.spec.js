@@ -1104,6 +1104,20 @@ const SERVICE_TEMPLATE_RETAINED_COMMENTS = [
   { type: 'area', ref: 'H002', comment: 'No data' }
 ]
 
+// A feature's id, read from its grid in the creator's own session: for a
+// test whose page has no session, or another user's.
+async function creatorFeatureId(browser, projectId, type, ref) {
+  const context = await browser.newContext({
+    storageState: STORAGE_STATE,
+    baseURL: baseUrl
+  })
+  try {
+    return await featureIdByRef(await context.newPage(), projectId, type, ref)
+  } finally {
+    await context.close()
+  }
+}
+
 const piDetailsHeading = (page, ref) =>
   page.getByRole('heading', { level: 1, name: new RegExp(` ${ref}$`) })
 
@@ -2389,13 +2403,12 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       test.skip(skipInE2e(NO_PROJECTS_STORAGE_STATE), E2E_SKIP_REASON)
 
       test('a feature in one user’s project cannot be opened directly by a different user', async ({
-        browser,
-        page
+        browser
       }) => {
         const shared = await getRunDetailsProject(browser)
         const featureId = isServiceTemplateRun()
-          ? await featureIdByRef(
-              page,
+          ? await creatorFeatureId(
+              browser,
               shared.id,
               'area',
               SERVICE_TEMPLATE_RETAINED_AREA.ref
