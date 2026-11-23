@@ -1,6 +1,6 @@
 {
   "description": "Each file here is a copy of a file in bng-metric-harness/example-files/service-template/ (source), built by the harness's corpus recipes or bng-library's generator; its README says how. Refresh them with npm run check:fixtures -- --sync, never by hand.",
-  "harnessCommit": "c4e9208717e9bb34a5d25d0547ce3dda6236c42f",
+  "harnessCommit": "95a03c9c2ee025b025a70448d043eca02a62c8c9",
   "files": [
     {
       "file": "small-site-baseline.gpkg",
