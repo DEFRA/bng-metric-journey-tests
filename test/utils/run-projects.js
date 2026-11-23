@@ -8,6 +8,7 @@ import { isServiceTemplateRun } from '@utils/template-run.js'
 import {
   AREA_TRADING_DEFICIT,
   AREA_TRADING_DEFICIT_BASELINE,
+  BASELINE_INCOMPLETE_EVERY_LAYER,
   BASELINE_SIGNIFICANCE_HIGH,
   DATA_COMPLETE,
   DEFAULT_SITE,
@@ -15,7 +16,10 @@ import {
   EVERY_VERTICAL_RETENTION,
   HEDGEROW_INVALID_ENHANCEMENT,
   HEDGEROW_LOW_DEFICIT_VERY_LOW,
+  HEDGEROW_SIGNIFICANCE_BLANK,
   INCOMPLETE_ENHANCEMENTS,
+  LONG_PADDED_REFS_BASELINE,
+  LONG_PADDED_REFS_SITE,
   LOW_LOSS_COVERED,
   NET_GAIN_MET,
   NO_RETAINED_AREA,
@@ -28,7 +32,9 @@ import {
   WATERCOURSE_DEGRADED_BASELINE,
   WATERCOURSE_ENHANCED_SHORTER,
   WATERCOURSE_LOW_DEFICIT,
-  WATERCOURSE_REMEANDERED
+  WATERCOURSE_PROPOSED_ENCROACHMENT_BLANK,
+  WATERCOURSE_REMEANDERED,
+  WATERCOURSES_CREATED_ONLY
 } from '@utils/service-template-files.js'
 import {
   buildBaselineOnlyProject,
@@ -52,6 +58,7 @@ import {
   getNoWatercoursesProject,
   getTargetMetProject,
   getTreesPostInterventionProject,
+  getWatercourseGainProject,
   getWatercourseInterventionTypesProject
 } from '@utils/summary-projects.js'
 
@@ -463,5 +470,72 @@ export function getServiceTemplateWatercourseLowDeficitProject(browser) {
   return getServiceTemplatePostInterventionProject(
     browser,
     WATERCOURSE_LOW_DEFICIT
+  )
+}
+
+/**
+ * Watercourses only post intervention, from a baseline with none: the legacy
+ * watercourse gain pair, or watercourses-created-only.gpkg, whose one
+ * watercourse is a Created ditch with no parent.
+ *
+ * @param {import('@playwright/test').Browser} browser
+ * @returns {Promise<{id: string, name: string}>}
+ */
+export function getRunWatercourseGainProject(browser) {
+  return isServiceTemplateRun()
+    ? getServiceTemplatePostInterventionProject(
+        browser,
+        WATERCOURSES_CREATED_ONLY
+      )
+    : getWatercourseGainProject(browser)
+}
+
+/**
+ * More projects only the BNG Service template run uses, each from a corpus
+ * file made for one edge case:
+ *
+ * - long, non-ASCII and space-padded Habitat Refs on four Retained area
+ *   habitats: long-and-padded-refs.gpkg, and its baseline-stage file;
+ * - one incomplete baseline habitat per layer, at a baseline upload:
+ *   baseline-incomplete-every-layer-baseline.gpkg;
+ * - an Enhanced and a Created watercourse each missing a proposed
+ *   encroachment: watercourse-proposed-encroachment-blank.gpkg;
+ * - an Enhanced hedgerow with no proposed strategic significance:
+ *   hedgerow-enhanced-significance-blank.gpkg.
+ */
+export function getServiceTemplateLongRefsProject(browser) {
+  return getServiceTemplatePostInterventionProject(
+    browser,
+    LONG_PADDED_REFS_SITE
+  )
+}
+
+/** @see getServiceTemplateLongRefsProject */
+export function getServiceTemplateLongRefsBaselineProject(browser) {
+  return getOrBuildProject(projectKey(LONG_PADDED_REFS_BASELINE), () =>
+    buildBaselineOnlyProject(browser, LONG_PADDED_REFS_BASELINE)
+  )
+}
+
+/** @see getServiceTemplateLongRefsProject */
+export function getServiceTemplateIncompleteBaselineProject(browser) {
+  return getOrBuildProject(projectKey(BASELINE_INCOMPLETE_EVERY_LAYER), () =>
+    buildBaselineOnlyProject(browser, BASELINE_INCOMPLETE_EVERY_LAYER)
+  )
+}
+
+/** @see getServiceTemplateLongRefsProject */
+export function getServiceTemplateBlankProposedEncroachmentProject(browser) {
+  return getServiceTemplatePostInterventionProject(
+    browser,
+    WATERCOURSE_PROPOSED_ENCROACHMENT_BLANK
+  )
+}
+
+/** @see getServiceTemplateLongRefsProject */
+export function getServiceTemplateHedgerowSignificanceBlankProject(browser) {
+  return getServiceTemplatePostInterventionProject(
+    browser,
+    HEDGEROW_SIGNIFICANCE_BLANK
   )
 }

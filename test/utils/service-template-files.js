@@ -91,3 +91,21 @@ export const HEDGEROW_LOW_DEFICIT_VERY_LOW = `${DIR}/trading-trade-down.gpkg`
 // R001, a culvert Enhanced in place, saved Incomplete: the watercourse Low
 // band below zero, with no Medium surplus to cover it.
 export const WATERCOURSE_LOW_DEFICIT = `${DIR}/invalid-watercourse-culvert-enhanced.gpkg`
+
+// The default site with four Retained area habitats given long, non-ASCII and
+// space-padded Habitat Refs, and its baseline-stage file.
+export const LONG_PADDED_REFS_BASELINE = `${DIR}/long-and-padded-refs-baseline.gpkg`
+export const LONG_PADDED_REFS_SITE = `${DIR}/long-and-padded-refs.gpkg`
+
+// A baseline-stage file with one incomplete habitat per layer: H002 and HG001
+// with no Baseline Condition, R007 with no riparian encroachment.
+export const BASELINE_INCOMPLETE_EVERY_LAYER = `${DIR}/baseline-incomplete-every-layer-baseline.gpkg`
+
+// The Enhanced R006 and the Created R004 each missing a Proposed Encroachment.
+export const WATERCOURSE_PROPOSED_ENCROACHMENT_BLANK = `${DIR}/watercourse-proposed-encroachment-blank.gpkg`
+
+// No baseline watercourses, and one Created post-intervention ditch, R004.
+export const WATERCOURSES_CREATED_ONLY = `${DIR}/watercourses-created-only.gpkg`
+
+// The Enhanced HG002 with no Proposed Strategic Significance.
+export const HEDGEROW_SIGNIFICANCE_BLANK = `${DIR}/hedgerow-enhanced-significance-blank.gpkg`
