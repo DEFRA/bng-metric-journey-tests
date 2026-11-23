@@ -187,11 +187,21 @@ const SERVICE_TEMPLATE_WATERCOURSE_REF = 'R001'
 // A baseline area habitat renamed by typing, padded and then at the limit.
 const SERVICE_TEMPLATE_TYPED_REF_AREA = 'H004'
 const MAX_REF_LENGTH = 99
-// LONG_PADDED_REFS_BASELINE's refs, as the backend should store them:
-// '   H034   ' in the file, and H050 padded with x to the 99-character limit.
-const ST_UPLOADED_REFS = {
-  padded: 'H034',
-  long: 'H050-'.padEnd(MAX_REF_LENGTH, 'x')
+// The padded and 99-character refs the reference cleaning describe uploads,
+// as the backend should store them. Legacy: the long-and-padded pair's
+// ('  H001  ' in the baseline file). BNG Service template:
+// LONG_PADDED_REFS_BASELINE's, '   H034   ' in the file, and H050 padded with
+// x to the limit.
+const UPLOADED_REFS = isServiceTemplateRun()
+  ? { padded: 'H034', long: 'H050-'.padEnd(MAX_REF_LENGTH, 'x') }
+  : LONG_PADDED_REFS
+
+// The project holding UPLOADED_REFS: the legacy pair, shared with the
+// post-intervention spec, or the BNG Service template baseline-stage file.
+function getUploadedRefsProject(browser) {
+  return isServiceTemplateRun()
+    ? buildBaselineOnlyProject(browser, LONG_PADDED_REFS_BASELINE)
+    : getLongPaddedRefsProject(browser)
 }
 
 // The default site's features the supporting information tests read and edit.
@@ -286,6 +296,38 @@ async function openPiDetails(page, projectId, type, ref, tabLabel) {
   expect(label).toBe(tabLabel)
   await unitPage.refLink(label, ref).click()
   await expect(page).toHaveURL(/\/post-intervention-habitat-details/)
+}
+
+// A baseline habitat's details page, reached from its unit-type grid.
+async function openBaselineDetailsFromGrid(page, projectId, type, ref) {
+  const grid = await openBaselineGrid(page, projectId, type)
+  await grid.refLink(ref).click()
+  await expect(page).toHaveURL(/\/baseline-habitat-details/)
+}
+
+// A long Supporting information value shown in full: it wraps inside the
+// content column, an unbroken word included, over several lines, with
+// nothing cut off. A line clamp or a fixed height hides text that toHaveText
+// still reads, so the box must be as tall as its content.
+async function expectWrapsWithinColumn(value) {
+  const layout = await value.evaluate((element) => {
+    const rect = element.getBoundingClientRect()
+    return {
+      overflow: element.scrollWidth - element.clientWidth,
+      clipped: element.scrollHeight - element.clientHeight,
+      right: rect.right,
+      columnRight: element
+        .closest('.govuk-grid-column-two-thirds')
+        .getBoundingClientRect().right,
+      lines:
+        rect.height /
+        Number.parseFloat(globalThis.getComputedStyle(element).lineHeight)
+    }
+  })
+  expect(layout.overflow).toBeLessThanOrEqual(0)
+  expect(layout.clipped).toBeLessThanOrEqual(0)
+  expect(layout.right).toBeLessThanOrEqual(layout.columnRight)
+  expect(layout.lines).toBeGreaterThan(3)
 }
 
 async function retainedPiRow(page, projectId, type, ref) {
@@ -2160,6 +2202,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
   // grids trim refs when they display them, so they cannot show what was
   // saved; this page's <h1> can, because it prints the stored ref as it is.
   //
+  // Runs in both template runs, each uploading its own file (UPLOADED_REFS).
   // The only check that a real upload is cleaned on save. The rule is covered by
   // backend extract-habitat-data.test.js:1339, but only against made-up features,
   // and no integration test reads back a stored ref. Do not delete without a
@@ -2167,9 +2210,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
   // the stored value.
   test.describe(
     'Baseline habitat details — habitat reference cleaning',
-    // Legacy only: no BNG Service template file in the harness corpus has
-    // padded or 99-character refs.
-    { tag: ['@regression', LEGACY_ONLY] },
+    { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
@@ -2184,19 +2225,18 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       let projectId
 
       test.beforeAll(async ({ browser }) => {
-        ;({ id: projectId } = await getLongPaddedRefsProject(browser))
+        ;({ id: projectId } = await getUploadedRefsProject(browser))
       })
 
       test('saves a padded ref without its leading and trailing spaces', async ({
         areaBaselinePage,
         baselineHabitatDetailsPage
       }) => {
-        // '  H001  ' in the uploaded file.
         await areaBaselinePage.open(projectId)
-        await areaBaselinePage.refLink(LONG_PADDED_REFS.padded).click()
+        await areaBaselinePage.refLink(UPLOADED_REFS.padded).click()
 
         expect(await baselineHabitatDetailsPage.rawHeadingText()).toBe(
-          `Habitat ${LONG_PADDED_REFS.padded}`
+          `Habitat ${UPLOADED_REFS.padded}`
         )
       })
 
@@ -2204,13 +2244,12 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         areaBaselinePage,
         baselineHabitatDetailsPage
       }) => {
+        expect(Array.from(UPLOADED_REFS.long)).toHaveLength(MAX_REF_LENGTH)
         await areaBaselinePage.open(projectId)
-        await areaBaselinePage
-          .refLink(gridRefName(LONG_PADDED_REFS.long))
-          .click()
+        await areaBaselinePage.refLink(gridRefName(UPLOADED_REFS.long)).click()
 
         expect(await baselineHabitatDetailsPage.rawHeadingText()).toBe(
-          `Habitat ${LONG_PADDED_REFS.long}`
+          `Habitat ${UPLOADED_REFS.long}`
         )
       })
     }
@@ -2245,11 +2284,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         ))
       })
 
-      async function openFromGrid(page, type, ref) {
-        const grid = await openBaselineGrid(page, projectId, type)
-        await grid.refLink(ref).click()
-        await expect(page).toHaveURL(/\/baseline-habitat-details/)
-      }
+      const openFromGrid = (page, type, ref) =>
+        openBaselineDetailsFromGrid(page, projectId, type, ref)
 
       // A refusal saves nothing: the other fields changed in the same submit
       // are kept on the error page and absent once the habitat is reopened.
@@ -2427,11 +2463,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         ))
       })
 
-      async function openFromGrid(page, type, ref) {
-        const grid = await openBaselineGrid(page, projectId, type)
-        await grid.refLink(ref).click()
-        await expect(page).toHaveURL(/\/baseline-habitat-details/)
-      }
+      const openFromGrid = (page, type, ref) =>
+        openBaselineDetailsFromGrid(page, projectId, type, ref)
 
       test('shows an imported comment on Retained and Lost habitats, and an empty box otherwise', async ({
         baselineHabitatDetailsPage,
@@ -3015,30 +3048,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
         await openRetainedPiDetails(page, projectId, 'watercourse', 'R003')
         await expect(details.supportingInformationValue).toHaveText(comment)
-        const layout = await details.supportingInformationValue.evaluate(
-          (element) => {
-            const rect = element.getBoundingClientRect()
-            return {
-              overflow: element.scrollWidth - element.clientWidth,
-              // A line clamp or a fixed height hides text that toHaveText
-              // still reads, so the box must be as tall as its content.
-              clipped: element.scrollHeight - element.clientHeight,
-              right: rect.right,
-              columnRight: element
-                .closest('.govuk-grid-column-two-thirds')
-                .getBoundingClientRect().right,
-              lines:
-                rect.height /
-                Number.parseFloat(
-                  globalThis.getComputedStyle(element).lineHeight
-                )
-            }
-          }
-        )
-        expect(layout.overflow).toBeLessThanOrEqual(0)
-        expect(layout.clipped).toBeLessThanOrEqual(0)
-        expect(layout.right).toBeLessThanOrEqual(layout.columnRight)
-        expect(layout.lines).toBeGreaterThan(3)
+        await expectWrapsWithinColumn(details.supportingInformationValue)
 
         await openRetainedPiDetails(page, projectId, 'watercourse', 'R005')
         await expect(details.supportingInformationValue).toHaveText(
@@ -3168,50 +3178,6 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         expect(await findPiRef(page, projectId, 'area', newRef)).toBeNull()
       })
 
-      // An upload cleans a ref before it is saved: it trims the padding, and
-      // keeps one at the 99-character limit whole. The grids trim and cut refs
-      // when they show them, so the <h1>, which prints the stored ref as it
-      // is, is read instead.
-      test.describe('an uploaded ref', () => {
-        test.describe.configure({ mode: 'serial' })
-
-        let projectId
-
-        test.beforeAll(async ({ browser }) => {
-          ;({ id: projectId } = await buildBaselineOnlyProject(
-            browser,
-            LONG_PADDED_REFS_BASELINE
-          ))
-        })
-
-        test('saves a padded ref without its leading and trailing spaces', async ({
-          areaBaselinePage,
-          baselineHabitatDetailsPage
-        }) => {
-          await areaBaselinePage.open(projectId)
-          await areaBaselinePage.refLink(ST_UPLOADED_REFS.padded).click()
-
-          expect(await baselineHabitatDetailsPage.rawHeadingText()).toBe(
-            `Habitat ${ST_UPLOADED_REFS.padded}`
-          )
-        })
-
-        test('saves a ref at the 99-character limit whole', async ({
-          areaBaselinePage,
-          baselineHabitatDetailsPage
-        }) => {
-          expect(Array.from(ST_UPLOADED_REFS.long)).toHaveLength(MAX_REF_LENGTH)
-          await areaBaselinePage.open(projectId)
-          await areaBaselinePage
-            .refLink(gridRefName(ST_UPLOADED_REFS.long))
-            .click()
-
-          expect(await baselineHabitatDetailsPage.rawHeadingText()).toBe(
-            `Habitat ${ST_UPLOADED_REFS.long}`
-          )
-        })
-      })
-
       // The edit route cleans a typed ref as an upload does: it trims the
       // padding, and keeps one at the limit whole. The grids trim and cut refs
       // when they show them, so the <h1>, which prints the stored ref as it
@@ -3256,16 +3222,19 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
       // A legacy project refuses this rename (the refusals describe above).
       // A BNG Service template project allows it: each post-intervention
-      // feature names its baseline parent by id, so a repeated ref joins
-      // nothing to the wrong habitat.
-      test("lets a hedgerow take a watercourse's reference", async ({
+      // feature names its baseline parent by id, so the repeated ref joins
+      // neither Retained child to the other's parent, and HG001's child,
+      // whose own ref stays HG001, still finds its renamed parent.
+      test("lets a hedgerow take a watercourse's reference, each Retained child keeping its own parent", async ({
         browser,
         baselineHabitatDetailsPage,
+        postInterventionHabitatDetailsPage: details,
         page
       }) => {
-        const { id: projectId } = await buildBaselineOnlyProject(
+        // Its own project: the save renames a hedgerow.
+        const { id: projectId } = await buildPostInterventionOnlyProject(
           browser,
-          DEFAULT_SITE_BASELINE
+          DEFAULT_SITE
         )
 
         const grid = await openBaselineGrid(page, projectId, 'hedgerow')
@@ -3290,6 +3259,26 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(
           watercourses.refLink(SERVICE_TEMPLATE_WATERCOURSE_REF)
         ).toBeVisible()
+
+        for (const [type, childRef, parentHeading] of [
+          [
+            'hedgerow',
+            SERVICE_TEMPLATE_RENAMED_HEDGEROW,
+            `Hedgerow ${SERVICE_TEMPLATE_WATERCOURSE_REF}`
+          ],
+          [
+            'watercourse',
+            SERVICE_TEMPLATE_WATERCOURSE_REF,
+            `Watercourse ${SERVICE_TEMPLATE_WATERCOURSE_REF}`
+          ]
+        ]) {
+          await openRetainedPiDetails(page, projectId, type, childRef)
+          await details.viewBaselineLink.click()
+          await expect(page).toHaveURL(/\/baseline-habitat-details/)
+          await expect(baselineHabitatDetailsPage.heading, childRef).toHaveText(
+            parentHeading
+          )
+        }
       })
     }
   )
@@ -3325,11 +3314,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         ))
       })
 
-      async function openFromGrid(page, type, ref) {
-        const grid = await openBaselineGrid(page, projectId, type)
-        await grid.refLink(ref).click()
-        await expect(page).toHaveURL(/\/baseline-habitat-details/)
-      }
+      const openFromGrid = (page, type, ref) =>
+        openBaselineDetailsFromGrid(page, projectId, type, ref)
 
       async function saveBaselineComment(page, details, type, ref, comment) {
         await openFromGrid(page, type, ref)
@@ -3542,30 +3528,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           ST_RETAINED_WATERCOURSE
         )
         await expect(details.supportingInformationValue).toHaveText(comment)
-        const layout = await details.supportingInformationValue.evaluate(
-          (element) => {
-            const rect = element.getBoundingClientRect()
-            return {
-              overflow: element.scrollWidth - element.clientWidth,
-              // A line clamp or a fixed height hides text that toHaveText
-              // still reads, so the box must be as tall as its content.
-              clipped: element.scrollHeight - element.clientHeight,
-              right: rect.right,
-              columnRight: element
-                .closest('.govuk-grid-column-two-thirds')
-                .getBoundingClientRect().right,
-              lines:
-                rect.height /
-                Number.parseFloat(
-                  globalThis.getComputedStyle(element).lineHeight
-                )
-            }
-          }
-        )
-        expect(layout.overflow).toBeLessThanOrEqual(0)
-        expect(layout.clipped).toBeLessThanOrEqual(0)
-        expect(layout.right).toBeLessThanOrEqual(layout.columnRight)
-        expect(layout.lines).toBeGreaterThan(3)
+        await expectWrapsWithinColumn(details.supportingInformationValue)
 
         await openRetainedPiDetails(
           page,
