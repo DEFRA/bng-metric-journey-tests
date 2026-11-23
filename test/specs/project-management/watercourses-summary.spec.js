@@ -12,13 +12,12 @@ import {
   VIEW_TRADING_RULES,
   WATERCOURSES
 } from '@utils/unit-type-labels.js'
-import { getWatercourseGainProject } from '@utils/summary-projects.js'
 import {
   getRunAllUnitTypesPostInterventionProject,
   getRunAllUnitTypesProject,
-  getRunTargetMetProject
+  getRunTargetMetProject,
+  getRunWatercourseGainProject
 } from '@utils/run-projects.js'
-import { LEGACY_ONLY } from '@utils/template-run.js'
 import { expectStatusTag, STATUS_MET } from '@utils/unit-type-tiles.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
 
@@ -342,16 +341,16 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
   test.describe(
     'Watercourses summary — post-intervention-only watercourses',
-    // Legacy only: no BNG Service template corpus file has watercourses only
-    // post-intervention, from a baseline with none.
-    { tag: ['@regression', LEGACY_ONLY] },
+    // Both runs: the BNG Service template run's project is
+    // watercourses-created-only.gpkg, whose one watercourse is Created.
+    { tag: '@regression' },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
       let project
       test.beforeAll(async ({ browser }) => {
-        project = await getWatercourseGainProject(browser)
+        project = await getRunWatercourseGainProject(browser)
       })
 
       // hedgerows-summary.spec.js witnesses this variant for hedgerows. It

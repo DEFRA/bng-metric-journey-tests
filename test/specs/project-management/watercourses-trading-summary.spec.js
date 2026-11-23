@@ -8,14 +8,12 @@ import {
 } from '@pages/watercourses-trading-summary.page.js'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
-import {
-  getAllUnitTypesPostInterventionProject,
-  getWatercourseGainProject
-} from '@utils/summary-projects.js'
+import { getAllUnitTypesPostInterventionProject } from '@utils/summary-projects.js'
 import {
   getRunAllUnitTypesPostInterventionProject,
   getRunBaselineProject,
   getRunTargetMetProject,
+  getRunWatercourseGainProject,
   getServiceTemplateWatercourseLowDeficitProject
 } from '@utils/run-projects.js'
 import {
@@ -353,38 +351,35 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // baseline has none and trading rules do not apply. The backend returns
       // null band statuses (watercourse-trading-rule-statuses.test.js:62) and
       // the page shows the band with NO tag rather than a red one — unknown is
-      // not failed. SOLE real-data witness for that null-verdict path. Legacy
-      // only: no BNG Service template file in the harness corpus has
-      // watercourses only post intervention.
-      test(
-        'watercourses that exist only post intervention get no verdict and no tag',
-        {
-          tag: LEGACY_ONLY
-        },
-        async ({ browser, watercoursesTradingSummaryPage }) => {
-          const project = await getWatercourseGainProject(browser)
-          await watercoursesTradingSummaryPage.open(project.id)
+      // not failed. SOLE real-data witness for that null-verdict path. The BNG
+      // Service template run's project is watercourses-created-only.gpkg,
+      // whose one watercourse, a ditch, is Created.
+      test('watercourses that exist only post intervention get no verdict and no tag', async ({
+        browser,
+        watercoursesTradingSummaryPage
+      }) => {
+        const project = await getRunWatercourseGainProject(browser)
+        await watercoursesTradingSummaryPage.open(project.id)
 
-          expect(await watercoursesTradingSummaryPage.bandNames()).toEqual([
-            MEDIUM
-          ])
-          await expect(
-            watercoursesTradingSummaryPage.statusTag(MEDIUM)
-          ).toHaveCount(0)
-          expect(
-            await watercoursesTradingSummaryPage.bandTileValue(
-              MEDIUM,
-              MEDIUM_DEFICIT_TILE
-            )
-          ).toBe('0.00 units')
-          await expect(
-            watercoursesTradingSummaryPage.bandTileTag(
-              MEDIUM,
-              MEDIUM_DEFICIT_TILE
-            )
-          ).toHaveCount(0)
-        }
-      )
+        expect(await watercoursesTradingSummaryPage.bandNames()).toEqual([
+          MEDIUM
+        ])
+        await expect(
+          watercoursesTradingSummaryPage.statusTag(MEDIUM)
+        ).toHaveCount(0)
+        expect(
+          await watercoursesTradingSummaryPage.bandTileValue(
+            MEDIUM,
+            MEDIUM_DEFICIT_TILE
+          )
+        ).toBe('0.00 units')
+        await expect(
+          watercoursesTradingSummaryPage.bandTileTag(
+            MEDIUM,
+            MEDIUM_DEFICIT_TILE
+          )
+        ).toHaveCount(0)
+      })
 
       // The redirect target is passed per controller (`summaryPath`), so the
       // area and hedgerow pages' guards say nothing about this one.
