@@ -75,6 +75,10 @@ export const NET_GAIN_MET = `${DIR}/net-gain-met.gpkg`
 // Watercourses gaining 2.7%: above zero and below the 10% target.
 export const WATERCOURSE_ENHANCED_SHORTER = `${DIR}/watercourse-enhanced-shorter.gpkg`
 
+// The default site's baseline-stage file with long and padded area refs:
+// '   H034   ', and H050 padded with x to 99 characters, among them.
+export const LONG_PADDED_REFS_BASELINE = `${DIR}/long-and-padded-refs-baseline.gpkg`
+
 // HG001, an Enhanced hedgerow whose enhancement the Metric does not allow:
 // saved Incomplete, its proposed values cleared.
 export const HEDGEROW_ENHANCEMENT_NOT_POSSIBLE = `${DIR}/invalid-hedgerow-low-not-possible.gpkg`

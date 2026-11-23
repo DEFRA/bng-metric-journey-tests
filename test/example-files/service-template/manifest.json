@@ -213,6 +213,12 @@
       "for": "R003 Enhanced on a course 20 m shorter than its parent: watercourses gain 2.7%, above zero and below the 10% target"
     },
     {
+      "file": "long-and-padded-refs-baseline.gpkg",
+      "source": "valid/long-and-padded-refs-baseline.gpkg",
+      "sha256": "79e2367f33a4f38f79fc77a695f65c502ef1616d5daf2c79fc7c97f963411011",
+      "for": "Baseline area habitats with a padded ref (H034, three spaces each side), a 99-character ref (H050-x…) and two long or non-ASCII ones: accepted, each saved trimmed and whole"
+    },
+    {
       "file": "invalid-hedgerow-low-not-possible.gpkg",
       "source": "permutations/invalid-interventions/invalid-hedgerow-low-not-possible.gpkg",
       "sha256": "95ebe6cbc7ecb7032fc99475aff21b5374b1552dfb6ac74d9d6dcb3d804edf88",
