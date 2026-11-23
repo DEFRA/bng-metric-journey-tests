@@ -1,6 +1,6 @@
 {
   "description": "Each file here is a copy of a file in bng-metric-harness/example-files/service-template/ (source), built by the harness's corpus recipes or bng-library's generator; its README says how. Refresh them with npm run check:fixtures -- --sync, never by hand.",
-  "harnessCommit": "a7a080d02bd5a993d2d7d2bdae59d9bc25211ff0",
+  "harnessCommit": "95a03c9c2ee025b025a70448d043eca02a62c8c9",
   "files": [
     {
       "file": "small-site-baseline.gpkg",
@@ -71,7 +71,7 @@
     {
       "file": "comment-too-long.gpkg",
       "source": "attribute-problems/comment-too-long.gpkg",
-      "sha256": "493c16983981759da1809d3a03d2523347f26084c55210794bad1afb5f038894",
+      "sha256": "31f4f4a51d7a23c654d8c8acdc0a6c447a0f2c40e949cdb71fb0e468d3847b48",
       "for": "H005's post-intervention Comment is 1,151 characters: refused (TEXT_TOO_LONG)"
     },
     {
