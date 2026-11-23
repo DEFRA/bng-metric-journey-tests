@@ -1080,7 +1080,8 @@ const SERVICE_TEMPLATE_RETAINED_AREA = {
   ref: 'H002',
   habitatType: 'Other woodland; broadleaved'
 }
-const SERVICE_TEMPLATE_ENHANCED_WATERCOURSE_REF = 'R006'
+// An Enhanced vertical area habitat: vertical pages are read-only.
+const SERVICE_TEMPLATE_ENHANCED_VERTICAL_REF = 'V002'
 const SERVICE_TEMPLATE_BASELINE_LINKS = [
   { type: 'area', ref: 'H002', parentHeading: 'Habitat H002' },
   { type: 'area', ref: 'V001', parentHeading: 'Habitat V001' },
@@ -1118,8 +1119,10 @@ async function creatorFeatureId(browser, projectId, type, ref) {
   }
 }
 
+// The page heading: the ref, after the feature type on most pages ("Habitat
+// H002"), alone on a vertical area habitat's or an edit page ("V001").
 const piDetailsHeading = (page, ref) =>
-  page.getByRole('heading', { level: 1, name: new RegExp(` ${ref}$`) })
+  page.getByRole('heading', { level: 1, name: new RegExp(`(^| )${ref}$`) })
 
 test.describe('habitat-details', { tag: '@habitat-details' }, () => {
   // The whole file runs sequentially in one worker (mode 'default' overrides
@@ -4723,43 +4726,35 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
   )
 
   // ─── Save is not implemented for read-only features ─────────────────────────
-  // Created edit forms, the Enhanced area (BMD-1045) and hedgerow (BMD-1046)
-  // forms and Retained reference forms post here. The route answers 501 for every other feature,
-  // so a stale page or client gets an explicit "not implemented" response
-  // rather than a save. The handler
-  // validates the payload first (400 for a malformed body), so the request must
-  // be a well-formed save aimed at a read-only feature to reach that branch.
+  // Created and Enhanced edit forms and Retained reference forms post here.
+  // The route answers 501 for every other feature, so a stale page or client
+  // gets an explicit "not implemented" response rather than a save. The
+  // handler checks a save against its form's own schema first (400 for a
+  // malformed body), so the request must be aimed at a read-only feature to
+  // reach that branch.
+  //
+  // BNG Service template only. Since BMD-1047 made an Enhanced watercourse
+  // editable, only vertical area habitats are read-only, and only the BNG
+  // Service template has them. A legacy project has no read-only feature.
 
   test.describe(
     'Post-intervention habitat details — save not implemented for read-only features',
-    { tag: '@regression' },
+    { tag: ['@regression', SERVICE_TEMPLATE_ONLY] },
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      // An Enhanced watercourse: its page is still read-only. It was an
-      // Enhanced hedgerow until BMD-1046 made that editable.
-      test('POST /post-intervention-habitat-details for an Enhanced watercourse returns 501 Not Implemented', async ({
+      test('POST /post-intervention-habitat-details for an Enhanced vertical area habitat returns 501 Not Implemented', async ({
         browser,
         page
       }) => {
-        const shared = isServiceTemplateRun()
-          ? await getRunAllUnitTypesPostInterventionProject(browser)
-          : await getAllTypesProject(browser)
-        const enhancedWatercourse = isServiceTemplateRun()
-          ? {
-              ref: SERVICE_TEMPLATE_ENHANCED_WATERCOURSE_REF,
-              featureId: await featureIdByRef(
-                page,
-                shared.id,
-                'watercourse',
-                SERVICE_TEMPLATE_ENHANCED_WATERCOURSE_REF
-              )
-            }
-          : {
-              ref: ENHANCED_UPLIFT_WATERCOURSE_REF,
-              featureId: shared.enhancedUpliftWatercourse
-            }
+        const shared = await getRunAllUnitTypesPostInterventionProject(browser)
+        const featureId = await featureIdByRef(
+          page,
+          shared.id,
+          'area',
+          SERVICE_TEMPLATE_ENHANCED_VERTICAL_REF
+        )
         // No read-only page renders a form, so there is no crumb-carrying HTML
         // form to submit via a real browser action. Any response sets the
         // httpOnly `crumb` cookie (@hapi/crumb, restful: false); read it from
@@ -4774,13 +4769,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           {
             data: {
               projectId: shared.id,
-              featureId: enhancedWatercourse.featureId,
-              ref: enhancedWatercourse.ref,
-              habitatType: '',
-              condition: '',
-              strategicSignificance: '',
-              advanceYears: '',
-              delayYears: '',
+              featureId,
+              ref: SERVICE_TEMPLATE_ENHANCED_VERTICAL_REF,
               crumb: crumbCookie.value
             }
           }
