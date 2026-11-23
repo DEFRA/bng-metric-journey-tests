@@ -36,7 +36,20 @@ export const DUPLICATE_HABITAT_REF = `${DIR}/duplicate-habitat-ref.gpkg`
 // The file checks each upload refuses, one fault to a file. Each holds both
 // stages unless its name ends -baseline.
 export const HABITAT_REF_INVALID_CHARACTERS = `${DIR}/habitat-ref-invalid-characters.gpkg`
-export const HABITAT_REF_MISSING = `${DIR}/missing-habitat-ref.gpkg`
+// An area habitat, a hedgerow and a watercourse with no Habitat Ref, in the
+// Baseline tables: one error for the three.
+export const HABITAT_REF_MISSING_EVERY_LAYER = `${DIR}/missing-habitat-ref-every-layer.gpkg`
+// A habitat with no Habitat Ref beside a comment that is not valid UTF-8.
+export const HABITAT_REF_MISSING_AND_COMMENT_INVALID = `${DIR}/missing-habitat-ref-and-comment-invalid.gpkg`
+// H005's post-intervention Comment: 1,151 characters, and holding U+FFFD.
+export const COMMENT_TOO_LONG = `${DIR}/comment-too-long.gpkg`
+export const COMMENT_INVALID_CHARACTERS = `${DIR}/comment-invalid-characters.gpkg`
+// Incomplete baseline habitats, in both stages: H002; and H002, HG001 and R007.
+export const BASELINE_AREA_INCOMPLETE = `${DIR}/baseline-area-incomplete.gpkg`
+export const BASELINE_INCOMPLETE_EVERY_LAYER = `${DIR}/baseline-incomplete-every-layer.gpkg`
+// H005, Created as Lowland meadows (Very High) in its post-intervention row
+// only.
+export const DISTINCTIVENESS_POST_INTERVENTION_ONLY = `${DIR}/distinctiveness-post-intervention-only.gpkg`
 // The blank Habitat Ref is on a post-intervention row only, so only the
 // baseline + post-intervention upload refuses it.
 export const POST_INTERVENTION_HABITAT_REF_BLANK = `${DIR}/degrade-habitat-ref-blank.gpkg`
@@ -46,6 +59,10 @@ export const DISTINCTIVENESS_OUT_OF_SCOPE = `${DIR}/distinctiveness-out-of-scope
 export const IRREPLACEABLE_TREE = `${DIR}/irreplaceable-tree.gpkg`
 export const REDLINE_SELF_INTERSECTING = `${DIR}/self-intersecting-redline-baseline.gpkg`
 export const REDLINE_NOT_IN_ENGLAND = `${DIR}/redline-not-in-england-baseline.gpkg`
+// An empty Red Line Boundary table.
+export const REDLINE_MISSING = `${DIR}/redline-missing-baseline.gpkg`
+// Habitat parcels that do not tile the red line boundary.
+export const AREA_SUM_MISMATCH = `${DIR}/area-sum-mismatch-baseline.gpkg`
 // H002, drawn as a bowtie.
 export const BOWTIE_PARCEL = `${DIR}/bowtie-parcel-baseline.gpkg`
 // H002 and H003 overlap.
@@ -64,9 +81,10 @@ export const REDLINE_MULTIPLE_GEOMETRY_COLUMNS = `${DIR}/multiple-geometry-colum
 // Red Line Boundary declares POINT geometry.
 export const REDLINE_WRONG_GEOMETRY_TYPE = `${DIR}/wrong-geometry-type-in-red-line-boundary.gpkg`
 
-// H001, a Created area habitat with both advance and delay years: accepted
-// and left unpriced. H004, Created 3 years in advance, is priced.
-export const ADVANCE_AND_DELAY_BOTH_SET = `${DIR}/advance-delay-both-set.gpkg`
+// Advance and delay both set on H005, HG009 and R003 (Created) and H001, HG002
+// and R006 (Enhanced): accepted and left unpriced. H006, Enhanced with neither,
+// is priced.
+export const ADVANCE_AND_DELAY_EVERY_LAYER = `${DIR}/advance-delay-both-set-every-layer.gpkg`
 
 // Each Enhances one baseline habitat the service cannot price an enhancement
 // of: H001, a Medium area habitat in Good condition; R001, a Medium

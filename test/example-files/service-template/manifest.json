@@ -1,6 +1,6 @@
 {
   "description": "Each file here is a copy of a file in bng-metric-harness/example-files/service-template/ (source), built by the harness's corpus recipes or bng-library's generator; its README says how. Refresh them with npm run check:fixtures -- --sync, never by hand.",
-  "harnessCommit": "ebe73bf0a1f96d64fddc7a802c0b51aeaaf17eea",
+  "harnessCommit": "a7a080d02bd5a993d2d7d2bdae59d9bc25211ff0",
   "files": [
     {
       "file": "small-site-baseline.gpkg",
@@ -57,10 +57,46 @@
       "for": "A baseline area habitat whose Habitat Ref holds the character a decoder puts in place of invalid UTF-8: refused (HABITAT_REF_INVALID_CHARACTERS)"
     },
     {
-      "file": "missing-habitat-ref.gpkg",
-      "source": "attribute-problems/missing-habitat-ref.gpkg",
-      "sha256": "0b05b25016e5a12f4fbae399c3917901c9c8a09d28c95c8eb53e8c96c25726e2",
-      "for": "A baseline area habitat whose Habitat Ref is only spaces: refused (HABITAT_REF_MISSING)"
+      "file": "missing-habitat-ref-every-layer.gpkg",
+      "source": "attribute-problems/missing-habitat-ref-every-layer.gpkg",
+      "sha256": "1d67e8e5aa9e08dd9eb00df17a88ae43e955e8cc11e8144b9da6f5ba2369b49f",
+      "for": "A baseline area habitat, hedgerow (HG004) and watercourse (R002) with no Habitat Ref: refused as one HABITAT_REF_MISSING error"
+    },
+    {
+      "file": "missing-habitat-ref-and-comment-invalid.gpkg",
+      "source": "attribute-problems/missing-habitat-ref-and-comment-invalid.gpkg",
+      "sha256": "f4591dbdffa604a4cb5ee9ba779ddaca666f71ea59c354b1774c5ef6ac190870",
+      "for": "A habitat with no Habitat Ref, in both stages, and a comment holding U+FFFD: refused at the baseline + post-intervention upload (HABITAT_REF_MISSING and COMMENT_INVALID_CHARACTERS)"
+    },
+    {
+      "file": "comment-too-long.gpkg",
+      "source": "attribute-problems/comment-too-long.gpkg",
+      "sha256": "493c16983981759da1809d3a03d2523347f26084c55210794bad1afb5f038894",
+      "for": "H005's post-intervention Comment is 1,151 characters: refused (TEXT_TOO_LONG)"
+    },
+    {
+      "file": "comment-invalid-characters.gpkg",
+      "source": "attribute-problems/comment-invalid-characters.gpkg",
+      "sha256": "2a883feda3f284d5da9aa7bd6ec1719dee786a1fc7f1b3fc1398bd0e7a54023b",
+      "for": "H005's post-intervention Comment holds U+FFFD: refused (COMMENT_INVALID_CHARACTERS)"
+    },
+    {
+      "file": "baseline-area-incomplete.gpkg",
+      "source": "attribute-problems/baseline-area-incomplete.gpkg",
+      "sha256": "a38ef698d77305edd051817b03898d2520715e5439c3ce7a50c1605543623791",
+      "for": "H002 with no Baseline Condition in both stages: refused at the baseline + post-intervention upload (BASELINE_HABITATS_INCOMPLETE naming H002)"
+    },
+    {
+      "file": "baseline-incomplete-every-layer.gpkg",
+      "source": "attribute-problems/baseline-incomplete-every-layer.gpkg",
+      "sha256": "d06c7604c35615d8aa104fa137c86fb7e5844d768a20294f2b03a47c83a76b58",
+      "for": "H002, HG001 and R007 incomplete in both stages: refused at the baseline + post-intervention upload (BASELINE_HABITATS_INCOMPLETE, count 3)"
+    },
+    {
+      "file": "distinctiveness-post-intervention-only.gpkg",
+      "source": "attribute-problems/distinctiveness-post-intervention-only.gpkg",
+      "sha256": "174d90b5931c0ba4b2af1f01b5269483ddeb7f1cf462901d96f2bce33f1b8440",
+      "for": "H005, Created as Lowland meadows (Very High) in its post-intervention row only: refused (HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE)"
     },
     {
       "file": "degrade-habitat-ref-blank.gpkg",
@@ -81,10 +117,10 @@
       "for": "T025, a Retained tree marked irreplaceable in both stages: refused (IRREPLACEABLE_TREE)"
     },
     {
-      "file": "advance-delay-both-set.gpkg",
-      "source": "attribute-problems/advance-delay-both-set.gpkg",
-      "sha256": "ef252d6b4bd4e0934f16252427114fb37e11904fb1bdf9b6610324ab71dde009",
-      "for": "H001, a Created area habitat with both advance and delay years: accepted, saved Incomplete with both cleared"
+      "file": "advance-delay-both-set-every-layer.gpkg",
+      "source": "incomplete/advance-delay-both-set-every-layer.gpkg",
+      "sha256": "2a632bece3b30515a71c1e303fb6cf63eb27ba1b107134a2c5a075f1e7a28ee5",
+      "for": "Advance and delay both set on H005, HG009 and R003 (Created) and H001, HG002 and R006 (Enhanced): accepted, those saved Incomplete"
     },
     {
       "file": "tree-enhanced-from-good.gpkg",
@@ -121,6 +157,18 @@
       "source": "spatial-problems/redline-not-in-england-baseline.gpkg",
       "sha256": "269c357527009af086b3123773fb93d04fd8fe6c3fbe617316446bd791dc5fd2",
       "for": "A red line boundary in Wales: refused (REDLINE_OUTSIDE_ENGLAND and AREA_SUM_MISMATCH)"
+    },
+    {
+      "file": "redline-missing-baseline.gpkg",
+      "source": "spatial-problems/redline-missing-baseline.gpkg",
+      "sha256": "6c7ca80c029e5547c6e09f7a0b3643f43d75c0dab1ea69aebb48b42b4a2c286b",
+      "for": "An empty Red Line Boundary table: refused (NO_REDLINE)"
+    },
+    {
+      "file": "area-sum-mismatch-baseline.gpkg",
+      "source": "spatial-problems/area-sum-mismatch-baseline.gpkg",
+      "sha256": "e506a621935921a2549afe0d650c72c4fe03d72541ae6ce35491b36dfc9c26a8",
+      "for": "Habitat parcels that do not tile the red line boundary: refused (AREA_SUM_MISMATCH)"
     },
     {
       "file": "bowtie-parcel-baseline.gpkg",
