@@ -26,8 +26,10 @@ import {
 } from '@utils/summary-projects.js'
 import {
   DEFAULT_SITE,
+  CREATED_HEDGEROW_INCOMPLETE,
   HEDGEROW_ENHANCEMENT_NOT_POSSIBLE,
-  TRADING_ALL_MET
+  TRADING_ALL_MET,
+  WATERCOURSE_ENCROACHMENT_REDUCED
 } from '@utils/service-template-files.js'
 import { gridRefName } from '@utils/habitat-ref-display.js'
 import { readTileUnits } from '@utils/tile-value.js'
@@ -5383,6 +5385,53 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         ])
       })
 
+      // HG015 with no target condition, advance or delay: saved Incomplete,
+      // its type and significance kept.
+      test('an incomplete Created hedgerow shows its saved values, default options and zero units', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const shared = await getSharedProject(
+          browser,
+          'st-created-hedgerow-incomplete',
+          { piFile: CREATED_HEDGEROW_INCOMPLETE },
+          async () => ({})
+        )
+        expect(
+          await hedgerowRowByRef(page, shared.id, ST_CREATED_HEDGEROW_REF)
+        ).toMatchObject({ Status: STATUS_INCOMPLETE, Units: '0.00' })
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'hedgerow',
+          ST_CREATED_HEDGEROW_REF
+        )
+
+        await expect(details.habitatReferenceInput).toHaveValue(
+          ST_CREATED_HEDGEROW_REF
+        )
+        await expectCreatedAreaSelections(details, {
+          ...ST_CREATED_HEDGEROW_SELECTIONS,
+          condition: '',
+          advance: '',
+          delay: ''
+        })
+        await expect(
+          details.targetConditionSelect.getByRole('option')
+        ).toHaveText(HEDGEROW_CREATION_CONDITIONS)
+        await expectCreatedAreaValues(details, {
+          ...ST_CREATED_HEDGEROW_VALUES,
+          standardTime: '',
+          finalTime: ''
+        })
+        await expect(details.standardTimeToTargetKey).toBeVisible()
+        await expect(details.finalTimeToTargetMultiplierKey).toBeVisible()
+        await expect(details.habitatUnitsValue).toHaveText('0.00')
+        await expect(details.saveButton).toBeVisible()
+        await expect(details.uploadFileButton).toBeVisible()
+      })
+
       test('choosing a Created hedgerow type resets the target condition and shows its values, and clearing it blanks them', async ({
         browser,
         page,
@@ -5968,13 +6017,22 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(details.broadHabitatKey).toBeHidden()
       })
 
-      // Re-meandered onto a longer route, it is priced on its own length.
+      // Re-meandered onto a longer route, it is priced on its own length. In
+      // this copy of the default site its encroachments are reduced on both
+      // sides, so the form shows, and prices, the proposed ones: Minor (0.8)
+      // and No Encroachment/No Encroachment (1), not its baseline's Major and
+      // Moderate/Minor.
       test('an Enhanced watercourse shows its own length, its proposed encroachments and its section-2 values', async ({
         browser,
         page,
         postInterventionHabitatDetailsPage: details
       }) => {
-        const shared = await getServiceTemplateLinearProject(browser)
+        const shared = await getSharedProject(
+          browser,
+          'st-watercourse-encroachment-reduced',
+          { piFile: WATERCOURSE_ENCROACHMENT_REDUCED },
+          async () => ({})
+        )
         const units = await unitsByRef(
           page,
           shared.id,
@@ -5992,8 +6050,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           type: 'Canals',
           significance: 'Low',
           condition: 'Good',
-          watercourse: 'Major',
-          riparian: 'Moderate/Minor',
+          watercourse: 'Minor',
+          riparian: 'No Encroachment/No Encroachment',
           advance: '0',
           delay: '0'
         })
@@ -6010,6 +6068,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           STALE_TIME_TO_TARGET_TEXT
         )
         await expect(details.habitatUnitsValue).toHaveText(units)
+        // The backend's units on the proposed encroachments: 0.69 on the
+        // default site, with its baseline ones.
+        expect(units).toBe('1.23')
       })
 
       test('a Created watercourse renders the Created edit form', async ({

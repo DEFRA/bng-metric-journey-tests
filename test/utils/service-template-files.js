@@ -78,3 +78,12 @@ export const WATERCOURSE_ENHANCED_SHORTER = `${DIR}/watercourse-enhanced-shorter
 // HG001, an Enhanced hedgerow whose enhancement the Metric does not allow:
 // saved Incomplete, its proposed values cleared.
 export const HEDGEROW_ENHANCEMENT_NOT_POSSIBLE = `${DIR}/invalid-hedgerow-low-not-possible.gpkg`
+
+// The default site with the Created HG015 given no target condition or
+// timing: saved Incomplete.
+export const CREATED_HEDGEROW_INCOMPLETE = `${DIR}/hedgerow-created-no-condition-or-timing.gpkg`
+
+// The default site with the Enhanced R006's encroachments reduced on both
+// sides: Minor and No Encroachment/No Encroachment, from Major and
+// Moderate/Minor.
+export const WATERCOURSE_ENCROACHMENT_REDUCED = `${DIR}/watercourse-enhanced-encroachment-reduced.gpkg`
