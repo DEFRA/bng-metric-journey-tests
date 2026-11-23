@@ -4987,13 +4987,13 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
-      test.describe.configure({
-        mode: 'serial',
-        timeout: SHARED_BUILD_TEST_TIMEOUT
-      })
+      test.describe.configure({ timeout: SHARED_BUILD_TEST_TIMEOUT })
 
       // Its own copy of the default site: these tests save edits, which the
-      // shared read-only project must not see. Each edits a different feature.
+      // shared read-only project must not see. Each edits a different feature,
+      // so they do not depend on one another and need no serial mode: a failed
+      // test restarts the worker, whose beforeAll builds a fresh copy, so a
+      // retry still finds the saved significance it starts from.
       let projectId
       test.beforeAll(async ({ browser }) => {
         ;({ id: projectId } = await buildPostInterventionOnlyProject(
