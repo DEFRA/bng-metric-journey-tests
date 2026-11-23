@@ -1,6 +1,6 @@
 {
   "description": "Each file here is a copy of a file in bng-metric-harness/example-files/service-template/ (source), built by the harness's corpus recipes or bng-library's generator; its README says how. Refresh them with npm run check:fixtures -- --sync, never by hand.",
-  "harnessCommit": "95b3ff211a65f8b4e2edcccf1875abf5d9ab1bec",
+  "harnessCommit": "ebe73bf0a1f96d64fddc7a802c0b51aeaaf17eea",
   "files": [
     {
       "file": "small-site-baseline.gpkg",
@@ -211,6 +211,12 @@
       "source": "permutations/intervention/watercourse-enhanced-shorter.gpkg",
       "sha256": "1aa030df340b6c58bb8fd03d811b6e66d2c13ffc7c6b3f49cd99dcdcc49bcda9",
       "for": "R003 Enhanced on a course 20 m shorter than its parent: watercourses gain 2.7%, above zero and below the 10% target"
+    },
+    {
+      "file": "invalid-hedgerow-low-not-possible.gpkg",
+      "source": "permutations/invalid-interventions/invalid-hedgerow-low-not-possible.gpkg",
+      "sha256": "95ebe6cbc7ecb7032fc99475aff21b5374b1552dfb6ac74d9d6dcb3d804edf88",
+      "for": "HG001, a Native hedgerow enhanced to an Ecologically valuable line of trees, which the Metric gives no time to target: accepted, HG001 saved Incomplete with its enhancement cleared"
     }
   ]
 }
