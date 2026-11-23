@@ -74,3 +74,11 @@ export const NET_GAIN_MET = `${DIR}/net-gain-met.gpkg`
 
 // Watercourses gaining 2.7%: above zero and below the 10% target.
 export const WATERCOURSE_ENHANCED_SHORTER = `${DIR}/watercourse-enhanced-shorter.gpkg`
+
+// H005, a Created area habitat with no target condition or timing: saved
+// Incomplete, with no units.
+export const AREA_CREATED_INCOMPLETE = `${DIR}/area-created-no-condition-or-timing.gpkg`
+
+// H004 to H006, Enhanced Other neutral grassland with no target condition or
+// strategic significance: each saved Incomplete, with no units.
+export const AREA_ENHANCED_INCOMPLETE = `${DIR}/invalid-data-incomplete.gpkg`

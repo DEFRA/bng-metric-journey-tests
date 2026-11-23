@@ -1,6 +1,6 @@
 {
   "description": "Each file here is a copy of a file in bng-metric-harness/example-files/service-template/ (source), built by the harness's corpus recipes or bng-library's generator; its README says how. Refresh them with npm run check:fixtures -- --sync, never by hand.",
-  "harnessCommit": "95b3ff211a65f8b4e2edcccf1875abf5d9ab1bec",
+  "harnessCommit": "ebe73bf0a1f96d64fddc7a802c0b51aeaaf17eea",
   "files": [
     {
       "file": "small-site-baseline.gpkg",
@@ -199,6 +199,12 @@
       "source": "permutations/data-completeness/data-complete.gpkg",
       "sha256": "5e1ac9e9698ba16c19735f9dd47974b4cea28126a9e6b85f99e7ae1d708ae38a",
       "for": "Every field filled: area habitats +34.9% and trading Met, while hedgerows (-24.1%) and watercourses (-77.9%) are Not met"
+    },
+    {
+      "file": "invalid-data-incomplete.gpkg",
+      "source": "permutations/data-completeness/invalid-data-incomplete.gpkg",
+      "sha256": "10912578eb69cfa32160c6fba1d65fa46dafd6ec56ac6cbaf588050b282d38ec",
+      "for": "H004 to H006, Enhanced Other neutral grassland with no target condition or strategic significance: accepted, each saved Incomplete with zero units"
     },
     {
       "file": "net-gain-met.gpkg",
