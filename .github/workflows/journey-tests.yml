@@ -29,9 +29,11 @@ on:
         required: false
         default: ''
         type: string
-      # The legacy run is off by default while the BNG Service template run is
-      # built (BMD-1088), to keep CI short. Put the default back to both, here,
-      # in workflow_call below and in the runs step, when that work is done.
+      # The legacy run is off by default. It was turned off to keep CI short
+      # while BMD-1088 built the BNG Service template run, and frontend changes
+      # made since then have broken some legacy tests. BMD-1088's last PR fixes
+      # them and puts the default back to both, here, in workflow_call below
+      # and in the runs step.
       template-run:
         description: 'Which template run: service-template (SERVICE_TEMPLATE_ENABLED=true), legacy (false) or both'
         required: false
