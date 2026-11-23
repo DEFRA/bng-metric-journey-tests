@@ -21,8 +21,10 @@ import {
 import { UNITS_TWO_DP_PATTERN } from '@pages/post-intervention-habitat-details.page.js'
 import {
   LONG_PADDED_REFS,
+  buildPostInterventionOnlyProject,
   getLongPaddedRefsProject
 } from '@utils/summary-projects.js'
+import { DEFAULT_SITE } from '@utils/service-template-files.js'
 import { gridRefName } from '@utils/habitat-ref-display.js'
 import { readTileUnits } from '@utils/tile-value.js'
 import { STATUS_COMPLETE, STATUS_INCOMPLETE } from '@utils/unit-type-labels.js'
@@ -46,6 +48,7 @@ const SHARED_BUILD_TEST_TIMEOUT = 180_000
 const PROJECT_LABEL = 'PI habitat details test'
 const RETAINED = 'Retained'
 const CREATED = 'Created'
+const ENHANCED = 'Enhanced'
 const DETAILS_URL_PATTERN = /\/post-intervention-habitat-details/
 const BASELINE_DETAILS_URL_PATTERN = /\/baseline-habitat-details/
 
@@ -1117,6 +1120,104 @@ async function creatorFeatureId(browser, projectId, type, ref) {
   } finally {
     await context.close()
   }
+}
+
+// BMD-1088: an edit on each BNG Service template edit form, the default site's
+// Created and Enhanced area habitat, hedgerow, watercourse and tree. Each
+// changes the strategic significance alone, which every form offers and no
+// lineage rule constrains, so the units move by the High multiplier (1.15)
+// and nothing else. The units are the backend's for the same save, replayed
+// through its PUT route's own payload schema, edit check and
+// applyFeatureUpdate. A tree counts towards the area habitats tile.
+const SERVICE_TEMPLATE_SIGNIFICANCE_EDITS = [
+  {
+    type: 'area',
+    ref: 'H014',
+    feature: 'area habitat',
+    category: CREATED,
+    from: 'High',
+    to: 'Low',
+    before: 8.2004,
+    after: 7.1308
+  },
+  {
+    type: 'area',
+    ref: 'H006',
+    feature: 'area habitat',
+    category: ENHANCED,
+    from: 'Low',
+    to: 'High',
+    before: 5.8793,
+    after: 6.7612
+  },
+  {
+    type: 'hedgerow',
+    ref: 'HG009',
+    feature: 'hedgerow',
+    category: CREATED,
+    from: 'Low',
+    to: 'High',
+    before: 0.5285,
+    after: 0.6077
+  },
+  {
+    type: 'hedgerow',
+    ref: 'HG005',
+    feature: 'hedgerow',
+    category: ENHANCED,
+    from: 'Low',
+    to: 'High',
+    before: 5.4028,
+    after: 6.2132
+  },
+  {
+    type: 'watercourse',
+    ref: 'R004',
+    feature: 'watercourse',
+    category: CREATED,
+    from: 'Low',
+    to: 'High',
+    before: 0.5244,
+    after: 0.6031
+  },
+  {
+    type: 'watercourse',
+    ref: 'R006',
+    feature: 'watercourse',
+    category: ENHANCED,
+    from: 'Low',
+    to: 'High',
+    before: 0.6945,
+    after: 0.7987
+  },
+  {
+    type: 'area',
+    ref: 'T005',
+    feature: 'tree',
+    category: CREATED,
+    from: 'High',
+    to: 'Low',
+    before: 0.1615,
+    after: 0.1405
+  },
+  {
+    type: 'area',
+    ref: 'T013',
+    feature: 'tree',
+    category: ENHANCED,
+    from: 'Low',
+    to: 'High',
+    before: 0.1068,
+    after: 0.1228
+  }
+]
+const SIGNIFICANCE_DISPLAY = { Low: 'Low (1)', High: 'High (1.15)' }
+
+// A unit type's post-intervention tile, read from the page already open.
+function piTileUnits(page, type) {
+  return type === 'area'
+    ? areaPostInterventionUnits(page)
+    : piPage(page, type).tileUnits(POST_INTERVENTION_TILE)
 }
 
 // The page heading: the ref, after the feature type on most pages ("Habitat
@@ -4875,6 +4976,67 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           )
         }
       })
+    }
+  )
+
+  // ─── BNG Service template edit forms (BMD-1088) ─────────────────────────────
+
+  test.describe(
+    'Post-intervention habitat details — BNG Service template edits',
+    { tag: ['@regression', SERVICE_TEMPLATE_ONLY] },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+      test.describe.configure({ timeout: SHARED_BUILD_TEST_TIMEOUT })
+
+      // Its own copy of the default site: these tests save edits, which the
+      // shared read-only project must not see. Each edits a different feature,
+      // so they do not depend on one another and need no serial mode: a failed
+      // test restarts the worker, whose beforeAll builds a fresh copy, so a
+      // retry still finds the saved significance it starts from.
+      let projectId
+      test.beforeAll(async ({ browser }) => {
+        ;({ id: projectId } = await buildPostInterventionOnlyProject(
+          browser,
+          DEFAULT_SITE
+        ))
+      })
+
+      for (const edit of SERVICE_TEMPLATE_SIGNIFICANCE_EDITS) {
+        test(`${edit.category} ${edit.feature} ${edit.ref} saved at ${edit.to} strategic significance recalculates its units, its row and the total`, async ({
+          page,
+          postInterventionHabitatDetailsPage: details
+        }) => {
+          await openPiTabFor(page, projectId, edit.type, edit.ref)
+          const totalBefore = await piTileUnits(page, edit.type)
+
+          await openPiFeatureDetails(page, projectId, edit.type, edit.ref)
+          await expect(details.strategicSignificanceSelect).toHaveValue(
+            edit.from
+          )
+          await details.strategicSignificanceSelect.selectOption(edit.to)
+          await details.saveButton.click()
+
+          await expectOnPiPage(page, projectId, edit.type)
+          const totalAfter = await piTileUnits(page, edit.type)
+          expect(
+            Math.abs(totalAfter - (totalBefore - edit.before + edit.after))
+          ).toBeLessThan(TILE_ROUNDING)
+
+          const { unitPage, label } = await openPiTabFor(
+            page,
+            projectId,
+            edit.type,
+            edit.ref
+          )
+          expect(label).toBe(edit.category)
+          expect(await unitPage.rowByRef(label, edit.ref)).toMatchObject({
+            Status: STATUS_COMPLETE,
+            Units: edit.after.toFixed(2),
+            'Strategic significance': SIGNIFICANCE_DISPLAY[edit.to]
+          })
+        })
+      }
     }
   )
 })

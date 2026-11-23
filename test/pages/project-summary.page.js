@@ -45,6 +45,8 @@ export class ProjectSummaryPage extends BasePage {
     this.uploadFileButton = page.getByRole('button', { name: 'Upload file' })
     this.navigation = page.getByRole('navigation', { name: 'Project summary' })
     this.currentNavItem = this.navigation.getByText('Summary', { exact: true })
+    // The project details section BMD-849 removed from the page (frontend
+    // PR#545): kept to assert it stays gone.
     this.projectDetailsHeading = page.getByRole('heading', {
       name: 'View project details',
       level: 2
