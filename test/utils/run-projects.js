@@ -6,6 +6,8 @@
 // cache, so a project either module builds is built once per worker.
 import { isServiceTemplateRun } from '@utils/template-run.js'
 import {
+  AREA_CREATED_INCOMPLETE,
+  AREA_ENHANCED_INCOMPLETE,
   AREA_TRADING_DEFICIT,
   AREA_TRADING_DEFICIT_BASELINE,
   BASELINE_INCOMPLETE_EVERY_LAYER,
@@ -17,9 +19,8 @@ import {
   HEDGEROW_INVALID_ENHANCEMENT,
   HEDGEROW_LOW_DEFICIT_VERY_LOW,
   HEDGEROW_SIGNIFICANCE_BLANK,
-  INCOMPLETE_ENHANCEMENTS,
+  LONG_AND_PADDED_REFS,
   LONG_PADDED_REFS_BASELINE,
-  LONG_PADDED_REFS_SITE,
   LOW_LOSS_COVERED,
   NET_GAIN_MET,
   NO_RETAINED_AREA,
@@ -445,7 +446,18 @@ export function getServiceTemplateWatercourseBelowTargetProject(browser) {
 export function getServiceTemplateIncompleteEnhancementsProject(browser) {
   return getServiceTemplatePostInterventionProject(
     browser,
-    INCOMPLETE_ENHANCEMENTS
+    AREA_ENHANCED_INCOMPLETE
+  )
+}
+
+/**
+ * The default site with H005, one of its many Created area habitats, saved
+ * Incomplete: area-created-no-condition-or-timing.gpkg.
+ */
+export function getServiceTemplateCreatedIncompleteProject(browser) {
+  return getServiceTemplatePostInterventionProject(
+    browser,
+    AREA_CREATED_INCOMPLETE
   )
 }
 
@@ -506,7 +518,7 @@ export function getRunWatercourseGainProject(browser) {
 export function getServiceTemplateLongRefsProject(browser) {
   return getServiceTemplatePostInterventionProject(
     browser,
-    LONG_PADDED_REFS_SITE
+    LONG_AND_PADDED_REFS
   )
 }
 

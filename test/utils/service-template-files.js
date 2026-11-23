@@ -75,9 +75,13 @@ export const NET_GAIN_MET = `${DIR}/net-gain-met.gpkg`
 // Watercourses gaining 2.7%: above zero and below the 10% target.
 export const WATERCOURSE_ENHANCED_SHORTER = `${DIR}/watercourse-enhanced-shorter.gpkg`
 
-// Area habitats H001-H003 Enhanced and Complete, and H004-H006 Enhanced with no
-// Proposed Condition or Strategic Significance, saved Incomplete and unpriced.
-export const INCOMPLETE_ENHANCEMENTS = `${DIR}/invalid-data-incomplete.gpkg`
+// H005, a Created area habitat with no target condition or timing: saved
+// Incomplete, with no units.
+export const AREA_CREATED_INCOMPLETE = `${DIR}/area-created-no-condition-or-timing.gpkg`
+
+// H004 to H006, Enhanced Other neutral grassland with no target condition or
+// strategic significance: each saved Incomplete, with no units.
+export const AREA_ENHANCED_INCOMPLETE = `${DIR}/invalid-data-incomplete.gpkg`
 
 // HG001 Enhanced into a hedgerow type the metric does not allow, so its
 // proposed values are nulled and it is saved Incomplete; HG002 and HG003 are
@@ -92,10 +96,12 @@ export const HEDGEROW_LOW_DEFICIT_VERY_LOW = `${DIR}/trading-trade-down.gpkg`
 // band below zero, with no Medium surplus to cover it.
 export const WATERCOURSE_LOW_DEFICIT = `${DIR}/invalid-watercourse-culvert-enhanced.gpkg`
 
-// The default site with four Retained area habitats given long, non-ASCII and
-// space-padded Habitat Refs, and its baseline-stage file.
+// The default site with four Retained area habitats renamed in both stages:
+// H034 padded with three spaces each side, H029 `Étang-du-Moulin-Ælfrīc`.
+export const LONG_AND_PADDED_REFS = `${DIR}/long-and-padded-refs.gpkg`
+
+// Its baseline-stage file.
 export const LONG_PADDED_REFS_BASELINE = `${DIR}/long-and-padded-refs-baseline.gpkg`
-export const LONG_PADDED_REFS_SITE = `${DIR}/long-and-padded-refs.gpkg`
 
 // A baseline-stage file with one incomplete habitat per layer: H002 and HG001
 // with no Baseline Condition, R007 with no riparian encroachment.

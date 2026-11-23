@@ -216,7 +216,7 @@
       "file": "invalid-data-incomplete.gpkg",
       "source": "permutations/data-completeness/invalid-data-incomplete.gpkg",
       "sha256": "10912578eb69cfa32160c6fba1d65fa46dafd6ec56ac6cbaf588050b282d38ec",
-      "for": "Area habitats H001-H003 Enhanced and Complete, H004-H006 Enhanced with no Proposed Condition or Strategic Significance: accepted, saved Incomplete and unpriced"
+      "for": "H004 to H006, Enhanced Other neutral grassland with no target condition or strategic significance: accepted, each saved Incomplete with zero units"
     },
     {
       "file": "invalid-hedgerow-medium-type-change.gpkg",
@@ -246,7 +246,7 @@
       "file": "long-and-padded-refs.gpkg",
       "source": "valid/long-and-padded-refs.gpkg",
       "sha256": "5cd1016d4d4eb88a9ea98b514a4b8136c11ef0063a4b021aae0595275aab5b09",
-      "for": "The default site with four Retained area habitats given long, non-ASCII and space-padded Habitat Refs in both stages: accepted, the padded ref trimmed"
+      "for": "The default site with four Retained area habitats renamed in both stages, H034 padded with three spaces each side and H029 a ref with letters outside ASCII: accepted, the padded ref saved trimmed and the others whole"
     },
     {
       "file": "baseline-incomplete-every-layer-baseline.gpkg",
