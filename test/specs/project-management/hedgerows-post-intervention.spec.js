@@ -221,6 +221,12 @@ const SERVICE_TEMPLATE_INVALID_ENHANCEMENT_REF = 'HG001'
 // hedgerow-enhanced-significance-blank.gpkg: HG002, Enhanced to Good with no
 // Proposed Strategic Significance.
 const SERVICE_TEMPLATE_SIGNIFICANCE_BLANK_REF = 'HG002'
+// The proposed values the file gives HG002, which the import keeps: Good, with
+// no years created in advance and no delay.
+const SERVICE_TEMPLATE_SIGNIFICANCE_BLANK_KEPT = {
+  targetCondition: 'Good',
+  years: '0 years'
+}
 
 const detailsHrefPattern = (projectId) =>
   new RegExp(
@@ -1199,9 +1205,12 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         expect(row.Units).toBe('0.00')
         expect(row.Distinctiveness).toBe('')
         expect(row['Strategic significance']).toBe('')
-        expect(row['Target condition']).toMatch(LABEL_ONLY)
-        expect(row.Advance).toMatch(YEARS)
-        expect(row.Delay).toMatch(YEARS)
+        // The file's own values, unpriced: no score beside the condition.
+        expect(row['Target condition']).toBe(
+          SERVICE_TEMPLATE_SIGNIFICANCE_BLANK_KEPT.targetCondition
+        )
+        expect(row.Advance).toBe(SERVICE_TEMPLATE_SIGNIFICANCE_BLANK_KEPT.years)
+        expect(row.Delay).toBe(SERVICE_TEMPLATE_SIGNIFICANCE_BLANK_KEPT.years)
         expect(row['Standard difficulty']).toBe('')
       })
 
