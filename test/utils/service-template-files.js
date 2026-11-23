@@ -78,3 +78,15 @@ export const WATERCOURSE_ENHANCED_SHORTER = `${DIR}/watercourse-enhanced-shorter
 // The default site's baseline-stage file with long and padded area refs:
 // '   H034   ', and H050 padded with x to 99 characters, among them.
 export const LONG_PADDED_REFS_BASELINE = `${DIR}/long-and-padded-refs-baseline.gpkg`
+
+// H005, a Created area habitat with no target condition or timing: saved
+// Incomplete, with no units.
+export const AREA_CREATED_INCOMPLETE = `${DIR}/area-created-no-condition-or-timing.gpkg`
+
+// H004 to H006, Enhanced Other neutral grassland with no target condition or
+// strategic significance: each saved Incomplete, with no units.
+export const AREA_ENHANCED_INCOMPLETE = `${DIR}/invalid-data-incomplete.gpkg`
+
+// The default site with four Retained area habitats renamed in both stages:
+// H034 padded with three spaces each side, H029 `Étang-du-Moulin-Ælfrīc`.
+export const LONG_AND_PADDED_REFS = `${DIR}/long-and-padded-refs.gpkg`
