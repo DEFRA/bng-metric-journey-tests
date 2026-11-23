@@ -1,6 +1,6 @@
 {
   "description": "Each file here is a copy of a file in bng-metric-harness/example-files/service-template/ (source), built by the harness's corpus recipes or bng-library's generator; its README says how. Refresh them with npm run check:fixtures -- --sync, never by hand.",
-  "harnessCommit": "95b3ff211a65f8b4e2edcccf1875abf5d9ab1bec",
+  "harnessCommit": "a7a080d02bd5a993d2d7d2bdae59d9bc25211ff0",
   "files": [
     {
       "file": "small-site-baseline.gpkg",
@@ -211,6 +211,12 @@
       "source": "permutations/intervention/watercourse-enhanced-shorter.gpkg",
       "sha256": "1aa030df340b6c58bb8fd03d811b6e66d2c13ffc7c6b3f49cd99dcdcc49bcda9",
       "for": "R003 Enhanced on a course 20 m shorter than its parent: watercourses gain 2.7%, above zero and below the 10% target"
+    },
+    {
+      "file": "long-and-padded-refs-baseline.gpkg",
+      "source": "valid/long-and-padded-refs-baseline.gpkg",
+      "sha256": "79e2367f33a4f38f79fc77a695f65c502ef1616d5daf2c79fc7c97f963411011",
+      "for": "Baseline area habitats with a padded ref (H034, three spaces each side), a 99-character ref (H050-x…) and two long or non-ASCII ones: accepted, each saved trimmed and whole"
     }
   ]
 }

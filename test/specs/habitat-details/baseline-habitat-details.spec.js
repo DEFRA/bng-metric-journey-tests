@@ -28,7 +28,8 @@ import { STATUS_COMPLETE, STATUS_INCOMPLETE } from '@utils/unit-type-labels.js'
 import { getRunAllUnitTypesProject } from '@utils/run-projects.js'
 import {
   DEFAULT_SITE,
-  DEFAULT_SITE_BASELINE
+  DEFAULT_SITE_BASELINE,
+  LONG_PADDED_REFS_BASELINE
 } from '@utils/service-template-files.js'
 import {
   LEGACY_ONLY,
@@ -186,6 +187,12 @@ const SERVICE_TEMPLATE_WATERCOURSE_REF = 'R001'
 // A baseline area habitat renamed by typing, padded and then at the limit.
 const SERVICE_TEMPLATE_TYPED_REF_AREA = 'H004'
 const MAX_REF_LENGTH = 99
+// LONG_PADDED_REFS_BASELINE's refs, as the backend should store them:
+// '   H034   ' in the file, and H050 padded with x to the 99-character limit.
+const ST_UPLOADED_REFS = {
+  padded: 'H034',
+  long: 'H050-'.padEnd(MAX_REF_LENGTH, 'x')
+}
 
 // The default site's features the supporting information tests read and edit.
 // A Retained feature's page shows its baseline parent's comment, never the
@@ -3159,6 +3166,50 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           )?.label
         ).toBe(RETAINED)
         expect(await findPiRef(page, projectId, 'area', newRef)).toBeNull()
+      })
+
+      // An upload cleans a ref before it is saved: it trims the padding, and
+      // keeps one at the 99-character limit whole. The grids trim and cut refs
+      // when they show them, so the <h1>, which prints the stored ref as it
+      // is, is read instead.
+      test.describe('an uploaded ref', () => {
+        test.describe.configure({ mode: 'serial' })
+
+        let projectId
+
+        test.beforeAll(async ({ browser }) => {
+          ;({ id: projectId } = await buildBaselineOnlyProject(
+            browser,
+            LONG_PADDED_REFS_BASELINE
+          ))
+        })
+
+        test('saves a padded ref without its leading and trailing spaces', async ({
+          areaBaselinePage,
+          baselineHabitatDetailsPage
+        }) => {
+          await areaBaselinePage.open(projectId)
+          await areaBaselinePage.refLink(ST_UPLOADED_REFS.padded).click()
+
+          expect(await baselineHabitatDetailsPage.rawHeadingText()).toBe(
+            `Habitat ${ST_UPLOADED_REFS.padded}`
+          )
+        })
+
+        test('saves a ref at the 99-character limit whole', async ({
+          areaBaselinePage,
+          baselineHabitatDetailsPage
+        }) => {
+          expect(Array.from(ST_UPLOADED_REFS.long)).toHaveLength(MAX_REF_LENGTH)
+          await areaBaselinePage.open(projectId)
+          await areaBaselinePage
+            .refLink(gridRefName(ST_UPLOADED_REFS.long))
+            .click()
+
+          expect(await baselineHabitatDetailsPage.rawHeadingText()).toBe(
+            `Habitat ${ST_UPLOADED_REFS.long}`
+          )
+        })
       })
 
       // The edit route cleans a typed ref as an upload does: it trims the
