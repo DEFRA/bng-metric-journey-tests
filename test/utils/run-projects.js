@@ -13,6 +13,9 @@ import {
   DEFAULT_SITE,
   DEFAULT_SITE_BASELINE,
   EVERY_VERTICAL_RETENTION,
+  HEDGEROW_INVALID_ENHANCEMENT,
+  HEDGEROW_LOW_DEFICIT_VERY_LOW,
+  INCOMPLETE_ENHANCEMENTS,
   LOW_LOSS_COVERED,
   NET_GAIN_MET,
   NO_RETAINED_AREA,
@@ -24,6 +27,7 @@ import {
   WATERCOURSE_DEGRADED,
   WATERCOURSE_DEGRADED_BASELINE,
   WATERCOURSE_ENHANCED_SHORTER,
+  WATERCOURSE_LOW_DEFICIT,
   WATERCOURSE_REMEANDERED
 } from '@utils/service-template-files.js'
 import {
@@ -414,5 +418,50 @@ export function getServiceTemplateWatercourseBelowTargetProject(browser) {
   return getServiceTemplatePostInterventionProject(
     browser,
     WATERCOURSE_ENHANCED_SHORTER
+  )
+}
+
+/**
+ * Projects only the BNG Service template run uses, for the grids' Status
+ * column and the unpriced rows an import leaves Incomplete, and for trading
+ * bands below zero:
+ *
+ * - area habitats Enhanced, three Complete and three Incomplete with no
+ *   proposed condition or strategic significance: invalid-data-incomplete.gpkg;
+ * - a hedgerow Enhanced into a type the metric does not allow, beside two
+ *   Complete Enhanced hedgerows: invalid-hedgerow-medium-type-change.gpkg;
+ * - a hedgerow Low band below zero over a Very low band:
+ *   trading-trade-down.gpkg;
+ * - a watercourse Low band below zero with no Medium surplus:
+ *   invalid-watercourse-culvert-enhanced.gpkg.
+ */
+export function getServiceTemplateIncompleteEnhancementsProject(browser) {
+  return getServiceTemplatePostInterventionProject(
+    browser,
+    INCOMPLETE_ENHANCEMENTS
+  )
+}
+
+/** @see getServiceTemplateIncompleteEnhancementsProject */
+export function getServiceTemplateHedgerowInvalidEnhancementProject(browser) {
+  return getServiceTemplatePostInterventionProject(
+    browser,
+    HEDGEROW_INVALID_ENHANCEMENT
+  )
+}
+
+/** @see getServiceTemplateIncompleteEnhancementsProject */
+export function getServiceTemplateHedgerowLowDeficitProject(browser) {
+  return getServiceTemplatePostInterventionProject(
+    browser,
+    HEDGEROW_LOW_DEFICIT_VERY_LOW
+  )
+}
+
+/** @see getServiceTemplateIncompleteEnhancementsProject */
+export function getServiceTemplateWatercourseLowDeficitProject(browser) {
+  return getServiceTemplatePostInterventionProject(
+    browser,
+    WATERCOURSE_LOW_DEFICIT
   )
 }

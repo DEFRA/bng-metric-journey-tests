@@ -74,3 +74,20 @@ export const NET_GAIN_MET = `${DIR}/net-gain-met.gpkg`
 
 // Watercourses gaining 2.7%: above zero and below the 10% target.
 export const WATERCOURSE_ENHANCED_SHORTER = `${DIR}/watercourse-enhanced-shorter.gpkg`
+
+// Area habitats H001-H003 Enhanced and Complete, and H004-H006 Enhanced with no
+// Proposed Condition or Strategic Significance, saved Incomplete and unpriced.
+export const INCOMPLETE_ENHANCEMENTS = `${DIR}/invalid-data-incomplete.gpkg`
+
+// HG001 Enhanced into a hedgerow type the metric does not allow, so its
+// proposed values are nulled and it is saved Incomplete; HG002 and HG003 are
+// Enhanced and Complete.
+export const HEDGEROW_INVALID_ENHANCEMENT = `${DIR}/invalid-hedgerow-medium-type-change.gpkg`
+
+// A Low hedgerow replaced by two Very low ones: the Low band below zero,
+// carried down to the Very low band as nothing.
+export const HEDGEROW_LOW_DEFICIT_VERY_LOW = `${DIR}/trading-trade-down.gpkg`
+
+// R001, a culvert Enhanced in place, saved Incomplete: the watercourse Low
+// band below zero, with no Medium surplus to cover it.
+export const WATERCOURSE_LOW_DEFICIT = `${DIR}/invalid-watercourse-culvert-enhanced.gpkg`

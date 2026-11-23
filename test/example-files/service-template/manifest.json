@@ -1,6 +1,6 @@
 {
   "description": "Each file here is a copy of a file in bng-metric-harness/example-files/service-template/ (source), built by the harness's corpus recipes or bng-library's generator; its README says how. Refresh them with npm run check:fixtures -- --sync, never by hand.",
-  "harnessCommit": "95b3ff211a65f8b4e2edcccf1875abf5d9ab1bec",
+  "harnessCommit": "ebe73bf0a1f96d64fddc7a802c0b51aeaaf17eea",
   "files": [
     {
       "file": "small-site-baseline.gpkg",
@@ -211,6 +211,30 @@
       "source": "permutations/intervention/watercourse-enhanced-shorter.gpkg",
       "sha256": "1aa030df340b6c58bb8fd03d811b6e66d2c13ffc7c6b3f49cd99dcdcc49bcda9",
       "for": "R003 Enhanced on a course 20 m shorter than its parent: watercourses gain 2.7%, above zero and below the 10% target"
+    },
+    {
+      "file": "invalid-data-incomplete.gpkg",
+      "source": "permutations/data-completeness/invalid-data-incomplete.gpkg",
+      "sha256": "10912578eb69cfa32160c6fba1d65fa46dafd6ec56ac6cbaf588050b282d38ec",
+      "for": "Area habitats H001-H003 Enhanced and Complete, H004-H006 Enhanced with no Proposed Condition or Strategic Significance: accepted, saved Incomplete and unpriced"
+    },
+    {
+      "file": "invalid-hedgerow-medium-type-change.gpkg",
+      "source": "permutations/invalid-interventions/invalid-hedgerow-medium-type-change.gpkg",
+      "sha256": "48aad56e051fc54565c63f97809a8c9abcee1b3e58cfc13e306f4f3a9ac292cb",
+      "for": "HG001 Enhanced into a hedgerow type the metric does not allow: accepted, its proposed values nulled and saved Incomplete; HG002 and HG003 Enhanced and Complete"
+    },
+    {
+      "file": "trading-trade-down.gpkg",
+      "source": "permutations/trading-rules/trading-trade-down.gpkg",
+      "sha256": "a95e67ebffb1da337b7bafe9117bd006bb35cdc5df616b2b09a1e6591114c314",
+      "for": "A Low hedgerow replaced by two Very low ones: hedgerow Low band below zero (-1.38 units), carried down to the Very low band as 0.00"
+    },
+    {
+      "file": "invalid-watercourse-culvert-enhanced.gpkg",
+      "source": "permutations/invalid-interventions/invalid-watercourse-culvert-enhanced.gpkg",
+      "sha256": "3660344dc4ae4172209840eb04c54745acd75f7c0dc91e9bf2ea6934a8b4e767",
+      "for": "R001, a culvert Enhanced in place: accepted and saved Incomplete, so the watercourse Low band falls below zero (-0.63 units) with no Medium surplus"
     }
   ]
 }
