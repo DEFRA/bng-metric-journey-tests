@@ -9,9 +9,14 @@ import {
 import {
   getRunAllUnitTypesPostInterventionProject,
   getRunAreaInterventionTypesProject,
+  getRunWatercourseInterventionTypesProject,
   getRunNoRetainedAreaProject,
   getRunRetainedSignificanceProject,
-  getRunTreesPostInterventionProject
+  getRunTreesPostInterventionProject,
+  getServiceTemplateCreatedIncompleteProject,
+  getServiceTemplateHedgerowInvalidEnhancementProject,
+  getServiceTemplateIncompleteEnhancementsProject,
+  getServiceTemplateLongRefsProject
 } from '@utils/run-projects.js'
 import {
   LEGACY_ONLY,
@@ -21,6 +26,7 @@ import {
 import { openPiTabFor } from '@utils/post-intervention-grid.js'
 import {
   expectRefCut,
+  expectRefTailHidden,
   expectRefWhole,
   gridRefName
 } from '@utils/habitat-ref-display.js'
@@ -394,6 +400,32 @@ const HEDGEROW_STATUS_DESCENDING = [
   ...HEDGEROW_INCOMPLETE_REFS,
   STATUS_ROWS.hedgerows.complete
 ]
+
+// The BNG Service template's Status rows: a Complete and an Incomplete row on
+// one tab of each unit type's grid, each from the project that has them. The
+// area habitats of invalid-data-incomplete.gpkg are all Enhanced: H001-H003
+// Complete, H004-H006 Incomplete with no proposed condition or strategic
+// significance.
+const SERVICE_TEMPLATE_STATUS_ROWS = {
+  area: { tab: ENHANCED, complete: 'H001', incomplete: 'H004' },
+  hedgerows: { tab: ENHANCED, complete: 'HG002', incomplete: 'HG001' },
+  watercourses: { tab: CREATED, complete: 'R003', incomplete: 'R005' }
+}
+// area-created-no-condition-or-timing.gpkg: the default site with H005, one
+// of its 32 Created area habitats, saved Incomplete.
+const CREATED_INCOMPLETE_REF = 'H005'
+// invalid-data-incomplete.gpkg's H004: Enhanced with no Proposed Condition or
+// Proposed Strategic Significance.
+const ENHANCED_UNPRICED_REF = 'H004'
+// long-and-padded-refs.gpkg: Retained area habitats whose refs, in both
+// stages, are longer than 10 characters, and '   H034   ', which the import
+// trims.
+const SERVICE_TEMPLATE_LONG_REFS = [
+  'WOODLAND-NORTH-EDGE',
+  'Étang-du-Moulin-Ælfrīc',
+  `H050-${'x'.repeat(94)}`
+]
+const SERVICE_TEMPLATE_PADDED_REF = 'H034'
 
 /** A row's Status tag, found by the row's Ref link and the tag's text. */
 function statusTag(grid, label, reference, status) {
@@ -1195,7 +1227,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
   // grid tests above and in the hedgerow and watercourse specs.
   test.describe(
     'Post-intervention grids — Status column',
-    // Status is not asserted for the BNG Service template in this epic.
+    // The BNG Service template run reads its own files' rows, below.
     { tag: ['@regression', LEGACY_ONLY] },
     () => {
       test.use({ storageState: STORAGE_STATE })
@@ -1274,6 +1306,136 @@ test.describe('project-management', { tag: '@project-management' }, () => {
     }
   )
 
+  // The Status column in the BNG Service template run. Its corpus has no
+  // project with a Complete and an Incomplete row on one tab of every grid, so
+  // each grid is read on the project that has them: an Enhanced parcel or
+  // hedgerow the import left unpriced, and the default site's Created R005.
+  test.describe(
+    'Post-intervention grids — BNG Service template Status column',
+    { tag: ['@regression', SERVICE_TEMPLATE_ONLY] },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      let areaProject
+      let createdIncompleteProject
+      let hedgerowProject
+      let watercourseProject
+      test.beforeAll(async ({ browser }) => {
+        createdIncompleteProject =
+          await getServiceTemplateCreatedIncompleteProject(browser)
+        areaProject =
+          await getServiceTemplateIncompleteEnhancementsProject(browser)
+        hedgerowProject =
+          await getServiceTemplateHedgerowInvalidEnhancementProject(browser)
+        watercourseProject =
+          await getRunWatercourseInterventionTypesProject(browser)
+      })
+
+      test('each grid tags a Complete row grey and an Incomplete row blue, with no status in the totals', async ({
+        areaPostInterventionPage,
+        hedgerowsPostInterventionPage,
+        watercoursesPostInterventionPage
+      }) => {
+        const grids = [
+          [
+            areaPostInterventionPage,
+            areaProject,
+            SERVICE_TEMPLATE_STATUS_ROWS.area
+          ],
+          [
+            hedgerowsPostInterventionPage,
+            hedgerowProject,
+            SERVICE_TEMPLATE_STATUS_ROWS.hedgerows
+          ],
+          [
+            watercoursesPostInterventionPage,
+            watercourseProject,
+            SERVICE_TEMPLATE_STATUS_ROWS.watercourses
+          ]
+        ]
+        for (const [grid, project, { tab, complete, incomplete }] of grids) {
+          await grid.open(project.id)
+          await grid.tab(tab).click()
+
+          await expect(
+            statusTag(grid, tab, complete, STATUS_COMPLETE)
+          ).toHaveClass(/govuk-tag--grey/)
+          await expect(
+            statusTag(grid, tab, incomplete, STATUS_INCOMPLETE)
+          ).toHaveClass(/govuk-tag--blue/)
+          await expect(await grid.totalsCell(tab, STATUS_HEADING)).toHaveText(
+            ''
+          )
+        }
+      })
+
+      // The default site's Created tab, with H005 its one Incomplete row: the
+      // 31 Complete rows tie, so a descending sort that reversed the ascending
+      // one would list them backwards. The Retained tab, sorted by nobody,
+      // must keep its order.
+      test('clicking Status sorts Complete first, then Incomplete first, with ties in Ref order', async ({
+        areaPostInterventionPage
+      }) => {
+        const grid = areaPostInterventionPage
+        await grid.open(createdIncompleteProject.id)
+        const retainedRefs = await grid.columnValues(RETAINED, 'Ref')
+        expect(retainedRefs.length).toBeGreaterThan(1)
+        await grid.tab(CREATED).click()
+        const complete = (await grid.columnValues(CREATED, 'Ref')).filter(
+          (ref) => ref !== CREATED_INCOMPLETE_REF
+        )
+        expect(complete.length).toBeGreaterThan(1)
+
+        const statusHeader = grid
+          .columnHeaders(CREATED)
+          .nth(await grid.columnIndex(CREATED, STATUS_HEADING))
+        const sortButton = grid.sortButton(CREATED, STATUS_HEADING)
+
+        await sortButton.click()
+        await expect(statusHeader).toHaveAttribute('aria-sort', 'ascending')
+        expect(await grid.columnValues(CREATED, 'Ref')).toEqual([
+          ...complete,
+          CREATED_INCOMPLETE_REF
+        ])
+
+        await sortButton.click()
+        await expect(statusHeader).toHaveAttribute('aria-sort', 'descending')
+        expect(await grid.columnValues(CREATED, 'Ref')).toEqual([
+          CREATED_INCOMPLETE_REF,
+          ...complete
+        ])
+        await expect(grid.table(CREATED).getByRole('row').last()).toContainText(
+          'Total'
+        )
+
+        // The other tabs' grids are not re-sorted.
+        await grid.tab(RETAINED).click()
+        expect(await grid.columnValues(RETAINED, 'Ref')).toEqual(retainedRefs)
+      })
+
+      // The nearest the BNG Service template comes to a rejected strategic
+      // significance: it offers no Medium, but a file can leave an
+      // enhancement's proposed condition and strategic significance blank.
+      // The import saves the parcel Incomplete with null units, which the grid
+      // shows as 0.00, display only, with no value the engine would derive.
+      test('an Enhanced parcel with no proposed condition or strategic significance is left unpriced', async ({
+        areaPostInterventionPage
+      }) => {
+        const grid = areaPostInterventionPage
+        await grid.open(areaProject.id)
+        await grid.tab(ENHANCED).click()
+
+        const row = await grid.rowByRef(ENHANCED, ENHANCED_UNPRICED_REF)
+        expect(row.Units).toBe('0.00')
+        expect(row.Distinctiveness).toBe('')
+        expect(row['Strategic significance']).toBe('')
+        expect(row['Target condition']).toBe('')
+        expect(row['Standard difficulty']).toBe('')
+      })
+    }
+  )
+
   // BMD-1058 AC6. Post-intervention refs reach this grid from their own backend
   // path (extract-post-intervention.js), and no frontend unit test covers the
   // cut on the post-intervention grids. ' Café–Ω H003' in the file is 11
@@ -1308,6 +1470,43 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expectRefWhole(
           areaPostInterventionPage.refLink(RETAINED, LONG_PADDED_REFS.padded),
           LONG_PADDED_REFS.padded
+        )
+      })
+    }
+  )
+
+  test.describe(
+    'Area post-intervention — BNG Service template long references',
+    { tag: ['@regression', SERVICE_TEMPLATE_ONLY] },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      let project
+      test.beforeAll(async ({ browser }) => {
+        project = await getServiceTemplateLongRefsProject(browser)
+      })
+
+      test('shows only the first 10 characters of a longer ref', async ({
+        areaPostInterventionPage
+      }) => {
+        await areaPostInterventionPage.open(project.id)
+        await areaPostInterventionPage.tab(RETAINED).click()
+
+        for (const ref of SERVICE_TEMPLATE_LONG_REFS) {
+          const link = areaPostInterventionPage.refLink(
+            RETAINED,
+            gridRefName(ref)
+          )
+          await expectRefCut(link, ref)
+          await expectRefTailHidden(link, ref)
+        }
+        await expectRefWhole(
+          areaPostInterventionPage.refLink(
+            RETAINED,
+            SERVICE_TEMPLATE_PADDED_REF
+          ),
+          SERVICE_TEMPLATE_PADDED_REF
         )
       })
     }

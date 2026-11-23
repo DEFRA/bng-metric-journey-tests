@@ -156,6 +156,19 @@ export const AREA_CREATED_INCOMPLETE = `${DIR}/area-created-no-condition-or-timi
 // strategic significance: each saved Incomplete, with no units.
 export const AREA_ENHANCED_INCOMPLETE = `${DIR}/invalid-data-incomplete.gpkg`
 
+// HG001 Enhanced into a hedgerow type the metric does not allow, so its
+// proposed values are nulled and it is saved Incomplete; HG002 and HG003 are
+// Enhanced and Complete.
+export const HEDGEROW_INVALID_ENHANCEMENT = `${DIR}/invalid-hedgerow-medium-type-change.gpkg`
+
+// A Low hedgerow replaced by two Very low ones: the Low band below zero,
+// carried down to the Very low band as nothing.
+export const HEDGEROW_LOW_DEFICIT_VERY_LOW = `${DIR}/trading-trade-down.gpkg`
+
+// R001, a culvert Enhanced in place, saved Incomplete: the watercourse Low
+// band below zero, with no Medium surplus to cover it.
+export const WATERCOURSE_LOW_DEFICIT = `${DIR}/invalid-watercourse-culvert-enhanced.gpkg`
+
 // The default site with four Retained area habitats renamed in both stages:
 // H034 padded with three spaces each side, H029 `Étang-du-Moulin-Ælfrīc`.
 export const LONG_AND_PADDED_REFS = `${DIR}/long-and-padded-refs.gpkg`
@@ -172,3 +185,16 @@ export const CREATED_HEDGEROW_INCOMPLETE = `${DIR}/hedgerow-created-no-condition
 // sides: Minor and No Encroachment/No Encroachment, from Major and
 // Moderate/Minor.
 export const WATERCOURSE_ENCROACHMENT_REDUCED = `${DIR}/watercourse-enhanced-encroachment-reduced.gpkg`
+
+// A baseline-stage file with one incomplete habitat per layer: H002 and HG001
+// with no Baseline Condition, R007 with no riparian encroachment.
+export const BASELINE_STAGE_INCOMPLETE = `${DIR}/baseline-incomplete-every-layer-baseline.gpkg`
+
+// The Enhanced R006 and the Created R004 each missing a Proposed Encroachment.
+export const WATERCOURSE_PROPOSED_ENCROACHMENT_BLANK = `${DIR}/watercourse-proposed-encroachment-blank.gpkg`
+
+// No baseline watercourses, and one Created post-intervention ditch, R004.
+export const WATERCOURSES_CREATED_ONLY = `${DIR}/watercourses-created-only.gpkg`
+
+// The Enhanced HG002 with no Proposed Strategic Significance.
+export const HEDGEROW_SIGNIFICANCE_BLANK = `${DIR}/hedgerow-enhanced-significance-blank.gpkg`

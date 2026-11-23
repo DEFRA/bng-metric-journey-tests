@@ -8,14 +8,13 @@ import {
 } from '@pages/watercourses-trading-summary.page.js'
 import { STORAGE_STATE, skipInE2e } from '@utils/env.js'
 import { uploadFileHref } from '@utils/upload-file-navigation.js'
-import {
-  getAllUnitTypesPostInterventionProject,
-  getWatercourseGainProject
-} from '@utils/summary-projects.js'
+import { getAllUnitTypesPostInterventionProject } from '@utils/summary-projects.js'
 import {
   getRunAllUnitTypesPostInterventionProject,
   getRunBaselineProject,
-  getRunTargetMetProject
+  getRunTargetMetProject,
+  getRunWatercourseGainProject,
+  getServiceTemplateWatercourseLowDeficitProject
 } from '@utils/run-projects.js'
 import {
   LEGACY_ONLY,
@@ -124,8 +123,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // tag on the cumulative tile (PR#387), and for
       // `showLowTotals: false` — neither grid has a totals row, unlike the
       // area page. Legacy only: no BNG Service template file in the harness
-      // corpus has a Low watercourse band below zero, other than one the
-      // service refuses.
+      // corpus has a Medium deficit and a Low watercourse band below zero
+      // together. That run reads each on its own project, below.
       test(
         'a Medium deficit and a Low running total below zero both read "Not met"',
         {
@@ -285,42 +284,102 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         }
       )
 
+      // invalid-watercourse-culvert-enhanced.gpkg: R001, a culvert Enhanced in
+      // place, which the metric does not offer, is saved Incomplete with no
+      // units, so the one Low type, Culvert, loses its 0.63. The Ditch is
+      // Retained, so the Medium band has neither deficit nor surplus to carry
+      // down, and the Low band's running total is the loss alone.
+      test(
+        'a Low running total below zero reads "Not met" with no Medium surplus to cover it',
+        { tag: SERVICE_TEMPLATE_ONLY },
+        async ({ browser, watercoursesTradingSummaryPage }) => {
+          const project =
+            await getServiceTemplateWatercourseLowDeficitProject(browser)
+          await watercoursesTradingSummaryPage.open(project.id)
+
+          expect(await watercoursesTradingSummaryPage.bandNames()).toEqual([
+            MEDIUM,
+            LOW
+          ])
+          await expectStatusTag(
+            watercoursesTradingSummaryPage.statusTag(MEDIUM),
+            STATUS_MET
+          )
+          await expectStatusTag(
+            watercoursesTradingSummaryPage.statusTag(LOW),
+            STATUS_NOT_MET
+          )
+
+          expect(
+            await watercoursesTradingSummaryPage.bandTileValue(
+              LOW,
+              LOW_TILES.netChange
+            )
+          ).toBe('-0.63 units')
+          expect(
+            await watercoursesTradingSummaryPage.bandTileValue(
+              LOW,
+              LOW_TILES.mediumSurplus
+            )
+          ).toBe('0.00 units')
+          expect(
+            await watercoursesTradingSummaryPage.bandTileValue(
+              LOW,
+              LOW_TILES.cumulativeSurplus
+            )
+          ).toBe('-0.63 units')
+          await expectStatusTag(
+            watercoursesTradingSummaryPage.bandTileTag(
+              LOW,
+              LOW_TILES.cumulativeSurplus
+            ),
+            STATUS_NOT_MET
+          )
+          await expect(
+            watercoursesTradingSummaryPage.bandTileTag(LOW, LOW_TILES.netChange)
+          ).toHaveCount(0)
+          expect(
+            await watercoursesTradingSummaryPage.readBandGrid(LOW)
+          ).toEqual({
+            headers: UNIT_CHANGE_COLUMNS,
+            rows: [['Culvert', '-0.63']]
+          })
+        }
+      )
+
       // `created watercourses`: every watercourse is Created, so the derived
       // baseline has none and trading rules do not apply. The backend returns
       // null band statuses (watercourse-trading-rule-statuses.test.js:62) and
       // the page shows the band with NO tag rather than a red one — unknown is
-      // not failed. SOLE real-data witness for that null-verdict path. Legacy
-      // only: no BNG Service template file in the harness corpus has
-      // watercourses only post intervention.
-      test(
-        'watercourses that exist only post intervention get no verdict and no tag',
-        {
-          tag: LEGACY_ONLY
-        },
-        async ({ browser, watercoursesTradingSummaryPage }) => {
-          const project = await getWatercourseGainProject(browser)
-          await watercoursesTradingSummaryPage.open(project.id)
+      // not failed. SOLE real-data witness for that null-verdict path. The BNG
+      // Service template run's project is watercourses-created-only.gpkg,
+      // whose one watercourse, a ditch, is Created.
+      test('watercourses that exist only post intervention get no verdict and no tag', async ({
+        browser,
+        watercoursesTradingSummaryPage
+      }) => {
+        const project = await getRunWatercourseGainProject(browser)
+        await watercoursesTradingSummaryPage.open(project.id)
 
-          expect(await watercoursesTradingSummaryPage.bandNames()).toEqual([
-            MEDIUM
-          ])
-          await expect(
-            watercoursesTradingSummaryPage.statusTag(MEDIUM)
-          ).toHaveCount(0)
-          expect(
-            await watercoursesTradingSummaryPage.bandTileValue(
-              MEDIUM,
-              MEDIUM_DEFICIT_TILE
-            )
-          ).toBe('0.00 units')
-          await expect(
-            watercoursesTradingSummaryPage.bandTileTag(
-              MEDIUM,
-              MEDIUM_DEFICIT_TILE
-            )
-          ).toHaveCount(0)
-        }
-      )
+        expect(await watercoursesTradingSummaryPage.bandNames()).toEqual([
+          MEDIUM
+        ])
+        await expect(
+          watercoursesTradingSummaryPage.statusTag(MEDIUM)
+        ).toHaveCount(0)
+        expect(
+          await watercoursesTradingSummaryPage.bandTileValue(
+            MEDIUM,
+            MEDIUM_DEFICIT_TILE
+          )
+        ).toBe('0.00 units')
+        await expect(
+          watercoursesTradingSummaryPage.bandTileTag(
+            MEDIUM,
+            MEDIUM_DEFICIT_TILE
+          )
+        ).toHaveCount(0)
+      })
 
       // The redirect target is passed per controller (`summaryPath`), so the
       // area and hedgerow pages' guards say nothing about this one.
