@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { test, expect } from '@fixtures'
 import { projectIdFromHref } from '@utils/project-helpers.js'
 import { STORAGE_STATE } from '@utils/env.js'
+import { PROJECT_DETAILS } from '@pages/project-details.page.js'
 
 /**
  * Happy-path screenshot capture for UCD (Mural UI flow).
@@ -68,6 +69,7 @@ test.describe('happy-path-screenshots', { tag: '@screenshots' }, () => {
       uploadPostInterventionFilePage,
       uploadPostInterventionFileFlow,
       areaPostInterventionPage,
+      projectDetailsPage,
       page
     }) => {
       const projectName = `${PROJECT_LABEL} ${Date.now()}`
@@ -99,9 +101,11 @@ test.describe('happy-path-screenshots', { tag: '@screenshots' }, () => {
       await projectDashboardPage.projectLink(projectName).click()
       await expect(uploadFilePage.heading).toBeVisible()
       await snap(page, 'upload-file')
+      await uploadFilePage.selectBaseline()
+      await uploadFilePage.submit()
 
       // ── Upload baseline file ────────────────────────────────────────────
-      await uploadBaselineFilePage.open(id)
+      await expect(uploadBaselineFilePage.instructionText).toBeVisible()
       await uploadBaselineFilePage.fileInput.setInputFiles(
         uploadBaselineFileFlow.filePath(BASELINE_FILE)
       )
@@ -140,13 +144,29 @@ test.describe('happy-path-screenshots', { tag: '@screenshots' }, () => {
       await baselineHabitatDetailsPage.saveButton.click()
       await page.waitForURL(new RegExp(`/projects/${id}/area-baseline`))
 
+      // ── Choose upload type, post intervention ───────────────────────────
+      // The summary's Upload file button leads back to the selection page;
+      // the user picks a type for each upload.
+      await projectSummaryPage.open(id)
+      await projectSummaryPage.uploadFileButton.click()
+      await expect(uploadFilePage.heading).toBeVisible()
+      await uploadFilePage.selectPostIntervention()
+      await snap(page, 'upload-file-post-intervention')
+      await uploadFilePage.submit()
+
       // ── Upload post-intervention file ───────────────────────────────────
-      await uploadPostInterventionFilePage.open(id)
+      await expect(uploadPostInterventionFilePage.instructionText).toBeVisible()
       await uploadPostInterventionFilePage.fileInput.setInputFiles(
         uploadPostInterventionFileFlow.filePath(POST_INTERVENTION_FILE)
       )
       await snap(page, 'upload-post-intervention-file')
       await uploadPostInterventionFilePage.continueButton.click()
+
+      // ── Checking your file, post intervention (transient) ───────────────
+      await page.waitForURL(/\/post-intervention-upload-received/, {
+        timeout: UPLOAD_TIMEOUT
+      })
+      await snap(page, 'checking-your-file-post-intervention').catch(() => {})
 
       // ── Project summary with post-intervention results ──────────────────
       await page.waitForURL(new RegExp(`/projects/${id}/project-summary`), {
@@ -159,6 +179,11 @@ test.describe('happy-path-screenshots', { tag: '@screenshots' }, () => {
       await areaPostInterventionPage.open(id)
       await expect(areaPostInterventionPage.heading).toBeVisible()
       await snap(page, 'area-post-intervention')
+
+      // ── Project details, from the left navigation ───────────────────────
+      await areaPostInterventionPage.navLink(PROJECT_DETAILS).click()
+      await expect(projectDetailsPage.heading).toBeVisible()
+      await snap(page, 'project-details')
     })
   })
 })
