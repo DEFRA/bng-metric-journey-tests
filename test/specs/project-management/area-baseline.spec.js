@@ -21,6 +21,7 @@ import {
 } from '@utils/template-run.js'
 import {
   expectRefCut,
+  expectRefTailHidden,
   expectRefWhole,
   gridRefName
 } from '@utils/habitat-ref-display.js'
@@ -739,7 +740,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await areaBaselinePage.open(project.id)
 
         for (const ref of SERVICE_TEMPLATE_LONG_REFS) {
-          await expectRefCut(areaBaselinePage.refLink(gridRefName(ref)), ref)
+          const link = areaBaselinePage.refLink(gridRefName(ref))
+          await expectRefCut(link, ref)
+          await expectRefTailHidden(link, ref)
         }
         await expectRefWhole(
           areaBaselinePage.refLink(SERVICE_TEMPLATE_PADDED_REF),

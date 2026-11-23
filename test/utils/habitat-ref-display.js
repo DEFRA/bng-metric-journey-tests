@@ -40,3 +40,18 @@ export async function expectRefWhole(link, ref) {
   await expect(link).toHaveText(ref)
   await expect(link.getByText(TRUNCATION_MARK, { exact: true })).toHaveCount(0)
 }
+
+// govuk-visually-hidden renders its text in a 1px box.
+const VISUALLY_HIDDEN_SIZE_PX = 1
+
+/**
+ * A cut ref's tail, past the first 10 characters, kept for assistive
+ * technology but rendered in a visually hidden box rather than on screen.
+ */
+export async function expectRefTailHidden(link, ref) {
+  const tail = Array.from(ref).slice(MAX_REF_DISPLAY_LENGTH).join('')
+  const box = await link.getByText(tail, { exact: true }).boundingBox()
+  expect(box, `the hidden tail of ${ref}`).not.toBeNull()
+  expect(box.width).toBeLessThanOrEqual(VISUALLY_HIDDEN_SIZE_PX)
+  expect(box.height).toBeLessThanOrEqual(VISUALLY_HIDDEN_SIZE_PX)
+}
