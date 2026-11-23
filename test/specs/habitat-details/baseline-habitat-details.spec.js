@@ -178,6 +178,47 @@ const SERVICE_TEMPLATE_BASELINE_COMMENTS = [
 // A Retained area habitat on the default site, measured against the baseline
 // habitat of the same ref.
 const SERVICE_TEMPLATE_RETAINED_AREA_REF = 'H002'
+// A hedgerow renamed onto a watercourse's ref on the default site, which a
+// BNG Service template project allows: its features are joined by parent, not
+// by ref.
+const SERVICE_TEMPLATE_RENAMED_HEDGEROW = 'HG001'
+const SERVICE_TEMPLATE_WATERCOURSE_REF = 'R001'
+// A baseline area habitat renamed by typing, padded and then at the limit.
+const SERVICE_TEMPLATE_TYPED_REF_AREA = 'H004'
+const MAX_REF_LENGTH = 99
+
+// The default site's features the supporting information tests read and edit.
+// A Retained feature's page shows its baseline parent's comment, never the
+// copy the file gave the Retained feature itself: HG010's baseline comment is
+// "Cut annually" and its own "Gaps planted up"; T008 and R007 have none at
+// baseline and their own "Guarded and staked" and "Shorter: …".
+const ST_RETAINED_HEDGEROW = 'HG010'
+const ST_RETAINED_HEDGEROW_BASELINE_COMMENT = 'Cut annually'
+const ST_RETAINED_TREE = 'T008'
+const ST_RETAINED_WATERCOURSE = 'R007'
+const ST_RETAINED_WATERCOURSE_NO_COMMENT = 'R001'
+// Baseline features with no comment: H001 (Enhanced) for the refusal, R002
+// (Lost) for the 999-character comment.
+const ST_REFUSED_COMMENT_AREA = 'H001'
+const ST_LONG_COMMENT_WATERCOURSE = 'R002'
+// Created and Enhanced features, whose own comment is the file's. R004 and
+// R006 carry one; HG009, H007 and HG005 do not. H006 has no comment on either
+// side. T013's own is "Crown works …" and its baseline tree's "Ivy on the
+// trunk".
+const ST_CREATED_WATERCOURSE = 'R004'
+const ST_CREATED_WATERCOURSE_COMMENT =
+  'Encroachment increases, with no other impact'
+const ST_CREATED_HEDGEROW = 'HG009'
+const ST_CREATED_AREA = 'H007'
+const ST_ENHANCED_WATERCOURSE = 'R006'
+const ST_ENHANCED_WATERCOURSE_COMMENT =
+  'Re-meandered: the channel moves onto a longer route'
+const ST_ENHANCED_HEDGEROW = 'HG005'
+const ST_ENHANCED_AREA = 'H006'
+const ST_ENHANCED_TREE = 'T013'
+const ST_ENHANCED_TREE_COMMENT =
+  'Crown works and mulching to raise the condition'
+const ST_ENHANCED_TREE_BASELINE_COMMENT = 'Ivy on the trunk'
 
 // BMD-1061 — editing the habitat reference. All wording is interim
 // (error-text.yaml `wording: interim`).
@@ -3118,6 +3159,655 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           )?.label
         ).toBe(RETAINED)
         expect(await findPiRef(page, projectId, 'area', newRef)).toBeNull()
+      })
+
+      // The edit route cleans a typed ref as an upload does: it trims the
+      // padding, and keeps one at the limit whole. The grids trim and cut refs
+      // when they show them, so the <h1>, which prints the stored ref as it
+      // is, is read instead.
+      test('saves a typed reference without its padding, and one at the 99-character limit whole', async ({
+        browser,
+        baselineHabitatDetailsPage,
+        page
+      }) => {
+        const paddedRef = `${SERVICE_TEMPLATE_TYPED_REF_AREA}-NEW`
+        const longRef = `${SERVICE_TEMPLATE_TYPED_REF_AREA}-`.padEnd(
+          MAX_REF_LENGTH,
+          'ABCDEFGHIJ'
+        )
+        expect(Array.from(longRef)).toHaveLength(MAX_REF_LENGTH)
+        // Its own project: the saves rename a habitat.
+        const { id: projectId } = await buildBaselineOnlyProject(
+          browser,
+          DEFAULT_SITE_BASELINE
+        )
+
+        const grid = await openBaselineGrid(page, projectId, 'area')
+        await grid.refLink(SERVICE_TEMPLATE_TYPED_REF_AREA).click()
+        await baselineHabitatDetailsPage.habitatReferenceInput.fill(
+          `  ${paddedRef}  `
+        )
+        await baselineHabitatDetailsPage.saveButton.click()
+        await expect(page).toHaveURL(baselinePageUrl(projectId, 'area'))
+        await grid.refLink(paddedRef).click()
+        expect(await baselineHabitatDetailsPage.rawHeadingText()).toBe(
+          `Habitat ${paddedRef}`
+        )
+
+        await baselineHabitatDetailsPage.habitatReferenceInput.fill(longRef)
+        await baselineHabitatDetailsPage.saveButton.click()
+        await expect(page).toHaveURL(baselinePageUrl(projectId, 'area'))
+        await grid.refLink(gridRefName(longRef)).click()
+        expect(await baselineHabitatDetailsPage.rawHeadingText()).toBe(
+          `Habitat ${longRef}`
+        )
+      })
+
+      // A legacy project refuses this rename (the refusals describe above).
+      // A BNG Service template project allows it: each post-intervention
+      // feature names its baseline parent by id, so a repeated ref joins
+      // nothing to the wrong habitat.
+      test("lets a hedgerow take a watercourse's reference", async ({
+        browser,
+        baselineHabitatDetailsPage,
+        page
+      }) => {
+        const { id: projectId } = await buildBaselineOnlyProject(
+          browser,
+          DEFAULT_SITE_BASELINE
+        )
+
+        const grid = await openBaselineGrid(page, projectId, 'hedgerow')
+        await grid.refLink(SERVICE_TEMPLATE_RENAMED_HEDGEROW).click()
+        await baselineHabitatDetailsPage.habitatReferenceInput.fill(
+          SERVICE_TEMPLATE_WATERCOURSE_REF
+        )
+        await baselineHabitatDetailsPage.saveButton.click()
+
+        await expect(page).toHaveURL(baselinePageUrl(projectId, 'hedgerow'))
+        await expect(
+          grid.refLink(SERVICE_TEMPLATE_WATERCOURSE_REF)
+        ).toBeVisible()
+        await expect(
+          grid.refLink(SERVICE_TEMPLATE_RENAMED_HEDGEROW)
+        ).toHaveCount(0)
+        const watercourses = await openBaselineGrid(
+          page,
+          projectId,
+          'watercourse'
+        )
+        await expect(
+          watercourses.refLink(SERVICE_TEMPLATE_WATERCOURSE_REF)
+        ).toBeVisible()
+      })
+    }
+  )
+
+  // What the legacy supporting information describes check, on a BNG Service
+  // template project. Its files carry a Comment on every table, so a Created
+  // or Enhanced feature's own comment is the file's, and a Retained feature
+  // keeps a copy of its own that its page never shows: the page shows the
+  // comment saved on the baseline parent it names, as edited.
+  //
+  // Serial pins the edits to one worker, on one copy of the default site.
+  // Each test uses its own features, except HG009 and HG005: the box test
+  // reads their empty comment and a later test edits it, ending with the
+  // comment cleared, so the read holds whichever runs first.
+  test.describe(
+    'Baseline habitat details — BNG Service template supporting information',
+    { tag: ['@regression', SERVICE_TEMPLATE_ONLY] },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+      test.skip(runMode === 'e2e', E2E_UPLOAD_SKIP_REASON)
+      test.describe.configure({
+        mode: 'serial',
+        timeout: SHARED_PAIR_BUILD_TIMEOUT
+      })
+
+      let projectId
+
+      test.beforeAll(async ({ browser }) => {
+        ;({ id: projectId } = await buildPostInterventionOnlyProject(
+          browser,
+          DEFAULT_SITE
+        ))
+      })
+
+      async function openFromGrid(page, type, ref) {
+        const grid = await openBaselineGrid(page, projectId, type)
+        await grid.refLink(ref).click()
+        await expect(page).toHaveURL(/\/baseline-habitat-details/)
+      }
+
+      async function saveBaselineComment(page, details, type, ref, comment) {
+        await openFromGrid(page, type, ref)
+        await details.commentInput.fill(comment)
+        await details.saveButton.click()
+        await expect(page).toHaveURL(baselinePageUrl(projectId, type))
+      }
+
+      // Save a post-intervention feature's own comment from its edit page,
+      // reached from the tab holding it.
+      async function savePiComment(page, details, { type, ref, tab }, comment) {
+        await openPiDetails(page, projectId, type, ref, tab)
+        await details.commentInput.fill(comment)
+        await details.saveButton.click()
+        await expect(page).toHaveURL(piPageUrl(projectId, type))
+      }
+
+      test('refuses a comment that is too long and holds an invalid character, saving nothing on the page', async ({
+        baselineHabitatDetailsPage: details,
+        page
+      }) => {
+        const comment = `�${'c'.repeat(MAX_COMMENT_LENGTH)}`
+
+        await openFromGrid(page, 'area', ST_REFUSED_COMMENT_AREA)
+        const savedCondition = await details.conditionSelect.inputValue()
+        const newCondition = await details.selectDifferentCondition()
+        await details.commentInput.fill(comment)
+        await details.saveButton.click()
+
+        await expect(page).toHaveURL(/\/baseline-habitat-details/)
+        await expect(page).toHaveTitle(/^Error:/)
+        // Characters first, then length, and nothing else.
+        await expect(details.errorSummaryLinks).toHaveText([
+          COMMENT_INVALID_SUMMARY,
+          COMMENT_TOO_LONG_SUMMARY
+        ])
+        for (const summary of [
+          COMMENT_INVALID_SUMMARY,
+          COMMENT_TOO_LONG_SUMMARY
+        ]) {
+          await expect(details.errorSummaryLink(summary)).toHaveAttribute(
+            'href',
+            '#comment'
+          )
+        }
+        await expect(details.inlineError(COMMENT_INVALID_INLINE)).toBeVisible()
+        await expect(details.inlineError(COMMENT_TOO_LONG_INLINE)).toBeVisible()
+        await expect(details.commentInput).toHaveValue(comment)
+        await expect(details.conditionSelect).toHaveValue(newCondition)
+
+        await details.cancelLink.click()
+        await openFromGrid(page, 'area', ST_REFUSED_COMMENT_AREA)
+        await expect(details.commentInput).toHaveValue('')
+        await expect(details.conditionSelect).toHaveValue(savedCondition)
+      })
+
+      // A browser submits a textarea's line breaks as CRLF, so a
+      // 999-character comment over several lines arrives longer than 999;
+      // it must be counted as the user sees it, and saved again unchanged.
+      test('saves a 999-character comment over several lines trimmed, and saves it again unchanged', async ({
+        baselineHabitatDetailsPage: details,
+        page
+      }) => {
+        const comment = Array.from({ length: 10 }, (_, line) =>
+          `Line ${line}: `.padEnd(99, 'x')
+        ).join('\n')
+        expect(Array.from(comment)).toHaveLength(MAX_COMMENT_LENGTH)
+
+        await saveBaselineComment(
+          page,
+          details,
+          'watercourse',
+          ST_LONG_COMMENT_WATERCOURSE,
+          `  ${comment}  `
+        )
+        await openFromGrid(page, 'watercourse', ST_LONG_COMMENT_WATERCOURSE)
+        await expect(details.commentInput).toHaveValue(comment)
+        await details.saveButton.click()
+        await expect(page).toHaveURL(baselinePageUrl(projectId, 'watercourse'))
+
+        await openFromGrid(page, 'watercourse', ST_LONG_COMMENT_WATERCOURSE)
+        await expect(details.commentInput).toHaveValue(comment)
+      })
+
+      // The Retained HG010's page shows its parent's comment as edited, with
+      // its line breaks, and "No data" once that is cleared: never the
+      // Retained hedgerow's own copy in the file.
+      test("shows a Retained hedgerow's edited baseline comment with its line breaks, and No data once cleared, never its own", async ({
+        baselineHabitatDetailsPage,
+        postInterventionHabitatDetailsPage: details,
+        page
+      }) => {
+        const comment = [
+          'Hedgerow retained along the northern boundary.',
+          'Gaps to be planted up in winter 2027.',
+          '',
+          'See the landscape plan, drawing LP-04.'
+        ].join('\n')
+        const rowBefore = await retainedPiRow(
+          page,
+          projectId,
+          'hedgerow',
+          ST_RETAINED_HEDGEROW
+        )
+        await openRetainedPiDetails(
+          page,
+          projectId,
+          'hedgerow',
+          ST_RETAINED_HEDGEROW
+        )
+        await expect(details.supportingInformationValue).toHaveText(
+          ST_RETAINED_HEDGEROW_BASELINE_COMMENT
+        )
+        await expect(details.commentInput).toHaveCount(0)
+
+        await saveBaselineComment(
+          page,
+          baselineHabitatDetailsPage,
+          'hedgerow',
+          ST_RETAINED_HEDGEROW,
+          comment
+        )
+        await openRetainedPiDetails(
+          page,
+          projectId,
+          'hedgerow',
+          ST_RETAINED_HEDGEROW
+        )
+        // innerText follows the rendered white-space, so it holds the line
+        // breaks, blank line included, only if the page shows them.
+        expect(await details.supportingInformationValue.innerText()).toBe(
+          comment
+        )
+
+        await saveBaselineComment(
+          page,
+          baselineHabitatDetailsPage,
+          'hedgerow',
+          ST_RETAINED_HEDGEROW,
+          ''
+        )
+        // A comment, or its absence, leaves status and units alone.
+        expect(
+          await retainedPiRow(page, projectId, 'hedgerow', ST_RETAINED_HEDGEROW)
+        ).toEqual(rowBefore)
+        await openRetainedPiDetails(
+          page,
+          projectId,
+          'hedgerow',
+          ST_RETAINED_HEDGEROW
+        )
+        await expect(details.supportingInformationValue).toHaveText(
+          NO_SUPPORTING_INFORMATION
+        )
+      })
+
+      // The tree layer's witness: a baseline tree's comment saved, and shown
+      // on its Retained tree in place of the tree's own copy in the file.
+      test("saves an individual tree's comment trimmed, and shows it on the Retained tree in place of the tree's own", async ({
+        baselineHabitatDetailsPage,
+        postInterventionHabitatDetailsPage: details,
+        page
+      }) => {
+        const comment = 'Veteran features noted on the north side.'
+        await openRetainedPiDetails(page, projectId, 'area', ST_RETAINED_TREE)
+        await expect(details.supportingInformationValue).toHaveText(
+          NO_SUPPORTING_INFORMATION
+        )
+
+        await saveBaselineComment(
+          page,
+          baselineHabitatDetailsPage,
+          'area',
+          ST_RETAINED_TREE,
+          `  ${comment}  `
+        )
+        await openFromGrid(page, 'area', ST_RETAINED_TREE)
+        await expect(baselineHabitatDetailsPage.commentInput).toHaveValue(
+          comment
+        )
+
+        await openRetainedPiDetails(page, projectId, 'area', ST_RETAINED_TREE)
+        await expect(details.supportingInformationValue).toHaveText(comment)
+        await expect(details.commentInput).toHaveCount(0)
+      })
+
+      // The watercourse layer's witness, and the layout's: a long comment
+      // wraps inside the content column, unbroken word included, with nothing
+      // cut off.
+      test('shows a long comment in full on a Retained watercourse, wrapping within the column, and No data without one', async ({
+        baselineHabitatDetailsPage,
+        postInterventionHabitatDetailsPage: details,
+        page
+      }) => {
+        const longWord = 'Supercalifragilisticexpialidocious'.repeat(4)
+        const comment = `${'The watercourse is retained in full and protected by a ten metre buffer throughout construction. '.repeat(8)}Reference ${longWord} ends here.`
+        expect(comment.length).toBeLessThanOrEqual(MAX_COMMENT_LENGTH)
+
+        await saveBaselineComment(
+          page,
+          baselineHabitatDetailsPage,
+          'watercourse',
+          ST_RETAINED_WATERCOURSE,
+          comment
+        )
+        await openRetainedPiDetails(
+          page,
+          projectId,
+          'watercourse',
+          ST_RETAINED_WATERCOURSE
+        )
+        await expect(details.supportingInformationValue).toHaveText(comment)
+        const layout = await details.supportingInformationValue.evaluate(
+          (element) => {
+            const rect = element.getBoundingClientRect()
+            return {
+              overflow: element.scrollWidth - element.clientWidth,
+              // A line clamp or a fixed height hides text that toHaveText
+              // still reads, so the box must be as tall as its content.
+              clipped: element.scrollHeight - element.clientHeight,
+              right: rect.right,
+              columnRight: element
+                .closest('.govuk-grid-column-two-thirds')
+                .getBoundingClientRect().right,
+              lines:
+                rect.height /
+                Number.parseFloat(
+                  globalThis.getComputedStyle(element).lineHeight
+                )
+            }
+          }
+        )
+        expect(layout.overflow).toBeLessThanOrEqual(0)
+        expect(layout.clipped).toBeLessThanOrEqual(0)
+        expect(layout.right).toBeLessThanOrEqual(layout.columnRight)
+        expect(layout.lines).toBeGreaterThan(3)
+
+        await openRetainedPiDetails(
+          page,
+          projectId,
+          'watercourse',
+          ST_RETAINED_WATERCOURSE_NO_COMMENT
+        )
+        await expect(details.supportingInformationValue).toHaveText(
+          NO_SUPPORTING_INFORMATION
+        )
+      })
+
+      test("shows a Created or Enhanced feature's own comment in an editable box, and an empty box without one", async ({
+        postInterventionHabitatDetailsPage: details,
+        page
+      }) => {
+        await openPiDetails(
+          page,
+          projectId,
+          'watercourse',
+          ST_CREATED_WATERCOURSE,
+          CREATED
+        )
+        await expect(details.commentInput).toHaveValue(
+          ST_CREATED_WATERCOURSE_COMMENT
+        )
+        await expect(details.commentHint).toHaveText(CREATED_COMMENT_HINT)
+        await expect(page.getByText(CHARACTER_COUNT_PATTERN)).toHaveCount(0)
+        // Below the units, above Save and Cancel.
+        const unitsBox = await details.habitatUnitsValue.boundingBox()
+        const commentBox = await details.commentInput.boundingBox()
+        const saveBox = await details.saveButton.boundingBox()
+        expect(commentBox.y).toBeGreaterThan(unitsBox.y)
+        expect(saveBox.y).toBeGreaterThan(commentBox.y)
+        await expect(details.cancelLink).toBeVisible()
+        await expect(details.uploadFileButton).toBeVisible()
+
+        // No comment: an empty box, and the units the list shows.
+        const row = await piRowUnits(
+          page,
+          projectId,
+          'hedgerow',
+          ST_CREATED_HEDGEROW
+        )
+        await openPiDetails(
+          page,
+          projectId,
+          'hedgerow',
+          ST_CREATED_HEDGEROW,
+          CREATED
+        )
+        await expect(details.commentInput).toHaveValue('')
+        await expect(details.commentHint).toHaveText(CREATED_COMMENT_HINT)
+        await expect(details.habitatUnitsValue).toHaveText(row.Units)
+
+        await openPiDetails(page, projectId, 'area', ST_CREATED_AREA, CREATED)
+        await expect(details.commentInput).toHaveValue('')
+
+        await openPiDetails(
+          page,
+          projectId,
+          'watercourse',
+          ST_ENHANCED_WATERCOURSE,
+          ENHANCED
+        )
+        await expect(details.commentInput).toHaveValue(
+          ST_ENHANCED_WATERCOURSE_COMMENT
+        )
+        await expect(details.commentHint).toHaveText(CREATED_COMMENT_HINT)
+
+        const enhancedRow = await piRowUnits(
+          page,
+          projectId,
+          'hedgerow',
+          ST_ENHANCED_HEDGEROW
+        )
+        await openPiDetails(
+          page,
+          projectId,
+          'hedgerow',
+          ST_ENHANCED_HEDGEROW,
+          ENHANCED
+        )
+        await expect(details.commentInput).toHaveValue('')
+        await expect(details.habitatUnitsValue).toHaveText(enhancedRow.Units)
+      })
+
+      // The Enhanced area's comment is saved through the areas route, and its
+      // baseline habitat's comment stays out of its box. Ends with both
+      // comments cleared.
+      test("saves an Enhanced area's own comment trimmed, apart from its baseline habitat's comment", async ({
+        baselineHabitatDetailsPage,
+        postInterventionHabitatDetailsPage: details,
+        page
+      }) => {
+        const enhanced = { type: 'area', ref: ST_ENHANCED_AREA, tab: ENHANCED }
+        const baselineComment = 'Green roof inspected twice a year.'
+        const comment = [
+          'Enhancement agreed with the ecologist.',
+          '  Indented line kept as typed.',
+          '',
+          'Monitoring report due in year 5.'
+        ].join('\n')
+
+        await saveBaselineComment(
+          page,
+          baselineHabitatDetailsPage,
+          'area',
+          ST_ENHANCED_AREA,
+          baselineComment
+        )
+        const rowBefore = await piRowUnits(
+          page,
+          projectId,
+          'area',
+          ST_ENHANCED_AREA
+        )
+        await openPiDetails(page, projectId, 'area', ST_ENHANCED_AREA, ENHANCED)
+        await expect(details.commentInput).toHaveValue('')
+        await savePiComment(page, details, enhanced, `  \n ${comment}\n\n  `)
+        expect(
+          await piRowUnits(page, projectId, 'area', ST_ENHANCED_AREA)
+        ).toEqual(rowBefore)
+
+        await openPiDetails(page, projectId, 'area', ST_ENHANCED_AREA, ENHANCED)
+        await expect(details.commentInput).toHaveValue(comment)
+        await details.viewBaselineLink.click()
+        await expect(baselineHabitatDetailsPage.commentInput).toHaveValue(
+          baselineComment
+        )
+
+        // Whitespace alone saves as no comment.
+        await savePiComment(page, details, enhanced, '  \n \n  ')
+        await openPiDetails(page, projectId, 'area', ST_ENHANCED_AREA, ENHANCED)
+        await expect(details.commentInput).toHaveValue('')
+
+        await saveBaselineComment(
+          page,
+          baselineHabitatDetailsPage,
+          'area',
+          ST_ENHANCED_AREA,
+          ''
+        )
+      })
+
+      // Ends with HG005's comment cleared, so the read in the box test holds
+      // whichever runs first.
+      test("saves an Enhanced hedgerow's own comment, leaving units and status alone, and clears it when blank", async ({
+        postInterventionHabitatDetailsPage: details,
+        page
+      }) => {
+        const enhanced = {
+          type: 'hedgerow',
+          ref: ST_ENHANCED_HEDGEROW,
+          tab: ENHANCED
+        }
+        const comment = 'Hedgerow laid in winter 2027; gaps planted with hazel.'
+        const rowBefore = await piRowUnits(
+          page,
+          projectId,
+          'hedgerow',
+          ST_ENHANCED_HEDGEROW
+        )
+
+        await savePiComment(page, details, enhanced, comment)
+        expect(
+          await piRowUnits(page, projectId, 'hedgerow', ST_ENHANCED_HEDGEROW)
+        ).toEqual(rowBefore)
+
+        await openPiDetails(
+          page,
+          projectId,
+          'hedgerow',
+          ST_ENHANCED_HEDGEROW,
+          ENHANCED
+        )
+        await expect(details.commentInput).toHaveValue(comment)
+        await savePiComment(page, details, enhanced, '   ')
+
+        await openPiDetails(
+          page,
+          projectId,
+          'hedgerow',
+          ST_ENHANCED_HEDGEROW,
+          ENHANCED
+        )
+        await expect(details.commentInput).toHaveValue('')
+      })
+
+      // A Created hedgerow's comment typed in a real browser, CRLF and all,
+      // saved as typed and shown again. Ends with HG009's comment cleared, so
+      // the read in the box test holds whichever runs first.
+      test("saves a Created hedgerow's comment trimmed with its line breaks, leaving units and status alone, and clears it when blank", async ({
+        hedgerowsPostInterventionPage: hedgerowsPage,
+        postInterventionHabitatDetailsPage: details,
+        page
+      }) => {
+        const created = {
+          type: 'hedgerow',
+          ref: ST_CREATED_HEDGEROW,
+          tab: CREATED
+        }
+        const comment = [
+          ...Array.from(
+            { length: 8 },
+            (_, line) =>
+              `Line ${line + 1}: gaps planted up with hawthorn, blackthorn and hazel.`
+          ),
+          '',
+          'Café naïve façade – “quotes” £20 ½ °C'
+        ].join('\n')
+        const rowBefore = await piRowUnits(
+          page,
+          projectId,
+          'hedgerow',
+          ST_CREATED_HEDGEROW
+        )
+        const totalBefore = await hedgerowsPage.tileUnits(
+          POST_INTERVENTION_TILE
+        )
+
+        await savePiComment(page, details, created, `  \n ${comment}\n\n  `)
+        expect(
+          await piRowUnits(page, projectId, 'hedgerow', ST_CREATED_HEDGEROW)
+        ).toEqual(rowBefore)
+        expect(await hedgerowsPage.tileUnits(POST_INTERVENTION_TILE)).toBe(
+          totalBefore
+        )
+
+        await openPiDetails(
+          page,
+          projectId,
+          'hedgerow',
+          ST_CREATED_HEDGEROW,
+          CREATED
+        )
+        await expect(details.commentInput).toHaveValue(comment)
+        // Taller than the box, so it scrolls within it.
+        const scroll = await details.commentInput.evaluate((element) => {
+          element.scrollTop = element.scrollHeight
+          return {
+            hidden: element.scrollHeight - element.clientHeight,
+            scrollTop: element.scrollTop
+          }
+        })
+        expect(scroll.hidden).toBeGreaterThan(0)
+        expect(scroll.scrollTop).toBeGreaterThan(0)
+
+        // Whitespace alone saves as no comment.
+        await savePiComment(page, details, created, '  \n \n  ')
+        await openPiDetails(
+          page,
+          projectId,
+          'hedgerow',
+          ST_CREATED_HEDGEROW,
+          CREATED
+        )
+        await expect(details.commentInput).toHaveValue('')
+      })
+
+      // The Enhanced tree's own comment, the file's, is replaced through the
+      // trees route; its baseline tree keeps its own. The tree form has no
+      // "View baseline details" link, so the baseline tree is read from the
+      // grid.
+      test("saves an Enhanced tree's own comment trimmed, apart from its baseline tree's comment", async ({
+        baselineHabitatDetailsPage,
+        postInterventionHabitatDetailsPage: details,
+        page
+      }) => {
+        const enhanced = { type: 'area', ref: ST_ENHANCED_TREE, tab: ENHANCED }
+        const comment = 'Crown lifted and deadwood retained for habitat value.'
+        const rowBefore = await piRowUnits(
+          page,
+          projectId,
+          'area',
+          ST_ENHANCED_TREE
+        )
+
+        await openPiDetails(page, projectId, 'area', ST_ENHANCED_TREE, ENHANCED)
+        await expect(details.commentInput).toHaveValue(ST_ENHANCED_TREE_COMMENT)
+        await expect(details.viewBaselineLink).toHaveCount(0)
+        await savePiComment(page, details, enhanced, `  ${comment}  `)
+        expect(
+          await piRowUnits(page, projectId, 'area', ST_ENHANCED_TREE)
+        ).toEqual(rowBefore)
+
+        await openPiDetails(page, projectId, 'area', ST_ENHANCED_TREE, ENHANCED)
+        await expect(details.commentInput).toHaveValue(comment)
+
+        await openFromGrid(page, 'area', ST_ENHANCED_TREE)
+        await expect(baselineHabitatDetailsPage.commentInput).toHaveValue(
+          ST_ENHANCED_TREE_BASELINE_COMMENT
+        )
       })
     }
   )
