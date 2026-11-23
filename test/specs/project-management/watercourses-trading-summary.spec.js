@@ -15,7 +15,8 @@ import {
 import {
   getRunAllUnitTypesPostInterventionProject,
   getRunBaselineProject,
-  getRunTargetMetProject
+  getRunTargetMetProject,
+  getServiceTemplateWatercourseLowDeficitProject
 } from '@utils/run-projects.js'
 import {
   LEGACY_ONLY,
@@ -124,8 +125,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // tag on the cumulative tile (PR#387), and for
       // `showLowTotals: false` — neither grid has a totals row, unlike the
       // area page. Legacy only: no BNG Service template file in the harness
-      // corpus has a Low watercourse band below zero, other than one the
-      // service refuses.
+      // corpus has a Medium deficit and a Low watercourse band below zero
+      // together. That run reads each on its own project, below.
       test(
         'a Medium deficit and a Low running total below zero both read "Not met"',
         {
@@ -281,6 +282,69 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           ).toEqual({
             headers: UNIT_CHANGE_COLUMNS,
             rows: [['Culvert', '0.14']]
+          })
+        }
+      )
+
+      // invalid-watercourse-culvert-enhanced.gpkg: R001, a culvert Enhanced in
+      // place, which the metric does not offer, is saved Incomplete with no
+      // units, so the one Low type, Culvert, loses its 0.63. The Ditch is
+      // Retained, so the Medium band has neither deficit nor surplus to carry
+      // down, and the Low band's running total is the loss alone.
+      test(
+        'a Low running total below zero reads "Not met" with no Medium surplus to cover it',
+        { tag: SERVICE_TEMPLATE_ONLY },
+        async ({ browser, watercoursesTradingSummaryPage }) => {
+          const project =
+            await getServiceTemplateWatercourseLowDeficitProject(browser)
+          await watercoursesTradingSummaryPage.open(project.id)
+
+          expect(await watercoursesTradingSummaryPage.bandNames()).toEqual([
+            MEDIUM,
+            LOW
+          ])
+          await expectStatusTag(
+            watercoursesTradingSummaryPage.statusTag(MEDIUM),
+            STATUS_MET
+          )
+          await expectStatusTag(
+            watercoursesTradingSummaryPage.statusTag(LOW),
+            STATUS_NOT_MET
+          )
+
+          expect(
+            await watercoursesTradingSummaryPage.bandTileValue(
+              LOW,
+              LOW_TILES.netChange
+            )
+          ).toBe('-0.63 units')
+          expect(
+            await watercoursesTradingSummaryPage.bandTileValue(
+              LOW,
+              LOW_TILES.mediumSurplus
+            )
+          ).toBe('0.00 units')
+          expect(
+            await watercoursesTradingSummaryPage.bandTileValue(
+              LOW,
+              LOW_TILES.cumulativeSurplus
+            )
+          ).toBe('-0.63 units')
+          await expectStatusTag(
+            watercoursesTradingSummaryPage.bandTileTag(
+              LOW,
+              LOW_TILES.cumulativeSurplus
+            ),
+            STATUS_NOT_MET
+          )
+          await expect(
+            watercoursesTradingSummaryPage.bandTileTag(LOW, LOW_TILES.netChange)
+          ).toHaveCount(0)
+          expect(
+            await watercoursesTradingSummaryPage.readBandGrid(LOW)
+          ).toEqual({
+            headers: UNIT_CHANGE_COLUMNS,
+            rows: [['Culvert', '-0.63']]
           })
         }
       )
