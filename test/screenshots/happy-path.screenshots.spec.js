@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { test, expect } from '@fixtures'
 import { projectIdFromHref } from '@utils/project-helpers.js'
 import { STORAGE_STATE } from '@utils/env.js'
+import { PROJECT_DETAILS } from '@pages/project-details.page.js'
 
 /**
  * Happy-path screenshot capture for UCD (Mural UI flow).
@@ -37,6 +38,22 @@ async function snap(page, name) {
   })
 }
 
+// The processing page meta-refreshes to the project summary as soon as the
+// scan completes, so it may be gone before the capture. Waiting for either
+// page never blocks on one that has passed, and a missed page still takes its
+// index, leaving a numbering gap rather than shifting later screens.
+async function snapProcessingPage(page, processingUrl, summaryUrl, name) {
+  await page.waitForURL(
+    (url) => processingUrl.test(url.pathname) || summaryUrl.test(url.pathname),
+    { timeout: UPLOAD_TIMEOUT }
+  )
+  if (processingUrl.test(new URL(page.url()).pathname)) {
+    await snap(page, name).catch(() => {})
+  } else {
+    step += 1
+  }
+}
+
 test.describe('happy-path-screenshots', { tag: '@screenshots' }, () => {
   test.describe.configure({ mode: 'serial' })
 
@@ -68,6 +85,7 @@ test.describe('happy-path-screenshots', { tag: '@screenshots' }, () => {
       uploadPostInterventionFilePage,
       uploadPostInterventionFileFlow,
       areaPostInterventionPage,
+      projectDetailsPage,
       page
     }) => {
       const projectName = `${PROJECT_LABEL} ${Date.now()}`
@@ -99,9 +117,11 @@ test.describe('happy-path-screenshots', { tag: '@screenshots' }, () => {
       await projectDashboardPage.projectLink(projectName).click()
       await expect(uploadFilePage.heading).toBeVisible()
       await snap(page, 'upload-file')
+      await uploadFilePage.selectBaseline()
+      await uploadFilePage.submit()
 
       // ── Upload baseline file ────────────────────────────────────────────
-      await uploadBaselineFilePage.open(id)
+      await expect(uploadBaselineFilePage.instructionText).toBeVisible()
       await uploadBaselineFilePage.fileInput.setInputFiles(
         uploadBaselineFileFlow.filePath(BASELINE_FILE)
       )
@@ -109,13 +129,16 @@ test.describe('happy-path-screenshots', { tag: '@screenshots' }, () => {
       await uploadBaselineFilePage.continueButton.click()
 
       // ── Checking your file (transient processing page) ──────────────────
-      await page.waitForURL(/\/upload-received/, { timeout: UPLOAD_TIMEOUT })
-      // The page meta-refreshes away as soon as the scan completes — a capture
-      // interrupted by that redirect leaves a numbering gap instead of failing.
-      await snap(page, 'checking-your-file').catch(() => {})
+      const summaryUrl = new RegExp(`/projects/${id}/project-summary`)
+      await snapProcessingPage(
+        page,
+        /\/upload-received$/,
+        summaryUrl,
+        'checking-your-file'
+      )
 
       // ── Project summary with baseline results ───────────────────────────
-      await page.waitForURL(new RegExp(`/projects/${id}/project-summary`), {
+      await page.waitForURL(summaryUrl, {
         timeout: UPLOAD_TIMEOUT
       })
       await expect(projectSummaryPage.heading).toBeVisible()
@@ -140,16 +163,34 @@ test.describe('happy-path-screenshots', { tag: '@screenshots' }, () => {
       await baselineHabitatDetailsPage.saveButton.click()
       await page.waitForURL(new RegExp(`/projects/${id}/area-baseline`))
 
+      // ── Choose upload type, post intervention ───────────────────────────
+      // The summary's Upload file button leads back to the selection page;
+      // the user picks a type for each upload.
+      await projectSummaryPage.open(id)
+      await projectSummaryPage.uploadFileButton.click()
+      await expect(uploadFilePage.heading).toBeVisible()
+      await uploadFilePage.selectPostIntervention()
+      await snap(page, 'upload-file-post-intervention')
+      await uploadFilePage.submit()
+
       // ── Upload post-intervention file ───────────────────────────────────
-      await uploadPostInterventionFilePage.open(id)
+      await expect(uploadPostInterventionFilePage.instructionText).toBeVisible()
       await uploadPostInterventionFilePage.fileInput.setInputFiles(
         uploadPostInterventionFileFlow.filePath(POST_INTERVENTION_FILE)
       )
       await snap(page, 'upload-post-intervention-file')
       await uploadPostInterventionFilePage.continueButton.click()
 
+      // ── Checking your file, post intervention (transient) ───────────────
+      await snapProcessingPage(
+        page,
+        /\/post-intervention-upload-received$/,
+        summaryUrl,
+        'checking-your-file-post-intervention'
+      )
+
       // ── Project summary with post-intervention results ──────────────────
-      await page.waitForURL(new RegExp(`/projects/${id}/project-summary`), {
+      await page.waitForURL(summaryUrl, {
         timeout: UPLOAD_TIMEOUT
       })
       await expect(projectSummaryPage.heading).toBeVisible()
@@ -159,6 +200,11 @@ test.describe('happy-path-screenshots', { tag: '@screenshots' }, () => {
       await areaPostInterventionPage.open(id)
       await expect(areaPostInterventionPage.heading).toBeVisible()
       await snap(page, 'area-post-intervention')
+
+      // ── Project details, from the left navigation ───────────────────────
+      await areaPostInterventionPage.navLink(PROJECT_DETAILS).click()
+      await expect(projectDetailsPage.heading).toBeVisible()
+      await snap(page, 'project-details')
     })
   })
 })

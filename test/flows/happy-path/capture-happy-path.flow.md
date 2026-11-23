@@ -8,24 +8,28 @@ This is not a regression test. It runs only via `playwright.screenshots.config.j
 
 ## Steps
 
-Re-sequenced on 2026-10-07 for **BMD-1043** (frontend PR#352): the project task list and both habitat lists were removed, so the journey now runs through the project summary and the area habitats grids. Screens 04, 07, 08, 11 and 12 are new or renamed; images from earlier exports do not line up one-to-one.
+Re-sequenced on 2026-11-23 to close drift found by the `/capture-happy-path` pre-flight: the journey now chooses an upload type before **each** upload (the spec selects the type and submits, rather than opening the upload forms directly), captures the post-intervention processing page, and ends on Project Details. Screens from 10 onwards are renumbered; images from earlier exports do not line up one-to-one.
 
-| #   | Screenshot                             | Screen                                                                                          | Status                                                                                                 |
-| --- | -------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| 01  | `01-home.png`                          | Home page, signed out (`/`)                                                                     | [IMPLEMENTED]                                                                                          |
-| —   | _not captured_                         | Defra ID / GOV.UK One Login sign-in (external IdP)                                              | [BLOCKED: external Azure B2C pages — the local stub's register screens are not the real UI]            |
-| 02  | `02-project-name.png`                  | Define project name, filled in (`/project-name`)                                                | [IMPLEMENTED]                                                                                          |
-| 03  | `03-manage-projects.png`               | Project dashboard listing the new project (`/manage-projects`)                                  | [IMPLEMENTED]                                                                                          |
-| 04  | `04-upload-file.png`                   | Choose upload type, reached by opening the new project (`/projects/{id}/upload-file`)           | [IMPLEMENTED] — BMD-1076 redirects a no-baseline summary here; replaces `04-project-summary-empty.png` |
-| 05  | `05-upload-baseline-file.png`          | Upload baseline form with file chosen (`/projects/{id}/upload-baseline-file`)                   | [IMPLEMENTED]                                                                                          |
-| 06  | `06-checking-your-file.png`            | Upload processing page (`/projects/{id}/upload-received`)                                       | [IMPLEMENTED] — transient meta-refresh page; capture is best-effort                                    |
-| 07  | `07-project-summary-baseline.png`      | Project summary with baseline results (`/projects/{id}/project-summary`)                        | [IMPLEMENTED]                                                                                          |
-| 08  | `08-area-baseline.png`                 | Baseline for area habitats (`/projects/{id}/area-baseline`)                                     | [IMPLEMENTED]                                                                                          |
-| 09  | `09-baseline-habitat-details.png`      | Baseline habitat details for the first area habitat (`/baseline-habitat-details`)               | [IMPLEMENTED]                                                                                          |
-| 10  | `10-upload-post-intervention-file.png` | Upload post-intervention form with file chosen (`/projects/{id}/upload-post-intervention-file`) | [IMPLEMENTED]                                                                                          |
-| 11  | `11-project-summary-complete.png`      | Project summary with post-intervention results (`/projects/{id}/project-summary`)               | [IMPLEMENTED]                                                                                          |
-| 12  | `12-area-post-intervention.png`        | Post intervention for area habitats (`/projects/{id}/area-post-intervention`)                   | [IMPLEMENTED]                                                                                          |
-| —   | _not captured_                         | Project Details form (`/project-details/{projectId}`)                                           | [PLANNED] — route **is** implemented; linked from the left navigation since BMD-849                    |
+| #   | Screenshot                                    | Screen                                                                                                    | Status                                                                                      |
+| --- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| 01  | `01-home.png`                                 | Home page, signed out (`/`)                                                                               | [IMPLEMENTED]                                                                               |
+| —   | _not captured_                                | Defra ID / GOV.UK One Login sign-in (external IdP)                                                        | [BLOCKED: external Azure B2C pages — the local stub's register screens are not the real UI] |
+| 02  | `02-project-name.png`                         | Define project name, filled in (`/project-name`)                                                          | [IMPLEMENTED]                                                                               |
+| 03  | `03-manage-projects.png`                      | Project dashboard listing the new project (`/manage-projects`)                                            | [IMPLEMENTED]                                                                               |
+| 04  | `04-upload-file.png`                          | Choose upload type, reached by opening the new project (`/projects/{id}/upload-file`); Baseline is chosen | [IMPLEMENTED] — BMD-1076 redirects a no-baseline summary here                               |
+| 05  | `05-upload-baseline-file.png`                 | Upload baseline form with file chosen (`/projects/{id}/upload-baseline-file`)                             | [IMPLEMENTED]                                                                               |
+| 06  | `06-checking-your-file.png`                   | Baseline upload processing page (`/projects/{id}/upload-received`)                                        | [IMPLEMENTED] — transient meta-refresh page; capture is best-effort                         |
+| 07  | `07-project-summary-baseline.png`             | Project summary with baseline results (`/projects/{id}/project-summary`)                                  | [IMPLEMENTED]                                                                               |
+| 08  | `08-area-baseline.png`                        | Baseline for area habitats (`/projects/{id}/area-baseline`)                                               | [IMPLEMENTED]                                                                               |
+| 09  | `09-baseline-habitat-details.png`             | Baseline habitat details for the first area habitat (`/baseline-habitat-details`)                         | [IMPLEMENTED]                                                                               |
+| 10  | `10-upload-file-post-intervention.png`        | Choose upload type with Post-intervention selected, from the summary's Upload file button                 | [IMPLEMENTED]                                                                               |
+| 11  | `11-upload-post-intervention-file.png`        | Upload post-intervention form with file chosen (`/projects/{id}/upload-post-intervention-file`)           | [IMPLEMENTED]                                                                               |
+| 12  | `12-checking-your-file-post-intervention.png` | Post-intervention upload processing page (`/projects/{id}/post-intervention-upload-received`)             | [IMPLEMENTED] — transient meta-refresh page; capture is best-effort                         |
+| 13  | `13-project-summary-complete.png`             | Project summary with post-intervention results (`/projects/{id}/project-summary`)                         | [IMPLEMENTED]                                                                               |
+| 14  | `14-area-post-intervention.png`               | Post intervention for area habitats (`/projects/{id}/area-post-intervention`)                             | [IMPLEMENTED]                                                                               |
+| 15  | `15-project-details.png`                      | Project Details form, from the left navigation (`/project-details/{projectId}`)                           | [IMPLEMENTED] — linked from the left navigation since BMD-849                               |
+
+A best-effort capture that misses its transient page leaves a gap at its index; later screens keep their numbers.
 
 ## Fixtures
 
@@ -43,10 +47,3 @@ Or invoke the `/capture-happy-path` slash command, which wraps these steps and f
 ## Maintenance
 
 When the happy path gains a screen, add the step to `test/screenshots/happy-path.screenshots.spec.js` in journey order and update the table above before touching the spec.
-
-**Two screens are currently outstanding** (both marked `[PLANNED]` above — the routes exist, the capture does not visit them):
-
-1. **Choose upload type** (`/projects/{id}/upload-file`) — BMD-850 inserted this between the project summary (04) and both upload forms. The spec still reaches `/projects/{id}/upload-baseline-file` and `/projects/{id}/upload-post-intervention-file` directly, which is why the capture still succeeds; navigating the UI now passes through the selection page. It belongs **twice** in journey order — once before 05 and once before 10 — since the user picks a type each time. See [`../upload-file/choose-upload-type.flow.md`](../upload-file/choose-upload-type.flow.md).
-2. **Project Details** (`/project-details/{projectId}`) — implemented and documented in [`../project-management/project-details.flow.md`](../project-management/project-details.flow.md). The earlier "route not yet implemented" note in this table was stale.
-
-Note the `/capture-happy-path` drift pre-flight compares this table against `router.js`, so it will keep flagging both until the spec covers them or they are removed from the table.
