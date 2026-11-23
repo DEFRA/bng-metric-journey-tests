@@ -12,15 +12,6 @@
 // The run must match the stack. A mismatched run fails rather than passing:
 // the service refuses every upload in the other template.
 
-import fs from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-
-const TEST_DIR = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  '..'
-)
-
 const LEGACY_RUN = 'legacy'
 const SERVICE_TEMPLATE_RUN = 'service-template'
 
@@ -28,12 +19,6 @@ const SERVICE_TEMPLATE_RUN = 'service-template'
 // both and asserts different values chooses them with isServiceTemplateRun().
 const LEGACY_ONLY = '@legacy-only'
 const SERVICE_TEMPLATE_ONLY = '@service-template-only'
-
-// Spec files the service-template run leaves out, as a whole, because they
-// upload legacy fixtures or assert legacy values and have no new-template
-// version yet. Each entry comes off this list when its spec gains the
-// new-template fixtures and assertions. The legacy run ignores this list.
-const LEGACY_ONLY_SPECS = []
 
 /**
  * Read the flag strictly: `true`, `false` or unset (off). These are the only
@@ -73,22 +58,6 @@ export function isServiceTemplateRun() {
 }
 
 /**
- * Fail on an entry that names no spec, such as one renamed or moved since it
- * was listed. The service-template run would otherwise quietly start running
- * a legacy-only spec under its new name.
- */
-function assertLegacyOnlySpecsExist() {
-  const missing = LEGACY_ONLY_SPECS.filter(
-    (spec) => !fs.existsSync(path.join(TEST_DIR, spec))
-  )
-  if (missing.length > 0) {
-    throw new Error(
-      `LEGACY_ONLY_SPECS in test/utils/template-run.js names specs that do not exist: ${missing.join(', ')}`
-    )
-  }
-}
-
-/**
  * The Playwright project for this run. Only the project that matches the
  * stack is defined, so a plain `playwright test` never runs the other one.
  *
@@ -99,16 +68,10 @@ function assertLegacyOnlySpecsExist() {
  * @returns {import('@playwright/test').Project}
  */
 export function templateRunProject(baseTestIgnore) {
-  // Checked in both runs, so the legacy run in CI catches a renamed or moved
-  // spec before the service-template run meets it.
-  assertLegacyOnlySpecsExist()
   if (serviceTemplateEnabled) {
     return {
       name: SERVICE_TEMPLATE_RUN,
-      testIgnore: [
-        ...baseTestIgnore,
-        ...LEGACY_ONLY_SPECS.map((spec) => `**/${spec}`)
-      ],
+      testIgnore: baseTestIgnore,
       grepInvert: new RegExp(LEGACY_ONLY)
     }
   }
@@ -134,10 +97,4 @@ export function assertLegacyTemplateRun(suite) {
   }
 }
 
-export {
-  LEGACY_ONLY,
-  LEGACY_ONLY_SPECS,
-  LEGACY_RUN,
-  SERVICE_TEMPLATE_ONLY,
-  SERVICE_TEMPLATE_RUN
-}
+export { LEGACY_ONLY, LEGACY_RUN, SERVICE_TEMPLATE_ONLY, SERVICE_TEMPLATE_RUN }

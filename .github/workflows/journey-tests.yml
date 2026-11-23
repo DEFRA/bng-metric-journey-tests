@@ -202,16 +202,12 @@ jobs:
       - name: Add host entries for identity stub
         run: echo "127.0.0.1 cdp-defra-id-stub" | sudo tee -a /etc/hosts
 
-      # A profile can select nothing in the service-template run, such as a tag
-      # whose specs it still leaves out (LEGACY_ONLY_SPECS). That run passes
-      # empty rather than failing with "No tests found". The legacy run leaves
-      # nothing out, so an empty one there is a mistake, such as a mistyped
-      # profile, and still fails; so does any run without a profile.
+      # Every spec runs in both template runs, so a profile that selects no
+      # tests is a mistake, such as a mistyped tag, and fails the run.
       - name: Run Playwright tests
         env:
           PROFILE: ${{ inputs.profile }}
-          NO_TESTS_FLAG: ${{ inputs.profile && matrix.run == 'service-template' && '--pass-with-no-tests' || '' }}
-        run: npm run test:github -- $NO_TESTS_FLAG
+        run: npm run test:github
 
       - name: Collect Docker Compose logs
         if: always()
