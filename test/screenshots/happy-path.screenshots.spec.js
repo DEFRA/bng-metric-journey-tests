@@ -24,6 +24,7 @@ const PROJECT_LABEL = 'Happy path screenshots'
 const UPLOAD_TIMEOUT = 120_000
 const BASELINE_FILE = 'Baseline - complete with area refs.gpkg'
 const POST_INTERVENTION_FILE = 'Post-intervention - complete.gpkg'
+const INTERVENTION_TABS = ['Retained', 'Enhanced', 'Created']
 
 // Journey-order index shared by both tests below (the signed-out home capture
 // and the authenticated journey run sequentially on the single worker).
@@ -85,6 +86,7 @@ test.describe('happy-path-screenshots', { tag: '@screenshots' }, () => {
       uploadPostInterventionFilePage,
       uploadPostInterventionFileFlow,
       areaPostInterventionPage,
+      postInterventionHabitatDetailsPage,
       projectDetailsPage,
       page
     }) => {
@@ -200,6 +202,26 @@ test.describe('happy-path-screenshots', { tag: '@screenshots' }, () => {
       await areaPostInterventionPage.open(id)
       await expect(areaPostInterventionPage.heading).toBeVisible()
       await snap(page, 'area-post-intervention')
+
+      // ── Post-intervention habitat details, one per intervention tab ─────
+      // Each tab's first habitat opens its own page: the Retained reference
+      // form, and the Enhanced and Created edit forms.
+      for (const label of INTERVENTION_TABS) {
+        await areaPostInterventionPage.tab(label).click()
+        await areaPostInterventionPage
+          .table(label)
+          .getByRole('link')
+          .first()
+          .click()
+        await expect(
+          postInterventionHabitatDetailsPage.habitatReferenceInput
+        ).toBeVisible()
+        await snap(
+          page,
+          `post-intervention-habitat-details-${label.toLowerCase()}`
+        )
+        await areaPostInterventionPage.open(id)
+      }
 
       // ── Project details, from the left navigation ───────────────────────
       await areaPostInterventionPage.navLink(PROJECT_DETAILS).click()

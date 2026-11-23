@@ -15,7 +15,7 @@ Reference docs:
 The spec is a hard-coded linear journey: it cannot discover screens it doesn't know about, so a journey that gained a screen would otherwise produce a silently incomplete export. Before running the capture:
 
 1. Ask the user to confirm they have pulled the latest `main` of `../bng-metric-frontend` and the latest service images (`docker compose pull` for `bng-metric-frontend`/`bng-metric-backend` only — never a plain full-stack pull, the pinned `cdp-uploader:1.16.0` must not be replaced by `latest`). Do not proceed until confirmed.
-2. Read `../bng-metric-frontend/src/server/router.js` in full and identify the routes a successful user traverses on the happy path (home → create project → task list → upload baseline → habitat list → habitat details → upload post-intervention → post-intervention habitat list). Source only — no test files.
+2. Read `../bng-metric-frontend/src/server/router.js` in full and identify the routes a successful user traverses on the happy path (home → create project → choose upload type → upload baseline → project summary → area habitats baseline → baseline habitat details → choose upload type → upload post-intervention → project summary → area habitats post intervention → post-intervention habitat details for each intervention tab → project details). Source only — no test files.
 3. Compare against the Steps table in `test/flows/happy-path/capture-happy-path.flow.md`:
    - A happy-path route now implemented but **absent from the table** → drift.
    - A table entry marked `[PLANNED]` or `[BLOCKED]` that now appears implemented in the router → drift.
