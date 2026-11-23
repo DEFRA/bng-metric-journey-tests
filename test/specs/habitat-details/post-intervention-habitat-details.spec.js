@@ -6519,7 +6519,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         'saves a Created hedgerow reference and target condition and reloads the edited row',
         { tag: '@happy-path' },
         async ({ page, postInterventionHabitatDetailsPage: details }) => {
-          const updatedRef = 'HG009 edited'
+          // Within the grids' 10 characters, so it is shown whole.
+          const updatedRef = 'HG009 new'
           await openPiFeatureDetails(page, projectId, 'hedgerow', 'HG009')
           await details.habitatReferenceInput.fill(updatedRef)
           await details.targetConditionSelect.selectOption('Moderate')
