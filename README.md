@@ -120,7 +120,7 @@ Moving between states needs the apps restarted with the new value (`docker compo
 
 The other suites have no BNG Service template run yet. `npm run test:resilience` and `npm run screenshots` upload legacy files, so they need a stack with the flag off, and stop before they start if it is `true`. `npm run test:evidence` does not read the flag: an evidence spec uploads whichever template its AC needs, against a stack started to match.
 
-The BNG Service template run is still being built. Until it is, it leaves out the spec files listed in `LEGACY_ONLY_SPECS` (`test/utils/template-run.js`), which upload legacy files or assert legacy values; it runs the rest of the suite, the parts that do not depend on the template. See AGENTS.md, **Template Runs**.
+Every spec file runs in both template runs. A test of behaviour only one template has is tagged `@legacy-only` or `@service-template-only`, and the other run leaves it out. See AGENTS.md, **Template Runs**.
 
 ---
 
