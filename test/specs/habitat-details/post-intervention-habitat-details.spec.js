@@ -1272,10 +1272,12 @@ const SERVICE_TEMPLATE_INCOMPLETE_CREATED_AREA = {
 // Moderate, its type kept and its target condition and strategic
 // significance left blank.
 const SERVICE_TEMPLATE_INCOMPLETE_ENHANCED_AREA = 'H004'
-// In LONG_AND_PADDED_REFS, both stages: H034 spelt '   H034   ', and H029
-// renamed with letters outside ASCII, long enough that the grids cut it.
+// In LONG_AND_PADDED_REFS, both stages: H034 spelt '   H034   ', H029
+// renamed with letters outside ASCII, and H050 renamed to a ref at the
+// 99-character limit. The grids cut the last two.
 const SERVICE_TEMPLATE_PADDED_REF = 'H034'
 const SERVICE_TEMPLATE_NON_ASCII_REF = 'Étang-du-Moulin-Ælfrīc'
+const SERVICE_TEMPLATE_LONGEST_REF = 'H050-'.padEnd(Number(MAX_REF_LENGTH), 'x')
 
 // A feature's id, read from its grid in the creator's own session: for a
 // test whose page has no session, or another user's.
@@ -5502,7 +5504,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await details.targetConditionSelect.selectOption(entered.condition)
           await details.advanceYearsSelect.selectOption(entered.advance)
           await details.delayYearsSelect.selectOption(entered.delay)
-          const comment = `�${'c'.repeat(MAX_COMMENT_LENGTH)}`
+          const comment = `\uFFFD${'c'.repeat(MAX_COMMENT_LENGTH)}`
           await details.commentInput.fill(comment)
 
           await details.saveButton.click()
@@ -5996,6 +5998,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             TILE_ROUNDING
           )
           expect(await areaRowByRef(page, projectId, ref)).toMatchObject({
+            Status: STATUS_INCOMPLETE,
             Units: '0.00',
             Distinctiveness: 'Medium (4)',
             'Strategic significance': 'High (1.15)',
@@ -6163,14 +6166,15 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         ))
       })
 
-      test('saves a padded ref trimmed, and a ref with letters outside ASCII whole, each linked to its parent', async ({
+      test('saves a padded ref trimmed, and a 99-character ref and one with letters outside ASCII whole, each linked to its parent', async ({
         page,
         postInterventionHabitatDetailsPage: details,
         baselineHabitatDetailsPage
       }) => {
         for (const ref of [
           SERVICE_TEMPLATE_PADDED_REF,
-          SERVICE_TEMPLATE_NON_ASCII_REF
+          SERVICE_TEMPLATE_NON_ASCII_REF,
+          SERVICE_TEMPLATE_LONGEST_REF
         ]) {
           const name = gridRefName(ref)
           const { unitPage, label } = await openPiTabFor(
@@ -6183,11 +6187,16 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await unitPage.refLink(label, name).click()
 
           expect(await details.rawHeadingText(), ref).toBe(`Habitat ${ref}`)
+          await expect(details.habitatReferenceInput, ref).toHaveValue(ref)
           await details.viewBaselineLink.click()
           await expect(page).toHaveURL(BASELINE_DETAILS_URL_PATTERN)
           expect(await baselineHabitatDetailsPage.rawHeadingText(), ref).toBe(
             `Habitat ${ref}`
           )
+          await expect(
+            baselineHabitatDetailsPage.habitatReferenceInput,
+            ref
+          ).toHaveValue(ref)
         }
       })
     }
