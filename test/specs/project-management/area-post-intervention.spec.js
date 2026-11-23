@@ -14,7 +14,8 @@ import {
   getRunRetainedSignificanceProject,
   getRunTreesPostInterventionProject,
   getServiceTemplateHedgerowInvalidEnhancementProject,
-  getServiceTemplateIncompleteEnhancementsProject
+  getServiceTemplateIncompleteEnhancementsProject,
+  getServiceTemplateLongRefsProject
 } from '@utils/run-projects.js'
 import {
   LEGACY_ONLY,
@@ -431,6 +432,15 @@ const AREA_STATUS_DESCENDING = [
 // invalid-data-incomplete.gpkg's H004: Enhanced with no Proposed Condition or
 // Proposed Strategic Significance.
 const ENHANCED_UNPRICED_REF = 'H004'
+// long-and-padded-refs.gpkg: Retained area habitats whose refs, in both
+// stages, are longer than 10 characters, and '   H034   ', which the import
+// trims.
+const SERVICE_TEMPLATE_LONG_REFS = [
+  'WOODLAND-NORTH-EDGE',
+  'Étang-du-Moulin-Ælfrīc',
+  `H050-${'x'.repeat(94)}`
+]
+const SERVICE_TEMPLATE_PADDED_REF = 'H034'
 
 /** A row's Status tag, found by the row's Ref link and the tag's text. */
 function statusTag(grid, label, reference, status) {
@@ -1457,6 +1467,41 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expectRefWhole(
           areaPostInterventionPage.refLink(RETAINED, LONG_PADDED_REFS.padded),
           LONG_PADDED_REFS.padded
+        )
+      })
+    }
+  )
+
+  test.describe(
+    'Area post-intervention — BNG Service template long references',
+    { tag: ['@regression', SERVICE_TEMPLATE_ONLY] },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      let project
+      test.beforeAll(async ({ browser }) => {
+        project = await getServiceTemplateLongRefsProject(browser)
+      })
+
+      test('shows only the first 10 characters of a longer ref', async ({
+        areaPostInterventionPage
+      }) => {
+        await areaPostInterventionPage.open(project.id)
+        await areaPostInterventionPage.tab(RETAINED).click()
+
+        for (const ref of SERVICE_TEMPLATE_LONG_REFS) {
+          await expectRefCut(
+            areaPostInterventionPage.refLink(RETAINED, gridRefName(ref)),
+            ref
+          )
+        }
+        await expectRefWhole(
+          areaPostInterventionPage.refLink(
+            RETAINED,
+            SERVICE_TEMPLATE_PADDED_REF
+          ),
+          SERVICE_TEMPLATE_PADDED_REF
         )
       })
     }

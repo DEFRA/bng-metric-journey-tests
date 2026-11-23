@@ -10,9 +10,15 @@ import {
 import {
   getRunAllUnitTypesProject,
   getRunAreaGainProject,
-  getRunBaselineProject
+  getRunBaselineProject,
+  getServiceTemplateIncompleteBaselineProject,
+  getServiceTemplateLongRefsBaselineProject
 } from '@utils/run-projects.js'
-import { LEGACY_ONLY, isServiceTemplateRun } from '@utils/template-run.js'
+import {
+  LEGACY_ONLY,
+  SERVICE_TEMPLATE_ONLY,
+  isServiceTemplateRun
+} from '@utils/template-run.js'
 import {
   expectRefCut,
   expectRefWhole,
@@ -51,6 +57,23 @@ const FIXED_STRATEGIC_SIGNIFICANCE = 'Low (1)'
 const INCOMPLETE_EVERY_LAYER_FILE =
   'Baseline - incomplete habitat on every layer.gpkg'
 const REF_SORT_LOCALE = 'en'
+
+// baseline-incomplete-every-layer-baseline.gpkg: one baseline habitat per
+// layer has a blank value its units need and is saved Incomplete. H002 and
+// HG001 have no Baseline Condition, R007 no riparian encroachment.
+const SERVICE_TEMPLATE_INCOMPLETE_REFS = {
+  area: 'H002',
+  hedgerows: 'HG001',
+  watercourses: 'R007'
+}
+// long-and-padded-refs-baseline.gpkg: three refs longer than 10 characters,
+// and '   H034   ', which the import trims.
+const SERVICE_TEMPLATE_LONG_REFS = [
+  'WOODLAND-NORTH-EDGE',
+  'Étang-du-Moulin-Ælfrīc',
+  `H050-${'x'.repeat(94)}`
+]
+const SERVICE_TEMPLATE_PADDED_REF = 'H034'
 
 // The rows the run's baseline-only project lists, by collection. The point of
 // the test is that every collection reaches one table, so the counts are what
@@ -623,6 +646,104 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expectRefWhole(
           areaBaselinePage.refLink(LONG_PADDED_REFS.padded),
           LONG_PADDED_REFS.padded
+        )
+      })
+    }
+  )
+
+  // The Status column and long references in the BNG Service template run,
+  // each on a corpus file made for it.
+  test.describe(
+    'Baseline grids — BNG Service template Status column',
+    { tag: ['@regression', SERVICE_TEMPLATE_ONLY] },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      let project
+      test.beforeAll(async ({ browser }) => {
+        project = await getServiceTemplateIncompleteBaselineProject(browser)
+      })
+
+      test('each grid shows the Incomplete status saved on upload', async ({
+        areaBaselinePage,
+        hedgerowsBaselinePage,
+        watercoursesBaselinePage
+      }) => {
+        const grids = [
+          [areaBaselinePage, SERVICE_TEMPLATE_INCOMPLETE_REFS.area],
+          [hedgerowsBaselinePage, SERVICE_TEMPLATE_INCOMPLETE_REFS.hedgerows],
+          [
+            watercoursesBaselinePage,
+            SERVICE_TEMPLATE_INCOMPLETE_REFS.watercourses
+          ]
+        ]
+        for (const [grid, incompleteRef] of grids) {
+          await grid.open(project.id)
+          const refs = await grid.columnValues('ref')
+          expect(refs).toContain(incompleteRef)
+          expect(refs.length, `${incompleteRef}'s grid rows`).toBeGreaterThan(1)
+          const expected = refs.map((ref) =>
+            ref === incompleteRef ? STATUS_INCOMPLETE : STATUS_COMPLETE
+          )
+          expect(await grid.columnValues('status')).toEqual(expected)
+        }
+      })
+
+      // H002 is the area grid's one Incomplete row, second in Ref order, so
+      // a descending sort that reversed the ascending one would put the last
+      // Complete row second rather than H001.
+      test('clicking Status sorts Complete first, then Incomplete first, with ties in Ref order', async ({
+        areaBaselinePage
+      }) => {
+        const incompleteRef = SERVICE_TEMPLATE_INCOMPLETE_REFS.area
+        await areaBaselinePage.open(project.id)
+        const complete = (await areaBaselinePage.columnValues('ref')).filter(
+          (ref) => ref !== incompleteRef
+        )
+        const statusHeader = areaBaselinePage.columnHeader('status')
+        const sortButton = areaBaselinePage.sortButton('status')
+
+        await sortButton.click()
+        await expect(statusHeader).toHaveAttribute('aria-sort', 'ascending')
+        expect(await areaBaselinePage.columnValues('ref')).toEqual([
+          ...complete,
+          incompleteRef
+        ])
+
+        await sortButton.click()
+        await expect(statusHeader).toHaveAttribute('aria-sort', 'descending')
+        expect(await areaBaselinePage.columnValues('ref')).toEqual([
+          incompleteRef,
+          ...complete
+        ])
+      })
+    }
+  )
+
+  test.describe(
+    'Area baseline — BNG Service template long references',
+    { tag: ['@regression', SERVICE_TEMPLATE_ONLY] },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      let project
+      test.beforeAll(async ({ browser }) => {
+        project = await getServiceTemplateLongRefsBaselineProject(browser)
+      })
+
+      test('shows only the first 10 characters of a longer ref', async ({
+        areaBaselinePage
+      }) => {
+        await areaBaselinePage.open(project.id)
+
+        for (const ref of SERVICE_TEMPLATE_LONG_REFS) {
+          await expectRefCut(areaBaselinePage.refLink(gridRefName(ref)), ref)
+        }
+        await expectRefWhole(
+          areaBaselinePage.refLink(SERVICE_TEMPLATE_PADDED_REF),
+          SERVICE_TEMPLATE_PADDED_REF
         )
       })
     }
