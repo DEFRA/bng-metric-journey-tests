@@ -1034,13 +1034,13 @@ async function assertUnenhanceableDropout(errorFilePage) {
 
 // Sole witness for BASELINE_NOT_ENHANCEABLE, and for TREE_NOT_ENHANCEABLE (a
 // tree in Good condition, refused with its own code since BMD-1172), from a
-// real GeoPackage. The backend's
-// refuse-unenhanceable-baselines tests hand-build their documents and no
-// integration test mentions the code. Break a layer's extraction and they keep
-// passing, but that layer's file stops being refused and this page never shows.
-// The page names no habitat (frontend PR #447), so these tests prove the file is
-// refused, not which habitat caused it. Do not delete without an integration test
-// that uploads these fixtures.
+// real GeoPackage. The backend's refuse-unenhanceable-baselines tests
+// hand-build their documents and no integration test mentions the codes. Break
+// a layer's extraction and they keep passing, but that layer's file stops being
+// refused and this page never shows. BASELINE_NOT_ENHANCEABLE's page names no
+// habitat (frontend PR #447), so its tests prove the file is refused, not which
+// habitat caused it; the tree test also asserts the tree its list names. Do not
+// delete without an integration test that uploads these fixtures.
 //
 // One test per extraction path, not per rule: AC2 and AC5 share the hedgerow
 // path and this page with the Very Low test, and the backend's tests run their
