@@ -271,6 +271,24 @@
       "source": "incomplete/hedgerow-enhanced-significance-blank.gpkg",
       "sha256": "b598714d1f5487cec2aaf5bbb40f97a97880dd372001c354e4c1b42775869b54",
       "for": "The Enhanced HG002 with no Proposed Strategic Significance: accepted, Incomplete and unpriced, its proposed condition and years kept"
+    },
+    {
+      "file": "invalid-hedgerow-low-not-possible.gpkg",
+      "source": "permutations/invalid-interventions/invalid-hedgerow-low-not-possible.gpkg",
+      "sha256": "95ebe6cbc7ecb7032fc99475aff21b5374b1552dfb6ac74d9d6dcb3d804edf88",
+      "for": "HG001, a Native hedgerow enhanced to an Ecologically valuable line of trees, which the Metric gives no time to target: accepted, HG001 saved Incomplete with its enhancement cleared"
+    },
+    {
+      "file": "hedgerow-created-no-condition-or-timing.gpkg",
+      "source": "incomplete/hedgerow-created-no-condition-or-timing.gpkg",
+      "sha256": "082768b02b042a9860205a39b449c9cb181bf2d0ae389f65538e7e7414b66d68",
+      "for": "The default site with the Created HG015 given no Proposed Condition, years created in advance or delay: accepted, HG015 saved Incomplete"
+    },
+    {
+      "file": "watercourse-enhanced-encroachment-reduced.gpkg",
+      "source": "valid/watercourse-enhanced-encroachment-reduced.gpkg",
+      "sha256": "2502476dd07e1d1a737fce92fb34848c40a48ed424941d19caf53cf81b735f8c",
+      "for": "The default site with the Enhanced R006's encroachments reduced to Minor and No Encroachment/No Encroachment, against its baseline Major and Moderate/Minor: accepted"
     }
   ]
 }

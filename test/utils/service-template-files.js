@@ -115,3 +115,16 @@ export const WATERCOURSES_CREATED_ONLY = `${DIR}/watercourses-created-only.gpkg`
 
 // The Enhanced HG002 with no Proposed Strategic Significance.
 export const HEDGEROW_SIGNIFICANCE_BLANK = `${DIR}/hedgerow-enhanced-significance-blank.gpkg`
+
+// HG001, an Enhanced hedgerow whose enhancement the Metric does not allow:
+// saved Incomplete, its proposed values cleared.
+export const HEDGEROW_ENHANCEMENT_NOT_POSSIBLE = `${DIR}/invalid-hedgerow-low-not-possible.gpkg`
+
+// The default site with the Created HG015 given no target condition or
+// timing: saved Incomplete.
+export const CREATED_HEDGEROW_INCOMPLETE = `${DIR}/hedgerow-created-no-condition-or-timing.gpkg`
+
+// The default site with the Enhanced R006's encroachments reduced on both
+// sides: Minor and No Encroachment/No Encroachment, from Major and
+// Moderate/Minor.
+export const WATERCOURSE_ENCROACHMENT_REDUCED = `${DIR}/watercourse-enhanced-encroachment-reduced.gpkg`
