@@ -340,9 +340,10 @@ const ENHANCED_AREA_INCOMPLETE_PI_FILE =
 // baseline hedgerow, which made "no View baseline details link" prove the view
 // model suppresses it. Since BMD-1056/BMD-1066 the PI upload replaces that
 // baseline with one derived from its own non-Created rows, so HG013 (Created)
-// has no match and the link is also unresolvable. The BNG Service template
-// tests tell the suppression apart from a missing match: their Created
-// features name a parent the baseline holds, and still show no link.
+// has no match and the link is also unresolvable. The Lost-sourced H2-1 of
+// the complete pair, whose baseline parcel the upload keeps, and the BNG
+// Service template Created features, which name a parent the baseline holds,
+// tell the suppression apart from a missing match.
 // The same pair carries R003 — a Created *watercourse* with the same "N/A"
 // baseline condition — so one upload covers the short-form branch on the
 // Created hedgerow (Step 7) and Created watercourse (Step 8) pages alike. WC3
@@ -2049,8 +2050,12 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         // (Lost hedgerows, watercourses and trees are instead excluded
         // entirely; that is covered by the post-intervention grid specs in
         // test/specs/project-management.)
-        test('a Lost area habitat is imported as Created and renders the Created area edit form', async ({
+        // It is also the legacy witness for BMD-1218: the PI upload keeps its
+        // Lost baseline parcel H2-1 in the baseline, so a by-ref link has a
+        // parcel to land on, and the Created page still shows none.
+        test('a Lost area habitat is imported as Created and renders the Created area edit form, with no baseline link', async ({
           browser,
+          areaBaselinePage,
           postInterventionHabitatDetailsPage,
           page
         }) => {
@@ -2063,6 +2068,12 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await postInterventionHabitatDetailsPage.assertCreatedAreaEditForm({
             ref: 'H2-1'
           })
+          await expect(
+            postInterventionHabitatDetailsPage.viewBaselineLink
+          ).toBeHidden()
+
+          await areaBaselinePage.open(shared.id)
+          await expect(areaBaselinePage.refLink('H2-1')).toBeVisible()
         })
 
         // BMD-736 AC1 asks for labels *and values*. The Lost-sourced parcel
@@ -4538,10 +4549,11 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(detailsPage.createdLengthValue).toHaveText(
           LENGTH_KM_PATTERN
         )
-        // The baseline half of this pair carries R003, so a ref match exists,
-        // but a Created watercourse links to no baseline, as no Created
-        // habitat does.
-        await expect(detailsPage.viewBaselineLink).toBeHidden()
+        // No "View baseline details" assertion here: the PI upload replaces
+        // the baseline with one derived from its own rows, which leaves out
+        // Created R003, so no ref match exists and a hidden link would prove
+        // nothing. The legacy witness for a Created habitat's suppressed link
+        // is the Lost-sourced H2-1, whose baseline parcel the upload keeps.
       })
     }
   )
@@ -5114,7 +5126,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           row.Distinctiveness,
           row.Condition,
           row['Strategic significance'],
-          'No data'
+          'No data',
+          // The link's paragraph follows the first section.
+          'View baseline details'
         ])
         // A Retained tree's page links to its baseline tree.
         await expect(
@@ -5153,10 +5167,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       // integration test (comment-import.test.js) saves it through the API,
       // and the frontend's controller-created-tree.test.js mocks the backend,
       // so neither shows the box on a real tree or the comment coming back.
-      // Also the Created half of BMD-1184's "no baseline link on a tree page":
-      // the baseline file has an N/A placeholder tree with the same ref, T005,
-      // for a by-ref link to land on. The Retained and Enhanced halves are the
-      // retained individual tree test and baseline-habitat-details.spec.js.
+      // Also the legacy witness for BMD-1218's "no baseline link on a Created
+      // page": the baseline file has an N/A placeholder tree with the same ref,
+      // T005, for a by-ref link to land on, and the page still shows no link.
       test("saves a Created tree's comment trimmed, leaving its units alone", async ({
         browser,
         page,
@@ -5903,7 +5916,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             row.Distinctiveness,
             row.Condition,
             row['Strategic significance'],
-            comment
+            comment,
+            // The link's paragraph follows the first section.
+            'View baseline details'
           ])
           await expect(details.viewBaselineLink).toBeVisible()
           await expect(details.habitatUnitsValue).toHaveText(row.Units)
