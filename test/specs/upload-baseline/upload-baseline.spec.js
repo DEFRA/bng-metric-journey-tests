@@ -1060,13 +1060,16 @@ const SINGLE_ERROR_CASES = [
     body: `${NATURAL_ENGLAND_MISMATCH_COPY}. Rename the layers and columns and`
   },
   {
-    // KEEP — this is the ONLY test anywhere that proves the backend rejects a
-    // GeoPackage carrying more than one red line boundary polygon.
+    // KEEP — the legacy template's only journey proof that the service refuses
+    // a GeoPackage carrying more than one red line boundary polygon. Its BNG
+    // Service template counterpart is 'a file with two red line boundaries
+    // shows the "multiple red line boundaries" page', below.
     // GPKG_RLB_TOO_MANY_POLYGONS is raised in the parse layer
-    // (src/validation/geopackage/geopackage-internals-validate-features.js) and
-    // has no backend unit test, no integration fixture, and no PostGIS test —
-    // the integration suite only ships baseline-no-rlb.gpkg for the *missing*
-    // case. The frontend unit test covers the copy for this code but is handed a
+    // (src/validation/geopackage/geopackage-internals-validate-features.js).
+    // The backend's unit test (validate-and-read-gpkg.test.js) builds its
+    // file in code, and the integration suite has no fixture with more than
+    // one boundary: it ships baseline-no-rlb.gpkg for the *missing* case only.
+    // The frontend unit test covers the copy for this code but is handed a
     // hand-written error object, so it cannot prove the code is ever emitted.
     // Do not delete without adding a >1-polygon RLB fixture to
     // ../bng-metric-backend/integration-tests/fixtures/ first.
