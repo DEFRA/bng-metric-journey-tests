@@ -3059,8 +3059,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       // BMD-1190, for the Enhanced tree the developer added to the ticket's
       // scope. Sole witness for an Enhanced tree's comment saved through the
       // trees route: comment-import.test.js saves through the API, and the
-      // frontend tests mock the backend. The tree form has no "View baseline
-      // details" link, so its baseline tree is read from the grid. T005 is
+      // frontend tests mock the backend. Its baseline tree is read from the
+      // grid, though the form links to it with "View baseline details". T005 is
       // Complete: saving an Incomplete Enhanced tree, comment or not, turns
       // its blank units into 0.00, which would hide what the comment does.
       test("saves an Enhanced tree's own comment trimmed, apart from its baseline tree", async ({
@@ -3084,7 +3084,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           ENHANCED
         )
         await expect(details.commentInput).toHaveValue('')
-        await expect(details.viewBaselineLink).toHaveCount(0)
+        await expect(details.viewBaselineLink).toBeVisible()
         await details.commentInput.fill(`  ${comment}  `)
         await details.saveButton.click()
         await expect(page).toHaveURL(piPageUrl(projectId, 'area'))
@@ -3790,9 +3790,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       })
 
       // The Enhanced tree's own comment, the file's, is replaced through the
-      // trees route; its baseline tree keeps its own. The tree form has no
-      // "View baseline details" link, so the baseline tree is read from the
-      // grid.
+      // trees route; its baseline tree keeps its own. The baseline tree is
+      // read from the grid, though the form links to it with "View baseline
+      // details".
       test("saves an Enhanced tree's own comment trimmed, apart from its baseline tree's comment", async ({
         baselineHabitatDetailsPage,
         postInterventionHabitatDetailsPage: details,
@@ -3809,7 +3809,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
         await openPiDetails(page, projectId, 'area', ST_ENHANCED_TREE, ENHANCED)
         await expect(details.commentInput).toHaveValue(ST_ENHANCED_TREE_COMMENT)
-        await expect(details.viewBaselineLink).toHaveCount(0)
+        await expect(details.viewBaselineLink).toBeVisible()
         await savePiComment(page, details, enhanced, `  ${comment}  `)
         expect(
           await piRowUnits(page, projectId, 'area', ST_ENHANCED_TREE)

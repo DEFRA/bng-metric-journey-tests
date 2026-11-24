@@ -114,9 +114,11 @@ layers — baseline and post-intervention are independent uploads with
 independent `featureId`s, so `ref` is the only stable join key. Hidden when no baseline
 feature shares the ref (e.g. no baseline uploaded).
 
-**Never shown on a post-intervention tree page (BMD-1184, frontend PR #533).** Whatever its
-Retention Category, a tree page links to no baseline tree (`isUnlinked` in
-`baseline-feature-link.js`).
+**Shown only for a Retained or Enhanced feature, of any type, trees included (BMD-1218).**
+A Created feature's page never shows it, a degraded one's included: Natural England's
+template records a habitat that gets worse as Created, so though it names the baseline
+feature it degrades as its parent, it links to none (`isUnlinked` in
+`baseline-feature-link.js`). This replaces BMD-1184's rule that no tree page shows it.
 
 **Since BMD-1056/BMD-1066 (backend PR#478, 2026-10-13) a fresh upload always matches a
 Retained or Enhanced feature.** The post-intervention upload derives the baseline from the
@@ -125,11 +127,9 @@ ref. The "hidden" branch is no longer reached by a pairing of separate baseline 
 post-intervention files (which is how `complete-project` H2-2 and H2-3 reached it). It now
 needs a baseline ref changed after upload, or a Created feature. On a read-only or
 Retained sections page the link renders **after the first section**, before the units row.
-Created area and hedgerow forms render the link before Intervention and size. They
-resolve an explicit parent only within the matching baseline unit layer; an explicit
-null parent suppresses the link. Service-template projects require that parent link.
-Legacy non-template features without a parent field still resolve by ref. Created
-watercourses keep the read-only ref-based link behavior.
+Enhanced edit forms render the link before Intervention and size. An explicit null parent
+suppresses the link. Service-template projects require that parent link. Legacy
+non-template features without a parent field still resolve by ref.
 
 **Matched on the cleaned ref (BMD-1058) `[IMPLEMENTED]`.** `comparableRef` in
 `post-intervention-habitat-details/controller.js` trims both refs and cuts them to 100
@@ -206,8 +206,7 @@ post-intervention habitat, not the baseline (e.g. area H3 in
 - **Enhanced watercourses** have had the box since BMD-1047 (frontend PR#541) gave them the
   Created watercourse form (Step 9), whose box they inherit.
 - Save returns to the unit-type page with the **Retained** tab selected, as for Created.
-- The Enhanced tree form has no "View baseline details" link. Its baseline is reached from the
-  Areas baseline page.
+- The Enhanced tree form has a "View baseline details" link to its baseline tree (BMD-1218).
 - The ticket's ACs say the limit is 999,999 characters. The service uses 999, the BMD-1112
   limit, for every comment box.
 - **Journey checks:** `baseline-habitat-details.spec.js` › _supporting information_ (H3's
@@ -249,7 +248,7 @@ Every GET step below shares this contract, so it is stated once rather than repe
   **Save** and **Cancel** (Step 12). There is **no "Units in this habitat" row** (replaced by the
   units summary row) and no trading-rules row. An individual tree (BMD-1172) adds **Tree size** after Size,
   and a legacy tree **Number of trees** after that; a BNG Service template tree has no Count, so shows
-  no number of trees. A tree has **no** "View baseline details" link (BMD-1184); journey checks in
+  no number of trees. A Retained tree has the "View baseline details" link (BMD-1218); journey checks in
   `post-intervention-habitat-details.spec.js` › _retained individual tree_ (legacy and BNG Service template). Size uses `formatAreaHectaresValue`
   (10 significant figures, **no `ha` suffix** — the label carries the unit). Broad habitat
   and habitat type read `proposed.broadType` / `proposed.type`. Back link to
@@ -314,7 +313,8 @@ Every GET step below shares this contract, so it is stated once rather than repe
   file"** button in the header (to the upload-file page) and a GOV.UK error summary when
   Step 11 re-renders it with errors. Values come from `feature.proposed`.
   - **Section 1 — "Post-intervention habitat details":** a **Habitat reference** text input,
-    the **"View baseline details"** link (when resolved), read-only **Intervention** and
+    the **"View baseline details"** link (Enhanced only, when resolved; never on a Created
+    form, BMD-1218), read-only **Intervention** and
     **"Size (hectares)"** (value without a unit suffix), the **Broad habitat** and **Habitat
     type** dropdowns, read-only **"Distinctiveness (multiplier)"**, and the **Strategic
     significance** dropdown.
@@ -341,9 +341,9 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
     option or hint on any edit page.
     A reference over 99 characters shows a "Shorten it" hint.
   - The "View baseline details" link resolves through `parentFeatureId` when the feature
-    carries one (BNG Service template, BMD-1083), otherwise by ref as above. A tree's edit
-    page never shows it (BMD-1184, frontend PR #533); journey check in
-    `post-intervention-habitat-details.spec.js` › _Created individual tree_.
+    carries one (BNG Service template, BMD-1083), otherwise by ref as above. It shows on an
+    Enhanced feature's edit page only: a Created feature's never shows it (BMD-1218); journey
+    check in `post-intervention-habitat-details.spec.js` › _Created individual tree_.
   - **A Created tree's Standard time to target condition names only the target condition**
     (e.g. `"Poor - 10 years"`), even when its baseline tree has one (BMD-1184, frontend
     PR #528, `namesBaselineCondition: false` on the Created tree kind). Only a BNG Service
@@ -502,8 +502,8 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
   Editable fields start from the saved feature. Imported timing outside the new-choice
   range shows the default option (frontend PR#532, see Step 4). Stored final-time
   text remains visible while its calculation inputs are unchanged.
-  Created hedgerows keep valid stored-parent links; explicit null parents suppress them.
-  Legacy non-template features without a parent field can still resolve a baseline by ref.
+  A Created hedgerow shows no "View baseline details" link, though it names a parent
+  (BMD-1218).
 - **Validation:** shared Created form validation, including mutually exclusive positive
   advance/delay values and strict validation of newly selected years.
 - **On success:** Save persists the edits, recalculated units/status and returns to the
@@ -542,8 +542,8 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
     encroachment**, **Riparian encroachment**. Note the order differs from the retained
     watercourse page in Step 3 — here Strategic significance sits **above** the two
     encroachment rows. Length carries its own `km` suffix (`formatLengthDisplay`).
-  - **"View baseline details"** link after the first section, resolved by ref when a
-    matching baseline exists. Created hedgerow edit forms use the parent rules in Step 7.
+  - No **"View baseline details"** link: a Created watercourse links to no baseline, even
+    when one shares its ref (BMD-1218).
   - **Section 2 — "Time to target / difficulty":** the same six rows as Step 4.
   - Then the bordered "Habitat units delivered" row.
   - **Encroachment values read from `proposed`**, not baseline-first — for a created or
