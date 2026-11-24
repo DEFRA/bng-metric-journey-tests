@@ -340,8 +340,9 @@ const ENHANCED_AREA_INCOMPLETE_PI_FILE =
 // baseline hedgerow, which made "no View baseline details link" prove the view
 // model suppresses it. Since BMD-1056/BMD-1066 the PI upload replaces that
 // baseline with one derived from its own non-Created rows, so HG013 (Created)
-// has no match and the link is also unresolvable. Coverage gap: nothing now
-// tells the suppression apart from a missing match.
+// has no match and the link is also unresolvable. The BNG Service template
+// tests tell the suppression apart from a missing match: their Created
+// features name a parent the baseline holds, and still show no link.
 // The same pair carries R003 — a Created *watercourse* with the same "N/A"
 // baseline condition — so one upload covers the short-form branch on the
 // Created hedgerow (Step 7) and Created watercourse (Step 8) pages alike. WC3
@@ -1090,9 +1091,11 @@ function getRunDetailsProject(browser) {
 // ─── BNG Service template features (BMD-1088) ──────────────────────────────
 //
 // The default site's features. A BNG Service template feature names its
-// parent, so "View baseline details" follows the parent, whatever the
-// feature's own ref: HG018 is split into a Retained HG018a and a Created
-// HG018b. A feature with no parent links to nothing, nor does any tree.
+// parent, so "View baseline details" on a Retained or Enhanced feature, a
+// tree's included, follows the parent, whatever the feature's own ref: HG018
+// is split into a Retained HG018a and a Created HG018b. A Created feature
+// links to nothing, though it names its parent (V003, HG018b, H014, the
+// degraded HG017 and R004), and nor does a feature with no parent.
 const SERVICE_TEMPLATE_RETAINED_AREA = {
   ref: 'H002',
   habitatType: 'Other woodland; broadleaved'
@@ -1102,16 +1105,19 @@ const SERVICE_TEMPLATE_ENHANCED_VERTICAL_REF = 'V002'
 const SERVICE_TEMPLATE_BASELINE_LINKS = [
   { type: 'area', ref: 'H002', parentHeading: 'Habitat H002' },
   { type: 'area', ref: 'V001', parentHeading: 'Habitat V001' },
-  { type: 'area', ref: 'V003', parentHeading: 'Habitat V003' },
+  { type: 'area', ref: 'T010', parentHeading: 'Habitat T010' },
+  { type: 'area', ref: 'T001', parentHeading: 'Habitat T001' },
   { type: 'hedgerow', ref: 'HG018a', parentHeading: 'Hedgerow HG018' },
-  { type: 'hedgerow', ref: 'HG018b', parentHeading: 'Hedgerow HG018' },
   { type: 'watercourse', ref: 'R006', parentHeading: 'Watercourse R006' }
 ]
 const SERVICE_TEMPLATE_UNLINKED = [
+  { type: 'area', ref: 'V003' },
+  { type: 'area', ref: 'H014' },
+  { type: 'hedgerow', ref: 'HG018b' },
+  { type: 'hedgerow', ref: 'HG017' },
+  { type: 'watercourse', ref: 'R004' },
   { type: 'hedgerow', ref: 'HG008' },
   { type: 'watercourse', ref: 'R003' },
-  { type: 'area', ref: 'T010' },
-  { type: 'area', ref: 'T001' },
   { type: 'area', ref: 'T005' }
 ]
 // A Retained feature's page shows its parent's comment, not its own: HG010's
@@ -1135,9 +1141,8 @@ const SERVICE_TEMPLATE_RETAINED_AREA_SIZE = '1.571560845'
 const SERVICE_TEMPLATE_RETAINED_AREA_UNITS = '15.72'
 // H014: its parent, a Tall forbs in Good condition, lost and Blackthorn scrub
 // created on its land. Unlike a legacy Created habitat, it names its parent,
-// so its form has a "View baseline details" link, after which its values sit
-// as an Enhanced form's do (expectEnhancedFormValues), and its standard time
-// to target names the parent's condition.
+// so its standard time to target names the parent's condition; as a Created
+// habitat its form has no "View baseline details" link.
 const SERVICE_TEMPLATE_CREATED_AREA = {
   ref: 'H014',
   units: '8.20',
@@ -4533,12 +4538,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(detailsPage.createdLengthValue).toHaveText(
           LENGTH_KM_PATTERN
         )
-        // No "View baseline details" assertion here, unlike the Created area
-        // and hedgerow tests. The baseline half of this pair carries R003, so a
-        // ref match exists and the link *does* render — Created watercourses do
-        // not suppress it the way Created hedgerows do (flow doc Step 8). The
-        // product decision on whether that is correct is still open, so
-        // asserting either way would cement it.
+        // The baseline half of this pair carries R003, so a ref match exists,
+        // but a Created watercourse links to no baseline, as no Created
+        // habitat does.
+        await expect(detailsPage.viewBaselineLink).toBeHidden()
       })
     }
   )
@@ -5113,10 +5116,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           row['Strategic significance'],
           'No data'
         ])
-        // A post-intervention tree's page links to no baseline tree.
+        // A Retained tree's page links to its baseline tree.
         await expect(
           postInterventionHabitatDetailsPage.viewBaselineLink
-        ).toBeHidden()
+        ).toBeVisible()
         await expect(
           postInterventionHabitatDetailsPage.habitatUnitsValue
         ).toHaveText(row.Units)
@@ -5447,15 +5450,12 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
       // The nearest the BNG Service template comes to a legacy Lost habitat
       // imported as Created: a habitat lost and another created on its land
-      // is a Created habitat that names it as its parent.
+      // is a Created habitat that names it as its parent. A Created habitat's
+      // page links to no baseline, though it names its parent.
       test(
-        'a Created area habitat shows its values and units delivered, and links to the parent it was created over',
+        'a Created area habitat shows its values and units delivered, with no link to the parent it was created over',
         { tag: '@regression' },
-        async ({
-          page,
-          postInterventionHabitatDetailsPage: details,
-          baselineHabitatDetailsPage
-        }) => {
+        async ({ page, postInterventionHabitatDetailsPage: details }) => {
           await openPiFeatureDetails(page, project.id, 'area', createdRef)
 
           await details.assertCreatedAreaEditForm({ ref: createdRef })
@@ -5464,7 +5464,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             details,
             SERVICE_TEMPLATE_CREATED_AREA_SELECTIONS
           )
-          await expectEnhancedFormValues(
+          await expectCreatedAreaValues(
             details,
             SERVICE_TEMPLATE_CREATED_AREA_VALUES
           )
@@ -5490,11 +5490,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             SERVICE_TEMPLATE_CREATED_AREA.comment
           )
 
-          await details.viewBaselineLink.click()
-          await expect(page).toHaveURL(BASELINE_DETAILS_URL_PATTERN)
-          await expect(baselineHabitatDetailsPage.headingTitle).toHaveText(
-            `Habitat ${createdRef}`
-          )
+          await expect(details.viewBaselineLink).toBeHidden()
         }
       )
 
@@ -5529,7 +5525,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             advance: '2',
             delay: '0'
           })
-          await expectEnhancedFormValues(details, {
+          await expectCreatedAreaValues(details, {
             distinctiveness: '',
             standardTime: '',
             difficulty: '',
@@ -5551,7 +5547,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await details.habitatTypeSelect.selectOption('Hazel scrub')
 
           await expect(details.targetConditionSelect).toHaveValue('')
-          await expectEnhancedFormValues(details, {
+          await expectCreatedAreaValues(details, {
             distinctiveness: 'Medium (4)',
             standardTime: '',
             difficulty: 'Medium',
@@ -5580,7 +5576,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await openPiFeatureDetails(page, project.id, 'area', createdRef)
 
           await details.targetConditionSelect.selectOption('Moderate')
-          await expectEnhancedFormValues(details, {
+          await expectCreatedAreaValues(details, {
             ...SERVICE_TEMPLATE_CREATED_AREA_VALUES,
             standardTime: 'Good to Moderate - 5 years',
             finalTime: '5 years (0.8368287006)'
@@ -5589,7 +5585,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await details.targetConditionSelect.selectOption({
             label: 'Choose target condition'
           })
-          await expectEnhancedFormValues(details, {
+          await expectCreatedAreaValues(details, {
             ...SERVICE_TEMPLATE_CREATED_AREA_VALUES,
             standardTime: '',
             finalTime: ''
@@ -5610,9 +5606,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         { tag: '@regression' },
         async ({ page, postInterventionHabitatDetailsPage: details }) => {
           await openPiFeatureDetails(page, project.id, 'area', createdRef)
-          const finalTime = details.createdFormValue('finalTime', {
-            baselineLink: true
-          })
+          const finalTime = details.createdFormValue('finalTime')
 
           await details.delayYearsSelect.selectOption('3')
           await expect(finalTime).toHaveText('6 years (0.8075396961)')
@@ -5627,7 +5621,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
           await details.advanceYearsSelect.selectOption('0')
           await details.delayYearsSelect.selectOption('30+')
-          await expectEnhancedFormValues(details, {
+          await expectCreatedAreaValues(details, {
             ...SERVICE_TEMPLATE_CREATED_AREA_VALUES,
             finalTime: '30+ years (0.3197967361)'
           })
@@ -5911,7 +5905,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             row['Strategic significance'],
             comment
           ])
-          await expect(details.viewBaselineLink).toBeHidden()
+          await expect(details.viewBaselineLink).toBeVisible()
           await expect(details.habitatUnitsValue).toHaveText(row.Units)
           await details.assertRetainedRefForm({ ref })
           await expect(details.unsupportedFeatureMessage).toBeHidden()
@@ -5966,7 +5960,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
         await openPiFeatureDetails(page, projectId, 'area', ref)
         await expectCreatedAreaSelections(details, imported)
-        await expectEnhancedFormValues(details, {
+        await expectCreatedAreaValues(details, {
           distinctiveness: 'Low (2)',
           standardTime: '',
           difficulty: 'Low',
@@ -6390,7 +6384,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         }
       })
 
-      test('a feature with no parent, and every tree, has no "View baseline details" link', async ({
+      test('a Created feature, and one with no parent, has no "View baseline details" link', async ({
         page,
         postInterventionHabitatDetailsPage: details
       }) => {
@@ -6597,7 +6591,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(details.standardTimeToTargetValue).not.toContainText(
           STALE_TIME_TO_TARGET_TEXT
         )
-        await expect(details.viewBaselineLink).toBeVisible()
+        // Recorded as Created, it links to no baseline, though it degrades one.
+        await expect(details.viewBaselineLink).toBeHidden()
         await expect(details.habitatUnitsValue).toHaveText(units)
       })
 
@@ -7530,7 +7525,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         ])
       })
 
-      // R004 names its parent, so its time to target names the transition.
+      // R004 names its parent, so its time to target names the transition,
+      // but, being Created, it has no "View baseline details" link.
       test('a Created watercourse whose encroachment alone increases shows its section-2 values and units delivered', async ({
         browser,
         page,
@@ -7556,10 +7552,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(details.standardTimeToTargetValue).not.toContainText(
           STALE_TIME_TO_TARGET_TEXT
         )
-        await expectCreatedAreaValues(details, ST_CREATED_WATERCOURSE_VALUES, {
-          baselineLink: true
-        })
-        await expect(details.viewBaselineLink).toBeVisible()
+        await expectCreatedAreaValues(details, ST_CREATED_WATERCOURSE_VALUES)
+        // Created, so it links to no baseline, though it names its parent.
+        await expect(details.viewBaselineLink).toBeHidden()
         await expect(details.habitatUnitsValue).toHaveText(UNITS_TWO_DP_PATTERN)
         await expect(details.habitatUnitsValue).toHaveText(units)
         expect(units).toBe(ST_CREATED_WATERCOURSE_UNITS)
@@ -7630,17 +7625,13 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           advance: '',
           delay: ''
         })
-        await expectCreatedAreaValues(
-          details,
-          {
-            distinctiveness: 'Medium (4)',
-            standardTime: 'Moderate to Poor - 1 years',
-            difficulty: 'Medium',
-            finalTime: '',
-            applied: '0.67'
-          },
-          { baselineLink: true }
-        )
+        await expectCreatedAreaValues(details, {
+          distinctiveness: 'Medium (4)',
+          standardTime: 'Moderate to Poor - 1 years',
+          difficulty: 'Medium',
+          finalTime: '',
+          applied: '0.67'
+        })
         await expect(details.standardTimeToTargetKey).toBeVisible()
         await expect(details.finalTimeToTargetMultiplierKey).toBeVisible()
         await expect(details.habitatUnitsValue).toHaveText('0.00')
@@ -7671,17 +7662,13 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(
           details.targetConditionSelect.getByRole('option')
         ).toHaveText(['Choose target condition', 'Poor (1)'])
-        await expectCreatedAreaValues(
-          details,
-          {
-            distinctiveness: 'Low (2)',
-            standardTime: '',
-            difficulty: 'Medium',
-            finalTime: '',
-            applied: '0.67'
-          },
-          { baselineLink: true }
-        )
+        await expectCreatedAreaValues(details, {
+          distinctiveness: 'Low (2)',
+          standardTime: '',
+          difficulty: 'Medium',
+          finalTime: '',
+          applied: '0.67'
+        })
 
         await details.habitatTypeSelect.selectOption({
           label: 'Choose habitat type'
@@ -7689,17 +7676,13 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(
           details.targetConditionSelect.getByRole('option')
         ).toHaveText(['Choose target condition'])
-        await expectCreatedAreaValues(
-          details,
-          {
-            distinctiveness: '',
-            standardTime: '',
-            difficulty: '',
-            finalTime: '',
-            applied: ''
-          },
-          { baselineLink: true }
-        )
+        await expectCreatedAreaValues(details, {
+          distinctiveness: '',
+          standardTime: '',
+          difficulty: '',
+          finalTime: '',
+          applied: ''
+        })
         await expect(details.habitatUnitsValue).toHaveText(
           ST_CREATED_WATERCOURSE_UNITS
         )
@@ -7722,24 +7705,20 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         // reads "0 years (1)", so clear them first.
         await details.advanceYearsSelect.selectOption('0')
         await details.targetConditionSelect.selectOption('Good')
-        await expectCreatedAreaValues(
-          details,
-          {
-            ...ST_CREATED_WATERCOURSE_VALUES,
-            standardTime: 'Fairly Poor to Good - 10 years',
-            finalTime: '10 years (0.7002822742)'
-          },
-          { baselineLink: true }
-        )
+        await expectCreatedAreaValues(details, {
+          ...ST_CREATED_WATERCOURSE_VALUES,
+          standardTime: 'Fairly Poor to Good - 10 years',
+          finalTime: '10 years (0.7002822742)'
+        })
 
         await details.targetConditionSelect.selectOption({
           label: 'Choose target condition'
         })
-        await expectCreatedAreaValues(
-          details,
-          { ...ST_CREATED_WATERCOURSE_VALUES, standardTime: '', finalTime: '' },
-          { baselineLink: true }
-        )
+        await expectCreatedAreaValues(details, {
+          ...ST_CREATED_WATERCOURSE_VALUES,
+          standardTime: '',
+          finalTime: ''
+        })
         await expectCreatedAreaSelections(details, {
           ...ST_CREATED_WATERCOURSE_SELECTIONS,
           condition: '',
@@ -7791,9 +7770,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           watercourse: '',
           riparian: ''
         })
-        await expectCreatedAreaValues(details, ST_CREATED_WATERCOURSE_VALUES, {
-          baselineLink: true
-        })
+        await expectCreatedAreaValues(details, ST_CREATED_WATERCOURSE_VALUES)
         await expect(details.habitatUnitsValue).toHaveText(
           ST_CREATED_WATERCOURSE_UNITS
         )
@@ -7811,9 +7788,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           'watercourse',
           ST_CREATED_WATERCOURSE_REF
         )
-        const finalTime = details.createdFormValue('finalTime', {
-          baselineLink: true
-        })
+        const finalTime = details.createdFormValue('finalTime')
 
         await details.advanceYearsSelect.selectOption('0')
         await details.delayYearsSelect.selectOption('3')
@@ -7832,11 +7807,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await details.advanceYearsSelect.selectOption({
           label: 'Choose advance'
         })
-        await expectCreatedAreaValues(
-          details,
-          { ...ST_CREATED_WATERCOURSE_VALUES, finalTime: '' },
-          { baselineLink: true }
-        )
+        await expectCreatedAreaValues(details, {
+          ...ST_CREATED_WATERCOURSE_VALUES,
+          finalTime: ''
+        })
         await expect(details.habitatUnitsValue).toHaveText(
           ST_CREATED_WATERCOURSE_UNITS
         )
@@ -7867,9 +7841,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           details,
           ST_CREATED_WATERCOURSE_SELECTIONS
         )
-        await expectCreatedAreaValues(details, ST_CREATED_WATERCOURSE_VALUES, {
-          baselineLink: true
-        })
+        await expectCreatedAreaValues(details, ST_CREATED_WATERCOURSE_VALUES)
         await chooseCreatedAreaSelections(details, {
           type: 'Canals',
           significance: 'High',
