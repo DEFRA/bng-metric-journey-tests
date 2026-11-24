@@ -116,10 +116,12 @@ const DISTINCTIVENESS_FILE =
   'Post-intervention - habitat distinctiveness out of scope.gpkg'
 const NATURAL_ENGLAND_MISMATCH_COPY =
   'The layer names and column names do not match what is required by Natural England'
+const SERVICE_TEMPLATE_MISMATCH_COPY =
+  'The layer names and column names do not match the BNG Service template'
 // The catch-all for a file whose layers or columns do not match, as the run's
 // template words it: what a misrouted refusal would fall through to.
 const CATCH_ALL_MISMATCH_COPY = isServiceTemplateRun()
-  ? 'The layer names and column names do not match the BNG Service template'
+  ? SERVICE_TEMPLATE_MISMATCH_COPY
   : NATURAL_ENGLAND_MISMATCH_COPY
 // BMD-1058. One habitat's Parcel Ref is SQL NULL. Copy from the BMD-1110
 // dropout spreadsheet (frontend PR #452).
@@ -1587,8 +1589,7 @@ function describeServiceTemplateChecks() {
 // upload. Such an upload checks the file's Baseline tables as well as its
 // Post-Intervention ones, so a fault in a habitat both stages hold is reported
 // once for each.
-const ST_CATCH_ALL_BODY =
-  'The layer names and column names do not match the BNG Service template. Rename the layers and columns and'
+const ST_CATCH_ALL_BODY = `${SERVICE_TEMPLATE_MISMATCH_COPY}. Rename the layers and columns and`
 const ST_REDLINE_MISMATCH =
   'Layer "Red Line Boundary" does not match the BNG Service template'
 const ST_REDLINE_WRONG_GEOMETRY_TYPE =
