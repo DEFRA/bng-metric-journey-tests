@@ -239,6 +239,29 @@ const BLANK_ENCROACHMENT_REFS = {
   enhanced: 'R006',
   created: 'R004'
 }
+// What each one's details form holds: the file's own values, with only the
+// blank encroachment empty. The file's riparian `Moderate/ Minor` is saved
+// as the option `Moderate/Minor`, and R004's blank delay as 0.
+const BLANK_ENCROACHMENT_FORMS = {
+  [BLANK_ENCROACHMENT_REFS.enhanced]: {
+    habitatTypeSelect: 'Canals',
+    targetConditionSelect: 'Good',
+    strategicSignificanceSelect: 'Low',
+    watercourseEncroachmentSelect: '',
+    riparianEncroachmentSelect: 'Moderate/Minor',
+    advanceYearsSelect: '0',
+    delayYearsSelect: '0'
+  },
+  [BLANK_ENCROACHMENT_REFS.created]: {
+    habitatTypeSelect: 'Ditches',
+    targetConditionSelect: 'Fairly Poor',
+    strategicSignificanceSelect: 'Low',
+    watercourseEncroachmentSelect: 'Minor',
+    riparianEncroachmentSelect: '',
+    advanceYearsSelect: '10',
+    delayYearsSelect: '0'
+  }
+}
 const MIX_RETAINED_REF = GRID.mixRetainedRef
 const MIX_ENHANCED_REF = GRID.mixEnhancedRef
 const MIX_CREATED_REF = GRID.mixCreatedRef
@@ -1020,7 +1043,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       })
 
       test('a blank proposed encroachment leaves an Enhanced and a Created watercourse unpriced, each listed at zero', async ({
-        watercoursesPostInterventionPage
+        page,
+        watercoursesPostInterventionPage,
+        postInterventionHabitatDetailsPage: details
       }) => {
         const grid = watercoursesPostInterventionPage
         await grid.open(project.id)
@@ -1039,6 +1064,23 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           const row = await grid.rowByRef(label, ref)
           expect(row.Units, `${ref} Units`).toBe('0.00')
           expect(row.Status, `${ref} Status`).toBe(STATUS_INCOMPLETE)
+        }
+
+        // Only the blank encroachment is lost: each form keeps every other
+        // proposed value the file gives.
+        for (const [label, ref] of [
+          [ENHANCED, BLANK_ENCROACHMENT_REFS.enhanced],
+          [CREATED, BLANK_ENCROACHMENT_REFS.created]
+        ]) {
+          await grid.open(project.id)
+          await grid.tab(label).click()
+          await grid.refLink(label, ref).click()
+          await page.waitForURL(/\/post-intervention-habitat-details\?/)
+          for (const [select, value] of Object.entries(
+            BLANK_ENCROACHMENT_FORMS[ref]
+          )) {
+            await expect(details[select], `${ref} ${select}`).toHaveValue(value)
+          }
         }
       })
     }
