@@ -91,3 +91,11 @@ export const CREATED_HEDGEROW_INCOMPLETE = `${DIR}/hedgerow-created-no-condition
 // sides: Minor and No Encroachment/No Encroachment, from Major and
 // Moderate/Minor.
 export const WATERCOURSE_ENCROACHMENT_REDUCED = `${DIR}/watercourse-enhanced-encroachment-reduced.gpkg`
+
+// R001, a Culvert (Low) enhanced to Ditches Moderate: its baseline can become
+// Ditches or Canals at any condition, over 10 years (BMD-1047).
+export const WATERCOURSE_ENHANCED_CULVERT = `${DIR}/watercourse-enhanced-culvert.gpkg`
+
+// The default site with the Enhanced R006's proposed watercourse encroachment
+// blank: saved Incomplete (BMD-1047).
+export const WATERCOURSE_ENCROACHMENT_BLANK = `${DIR}/watercourse-proposed-encroachment-blank.gpkg`

@@ -83,16 +83,16 @@ const CONFLICTING_TIMING_PI_FILE =
   'invalid-timing-conflicting-created-enhanced-post-intervention.gpkg'
 // Unpriced Created features show 0.00: areas and hedgerows since BMD-1048
 // (frontend PR #465), watercourses since BMD-1050 (frontend PR #502). Unpriced
-// Enhanced areas and hedgerows show 0.00 since BMD-1046 (frontend PR #532). An
-// unpriced Enhanced watercourse, which has no edit page, still shows blank.
+// Enhanced areas and hedgerows show 0.00 since BMD-1046 (frontend PR #532), and
+// Enhanced watercourses since BMD-1047 (frontend PR #541).
 const CONFLICTING_TIMING_ZERO_UNITS = [
   ['area', 'H001'],
   ['area', 'H002'],
   ['hedgerow', 'HG001'],
   ['hedgerow', 'HG002'],
-  ['watercourse', 'R001']
+  ['watercourse', 'R001'],
+  ['watercourse', 'R002']
 ]
-const CONFLICTING_TIMING_BLANK_UNITS = [['watercourse', 'R002']]
 const ZERO_TIMING_HEDGEROW_REF = 'HG003'
 const UNITS_2DP = /^\d+\.\d{2}$/
 const DISTINCTIVENESS_FILE =
@@ -896,8 +896,8 @@ function describeConflictingTiming() {
       // feature cannot be priced, so it is saved with null units and status
       // Incomplete. Its Units cell shows 0.00 on a Created area, hedgerow or
       // watercourse (BMD-1048 PO ruling, frontend PRs #465 and #502) and on an
-      // Enhanced area or hedgerow (BMD-1046, frontend PR #532), display only.
-      // It is blank on an Enhanced watercourse.
+      // Enhanced area, hedgerow (BMD-1046, frontend PR #532) or watercourse
+      // (BMD-1047, frontend PR #541), display only.
       //
       // Sole journey witness that a real GeoPackage with conflicting timing is
       // accepted and left unpriced on every linear and area layer. The rule is
@@ -934,12 +934,6 @@ function describeConflictingTiming() {
             await piUnitsCell(page, id, type, ref),
             `${type} ${ref}`
           ).toHaveText('0.00')
-        }
-        for (const [type, ref] of CONFLICTING_TIMING_BLANK_UNITS) {
-          await expect(
-            await piUnitsCell(page, id, type, ref),
-            `${type} ${ref}`
-          ).toHaveText('')
         }
         await expect(
           await piUnitsCell(page, id, 'hedgerow', ZERO_TIMING_HEDGEROW_REF)
