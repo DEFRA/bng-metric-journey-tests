@@ -5875,8 +5875,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         }
       )
 
-      // A tree is one per point in the BNG Service template, so it counts
-      // one tree.
+      // A tree is one per point in the BNG Service template: it has no Count,
+      // so its page shows its size class and no number of trees (BMD-1172).
       test(
         'a Retained individual tree renders the area details page with its tree rows',
         { tag: '@regression' },
@@ -5893,7 +5893,6 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             'Intervention',
             'Size (hectares)',
             'Tree size',
-            'Number of trees',
             'Broad habitat',
             'Habitat type',
             'Distinctiveness',
@@ -5905,7 +5904,6 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             RETAINED,
             /^\d+(\.\d+)?$/,
             'Very large',
-            '1',
             row['Broad habitat'],
             row['Habitat type'],
             row.Distinctiveness,
