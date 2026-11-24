@@ -102,10 +102,18 @@ function readManifest() {
 
 /** Problems with the committed copies themselves: these fail the check. */
 function copyProblems(manifest) {
-  const listed = new Set(manifest.files.map(({ file }) => file))
+  const names = manifest.files.map(({ file }) => file)
+  const listed = new Set(names)
   const problems = readdirSync(FIXTURE_DIR)
     .filter((name) => name.endsWith('.gpkg') && !listed.has(name))
     .map((name) => `${name} is not in manifest.json`)
+  // A file listed twice, as a merge that keeps both sides of a conflict
+  // leaves it, would otherwise pass: the folder holds the one copy.
+  for (const file of listed) {
+    if (names.indexOf(file) !== names.lastIndexOf(file)) {
+      problems.push(`${file} is in manifest.json more than once`)
+    }
+  }
   for (const { file, sha256: expected } of manifest.files) {
     const copy = path.join(FIXTURE_DIR, file)
     if (!existsSync(copy)) {
