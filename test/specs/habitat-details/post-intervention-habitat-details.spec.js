@@ -1416,10 +1416,11 @@ const piDetailsHeading = (page, ref) =>
 // The default site's linear features, as its import prices them. HG015 is
 // created with no parent, so its time to target names the target alone;
 // HG018b is the part of HG018 that gets worse, recorded as lost and created
-// again in a lower condition, so it names the transition from its parent and
-// links to it. R004's encroachment alone increases, with 10 years created in
-// advance; R005's condition gets worse with neither advance nor delay, which
-// saves it Incomplete. R006 is Enhanced, re-meandered onto a longer route.
+// again in a lower condition, so it names the transition from its parent but,
+// being Created, links to no baseline (BMD-1218). R004's encroachment alone
+// increases, with 10 years created in advance; R005's condition gets worse
+// with neither advance nor delay, which saves it Incomplete. R006 is Enhanced,
+// re-meandered onto a longer route.
 // Every value below is the backend's and the frontend's for the same feature,
 // read from their code.
 const ST_RETAINED_HEDGEROW_REF = 'HG010'
