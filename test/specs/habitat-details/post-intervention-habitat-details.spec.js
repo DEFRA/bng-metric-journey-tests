@@ -32,14 +32,16 @@ import {
   HEDGEROW_ENHANCEMENT_NOT_POSSIBLE,
   LONG_AND_PADDED_REFS,
   TRADING_ALL_MET,
-  WATERCOURSE_ENCROACHMENT_REDUCED
+  WATERCOURSE_ENCROACHMENT_REDUCED,
+  WATERCOURSE_ENHANCED_CULVERT
 } from '@utils/service-template-files.js'
 import { gridRefName } from '@utils/habitat-ref-display.js'
 import { readTileUnits } from '@utils/tile-value.js'
 import { STATUS_COMPLETE, STATUS_INCOMPLETE } from '@utils/unit-type-labels.js'
 import {
   getRunAllUnitTypesPostInterventionProject,
-  getRunAreaGainProject
+  getRunAreaGainProject,
+  getServiceTemplateBlankProposedEncroachmentProject
 } from '@utils/run-projects.js'
 import {
   LEGACY_ONLY,
@@ -1492,6 +1494,32 @@ const WATERCOURSE_ENHANCED_CONDITIONS = [
   'Fairly Good (2.5)',
   'Moderate (2)'
 ]
+const ST_ENHANCED_WATERCOURSE_TYPES = ['Choose habitat type', 'Canals']
+// BMD-1047. R001 of the Culvert file, a Culvert (Low, Poor) enhanced to
+// Ditches Moderate: a Low baseline can become any Medium watercourse at any
+// condition, over a fixed 10 years.
+const ST_CULVERT_WATERCOURSE_REF = 'R001'
+const ST_CULVERT_WATERCOURSE_TYPES = [
+  'Choose habitat type',
+  'Canals',
+  'Ditches'
+]
+const ST_CULVERT_WATERCOURSE_SELECTIONS = {
+  type: 'Ditches',
+  significance: 'Low',
+  condition: 'Moderate',
+  watercourse: 'No Encroachment',
+  riparian: 'No Encroachment/No Encroachment',
+  advance: '0',
+  delay: '0'
+}
+const ST_CULVERT_WATERCOURSE_VALUES = {
+  distinctiveness: 'Medium (4)',
+  standardTime: 'Poor to Moderate - 10 years',
+  difficulty: 'Low',
+  finalTime: '10 years (0.7002822742)',
+  applied: '1'
+}
 
 // The read-only default site, and the trading-all-met site for its Enhanced
 // hedgerow HG002.
@@ -4256,16 +4284,14 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     }
   )
 
-  // ─── Enhanced watercourse — values, navigation and baseline link (BMD-735) ──
-  // The Enhanced watercourse page's *structure* is asserted in the
-  // "non-retained watercourse habitats" block below, which reads
-  // the mixed-retention fixture. That fixture cannot reach the rest of BMD-735's
-  // ACs: its Enhanced watercourse (WC2) is Moderate→Moderate, so the
-  // time-to-target section renders blank, and its baseline file carries only
-  // WC1 — so WC2 has no ref-matching baseline feature and the "View baseline
-  // details" link is correctly hidden, putting AC1's link and all of AC3 out of
-  // reach. R007 in the "all unit and intervention types" pair is Enhanced,
-  // improves Fairly Poor → Fairly Good, and exists in the baseline upload.
+  // ─── Enhanced watercourse — values (BMD-735, BMD-1047) ─────────────────────
+  // Since BMD-1047 (frontend PR#541) an Enhanced watercourse opens the Created
+  // watercourse form, limited to the valid enhancements of its baseline. The
+  // mixed-retention WC2 below cannot show its values: Moderate→Moderate is no
+  // enhancement, so the import clears its proposed side. R007 in the "all unit
+  // and intervention types" pair is Enhanced, improves Fairly Poor → Fairly
+  // Good, and exists in the baseline upload. The BNG Service template run
+  // covers the form's lists, previews and save.
 
   test.describe(
     'Post-intervention habitat details — Enhanced watercourse display',
@@ -4275,7 +4301,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
       test(
-        'Enhanced watercourse shows its km length, proposed-side encroachments and section-2 values',
+        'Enhanced watercourse opens its edit form with its size, proposed encroachments and section-2 values',
         { tag: '@regression' },
         async ({ browser, postInterventionHabitatDetailsPage, page }) => {
           const shared = await getAllTypesProject(browser)
@@ -4285,44 +4311,34 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           )
 
           const detailsPage = postInterventionHabitatDetailsPage
-          // BMD-735's headline deviation from the area-habitat design: the size
-          // row is "Length" and the value carries the km unit — asserting the
-          // label alone would pass on an "expressed in hectares" regression.
-          await expect(detailsPage.enhancedLengthKey).toBeVisible()
-          await expect(detailsPage.stackedSizeValue).toHaveText(
-            LENGTH_KM_PATTERN
-          )
+          await detailsPage.assertEnhancedWatercourseEditForm({
+            ref: ENHANCED_UPLIFT_WATERCOURSE_REF
+          })
+          // "Size (kilometres)" names the unit, so the value is bare.
+          await expect(
+            detailsPage.createdFormValue('size', { baselineLink: true })
+          ).toHaveText(/^\s*[\d.]+\s*$/)
 
           // Encroachments are read from `proposed` on a Created/Enhanced
           // watercourse — the opposite of the retained page's baseline-first
           // read. R007 differs on both sides (watercourse Major → No
           // Encroachment; riparian No Encroachment/No Encroachment → Minor/No
-          // Encroachment), so asserting the proposed values *and* the absence of
-          // the baseline ones is what distinguishes the two sourcing rules.
-          // getByText regexes match raw, un-normalised text, so allow
-          // surrounding whitespace; the anchors keep the rows distinct, since
-          // one encroachment value is a substring of the other.
-          await expect(
-            page.getByText(/^\s*No Encroachment( \(.+\))?\s*$/)
-          ).toBeVisible()
-          await expect(
-            page.getByText(/^\s*Minor\/No Encroachment( \(.+\))?\s*$/)
-          ).toBeVisible()
-          await expect(page.getByText(/^\s*Major( \(.+\))?\s*$/)).toHaveCount(0)
-          await expect(
-            page.getByText(/^\s*No Encroachment\/No Encroachment( \(.+\))?\s*$/)
-          ).toHaveCount(0)
+          // Encroachment), so the selected values tell the two rules apart.
+          await expectCreatedAreaSelections(detailsPage, {
+            watercourse: 'No Encroachment',
+            riparian: 'Minor/No Encroachment'
+          })
 
-          // The standard time-to-target value proves the section-2 values render
-          // *and* pins the dynamic condition transition frontend PR#193
-          // introduced: "<baseline condition> to <target condition> - N years".
-          // A shape-only assertion would also pass on the old static "Baseline
-          // condition to target condition" wording, so assert the exact
-          // transition and exclude that stale text.
-          await expect(detailsPage.standardTimeToTargetValue).toHaveText(
+          // The exact transition pins the dynamic condition text frontend
+          // PR#193 introduced, which the old static "Baseline condition to
+          // target condition" wording would fail.
+          const standardTime = detailsPage.createdFormValue('standardTime', {
+            baselineLink: true
+          })
+          await expect(standardTime).toHaveText(
             ENHANCED_UPLIFT_WATERCOURSE_TIME
           )
-          await expect(detailsPage.standardTimeToTargetValue).not.toContainText(
+          await expect(standardTime).not.toContainText(
             STALE_TIME_TO_TARGET_TEXT
           )
           // "Habitat units delivered" matches the Units cell of the same
@@ -4335,15 +4351,11 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
     }
   )
 
-  // ─── Created / Enhanced watercourses (BMD-739, BMD-735, BMD-1050) ───────────
-  // An Enhanced watercourse renders its own two-section read-only template
-  // (pi-watercourse-details-enhanced, frontend PR#188). Its rows sit in an
-  // order that differs from the retained page: Strategic significance comes
-  // *above* the two encroachment rows, whose values are read from `proposed`
-  // (the retained page reads them baseline-first). A Created watercourse has
-  // rendered the shared Created edit form since BMD-1050 (frontend PR#444),
-  // with a dropdown for each encroachment. Reached the way the user does:
-  // click the Ref link in the watercourses post-intervention grid.
+  // ─── Created / Enhanced watercourses (BMD-739, BMD-735, BMD-1050, BMD-1047) ─
+  // A Created watercourse has rendered the shared Created edit form since
+  // BMD-1050 (frontend PR#444), and an Enhanced one since BMD-1047 (frontend
+  // PR#541), with a dropdown for each encroachment. Reached the way the user
+  // does: click the Ref link in the watercourses post-intervention grid.
 
   test.describe(
     'non-retained watercourse habitats',
@@ -4352,7 +4364,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       test.use({ storageState: STORAGE_STATE })
       test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
 
-      test('an Enhanced watercourse renders the two-section read-only page', async ({
+      // WC2 is Moderate→Moderate, which is no enhancement, so the import
+      // clears its proposed side: the form opens with the default options.
+      test('an Enhanced watercourse renders the Enhanced watercourse edit form', async ({
         browser,
         postInterventionHabitatDetailsPage,
         page
@@ -4367,27 +4381,16 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(page).toHaveURL(DETAILS_URL_PATTERN)
 
         const detailsPage = postInterventionHabitatDetailsPage
-        await detailsPage.assertTwoSectionLayout({
-          ref: ENHANCED_WATERCOURSE_REF,
-          intervention: 'Enhanced'
+        await detailsPage.assertEnhancedWatercourseEditForm({
+          ref: ENHANCED_WATERCOURSE_REF
         })
-        // Page chrome (BMD-735 AC1): the back link and the project-name
-        // caption sit outside the two sections, so assertTwoSectionLayout
-        // does not reach them.
+        await expectCreatedAreaSelections(detailsPage, {
+          type: '',
+          condition: ''
+        })
         await expect(detailsPage.backLink).toBeVisible()
         await expect(detailsPage.caption).toHaveText(shared.name)
-        // Watercourse specifics: the size row is "Length" (unit on the
-        // value), plus the two encroachment rows the hedgerow page lacks.
-        // BMD-735 AC1 asks for the length "expressed in km", so assert the
-        // km-suffixed value too — the label alone would survive a regression
-        // that rendered hectares against it.
-        await expect(detailsPage.enhancedLengthKey).toBeVisible()
-        await expect(detailsPage.stackedSizeValue).toHaveText(LENGTH_KM_PATTERN)
-        await expect(detailsPage.watercourseEncroachmentKey).toBeVisible()
-        await expect(detailsPage.riparianEncroachmentKey).toBeVisible()
         await expect(detailsPage.broadHabitatKey).toBeHidden()
-        await expect(detailsPage.watercourseEncroachmentSelect).toBeHidden()
-        await expect(detailsPage.riparianEncroachmentSelect).toBeHidden()
       })
 
       test('a Created watercourse renders the Created edit form', async ({
@@ -4449,11 +4452,11 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         ).toHaveText(['Choose delay', ...TIMING_YEARS])
       })
 
-      // BMD-739 AC1 asks for labels *and* values. The two tests above pin the
-      // labels for both refs; the section-2 values can only be asserted on the
-      // Created WC3, since the Enhanced WC2 is Moderate→Moderate and renders a
-      // blank time-to-target (the Enhanced watercourse's values are covered on
-      // R007 in the BMD-735 describe above).
+      // BMD-739 AC1 asks for labels *and* values. The section-2 values can
+      // only be asserted on the Created WC3, since the Enhanced WC2 is
+      // Moderate→Moderate and imports with its proposed side cleared (the
+      // Enhanced watercourse's values are covered on R007 in the describe
+      // above).
       //
       // WC3 is Created *with* a real baseline condition, so this test covers the
       // transition branch only. The absent-baseline branch the BMD-739 re-work
@@ -7248,19 +7251,14 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           ST_ENHANCED_WATERCOURSE_REF
         )
 
-        await details.assertCreatedEditForm({
-          ref: ST_ENHANCED_WATERCOURSE_REF,
-          kind: 'watercourse',
-          intervention: ENHANCED,
-          sizeKey: details.sizeKilometresKey
+        await details.assertEnhancedWatercourseEditForm({
+          ref: ST_ENHANCED_WATERCOURSE_REF
         })
-        await expect(details.viewBaselineLink).toBeVisible()
         await expect(details.backLink).toBeVisible()
         await expect(details.caption).toHaveText(shared.name)
-        await expect(details.habitatTypeSelect.getByRole('option')).toHaveText([
-          'Choose habitat type',
-          'Canals'
-        ])
+        await expect(details.habitatTypeSelect.getByRole('option')).toHaveText(
+          ST_ENHANCED_WATERCOURSE_TYPES
+        )
         await expect(
           details.targetConditionSelect.getByRole('option')
         ).toHaveText(WATERCOURSE_ENHANCED_CONDITIONS)
@@ -7271,6 +7269,164 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           details.riparianEncroachmentSelect.getByRole('option')
         ).toHaveText(RIPARIAN_ENCROACHMENTS)
         await expect(details.broadHabitatKey).toBeHidden()
+
+        // BMD-1047 AC11. An Enhanced watercourse's link resolves its baseline
+        // the way the read-only page did (VIEW_ONLY_BASELINE_KINDS), not by a
+        // Created watercourse's parent rules.
+        await details.viewBaselineLink.click()
+        await expect(page).toHaveURL(BASELINE_DETAILS_URL_PATTERN)
+        await expect(details.heading).toHaveText(
+          `Watercourse ${ST_ENHANCED_WATERCOURSE_REF}`
+        )
+      })
+
+      // BMD-1047 AC1 and AC3-AC6, AC10. Only a Culvert baseline offers more
+      // than one habitat type, so it is the only one whose Target condition
+      // list is rebuilt from the enhancement reference when the type changes.
+      // Frontend controller-enhanced-watercourse-edit.test.js renders these
+      // lists against a mocked backend, and the client script's tests use
+      // made-up reference data, so this is the only proof the real
+      // /reference/watercourse-enhancement reaches the page and the previews.
+      test('the Enhanced watercourse choices stay within the valid enhancements of a Culvert baseline as they change', async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const shared = await getSharedProject(
+          browser,
+          'st-watercourse-enhanced-culvert',
+          { piFile: WATERCOURSE_ENHANCED_CULVERT },
+          async () => ({})
+        )
+        const units = await unitsByRef(
+          page,
+          shared.id,
+          'watercourse',
+          ST_CULVERT_WATERCOURSE_REF
+        )
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'watercourse',
+          ST_CULVERT_WATERCOURSE_REF
+        )
+
+        await details.assertEnhancedWatercourseEditForm({
+          ref: ST_CULVERT_WATERCOURSE_REF
+        })
+        await expectCreatedAreaSelections(
+          details,
+          ST_CULVERT_WATERCOURSE_SELECTIONS
+        )
+        await expectEnhancedFormValues(details, ST_CULVERT_WATERCOURSE_VALUES)
+        // Culvert is never an enhanced habitat type.
+        await expect(details.habitatTypeSelect.getByRole('option')).toHaveText(
+          ST_CULVERT_WATERCOURSE_TYPES
+        )
+        await expect(
+          details.targetConditionSelect.getByRole('option')
+        ).toHaveText(AREA_CREATION_CONDITIONS)
+
+        // AC3: a reference change moves nothing else.
+        await details.habitatReferenceInput.fill(
+          `${ST_CULVERT_WATERCOURSE_REF}-new`
+        )
+        await expectCreatedAreaSelections(
+          details,
+          ST_CULVERT_WATERCOURSE_SELECTIONS
+        )
+        await expectEnhancedFormValues(details, ST_CULVERT_WATERCOURSE_VALUES)
+
+        // AC4: another valid type resets the target condition alone.
+        await details.habitatTypeSelect.selectOption('Canals')
+        await expectCreatedAreaSelections(details, {
+          ...ST_CULVERT_WATERCOURSE_SELECTIONS,
+          type: 'Canals',
+          condition: ''
+        })
+        await expect(
+          details.targetConditionSelect.getByRole('option')
+        ).toHaveText(AREA_CREATION_CONDITIONS)
+        await expectEnhancedFormValues(details, {
+          distinctiveness: 'Medium (4)',
+          standardTime: '',
+          difficulty: 'Low',
+          finalTime: '',
+          applied: '1'
+        })
+
+        // AC6 and AC10: the fixed 10 years, then advance and delay on top.
+        await details.targetConditionSelect.selectOption('Good')
+        await expectEnhancedFormValues(details, {
+          standardTime: 'Poor to Good - 10 years',
+          finalTime: '10 years (0.7002822742)'
+        })
+        const finalTime = details.createdFormValue('finalTime', {
+          baselineLink: true
+        })
+        await details.delayYearsSelect.selectOption('2')
+        await expect(finalTime).toHaveText('12 years (0.6521203607)')
+        await details.advanceYearsSelect.selectOption('2')
+        await expect(finalTime).toHaveText('')
+        await expect(details.errorSummary).toBeHidden()
+        await details.delayYearsSelect.selectOption('0')
+        await details.advanceYearsSelect.selectOption('25')
+        await expect(finalTime).toHaveText('0 years (1)')
+        await details.targetConditionSelect.selectOption('')
+        await expectEnhancedFormValues(details, {
+          distinctiveness: 'Medium (4)',
+          standardTime: '',
+          finalTime: ''
+        })
+
+        // AC5: clearing the type empties the target condition list.
+        await details.habitatTypeSelect.selectOption('')
+        await expect(
+          details.targetConditionSelect.getByRole('option')
+        ).toHaveText(['Choose target condition'])
+        await expectEnhancedFormValues(details, {
+          distinctiveness: '',
+          standardTime: '',
+          difficulty: '',
+          finalTime: '',
+          applied: ''
+        })
+        await expect(details.habitatUnitsValue).toHaveText(units)
+      })
+
+      // BMD-1047 AC2. The list's 0.00 and Incomplete, and the form's saved
+      // selections, are checked on the same project in
+      // watercourses-post-intervention.spec.js (BNG Service template blank
+      // proposed encroachment). This checks what only the form shows: its
+      // lists stay within the valid enhancements of the baseline, and its
+      // units read 0.00 (frontend PR#541), which the frontend controller tests
+      // render only from a mocked backend.
+      test("an incomplete Enhanced watercourse's form offers only valid enhancements and shows zero units", async ({
+        browser,
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const shared =
+          await getServiceTemplateBlankProposedEncroachmentProject(browser)
+        await openPiFeatureDetails(
+          page,
+          shared.id,
+          'watercourse',
+          ST_ENHANCED_WATERCOURSE_REF
+        )
+
+        await details.assertEnhancedWatercourseEditForm({
+          ref: ST_ENHANCED_WATERCOURSE_REF
+        })
+        await expect(details.habitatTypeSelect.getByRole('option')).toHaveText(
+          ST_ENHANCED_WATERCOURSE_TYPES
+        )
+        await expect(
+          details.targetConditionSelect.getByRole('option')
+        ).toHaveText(WATERCOURSE_ENHANCED_CONDITIONS)
+        await expect(details.watercourseEncroachmentSelect).toHaveValue('')
+        await expect(details.habitatUnitsValue).toHaveText('0.00')
+        await expect(details.saveButton).toBeVisible()
       })
 
       // Re-meandered onto a longer route, it is priced on its own length. In

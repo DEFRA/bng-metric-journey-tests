@@ -1,4 +1,4 @@
-# Post-Intervention Habitat Details User Flow (read-only view; Retained reference, Created area, hedgerow and watercourse edits, and Enhanced area and hedgerow edits)
+# Post-Intervention Habitat Details User Flow (read-only view; Retained reference, Created area, hedgerow and watercourse edits, and Enhanced area, hedgerow and watercourse edits)
 
 ## Overview
 
@@ -10,7 +10,9 @@ form** (BMD-1048, frontend PR#418 / backend PR#539, 2026-10-28; watercourses sin
 frontend PR#444, 2026-11-10). **An Enhanced area habitat** renders the same area form,
 limited to the valid enhancements of its baseline (BMD-1045, frontend PR#518 / backend
 PR#650, 2026-11-17). **An Enhanced hedgerow** renders the Created hedgerow form, limited the
-same way (BMD-1046, frontend PR#526 / backend PR#660, 2026-11-17). **A Retained area habitat, hedgerow or
+same way (BMD-1046, frontend PR#526 / backend PR#660, 2026-11-17). **An Enhanced watercourse**
+renders the Created watercourse form, limited the same way (BMD-1047, frontend PR#541 / backend
+PR#694, 2026-11-23). **A Retained area habitat, hedgerow or
 watercourse** renders its details read-only with an editable **Habitat reference** and Save /
 Cancel (BMD-1180, frontend PR#423 / backend PR#552, 2026-11-03). **Every other feature renders
 a read-only page.** Area, hedgerow and watercourse features each get a page specific to their
@@ -59,7 +61,7 @@ backend's discriminator (`habitat`, `tree`, `hedgerow`, `watercourse`) and
 | -------------- | ------------------------------------------------ | ----------------------------------------------------------- | ------------------------------------------------------ |
 | `habitat`      | `pi-habitat-details-created-edit` (Step 5, form) | `pi-habitat-details-created-edit` (Step 4, form)            | `pi-habitat-details` (Step 1)                          |
 | `hedgerow`     | `pi-hedgerow-details-enhanced`                   | `pi-habitat-details-created-edit` (hedgerow form, BMD-1049) | `pi-hedgerow-details` (Step 2)                         |
-| `watercourse`  | `pi-watercourse-details-enhanced`                | `pi-watercourse-details-created`                            | `pi-watercourse-details` (Step 3)                      |
+| `watercourse`  | `pi-habitat-details-created-edit` (Step 9, form) | `pi-habitat-details-created-edit` (Step 8, form)            | `pi-watercourse-details` (Step 3)                      |
 | `tree`         | tree edit page, or area sections page (BMD-1172) | tree edit page (BMD-1172)                                   | `pi-habitat-details` + tree rows (Step 1)              |
 | any other type | `pi-feature-unsupported` (Step 10)               | —                                                           | —                                                      |
 
@@ -201,8 +203,8 @@ the Enhanced tree form. A legacy upload imports an Enhanced row's own comment on
 post-intervention habitat, not the baseline (e.g. area H3 in
 `Post-intervention - comments are valid.gpkg`).
 
-- **Not on:** Enhanced watercourses. Their page is still read-only (Step 9) and the backend
-  refuses a comment for them, until BMD-1047 adds their edit form.
+- **Enhanced watercourses** have had the box since BMD-1047 (frontend PR#541) gave them the
+  Created watercourse form (Step 9), whose box they inherit.
 - Save returns to the unit-type page with the **Retained** tab selected, as for Created.
 - The Enhanced tree form has no "View baseline details" link. Its baseline is reached from the
   Areas baseline page.
@@ -561,17 +563,51 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
 
 ---
 
-### Step 9 — View Enhanced watercourse details (read-only, two-section) `[IMPLEMENTED]`
+### Step 9 — Edit Enhanced watercourse details (form, BMD-1047) `[IMPLEMENTED]`
 
 - **Route:** shared GET contract (watercourse feature whose normalised `retentionCategory === "Enhanced"`)
-- **Template:** `src/server/habitat-details/pi-watercourse-details-enhanced.njk` (extends `layouts/pi-view-only-sections-page.njk`; BMD-735, frontend PR#188)
-- **Backend endpoint:** shared GET contract
-- **Description:** **Identical in every respect to Step 8** — the two templates set the same
-  `sections` structure and both view models delegate to
-  `buildWatercourseSectionsViewOnlyFields`. They differ only in the Intervention row value
-  ("Enhanced" vs "Created") and in the template file selected.
-- **Validation:** shared GET contract
-- **On success:** Renders the Enhanced two-section read-only watercourse details page
+- **Template:** `src/server/habitat-details/pi-habitat-details-created-edit.njk`, the Step 8
+  form (BMD-1047, frontend PR#541, 2026-11-23; `ENHANCED_WATERCOURSE_KIND` in
+  `watercourse-edit-kinds.js`). It replaced BMD-735's read-only
+  `pi-watercourse-details-enhanced.njk`, which is still the fallback while the backend does not
+  serve the enhancement reference.
+- **Backend endpoints:** shared GET contract, plus `GET /reference/watercourse-enhancement`
+  (backend PR#694) with the baseline watercourse's type and condition. It lists only the
+  watercourse types and conditions that make a valid enhancement of that baseline (BMD-820
+  AC9-AC10), each with its enhancement time to target. Save is a PUT to
+  `/projects/{projectId}/post-intervention/watercourses/{featureId}` (Step 11).
+- **Description:** **The Step 8 form, with these differences:**
+  - Intervention reads **"Enhanced"**, and the size row is **"Size (kilometres)"** (value
+    without a unit suffix), as per Figma.
+  - **Habitat type** lists only the types with a valid enhancement of the baseline; **Target
+    condition** only the conditions that make one with the chosen type. A Medium baseline
+    (Ditches or Canals) keeps its type and offers only better conditions: the default site's
+    R006, Canals Fairly Poor, offers Canals at Moderate, Fairly Good and Good. A Culvert (Low)
+    baseline offers Ditches and Canals at all five conditions, never Culvert.
+  - **Standard time to target condition** is the enhancement time, as the transition
+    `"<baseline condition> to <target condition> - N years"`: the same-habitat lookup for a
+    Medium baseline (Fairly Poor to Moderate - 2 years), and a fixed 10 years for a Culvert
+    moved to Ditches or Canals.
+  - **Watercourse encroachment** and **Riparian encroachment** offer every reference value,
+    not limited by the enhancement rules, and each counts towards completeness.
+  - A lineage advance is not restored, unlike a Created watercourse.
+  - **"View baseline details"** is shown, with the Supporting information box below the units
+    (BMD-1190).
+  - An incomplete Enhanced watercourse shows `0.00` units on the form and the list (display
+    only, frontend PR#541's `includeEnhanced`); it was blank before.
+- **Journey coverage (BMD-1047):** `post-intervention-habitat-details.spec.js`, "BNG Service
+  template watercourses". R006 of the default site covers the saved values, the option lists and
+  "View baseline details" (AC1, AC11). R001 of `watercourse-enhanced-culvert.gpkg` covers a
+  Culvert baseline's lists and the previews as Habitat type, Target condition and Advance /
+  Delay change (AC1, AC3-AC6, AC10). R006 of `watercourse-proposed-encroachment-blank.gpkg`
+  covers the incomplete form's lists and `0.00` units (AC2); the same project's list row and
+  saved selections are checked in `watercourses-post-intervention.spec.js` (BNG Service template
+  blank proposed encroachment, BMD-1088). The save is in Step 11. Significance, the
+  encroachments, Cancel, validation and Upload file (AC7-AC9, AC13-AC15) share the Created
+  watercourse form and are left to the Step 8 tests. On the legacy run, the all-unit-types R007
+  and mixed-retention WC2 tests check the same form.
+- **Validation:** shared GET contract on load; the form's own rules are in Step 11
+- **On success:** Renders the Enhanced watercourse edit form
 - **On error:** shared GET contract
 
 ---
@@ -595,7 +631,7 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
 
 ---
 
-### Step 11 — Save Created or Enhanced area or hedgerow details (BMD-1048/BMD-1049/BMD-1045/BMD-1046) `[IMPLEMENTED]`
+### Step 11 — Save Created or Enhanced area, hedgerow or watercourse details (BMD-1048/BMD-1049/BMD-1050/BMD-1045/BMD-1046/BMD-1047) `[IMPLEMENTED]`
 
 - **Route:** `POST /post-intervention-habitat-details`
 - **Template:** `pi-habitat-details-created-edit.njk` on a field-validation failure
@@ -652,6 +688,17 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
   difficulty and both time-to-target columns, and shows Target condition with no score. That is
   the shape the 2026-11-06 PO ruling changed for Created areas; it is an open question for
   Enhanced areas.
+- **Enhanced watercourses (BMD-1047, frontend PR#541 / backend PR#694):** the Step 9 form
+  posts here. It loads `/reference/watercourse-enhancement` for the feature's baseline and PUTs
+  to `/projects/{projectId}/post-intervention/watercourses/{featureId}`, where the backend checks
+  the choices against the baseline's valid enhancements (shown against Target condition). Units
+  are the enhanced-habitat formula on the baseline's length and the feature's own, times both
+  encroachment multipliers. An incomplete edit saves `0` units and Incomplete, and the list shows
+  `0.00`.
+- **Journey coverage (BMD-1047, Enhanced watercourse):** "BNG Service template watercourses"
+  covers a complete save that changes R006's condition and both encroachments (AC12 Scenario A:
+  row, units and total). Scenario B, Cancel, validation and Upload file share the Created
+  watercourse code and tests, and the `0.00` display is witnessed by the Step 9 incomplete tests.
 - **Journey coverage (BMD-1045, Enhanced area):** "Enhanced area habitats — editing" covers a
   complete save that changes the habitat type, condition, significance and delay (AC12
   Scenario A: row, units and total). Scenario B awaits the list-display ruling above. Cancel,

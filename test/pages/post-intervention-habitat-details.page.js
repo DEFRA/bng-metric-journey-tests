@@ -25,13 +25,14 @@ const CREATED_FORM_VALUE_INDEX = {
 // feature, picked by feature type *and* retention category, plus an
 // unsupported-feature placeholder for individual trees. Three kinds of page:
 //
-//   - read-only (Enhanced watercourses).
+//   - read-only (Enhanced vertical area habitats, BNG Service template only).
 //   - reference form (Retained area habitats, hedgerows and watercourses,
 //     BMD-1180, frontend PR#423) — the read-only page plus a "Habitat reference"
 //     input and Save / Cancel.
 //   - edit form (Created area habitats and hedgerows, BMD-1048, frontend PR#418;
 //     Created watercourses, BMD-1050, frontend PR#444; Enhanced area habitats,
-//     BMD-1045, frontend PR#518; Enhanced hedgerows, BMD-1046, frontend PR#526).
+//     BMD-1045, frontend PR#518; Enhanced hedgerows, BMD-1046, frontend PR#526;
+//     Enhanced watercourses, BMD-1047, frontend PR#541).
 //
 // POST saves either form and answers 501 for any other feature. The read-only
 // and reference-form pages share layouts/pi-view-only-sections-page.njk: <h3>
@@ -121,10 +122,6 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
       'Time to target / difficulty',
       { exact: true }
     )
-    // Created/Enhanced linear size label — these pages put the unit on the
-    // value ("0.09km"), so the label is the bare "Length". The Created and
-    // Enhanced area edit form uses "Size (hectares)".
-    this.enhancedLengthKey = page.getByText('Length', { exact: true })
     // Lower-case on every stacked page.
     this.stackedStrategicSignificanceKey = page.getByText(
       'Strategic significance',
@@ -333,6 +330,23 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     await this.assertCreatedEditForm({ ref, kind: 'watercourse' })
     await expect(this.watercourseEncroachmentSelect).toBeVisible()
     await expect(this.riparianEncroachmentSelect).toBeVisible()
+  }
+
+  /**
+   * The Enhanced watercourse edit form (BMD-1047, frontend PR#541): the
+   * Created watercourse form with Intervention "Enhanced", its size labelled
+   * "Size (kilometres)" as per Figma, and the "View baseline details" link.
+   */
+  async assertEnhancedWatercourseEditForm({ ref }) {
+    await this.assertCreatedEditForm({
+      ref,
+      kind: 'watercourse',
+      intervention: 'Enhanced',
+      sizeKey: this.sizeKilometresKey
+    })
+    await expect(this.watercourseEncroachmentSelect).toBeVisible()
+    await expect(this.riparianEncroachmentSelect).toBeVisible()
+    await expect(this.viewBaselineLink).toBeVisible()
   }
 
   async assertCreatedEditForm({

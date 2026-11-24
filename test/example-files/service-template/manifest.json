@@ -483,6 +483,12 @@
       "for": "The default site with the Enhanced R006's encroachments reduced to Minor and No Encroachment/No Encroachment, against its baseline Major and Moderate/Minor: accepted"
     },
     {
+      "file": "watercourse-enhanced-culvert.gpkg",
+      "source": "permutations/intervention/watercourse-enhanced-culvert.gpkg",
+      "sha256": "780fc9a547439d0b3fe38fcdcbe4c20700a7fc9ea70b0af11e047bbc9008c6ae",
+      "for": "R001, a Culvert (Low) enhanced to Ditches Moderate: a Culvert baseline offers Ditches and Canals at every condition, over 10 years (BMD-1047)"
+    },
+    {
       "file": "area-enhanced-significance-blank.gpkg",
       "source": "incomplete/area-enhanced-significance-blank.gpkg",
       "sha256": "05b6f4a548916e3ec1432cacbd3092b45177ecef2bbaa39fe89c9865892bba17",
