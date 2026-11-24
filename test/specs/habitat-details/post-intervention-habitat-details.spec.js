@@ -1510,17 +1510,19 @@ async function piRowByRef(page, projectId, type, ref) {
 }
 
 // A Retained BNG Service template row is renamed alone: it names its parent,
-// so the link to it survives, and the parent keeps its own reference.
+// so the link to it survives, and the parent keeps its own reference. `typed`
+// is what goes in the box, when it is not `newRef` itself, such as `newRef`
+// padded with spaces the save trims.
 async function expectServiceTemplateRetainedRename(
   page,
   details,
-  { projectId, type, ref, newRef }
+  { projectId, type, ref, newRef, typed = newRef }
 ) {
   const before = await piRowByRef(page, projectId, type, ref)
   const totalBefore = await piTileUnits(page, type)
   await openPiFeatureDetails(page, projectId, type, ref)
   const baselineHref = await details.viewBaselineLink.getAttribute('href')
-  await details.habitatReferenceInput.fill(newRef)
+  await details.habitatReferenceInput.fill(typed)
   await details.saveButton.click()
 
   await expectOnPiPage(page, projectId, type)
@@ -5678,14 +5680,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             delay: '3'
           }
           await details.habitatReferenceInput.fill('')
-          await details.broadHabitatSelect.selectOption(entered.broad)
-          await details.habitatTypeSelect.selectOption(entered.type)
-          await details.strategicSignificanceSelect.selectOption(
-            entered.significance
-          )
-          await details.targetConditionSelect.selectOption(entered.condition)
-          await details.advanceYearsSelect.selectOption(entered.advance)
-          await details.delayYearsSelect.selectOption(entered.delay)
+          await chooseCreatedAreaSelections(details, entered)
           const comment = `\uFFFD${'c'.repeat(MAX_COMMENT_LENGTH)}`
           await details.commentInput.fill(comment)
 
@@ -5744,21 +5739,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           uploadFilePage
         }) => {
           await openPiFeatureDetails(page, project.id, 'area', createdRef)
-          let dialogs = 0
-          page.on('dialog', async (dialog) => {
-            dialogs += 1
-            await dialog.dismiss()
-          })
           await details.habitatReferenceInput.fill('Not saved')
           await details.strategicSignificanceSelect.selectOption('Low')
 
-          await details.uploadFileButton.click()
-
-          await expect(page).toHaveURL(
-            new RegExp(`/projects/${project.id}/upload-file`)
-          )
-          await expect(uploadFilePage.heading).toBeVisible()
-          expect(dialogs).toBe(0)
+          await leaveForUploadFile(page, details, uploadFilePage, project.id)
           expect(
             await areaRowByRef(page, project.id, createdRef)
           ).toMatchObject({
@@ -6119,13 +6103,13 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await openPiFeatureDetails(page, projectId, 'area', ref)
 
           await details.habitatReferenceInput.fill(editedRef)
-          await details.broadHabitatSelect.selectOption('Grassland')
-          await details.habitatTypeSelect.selectOption(
-            'Other neutral grassland'
-          )
-          await details.strategicSignificanceSelect.selectOption('Low')
-          await details.targetConditionSelect.selectOption('Good')
-          await details.delayYearsSelect.selectOption('2')
+          await chooseCreatedAreaSelections(details, {
+            broad: 'Grassland',
+            type: 'Other neutral grassland',
+            significance: 'Low',
+            condition: 'Good',
+            delay: '2'
+          })
           await details.commentInput.fill(`  ${CREATED_AREA_COMMENT}\n `)
           await details.saveButton.click()
 
@@ -6209,10 +6193,12 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           await piPage(page, 'area').refLink(ENHANCED, ref).click()
 
           await details.habitatReferenceInput.fill(newRef)
-          await details.habitatTypeSelect.selectOption('Other woodland; mixed')
-          await details.targetConditionSelect.selectOption('Moderate')
-          await details.strategicSignificanceSelect.selectOption('High')
-          await details.delayYearsSelect.selectOption('2')
+          await chooseCreatedAreaSelections(details, {
+            type: 'Other woodland; mixed',
+            condition: 'Moderate',
+            significance: 'High',
+            delay: '2'
+          })
           await details.saveButton.click()
 
           await expect(page).toHaveURL(piPageUrl(projectId, 'area'))
@@ -6242,35 +6228,13 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         async ({ page, postInterventionHabitatDetailsPage: details }) => {
           const ref = SERVICE_TEMPLATE_RENAMED_RETAINED_AREA
           const newRef = `${ref}-NEW`
-          const before = await areaRowByRef(page, projectId, ref)
-          const totalBefore = await areaPostInterventionUnits(page)
-          await openPiFeatureDetails(page, projectId, 'area', ref)
-          const parentId = new URL(
-            await details.viewBaselineLink.getAttribute('href'),
-            baseUrl
-          ).searchParams.get('featureId')
-
-          await details.habitatReferenceInput.fill(`  ${newRef}  `)
-          await details.saveButton.click()
-
-          await expectOnPiPage(page, projectId, 'area')
-          expect(await areaPostInterventionUnits(page)).toBe(totalBefore)
-          expect(await findPiRef(page, projectId, 'area', ref)).toBeNull()
-          expect(await areaRowByRef(page, projectId, newRef)).toEqual({
-            ...before,
-            Ref: newRef
+          await expectServiceTemplateRetainedRename(page, details, {
+            projectId,
+            type: 'area',
+            ref,
+            newRef,
+            typed: `  ${newRef}  `
           })
-          await openPiFeatureDetails(page, projectId, 'area', newRef)
-          await expect(details.habitatReferenceInput).toHaveValue(newRef)
-          await expect(details.headingTitle).toHaveText(`Habitat ${newRef}`)
-          await expect(details.habitatUnitsValue).toHaveText(before.Units)
-
-          await details.viewBaselineLink.click()
-          await expect(page).toHaveURL(BASELINE_DETAILS_URL_PATTERN)
-          expect(new URL(page.url()).searchParams.get('featureId')).toBe(
-            parentId
-          )
-          await expect(details.habitatReferenceInput).toHaveValue(ref)
         }
       )
 
