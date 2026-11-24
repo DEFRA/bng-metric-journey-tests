@@ -25,9 +25,12 @@ import {
   getLongPaddedRefsProject
 } from '@utils/summary-projects.js'
 import {
-  DEFAULT_SITE,
+  AREA_CREATED_INCOMPLETE,
+  AREA_ENHANCED_INCOMPLETE,
   CREATED_HEDGEROW_INCOMPLETE,
+  DEFAULT_SITE,
   HEDGEROW_ENHANCEMENT_NOT_POSSIBLE,
+  LONG_AND_PADDED_REFS,
   TRADING_ALL_MET,
   WATERCOURSE_ENCROACHMENT_REDUCED
 } from '@utils/service-template-files.js'
@@ -1117,6 +1120,172 @@ const SERVICE_TEMPLATE_RETAINED_COMMENTS = [
   { type: 'area', ref: 'H002', comment: 'No data' }
 ]
 
+// ─── BNG Service template: area habitats and trees ──────────────────────────
+//
+// The default site's area habitats and trees that the legacy area habitat and
+// tree tests are ported onto. The values are what the pages show for each
+// feature as the backend imports it, and the units the backend's for each
+// save, replayed through its PUT route's payload schema, edit check and
+// applyFeatureUpdate.
+//
+// H002, a Retained woodland.
+const SERVICE_TEMPLATE_RETAINED_AREA_SIZE = '1.571560845'
+const SERVICE_TEMPLATE_RETAINED_AREA_UNITS = '15.72'
+// H014: its parent, a Tall forbs in Good condition, lost and Blackthorn scrub
+// created on its land. Unlike a legacy Created habitat, it names its parent,
+// so its form has a "View baseline details" link, after which its values sit
+// as an Enhanced form's do (expectEnhancedFormValues), and its standard time
+// to target names the parent's condition.
+const SERVICE_TEMPLATE_CREATED_AREA = {
+  ref: 'H014',
+  units: '8.20',
+  comment: 'Managed under the landscape plan'
+}
+const SERVICE_TEMPLATE_CREATED_AREA_SELECTIONS = {
+  broad: 'Heathland and shrub',
+  type: 'Blackthorn scrub',
+  significance: 'High',
+  condition: 'Fairly Poor',
+  advance: '0',
+  delay: '0'
+}
+const SERVICE_TEMPLATE_CREATED_AREA_VALUES = {
+  intervention: CREATED,
+  size: '1.322519633',
+  distinctiveness: 'Medium (4)',
+  standardTime: 'Good to Fairly Poor - 3 years',
+  difficulty: 'Low',
+  finalTime: '3 years (0.898632125)',
+  applied: '1'
+}
+const HEATHLAND_TYPES = [
+  'Choose habitat type',
+  'Blackthorn scrub',
+  'Bramble scrub',
+  'Gorse scrub',
+  'Hawthorn scrub',
+  'Hazel scrub',
+  'Mixed scrub',
+  'Other sea buckthorn scrub',
+  'Rhododendron scrub',
+  'Willow scrub'
+]
+// H001, an Other lowland acid grassland (Medium) enhanced from Fairly Poor to
+// Moderate: only grassland of its distinctiveness or above enhances it.
+const SERVICE_TEMPLATE_ENHANCED_AREA = { ref: 'H001', units: '13.61' }
+const SERVICE_TEMPLATE_ENHANCED_AREA_SELECTIONS = {
+  broad: 'Grassland',
+  type: 'Other lowland acid grassland',
+  significance: 'High',
+  condition: 'Moderate',
+  advance: '0',
+  delay: '0'
+}
+const SERVICE_TEMPLATE_ENHANCED_AREA_VALUES = {
+  intervention: ENHANCED,
+  size: '1.577672158',
+  distinctiveness: 'Medium (4)',
+  standardTime: 'Fairly Poor to Moderate - 8 years',
+  difficulty: 'Low',
+  finalTime: '8 years (0.7520011535)',
+  applied: '1'
+}
+const ENHANCED_ACID_GRASSLAND_TYPES = [
+  'Choose habitat type',
+  'Other lowland acid grassland',
+  'Other neutral grassland',
+  'Upland acid grassland'
+]
+// The target conditions that improve on Fairly Poor, and on Moderate.
+const ABOVE_FAIRLY_POOR_CONDITIONS = [
+  'Choose target condition',
+  'Good (3)',
+  'Fairly Good (2.5)',
+  'Moderate (2)'
+]
+const ABOVE_MODERATE_CONDITIONS = ABOVE_FAIRLY_POOR_CONDITIONS.slice(0, -1)
+// H006, an Intensive green roof (Low) enhanced from Fairly Poor to Moderate:
+// a Low baseline is enhanced by habitats of every broad habitat above.
+const SERVICE_TEMPLATE_ENHANCED_LOW_AREA = { ref: 'H006', units: '5.88' }
+const ENHANCED_URBAN_TYPES = [
+  'Choose habitat type',
+  'Allotments',
+  'Bare ground',
+  'Biodiverse green roof',
+  'Bioswale',
+  'Cemeteries and churchyards',
+  'Facade-bound green wall',
+  'Ground based green wall',
+  'Intensive green roof',
+  'Rain garden',
+  'Sustainable drainage system',
+  'Vacant or derelict land'
+]
+// T010, a Retained very large rural tree, whose page shows its parent's
+// comment.
+const SERVICE_TEMPLATE_RETAINED_TREE = {
+  ref: 'T010',
+  comment: 'Ivy on the trunk'
+}
+// The saves, each on its own feature of a copy of the default site:
+//
+// - H011, a Created ornamental lake (4.5144 units), saved as Other neutral
+//   grassland in Good condition, Low, with a 2-year delay: its parent is a
+//   woodland, so it is no habitat that gets worse. 1.40516454 ha x 4 x 3 x 1
+//   x 0.6521203607 x 1;
+// - H015, a Created Scot's pine woodland (3.6941), saved with no target
+//   condition;
+// - H024, an Other coniferous woodland enhanced from Fairly Poor (4.0577),
+//   saved as Other woodland; mixed in Moderate condition, High, with a 2-year
+//   delay on its 15-year enhancement;
+// - H050 renamed, and H029 renamed onto H002's reference;
+// - T005, a Created tree, given a new comment.
+const SERVICE_TEMPLATE_CREATED_SAVE = {
+  ref: 'H011',
+  before: 4.5144,
+  after: 10.996
+}
+const SERVICE_TEMPLATE_CREATED_CLEARED = {
+  ref: 'H015',
+  before: 3.6941,
+  selections: {
+    broad: 'Woodland and forest',
+    type: "Other Scot's pine woodland",
+    significance: 'High',
+    condition: 'Good',
+    advance: '0',
+    delay: '0'
+  }
+}
+const SERVICE_TEMPLATE_ENHANCED_SAVE = {
+  ref: 'H024',
+  before: 4.0577,
+  after: 7.3446
+}
+const SERVICE_TEMPLATE_RENAMED_RETAINED_AREA = 'H050'
+const SERVICE_TEMPLATE_DUPLICATE_REF = { ref: 'H029', typed: 'H002' }
+const SERVICE_TEMPLATE_CREATED_TREE = {
+  ref: 'T005',
+  comment: 'Delayed: work starts 30 or more years after the losses'
+}
+// H005 in AREA_CREATED_INCOMPLETE: Allotments, High, created over a
+// Biodiverse green roof, with no target condition or timing. Saved in Good
+// condition with no timing: 1.498784835 ha x 2 x 3 x 1.15 x 0.965 x 1.
+const SERVICE_TEMPLATE_INCOMPLETE_CREATED_AREA = {
+  ref: 'H005',
+  completedUnits: 9.9797
+}
+// H004 in AREA_ENHANCED_INCOMPLETE: an Other neutral grassland enhanced from
+// Moderate, its type kept and its target condition and strategic
+// significance left blank.
+const SERVICE_TEMPLATE_INCOMPLETE_ENHANCED_AREA = 'H004'
+// In LONG_AND_PADDED_REFS, both stages: H034 spelt '   H034   ', H029
+// renamed with letters outside ASCII, and H050 renamed to a ref at the
+// 99-character limit. The grids cut the last two.
+const SERVICE_TEMPLATE_PADDED_REF = 'H034'
+const SERVICE_TEMPLATE_NON_ASCII_REF = 'Étang-du-Moulin-Ælfrīc'
+const SERVICE_TEMPLATE_LONGEST_REF = 'H050-'.padEnd(Number(MAX_REF_LENGTH), 'x')
+
 // A feature's id, read from its grid in the creator's own session: for a
 // test whose page has no session, or another user's.
 async function creatorFeatureId(browser, projectId, type, ref) {
@@ -1341,17 +1510,19 @@ async function piRowByRef(page, projectId, type, ref) {
 }
 
 // A Retained BNG Service template row is renamed alone: it names its parent,
-// so the link to it survives, and the parent keeps its own reference.
+// so the link to it survives, and the parent keeps its own reference. `typed`
+// is what goes in the box, when it is not `newRef` itself, such as `newRef`
+// padded with spaces the save trims.
 async function expectServiceTemplateRetainedRename(
   page,
   details,
-  { projectId, type, ref, newRef }
+  { projectId, type, ref, newRef, typed = newRef }
 ) {
   const before = await piRowByRef(page, projectId, type, ref)
   const totalBefore = await piTileUnits(page, type)
   await openPiFeatureDetails(page, projectId, type, ref)
   const baselineHref = await details.viewBaselineLink.getAttribute('href')
-  await details.habitatReferenceInput.fill(newRef)
+  await details.habitatReferenceInput.fill(typed)
   await details.saveButton.click()
 
   await expectOnPiPage(page, projectId, type)
@@ -5093,6 +5264,1091 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(
           postInterventionHabitatDetailsPage.viewBaselineLink
         ).toBeVisible()
+      })
+    }
+  )
+
+  // ─── BNG Service template area habitats and trees (BMD-1088) ───────────────
+  // The legacy area habitat and tree tests above, on the default site's own
+  // features. None of these saves: the shared project is read-only.
+
+  test.describe(
+    'Post-intervention habitat details — BNG Service template area habitats',
+    { tag: SERVICE_TEMPLATE_ONLY },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+      test.describe.configure({ timeout: SHARED_BUILD_TEST_TIMEOUT })
+
+      let project
+      test.beforeAll(async ({ browser }) => {
+        project = await getRunAllUnitTypesPostInterventionProject(browser)
+      })
+
+      const retainedRef = SERVICE_TEMPLATE_RETAINED_AREA.ref
+      const retainedHeading = `Habitat ${retainedRef}`
+      const createdRef = SERVICE_TEMPLATE_CREATED_AREA.ref
+
+      test(
+        'a Retained area habitat renders every summary row read-only, with only its reference editable',
+        { tag: '@smoke' },
+        async ({ page, postInterventionHabitatDetailsPage: details }) => {
+          await openPiFeatureDetails(page, project.id, 'area', retainedRef)
+
+          await expect(
+            page.getByRole('heading', { name: retainedHeading, exact: true })
+          ).toBeVisible()
+          await expect(details.viewOnlyHeading).toBeVisible()
+          await expect(details.caption).toHaveText(project.name)
+          await expect(details.referenceKey).toBeHidden()
+          await expect(details.interventionKey).toBeVisible()
+          await expect(details.sizeHectaresKey).toBeVisible()
+          await expect(details.broadHabitatKey).toBeVisible()
+          await expect(details.habitatTypeKey).toBeVisible()
+          await expect(details.distinctivenessKey).toBeVisible()
+          await expect(details.conditionKey).toBeVisible()
+          await expect(details.stackedStrategicSignificanceKey).toBeVisible()
+          await expect(details.habitatUnitsDeliveredKey).toBeVisible()
+
+          await details.assertRetainedRefForm({ ref: retainedRef })
+          await expect(details.habitatReferenceInput).toHaveAttribute(
+            'maxlength',
+            MAX_REF_LENGTH
+          )
+          await expect(details.broadHabitatSelect).toBeHidden()
+          await expect(details.habitatTypeSelect).toBeHidden()
+          await expect(details.conditionSelect).toBeHidden()
+          await expect(details.tradingRulesKey).toBeHidden()
+        }
+      )
+
+      test(
+        'a Retained area habitat shows its saved values with multiplier formatting',
+        { tag: '@regression' },
+        async ({ page, postInterventionHabitatDetailsPage: details }) => {
+          const units = await unitsByRef(page, project.id, 'area', retainedRef)
+          await openPiFeatureDetails(page, project.id, 'area', retainedRef)
+
+          await expect(details.habitatReferenceInput).toHaveValue(retainedRef)
+          await expect(details.stackedSizeValue).toHaveText(
+            SERVICE_TEMPLATE_RETAINED_AREA_SIZE
+          )
+          for (const value of [
+            RETAINED,
+            'Woodland and forest',
+            SERVICE_TEMPLATE_RETAINED_AREA.habitatType,
+            'Medium (4)',
+            'Fairly Good (2.5)',
+            'Low (1)'
+          ]) {
+            await expect(
+              page.getByText(value, { exact: true }),
+              value
+            ).toBeVisible()
+          }
+          await expect(details.habitatUnitsValue).toHaveText(
+            UNITS_TWO_DP_PATTERN
+          )
+          await expect(details.habitatUnitsValue).toHaveText(
+            SERVICE_TEMPLATE_RETAINED_AREA_UNITS
+          )
+          expect(units).toBe(SERVICE_TEMPLATE_RETAINED_AREA_UNITS)
+        }
+      )
+
+      // The link follows the parent, not a ref; Back and Cancel return to the
+      // page it was followed from, as on a legacy project.
+      test(
+        '"View baseline details" on a Retained area habitat opens its parent, whose Back and Cancel links return here',
+        { tag: ['@regression', '@happy-path'] },
+        async ({
+          page,
+          postInterventionHabitatDetailsPage: details,
+          baselineHabitatDetailsPage
+        }) => {
+          const featureId = await featureIdByRef(
+            page,
+            project.id,
+            'area',
+            retainedRef
+          )
+          await details.open(project.id, featureId)
+
+          await details.viewBaselineLink.click()
+          await expect(page).toHaveURL(BASELINE_DETAILS_URL_PATTERN)
+          expect(new URL(page.url()).searchParams.get('featureId')).not.toBe(
+            featureId
+          )
+          await expect(baselineHabitatDetailsPage.headingTitle).toHaveText(
+            retainedHeading
+          )
+
+          await expectReturnLinksToPiDetails(
+            page,
+            baselineHabitatDetailsPage,
+            details,
+            { projectId: project.id, featureId, heading: retainedHeading }
+          )
+        }
+      )
+
+      test(
+        'Cancel discards a typed reference on a Retained area habitat and returns to the area page without a prompt',
+        { tag: '@regression' },
+        async ({ page, postInterventionHabitatDetailsPage: details }) => {
+          const dialogs = []
+          page.on('dialog', async (dialog) => {
+            dialogs.push(dialog.message())
+            await dialog.dismiss()
+          })
+          await openPiFeatureDetails(page, project.id, 'area', retainedRef)
+
+          await details.habitatReferenceInput.fill('Not saved')
+          await expect(details.headingTitle).toHaveText(retainedHeading)
+          await details.cancelLink.click()
+
+          await expectOnPiPage(page, project.id, 'area')
+          expect(dialogs).toEqual([])
+          expect(
+            await areaRowByRef(page, project.id, retainedRef)
+          ).toMatchObject({ Units: SERVICE_TEMPLATE_RETAINED_AREA_UNITS })
+          await openPiFeatureDetails(page, project.id, 'area', retainedRef)
+          await expect(details.habitatReferenceInput).toHaveValue(retainedRef)
+        }
+      )
+
+      test(
+        'a blank reference on a Retained area habitat is refused, keeping the input and the saved heading',
+        { tag: '@smoke' },
+        async ({ page, postInterventionHabitatDetailsPage: details }) => {
+          await saveRetainedRef(page, details, {
+            projectId: project.id,
+            type: 'area',
+            ref: retainedRef,
+            typed: ''
+          })
+
+          await expect(page).toHaveURL(DETAILS_URL_PATTERN)
+          await expect(page).toHaveTitle(/^Error:/)
+          await expect(
+            details.errorSummaryLink(INVALID_REF_SUMMARY)
+          ).toHaveAttribute('href', '#habitatRef')
+          await expect(details.inlineError(INVALID_REF_INLINE)).toBeVisible()
+          await expect(details.habitatReferenceInput).toHaveValue('')
+          await expect(details.headingTitle).toHaveText(retainedHeading)
+
+          await openPiFeatureDetails(page, project.id, 'area', retainedRef)
+          await expect(details.habitatReferenceInput).toHaveValue(retainedRef)
+        }
+      )
+
+      // The nearest the BNG Service template comes to a legacy Lost habitat
+      // imported as Created: a habitat lost and another created on its land
+      // is a Created habitat that names it as its parent.
+      test(
+        'a Created area habitat shows its values and units delivered, and links to the parent it was created over',
+        { tag: '@regression' },
+        async ({
+          page,
+          postInterventionHabitatDetailsPage: details,
+          baselineHabitatDetailsPage
+        }) => {
+          await openPiFeatureDetails(page, project.id, 'area', createdRef)
+
+          await details.assertCreatedAreaEditForm({ ref: createdRef })
+          await expect(details.caption).toHaveText(project.name)
+          await expectCreatedAreaSelections(
+            details,
+            SERVICE_TEMPLATE_CREATED_AREA_SELECTIONS
+          )
+          await expectEnhancedFormValues(
+            details,
+            SERVICE_TEMPLATE_CREATED_AREA_VALUES
+          )
+          await expect(
+            details.habitatTypeSelect.getByRole('option')
+          ).toHaveText(HEATHLAND_TYPES)
+          await expect(
+            details.strategicSignificanceSelect.getByRole('option')
+          ).toHaveText(STRATEGIC_SIGNIFICANCE_OPTIONS)
+          await expect(
+            details.targetConditionSelect.getByRole('option')
+          ).toHaveText(AREA_CREATION_CONDITIONS)
+          await expect(
+            details.advanceYearsSelect.getByRole('option')
+          ).toHaveText(['Choose advance', ...TIMING_YEARS])
+          await expect(details.delayYearsSelect.getByRole('option')).toHaveText(
+            ['Choose delay', ...TIMING_YEARS]
+          )
+          await expect(details.habitatUnitsValue).toHaveText(
+            SERVICE_TEMPLATE_CREATED_AREA.units
+          )
+          await expect(details.commentInput).toHaveValue(
+            SERVICE_TEMPLATE_CREATED_AREA.comment
+          )
+
+          await details.viewBaselineLink.click()
+          await expect(page).toHaveURL(BASELINE_DETAILS_URL_PATTERN)
+          await expect(baselineHabitatDetailsPage.headingTitle).toHaveText(
+            `Habitat ${createdRef}`
+          )
+        }
+      )
+
+      test(
+        'back link from a Created area habitat returns to the area habitats post-intervention page',
+        { tag: ['@regression', '@happy-path'] },
+        async ({ page, postInterventionHabitatDetailsPage: details }) => {
+          await openPiFeatureDetails(page, project.id, 'area', createdRef)
+          await details.backLink.click()
+
+          await expectOnPiPage(page, project.id, 'area')
+        }
+      )
+
+      test(
+        'choosing a new broad habitat for a Created area habitat resets the habitat type and target condition, and keeps the rest',
+        { tag: '@regression' },
+        async ({ page, postInterventionHabitatDetailsPage: details }) => {
+          await openPiFeatureDetails(page, project.id, 'area', createdRef)
+          await details.strategicSignificanceSelect.selectOption('Low')
+          await details.advanceYearsSelect.selectOption('2')
+
+          await details.broadHabitatSelect.selectOption('Grassland')
+
+          await expect(
+            details.habitatTypeSelect.getByRole('option')
+          ).toHaveText(GRASSLAND_TYPES)
+          await expectCreatedAreaSelections(details, {
+            type: '',
+            condition: '',
+            significance: 'Low',
+            advance: '2',
+            delay: '0'
+          })
+          await expectEnhancedFormValues(details, {
+            distinctiveness: '',
+            standardTime: '',
+            difficulty: '',
+            finalTime: '',
+            applied: ''
+          })
+          await expect(details.habitatUnitsValue).toHaveText(
+            SERVICE_TEMPLATE_CREATED_AREA.units
+          )
+        }
+      )
+
+      test(
+        'choosing a habitat type for a Created area habitat shows its values and offers only its possible conditions',
+        { tag: '@regression' },
+        async ({ page, postInterventionHabitatDetailsPage: details }) => {
+          await openPiFeatureDetails(page, project.id, 'area', createdRef)
+
+          await details.habitatTypeSelect.selectOption('Hazel scrub')
+
+          await expect(details.targetConditionSelect).toHaveValue('')
+          await expectEnhancedFormValues(details, {
+            distinctiveness: 'Medium (4)',
+            standardTime: '',
+            difficulty: 'Medium',
+            finalTime: '',
+            applied: '0.67'
+          })
+          await expect(details.habitatUnitsValue).toHaveText(
+            SERVICE_TEMPLATE_CREATED_AREA.units
+          )
+
+          await details.broadHabitatSelect.selectOption('Cropland')
+          await details.habitatTypeSelect.selectOption('Cereal crops')
+          await expect(
+            details.targetConditionSelect.getByRole('option')
+          ).toHaveText([
+            'Choose target condition',
+            'Condition Assessment N/A (1)'
+          ])
+        }
+      )
+
+      test(
+        'choosing and clearing the target condition of a Created area habitat updates only the time to target',
+        { tag: '@regression' },
+        async ({ page, postInterventionHabitatDetailsPage: details }) => {
+          await openPiFeatureDetails(page, project.id, 'area', createdRef)
+
+          await details.targetConditionSelect.selectOption('Moderate')
+          await expectEnhancedFormValues(details, {
+            ...SERVICE_TEMPLATE_CREATED_AREA_VALUES,
+            standardTime: 'Good to Moderate - 5 years',
+            finalTime: '5 years (0.8368287006)'
+          })
+
+          await details.targetConditionSelect.selectOption({
+            label: 'Choose target condition'
+          })
+          await expectEnhancedFormValues(details, {
+            ...SERVICE_TEMPLATE_CREATED_AREA_VALUES,
+            standardTime: '',
+            finalTime: ''
+          })
+          await expectCreatedAreaSelections(details, {
+            ...SERVICE_TEMPLATE_CREATED_AREA_SELECTIONS,
+            condition: ''
+          })
+          await expect(details.habitatUnitsValue).toHaveText(
+            SERVICE_TEMPLATE_CREATED_AREA.units
+          )
+        }
+      )
+
+      // Its standard time is 3 years.
+      test(
+        'advance and delay recalculate the final time to target of a Created area habitat',
+        { tag: '@regression' },
+        async ({ page, postInterventionHabitatDetailsPage: details }) => {
+          await openPiFeatureDetails(page, project.id, 'area', createdRef)
+          const finalTime = details.createdFormValue('finalTime', {
+            baselineLink: true
+          })
+
+          await details.delayYearsSelect.selectOption('3')
+          await expect(finalTime).toHaveText('6 years (0.8075396961)')
+          await details.advanceYearsSelect.selectOption('2')
+          await expect(finalTime).toHaveText('')
+          await expect(details.errorSummary).toBeHidden()
+
+          await details.delayYearsSelect.selectOption('0')
+          await expect(finalTime).toHaveText('1 years (0.965)')
+          await details.advanceYearsSelect.selectOption('30')
+          await expect(finalTime).toHaveText('0 years (1)')
+
+          await details.advanceYearsSelect.selectOption('0')
+          await details.delayYearsSelect.selectOption('30+')
+          await expectEnhancedFormValues(details, {
+            ...SERVICE_TEMPLATE_CREATED_AREA_VALUES,
+            finalTime: '30+ years (0.3197967361)'
+          })
+          await expect(details.habitatUnitsValue).toHaveText(
+            SERVICE_TEMPLATE_CREATED_AREA.units
+          )
+        }
+      )
+
+      test(
+        'Cancel discards the changes to a Created area habitat and returns to the area page',
+        { tag: '@regression' },
+        async ({ page, postInterventionHabitatDetailsPage: details }) => {
+          await openPiFeatureDetails(page, project.id, 'area', createdRef)
+          await details.habitatReferenceInput.fill('Not saved')
+          await details.broadHabitatSelect.selectOption('Grassland')
+          await details.strategicSignificanceSelect.selectOption('Low')
+          await details.commentInput.fill('Not saved either')
+
+          await details.cancelLink.click()
+
+          await expectOnPiPage(page, project.id, 'area')
+          expect(
+            await areaRowByRef(page, project.id, createdRef)
+          ).toMatchObject({
+            Units: SERVICE_TEMPLATE_CREATED_AREA.units,
+            'Broad habitat': SERVICE_TEMPLATE_CREATED_AREA_SELECTIONS.broad,
+            'Strategic significance': 'High (1.15)'
+          })
+          await openPiFeatureDetails(page, project.id, 'area', createdRef)
+          await expect(details.habitatReferenceInput).toHaveValue(createdRef)
+          await expectCreatedAreaSelections(
+            details,
+            SERVICE_TEMPLATE_CREATED_AREA_SELECTIONS
+          )
+          await expect(details.commentInput).toHaveValue(
+            SERVICE_TEMPLATE_CREATED_AREA.comment
+          )
+        }
+      )
+
+      test(
+        'a save of a Created area habitat breaking both rules shows one error per rule, keeps the input and saves nothing',
+        { tag: '@regression' },
+        async ({ page, postInterventionHabitatDetailsPage: details }) => {
+          await openPiFeatureDetails(page, project.id, 'area', createdRef)
+          const entered = {
+            broad: 'Grassland',
+            type: 'Other neutral grassland',
+            significance: 'Low',
+            condition: 'Moderate',
+            advance: '2',
+            delay: '3'
+          }
+          await details.habitatReferenceInput.fill('')
+          await chooseCreatedAreaSelections(details, entered)
+          const comment = `\uFFFD${'c'.repeat(MAX_COMMENT_LENGTH)}`
+          await details.commentInput.fill(comment)
+
+          await details.saveButton.click()
+
+          await expect(details.errorSummaryLinks).toHaveText([
+            INVALID_REF_SUMMARY,
+            TIMING_CONFLICT_SUMMARY,
+            COMMENT_INVALID_SUMMARY,
+            COMMENT_TOO_LONG_SUMMARY
+          ])
+          await expect(
+            details.errorSummaryLink(INVALID_REF_SUMMARY)
+          ).toHaveAttribute('href', '#ref')
+          await expect(
+            details.errorSummaryLink(TIMING_CONFLICT_SUMMARY)
+          ).toHaveAttribute('href', '#advanceYears')
+          for (const summary of [
+            COMMENT_INVALID_SUMMARY,
+            COMMENT_TOO_LONG_SUMMARY
+          ]) {
+            await expect(details.errorSummaryLink(summary)).toHaveAttribute(
+              'href',
+              '#comment'
+            )
+          }
+          for (const inline of [
+            INVALID_REF_INLINE,
+            TIMING_CONFLICT_INLINE,
+            COMMENT_INVALID_INLINE,
+            COMMENT_TOO_LONG_INLINE
+          ]) {
+            await expect(details.inlineError(inline)).toBeVisible()
+          }
+          await expect(details.habitatReferenceInput).toHaveValue('')
+          await expectCreatedAreaSelections(details, entered)
+          await expect(details.commentInput).toHaveValue(comment)
+
+          await openPiFeatureDetails(page, project.id, 'area', createdRef)
+          await expectCreatedAreaSelections(
+            details,
+            SERVICE_TEMPLATE_CREATED_AREA_SELECTIONS
+          )
+          await expect(details.commentInput).toHaveValue(
+            SERVICE_TEMPLATE_CREATED_AREA.comment
+          )
+        }
+      )
+
+      test(
+        'Upload file leaves unsaved changes to a Created area habitat behind without a prompt',
+        { tag: '@regression' },
+        async ({
+          page,
+          postInterventionHabitatDetailsPage: details,
+          uploadFilePage
+        }) => {
+          await openPiFeatureDetails(page, project.id, 'area', createdRef)
+          await details.habitatReferenceInput.fill('Not saved')
+          await details.strategicSignificanceSelect.selectOption('Low')
+
+          await leaveForUploadFile(page, details, uploadFilePage, project.id)
+          expect(
+            await areaRowByRef(page, project.id, createdRef)
+          ).toMatchObject({
+            Units: SERVICE_TEMPLATE_CREATED_AREA.units,
+            'Strategic significance': 'High (1.15)'
+          })
+        }
+      )
+
+      test(
+        'an Enhanced area habitat opens the area edit form, offering only valid enhancements of its baseline',
+        { tag: '@smoke' },
+        async ({
+          page,
+          postInterventionHabitatDetailsPage: details,
+          baselineHabitatDetailsPage
+        }) => {
+          const { ref, units } = SERVICE_TEMPLATE_ENHANCED_AREA
+          await openPiFeatureDetails(page, project.id, 'area', ref)
+
+          await details.assertEnhancedAreaEditForm({ ref })
+          await expect(details.caption).toHaveText(project.name)
+          await expectCreatedAreaSelections(
+            details,
+            SERVICE_TEMPLATE_ENHANCED_AREA_SELECTIONS
+          )
+          await expect(
+            details.broadHabitatSelect.getByRole('option')
+          ).toHaveText(['Choose broad habitat', 'Grassland'])
+          await expect(
+            details.habitatTypeSelect.getByRole('option')
+          ).toHaveText(ENHANCED_ACID_GRASSLAND_TYPES)
+          await expect(
+            details.targetConditionSelect.getByRole('option')
+          ).toHaveText(ABOVE_FAIRLY_POOR_CONDITIONS)
+          await expect(
+            details.advanceYearsSelect.getByRole('option')
+          ).toHaveText(['Choose advance', ...TIMING_YEARS])
+          await expectEnhancedFormValues(
+            details,
+            SERVICE_TEMPLATE_ENHANCED_AREA_VALUES
+          )
+          await expect(details.habitatUnitsValue).toHaveText(units)
+
+          await details.viewBaselineLink.click()
+          await expect(page).toHaveURL(BASELINE_DETAILS_URL_PATTERN)
+          await expect(baselineHabitatDetailsPage.headingTitle).toHaveText(
+            `Habitat ${ref}`
+          )
+
+          // Each baseline is offered its own enhancements: a Low one, those
+          // of every broad habitat.
+          await openPiFeatureDetails(
+            page,
+            project.id,
+            'area',
+            SERVICE_TEMPLATE_ENHANCED_LOW_AREA.ref
+          )
+          await expect(
+            details.broadHabitatSelect.getByRole('option')
+          ).toHaveText(ENHANCED_AREA_BROAD_HABITATS)
+          await expect(
+            details.habitatTypeSelect.getByRole('option')
+          ).toHaveText(ENHANCED_URBAN_TYPES)
+          await expect(
+            details.targetConditionSelect.getByRole('option')
+          ).toHaveText(ABOVE_FAIRLY_POOR_CONDITIONS)
+          await expectEnhancedFormValues(details, {
+            standardTime: 'Fairly Poor to Moderate - 1 years'
+          })
+        }
+      )
+
+      // H006 is an Intensive green roof in Fairly Poor condition.
+      test(
+        'the choices for an Enhanced area habitat stay within the valid enhancements of its baseline as they change',
+        { tag: '@regression' },
+        async ({ page, postInterventionHabitatDetailsPage: details }) => {
+          await openPiFeatureDetails(
+            page,
+            project.id,
+            'area',
+            SERVICE_TEMPLATE_ENHANCED_LOW_AREA.ref
+          )
+
+          // Another type may take any condition its creation allows.
+          await details.habitatTypeSelect.selectOption('Biodiverse green roof')
+          await expect(
+            details.targetConditionSelect.getByRole('option')
+          ).toHaveText(AREA_CREATION_CONDITIONS)
+          await expectEnhancedFormValues(details, {
+            distinctiveness: 'Medium (4)',
+            standardTime: '',
+            difficulty: 'Medium',
+            finalTime: '',
+            applied: '0.67'
+          })
+
+          // Kept in its own type, the baseline must improve on Fairly Poor.
+          await details.habitatTypeSelect.selectOption('Intensive green roof')
+          await expect(
+            details.targetConditionSelect.getByRole('option')
+          ).toHaveText(ABOVE_FAIRLY_POOR_CONDITIONS)
+          await expectEnhancedFormValues(details, {
+            distinctiveness: 'Low (2)',
+            standardTime: '',
+            difficulty: 'Low',
+            finalTime: '',
+            applied: '1'
+          })
+          await details.targetConditionSelect.selectOption('Fairly Good')
+          await expectEnhancedFormValues(details, {
+            standardTime: 'Fairly Poor to Fairly Good - 2 years',
+            finalTime: '2 years (0.931225)'
+          })
+
+          await details.broadHabitatSelect.selectOption('Heathland and shrub')
+          await expect(
+            details.habitatTypeSelect.getByRole('option')
+          ).toHaveText(SCRUB_TYPES)
+          await expect(
+            details.targetConditionSelect.getByRole('option')
+          ).toHaveText(['Choose target condition'])
+          await expect(details.habitatUnitsValue).toHaveText(
+            SERVICE_TEMPLATE_ENHANCED_LOW_AREA.units
+          )
+        }
+      )
+
+      // A tree is one per point in the BNG Service template, so it counts
+      // one tree.
+      test(
+        'a Retained individual tree renders the area details page with its tree rows',
+        { tag: '@regression' },
+        async ({ page, postInterventionHabitatDetailsPage: details }) => {
+          const { ref, comment } = SERVICE_TEMPLATE_RETAINED_TREE
+          const { unitPage } = await openPiTabFor(page, project.id, 'area', ref)
+          const row = await unitPage.rowByRef(RETAINED, ref)
+          await unitPage.refLink(RETAINED, ref).click()
+
+          await expect(
+            page.getByRole('heading', { name: `Habitat ${ref}`, exact: true })
+          ).toBeVisible()
+          await expect(details.stackedFieldLabels).toHaveText([
+            'Intervention',
+            'Size (hectares)',
+            'Tree size',
+            'Number of trees',
+            'Broad habitat',
+            'Habitat type',
+            'Distinctiveness',
+            'Condition',
+            'Strategic significance',
+            'Supporting information'
+          ])
+          await expect(details.stackedValues).toHaveText([
+            RETAINED,
+            /^\d+(\.\d+)?$/,
+            'Very large',
+            '1',
+            row['Broad habitat'],
+            row['Habitat type'],
+            row.Distinctiveness,
+            row.Condition,
+            row['Strategic significance'],
+            comment
+          ])
+          await expect(details.viewBaselineLink).toBeHidden()
+          await expect(details.habitatUnitsValue).toHaveText(row.Units)
+          await details.assertRetainedRefForm({ ref })
+          await expect(details.unsupportedFeatureMessage).toBeHidden()
+
+          await details.backLink.click()
+          await expectOnPiPage(page, project.id, 'area')
+        }
+      )
+    }
+  )
+
+  // ─── BNG Service template incomplete area habitats (BMD-1088) ──────────────
+  // Each file is imported with an area habitat left Incomplete. The Created
+  // one's save runs last, so the display test sees it as imported.
+
+  test.describe(
+    'Post-intervention habitat details — BNG Service template incomplete Created area habitat',
+    { tag: ['@regression', SERVICE_TEMPLATE_ONLY] },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+      test.describe.configure({ timeout: SHARED_BUILD_TEST_TIMEOUT })
+
+      let projectId
+      test.beforeAll(async ({ browser }) => {
+        ;({ id: projectId } = await buildPostInterventionOnlyProject(
+          browser,
+          AREA_CREATED_INCOMPLETE
+        ))
+      })
+
+      const { ref, completedUnits } = SERVICE_TEMPLATE_INCOMPLETE_CREATED_AREA
+      const imported = {
+        broad: 'Urban',
+        type: 'Allotments',
+        significance: 'High',
+        condition: '',
+        advance: '',
+        delay: ''
+      }
+
+      test('an incomplete Created area habitat shows its saved values, default options and zero units', async ({
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        expect(await areaRowByRef(page, projectId, ref)).toMatchObject({
+          Status: STATUS_INCOMPLETE,
+          Units: '0.00',
+          Distinctiveness: 'Low (2)',
+          'Strategic significance': 'High (1.15)'
+        })
+
+        await openPiFeatureDetails(page, projectId, 'area', ref)
+        await expectCreatedAreaSelections(details, imported)
+        await expectEnhancedFormValues(details, {
+          distinctiveness: 'Low (2)',
+          standardTime: '',
+          difficulty: 'Low',
+          finalTime: '',
+          applied: '1'
+        })
+        await expect(details.standardTimeToTargetKey).toBeVisible()
+        await expect(details.finalTimeToTargetMultiplierKey).toBeVisible()
+        await expect(details.habitatUnitsValue).toHaveText('0.00')
+        await expect(details.saveButton).toBeVisible()
+      })
+
+      test('completing an imported incomplete Created area habitat prices it and adds it to the total', async ({
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        await openPiTabFor(page, projectId, 'area', ref)
+        const totalBefore = await areaPostInterventionUnits(page)
+        await openPiFeatureDetails(page, projectId, 'area', ref)
+
+        await details.targetConditionSelect.selectOption('Good')
+        await details.advanceYearsSelect.selectOption('0')
+        await details.delayYearsSelect.selectOption('0')
+        await details.saveButton.click()
+
+        await expectOnPiPage(page, projectId, 'area')
+        const totalAfter = await areaPostInterventionUnits(page)
+        expect(
+          Math.abs(totalAfter - (totalBefore + completedUnits))
+        ).toBeLessThan(TILE_ROUNDING)
+        expect(await areaRowByRef(page, projectId, ref)).toMatchObject({
+          Status: STATUS_COMPLETE,
+          Units: completedUnits.toFixed(2),
+          'Strategic significance': 'High (1.15)',
+          'Target condition': 'Good (3)'
+        })
+
+        await openPiFeatureDetails(page, projectId, 'area', ref)
+        await expectCreatedAreaSelections(details, {
+          ...imported,
+          condition: 'Good',
+          advance: '0',
+          delay: '0'
+        })
+        await expect(details.habitatUnitsValue).toHaveText(
+          completedUnits.toFixed(2)
+        )
+      })
+    }
+  )
+
+  test.describe(
+    'Post-intervention habitat details — BNG Service template incomplete Enhanced area habitat',
+    { tag: ['@regression', SERVICE_TEMPLATE_ONLY] },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+      test.describe.configure({ timeout: SHARED_BUILD_TEST_TIMEOUT })
+
+      let projectId
+      test.beforeAll(async ({ browser }) => {
+        ;({ id: projectId } = await buildPostInterventionOnlyProject(
+          browser,
+          AREA_ENHANCED_INCOMPLETE
+        ))
+      })
+
+      // Unlike the legacy file's, its habitat type is kept, so the values
+      // the type decides are shown.
+      test('an incomplete Enhanced area habitat shows its saved choices, default options and zero units', async ({
+        page,
+        postInterventionHabitatDetailsPage: details
+      }) => {
+        const ref = SERVICE_TEMPLATE_INCOMPLETE_ENHANCED_AREA
+        expect(await areaRowByRef(page, projectId, ref)).toMatchObject({
+          Status: STATUS_INCOMPLETE,
+          Units: '0.00'
+        })
+        await openPiFeatureDetails(page, projectId, 'area', ref)
+
+        await expect(details.habitatReferenceInput).toHaveValue(ref)
+        await expectCreatedAreaSelections(details, {
+          broad: 'Grassland',
+          type: 'Other neutral grassland',
+          significance: '',
+          condition: '',
+          advance: '0',
+          delay: '0'
+        })
+        await expect(details.habitatTypeSelect.getByRole('option')).toHaveText(
+          ENHANCED_ACID_GRASSLAND_TYPES
+        )
+        await expect(
+          details.targetConditionSelect.getByRole('option')
+        ).toHaveText(ABOVE_MODERATE_CONDITIONS)
+        await expectEnhancedFormValues(details, {
+          distinctiveness: 'Medium (4)',
+          standardTime: '',
+          difficulty: 'Low',
+          finalTime: '',
+          applied: '1'
+        })
+        await expect(details.standardTimeToTargetKey).toBeVisible()
+        await expect(details.habitatUnitsValue).toHaveText('0.00')
+        await expect(details.saveButton).toBeVisible()
+      })
+    }
+  )
+
+  // ─── BNG Service template area habitat and tree saves (BMD-1088) ───────────
+
+  test.describe(
+    'Post-intervention habitat details — BNG Service template area habitat and tree saves',
+    { tag: SERVICE_TEMPLATE_ONLY },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+      test.describe.configure({ timeout: SHARED_BUILD_TEST_TIMEOUT })
+
+      // Its own copy of the default site, as these tests save. Each saves a
+      // different feature, so none depends on another: a failed test restarts
+      // the worker, whose beforeAll builds a fresh copy for its retry.
+      let projectId
+      test.beforeAll(async ({ browser }) => {
+        ;({ id: projectId } = await buildPostInterventionOnlyProject(
+          browser,
+          DEFAULT_SITE
+        ))
+      })
+
+      // The comment is saved trimmed, its line breaks kept.
+      test(
+        'saving a complete edit to a Created area habitat recalculates the row, the units and the total',
+        { tag: '@regression' },
+        async ({ page, postInterventionHabitatDetailsPage: details }) => {
+          const { ref, before, after } = SERVICE_TEMPLATE_CREATED_SAVE
+          const editedRef = `${ref}-new`
+          await openPiTabFor(page, projectId, 'area', ref)
+          const totalBefore = await areaPostInterventionUnits(page)
+          await openPiFeatureDetails(page, projectId, 'area', ref)
+
+          await details.habitatReferenceInput.fill(editedRef)
+          await chooseCreatedAreaSelections(details, {
+            broad: 'Grassland',
+            type: 'Other neutral grassland',
+            significance: 'Low',
+            condition: 'Good',
+            delay: '2'
+          })
+          await details.commentInput.fill(`  ${CREATED_AREA_COMMENT}\n `)
+          await details.saveButton.click()
+
+          await expectOnPiPage(page, projectId, 'area')
+          const totalAfter = await areaPostInterventionUnits(page)
+          expect(
+            Math.abs(totalAfter - (totalBefore - before + after))
+          ).toBeLessThan(TILE_ROUNDING)
+          expect(await areaRowByRef(page, projectId, editedRef)).toMatchObject({
+            Units: after.toFixed(2),
+            'Broad habitat': 'Grassland',
+            'Habitat type': 'Other neutral grassland',
+            Distinctiveness: 'Medium (4)',
+            'Strategic significance': 'Low (1)',
+            'Target condition': 'Good (3)',
+            Delay: '2 years',
+            'Final time to target': '12 years (0.6521203607)'
+          })
+
+          await openPiFeatureDetails(page, projectId, 'area', editedRef)
+          await expect(details.habitatReferenceInput).toHaveValue(editedRef)
+          await expectCreatedAreaSelections(details, {
+            broad: 'Grassland',
+            type: 'Other neutral grassland',
+            significance: 'Low',
+            condition: 'Good',
+            advance: '0',
+            delay: '2'
+          })
+          await expect(details.habitatUnitsValue).toHaveText(after.toFixed(2))
+          await expect(details.commentInput).toHaveValue(CREATED_AREA_COMMENT)
+        }
+      )
+
+      test(
+        'saving a Created area habitat with the target condition cleared shows zero units and leaves it out of the total',
+        { tag: '@regression' },
+        async ({ page, postInterventionHabitatDetailsPage: details }) => {
+          const { ref, before, selections } = SERVICE_TEMPLATE_CREATED_CLEARED
+          await openPiTabFor(page, projectId, 'area', ref)
+          const totalBefore = await areaPostInterventionUnits(page)
+          await openPiFeatureDetails(page, projectId, 'area', ref)
+
+          await details.targetConditionSelect.selectOption({
+            label: 'Choose target condition'
+          })
+          await details.saveButton.click()
+
+          await expectOnPiPage(page, projectId, 'area')
+          const totalAfter = await areaPostInterventionUnits(page)
+          expect(Math.abs(totalAfter - (totalBefore - before))).toBeLessThan(
+            TILE_ROUNDING
+          )
+          expect(await areaRowByRef(page, projectId, ref)).toMatchObject({
+            Status: STATUS_INCOMPLETE,
+            Units: '0.00',
+            Distinctiveness: 'Medium (4)',
+            'Strategic significance': 'High (1.15)',
+            'Target condition': ''
+          })
+
+          await openPiFeatureDetails(page, projectId, 'area', ref)
+          await expectCreatedAreaSelections(details, {
+            ...selections,
+            condition: ''
+          })
+          await expect(details.habitatUnitsValue).toHaveText('0.00')
+        }
+      )
+
+      // Other woodland; mixed (Medium 4), Moderate (2), High (1.15), a 2-year
+      // delay on the 15-year enhancement: 17 years (0.5457130341).
+      test(
+        'saving a complete edit to an Enhanced area habitat recalculates the enhanced units, the row and the total',
+        { tag: '@regression' },
+        async ({ page, postInterventionHabitatDetailsPage: details }) => {
+          const { ref, before, after } = SERVICE_TEMPLATE_ENHANCED_SAVE
+          const newRef = `${ref}-new`
+          await openPiTabFor(page, projectId, 'area', ref)
+          const totalBefore = await areaPostInterventionUnits(page)
+          await piPage(page, 'area').refLink(ENHANCED, ref).click()
+
+          await details.habitatReferenceInput.fill(newRef)
+          await chooseCreatedAreaSelections(details, {
+            type: 'Other woodland; mixed',
+            condition: 'Moderate',
+            significance: 'High',
+            delay: '2'
+          })
+          await details.saveButton.click()
+
+          await expect(page).toHaveURL(piPageUrl(projectId, 'area'))
+          const totalAfter = await areaPostInterventionUnits(page)
+          expect(
+            Math.abs(totalAfter - (totalBefore - before + after))
+          ).toBeLessThan(TILE_ROUNDING)
+          expect(await areaRowByRef(page, projectId, newRef)).toMatchObject({
+            Status: STATUS_COMPLETE,
+            Units: after.toFixed(2),
+            'Broad habitat': 'Woodland and forest',
+            'Habitat type': 'Other woodland; mixed',
+            Distinctiveness: 'Medium (4)',
+            'Strategic significance': 'High (1.15)',
+            'Target condition': 'Moderate (2)',
+            Delay: '2 years',
+            'Final time to target': '17 years (0.5457130341)'
+          })
+        }
+      )
+
+      // A Retained habitat is linked to its parent by id, so it is renamed
+      // alone: its parent keeps its reference, and the link still finds it.
+      test(
+        'saving a new reference on a Retained area habitat trims it, returns to the area page and leaves the units and its parent alone',
+        { tag: ['@smoke', '@happy-path'] },
+        async ({ page, postInterventionHabitatDetailsPage: details }) => {
+          const ref = SERVICE_TEMPLATE_RENAMED_RETAINED_AREA
+          const newRef = `${ref}-NEW`
+          await expectServiceTemplateRetainedRename(page, details, {
+            projectId,
+            type: 'area',
+            ref,
+            newRef,
+            typed: `  ${newRef}  `
+          })
+        }
+      )
+
+      // The legacy refusal does not apply: a BNG Service template habitat is
+      // joined to its parent by id, not by reference.
+      test(
+        'a reference another area habitat carries is saved on a Retained area habitat',
+        { tag: '@regression' },
+        async ({ page, postInterventionHabitatDetailsPage: details }) => {
+          const { ref, typed } = SERVICE_TEMPLATE_DUPLICATE_REF
+          await openPiTabFor(page, projectId, 'area', ref)
+          const totalBefore = await areaPostInterventionUnits(page)
+
+          await saveRetainedRef(page, details, {
+            projectId,
+            type: 'area',
+            ref,
+            typed
+          })
+
+          await expectOnPiPage(page, projectId, 'area')
+          expect(await areaPostInterventionUnits(page)).toBe(totalBefore)
+          expect(await findPiRef(page, projectId, 'area', ref)).toBeNull()
+          const found = await findPiRef(page, projectId, 'area', typed)
+          expect(found?.label).toBe(RETAINED)
+          await expect(found.unitPage.refLink(RETAINED, typed)).toHaveCount(2)
+        }
+      )
+
+      test(
+        "saves a Created tree's comment trimmed, leaving its units alone",
+        { tag: '@regression' },
+        async ({ page, postInterventionHabitatDetailsPage: details }) => {
+          const { ref, comment: imported } = SERVICE_TEMPLATE_CREATED_TREE
+          const comment = 'Standard oak planted with a guard and stake.'
+          const rowBefore = await areaRowByRef(page, projectId, ref)
+
+          await openPiFeatureDetails(page, projectId, 'area', ref)
+          await expect(details.commentInput).toHaveValue(imported)
+          await expect(details.commentHint).toHaveText(CREATED_COMMENT_HINT)
+          await expect(details.viewBaselineLink).toHaveCount(0)
+          await details.commentInput.fill(`  ${comment}  `)
+          await details.saveButton.click()
+
+          await expectOnPiPage(page, projectId, 'area')
+          expect(await areaRowByRef(page, projectId, ref)).toMatchObject({
+            Status: rowBefore.Status,
+            Units: rowBefore.Units
+          })
+          await openPiFeatureDetails(page, projectId, 'area', ref)
+          await expect(details.commentInput).toHaveValue(comment)
+        }
+      )
+    }
+  )
+
+  // The PI and baseline rows both spell H034 '   H034   '. The heading
+  // carries the ref as saved, so it proves the trim, and the parent's
+  // heading that the baseline row was trimmed too. A BNG Service template
+  // feature finds its parent by id, so the link does not depend on the
+  // trimmed refs matching, as a legacy one's does.
+  test.describe(
+    'Post-intervention habitat details — BNG Service template habitat reference cleaning',
+    { tag: ['@regression', SERVICE_TEMPLATE_ONLY] },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+      test.describe.configure({ timeout: SHARED_BUILD_TEST_TIMEOUT })
+
+      let projectId
+      test.beforeAll(async ({ browser }) => {
+        ;({ id: projectId } = await buildPostInterventionOnlyProject(
+          browser,
+          LONG_AND_PADDED_REFS
+        ))
+      })
+
+      test('saves a padded ref trimmed, and a 99-character ref and one with letters outside ASCII whole, each linked to its parent', async ({
+        page,
+        postInterventionHabitatDetailsPage: details,
+        baselineHabitatDetailsPage
+      }) => {
+        for (const ref of [
+          SERVICE_TEMPLATE_PADDED_REF,
+          SERVICE_TEMPLATE_NON_ASCII_REF,
+          SERVICE_TEMPLATE_LONGEST_REF
+        ]) {
+          const name = gridRefName(ref)
+          const { unitPage, label } = await openPiTabFor(
+            page,
+            projectId,
+            'area',
+            name
+          )
+          expect(label, ref).toBe(RETAINED)
+          await unitPage.refLink(label, name).click()
+
+          expect(await details.rawHeadingText(), ref).toBe(`Habitat ${ref}`)
+          await expect(details.habitatReferenceInput, ref).toHaveValue(ref)
+          await details.viewBaselineLink.click()
+          await expect(page).toHaveURL(BASELINE_DETAILS_URL_PATTERN)
+          expect(await baselineHabitatDetailsPage.rawHeadingText(), ref).toBe(
+            `Habitat ${ref}`
+          )
+          await expect(
+            baselineHabitatDetailsPage.habitatReferenceInput,
+            ref
+          ).toHaveValue(ref)
+        }
       })
     }
   )

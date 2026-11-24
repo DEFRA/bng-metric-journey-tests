@@ -26,6 +26,75 @@ export const WATERCOURSE_DEGRADED = `${DIR}/watercourse-degraded.gpkg`
 // V004, a vertical area habitat with no Area: refused at the baseline upload.
 export const VERTICAL_AREA_MISSING = `${DIR}/vertical-area-missing.gpkg`
 
+// The small site's baseline-stage file under a name that starts with
+// punctuation and holds brackets, which the filename rule allows.
+export const PUNCTUATED_NAME_BASELINE = `${DIR}/(Copy) small-site-baseline.gpkg`
+
+// Two area habitats share the Habitat Ref DUP-1: accepted.
+export const DUPLICATE_HABITAT_REF = `${DIR}/duplicate-habitat-ref.gpkg`
+
+// The file checks each upload refuses, one fault to a file. Each holds both
+// stages unless its name ends -baseline.
+export const HABITAT_REF_INVALID_CHARACTERS = `${DIR}/habitat-ref-invalid-characters.gpkg`
+// An area habitat, a hedgerow and a watercourse with no Habitat Ref, in the
+// Baseline tables: one error for the three.
+export const HABITAT_REF_MISSING_EVERY_LAYER = `${DIR}/missing-habitat-ref-every-layer.gpkg`
+// A habitat with no Habitat Ref beside a comment that is not valid UTF-8.
+export const HABITAT_REF_MISSING_AND_COMMENT_INVALID = `${DIR}/missing-habitat-ref-and-comment-invalid.gpkg`
+// H005's post-intervention Comment: 1,151 characters, and holding U+FFFD.
+export const COMMENT_TOO_LONG = `${DIR}/comment-too-long.gpkg`
+export const COMMENT_INVALID_CHARACTERS = `${DIR}/comment-invalid-characters.gpkg`
+// Incomplete baseline habitats, in both stages: H002; and H002, HG001 and R007.
+export const BASELINE_AREA_INCOMPLETE = `${DIR}/baseline-area-incomplete.gpkg`
+export const BASELINE_INCOMPLETE_EVERY_LAYER = `${DIR}/baseline-incomplete-every-layer.gpkg`
+// H005, Created as Lowland meadows (Very High) in its post-intervention row
+// only.
+export const DISTINCTIVENESS_POST_INTERVENTION_ONLY = `${DIR}/distinctiveness-post-intervention-only.gpkg`
+// The blank Habitat Ref is on a post-intervention row only, so only the
+// baseline + post-intervention upload refuses it.
+export const POST_INTERVENTION_HABITAT_REF_BLANK = `${DIR}/degrade-habitat-ref-blank.gpkg`
+// H001 (Very High) and H002 (High), in both stages.
+export const DISTINCTIVENESS_OUT_OF_SCOPE = `${DIR}/distinctiveness-out-of-scope.gpkg`
+// T025, a Retained tree marked irreplaceable.
+export const IRREPLACEABLE_TREE = `${DIR}/irreplaceable-tree.gpkg`
+export const REDLINE_SELF_INTERSECTING = `${DIR}/self-intersecting-redline-baseline.gpkg`
+export const REDLINE_NOT_IN_ENGLAND = `${DIR}/redline-not-in-england-baseline.gpkg`
+// An empty Red Line Boundary table.
+export const REDLINE_MISSING = `${DIR}/redline-missing-baseline.gpkg`
+// Habitat parcels that do not tile the red line boundary.
+export const AREA_SUM_MISMATCH = `${DIR}/area-sum-mismatch-baseline.gpkg`
+// H002, drawn as a bowtie.
+export const BOWTIE_PARCEL = `${DIR}/bowtie-parcel-baseline.gpkg`
+// H002 and H003 overlap.
+export const OVERLAPPING_PARCELS = `${DIR}/overlapping-parcels-baseline.gpkg`
+// H002, 0.81 square metres.
+export const PARCEL_TOO_SMALL = `${DIR}/parcel-too-small-baseline.gpkg`
+// H002, outside the red line boundary.
+export const PARCEL_OUTSIDE_REDLINE = `${DIR}/parcel-outside-redline-baseline.gpkg`
+export const NO_AREA_HABITATS_TABLE = `${DIR}/no-area-habitats-baseline-table.gpkg`
+// Area Habitats Baseline has no Baseline Condition or Area column.
+export const AREA_HABITATS_MISSING_COLUMNS = `${DIR}/missing-columns-in-area-habitats.gpkg`
+// Area Habitats Baseline declares LINESTRING geometry.
+export const AREA_HABITATS_WRONG_GEOMETRY_TYPE = `${DIR}/wrong-geometry-type-in-area-habitats.gpkg`
+export const REDLINE_NO_GEOMETRY_COLUMN = `${DIR}/no-geometry-column-in-red-line-boundary.gpkg`
+export const REDLINE_MULTIPLE_GEOMETRY_COLUMNS = `${DIR}/multiple-geometry-columns-in-red-line-boundary.gpkg`
+// Red Line Boundary declares POINT geometry.
+export const REDLINE_WRONG_GEOMETRY_TYPE = `${DIR}/wrong-geometry-type-in-red-line-boundary.gpkg`
+
+// Advance and delay both set on H005, HG009 and R003 (Created) and H001, HG002
+// and R006 (Enhanced): accepted and left unpriced. H006, Enhanced with neither,
+// is priced.
+export const ADVANCE_AND_DELAY_EVERY_LAYER = `${DIR}/advance-delay-both-set-every-layer.gpkg`
+
+// Each Enhances one baseline habitat the service cannot price an enhancement
+// of: H001, a Medium area habitat in Good condition; R001, a Medium
+// watercourse in Good condition; HG001, a Very Low hedgerow; T008, a tree in
+// Good condition.
+export const UNENHANCEABLE_AREA = `${DIR}/invalid-area-medium-good-enhanced.gpkg`
+export const UNENHANCEABLE_WATERCOURSE = `${DIR}/invalid-watercourse-medium-good-enhanced.gpkg`
+export const UNENHANCEABLE_VERY_LOW_HEDGEROW = `${DIR}/invalid-hedgerow-very-low-enhanced.gpkg`
+export const UNENHANCEABLE_TREE = `${DIR}/tree-enhanced-from-good.gpkg`
+
 // Every unit type's trading rules met, with the area habitats above the 10%
 // net gain target.
 export const TRADING_ALL_MET = `${DIR}/trading-all-met.gpkg`
@@ -100,7 +169,8 @@ export const WATERCOURSE_LOW_DEFICIT = `${DIR}/invalid-watercourse-culvert-enhan
 // H034 padded with three spaces each side, H029 `Étang-du-Moulin-Ælfrīc`.
 export const LONG_AND_PADDED_REFS = `${DIR}/long-and-padded-refs.gpkg`
 
-// Its baseline-stage file.
+// The default site's baseline-stage file with long and padded area refs:
+// '   H034   ', and H050 padded with x to 99 characters, among them.
 export const LONG_PADDED_REFS_BASELINE = `${DIR}/long-and-padded-refs-baseline.gpkg`
 
 // A baseline-stage file with one incomplete habitat per layer: H002 and HG001
