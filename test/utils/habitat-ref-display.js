@@ -41,17 +41,37 @@ export async function expectRefWhole(link, ref) {
   await expect(link.getByText(TRUNCATION_MARK, { exact: true })).toHaveCount(0)
 }
 
-// govuk-visually-hidden renders its text in a 1px box.
+// govuk-visually-hidden renders its text in a 1px box, with overflow hidden
+// and the box clipped away (clip: rect(0 0 0 0) and clip-path: inset(50%)), so
+// none of the text paints, however far it runs past the box.
 const VISUALLY_HIDDEN_SIZE_PX = 1
+const NO_CLIP = new Set(['auto', 'none', ''])
 
 /**
  * A cut ref's tail, past the first 10 characters, kept for assistive
- * technology but rendered in a visually hidden box rather than on screen.
+ * technology but rendered in a visually hidden box rather than on screen: a
+ * box of 1px or less that hides its overflow and is clipped. A box alone would
+ * not do, as text overflowing it still shows.
  */
 export async function expectRefTailHidden(link, ref) {
-  const tail = Array.from(ref).slice(MAX_REF_DISPLAY_LENGTH).join('')
-  const box = await link.getByText(tail, { exact: true }).boundingBox()
-  expect(box, `the hidden tail of ${ref}`).not.toBeNull()
-  expect(box.width).toBeLessThanOrEqual(VISUALLY_HIDDEN_SIZE_PX)
-  expect(box.height).toBeLessThanOrEqual(VISUALLY_HIDDEN_SIZE_PX)
+  const label = `the hidden tail of ${ref}`
+  const tailText = Array.from(ref).slice(MAX_REF_DISPLAY_LENGTH).join('')
+  const tail = link.getByText(tailText, { exact: true })
+  const box = await tail.boundingBox()
+  expect(box, label).not.toBeNull()
+  expect(box.width, label).toBeLessThanOrEqual(VISUALLY_HIDDEN_SIZE_PX)
+  expect(box.height, label).toBeLessThanOrEqual(VISUALLY_HIDDEN_SIZE_PX)
+  const { overflow, clip, clipPath } = await tail.evaluate((element) => {
+    const style = element.ownerDocument.defaultView.getComputedStyle(element)
+    return {
+      overflow: style.overflow,
+      clip: style.clip,
+      clipPath: style.clipPath
+    }
+  })
+  expect(overflow, label).toBe('hidden')
+  expect(
+    !NO_CLIP.has(clip) || !NO_CLIP.has(clipPath),
+    `${label} is clipped (clip: ${clip}, clip-path: ${clipPath})`
+  ).toBe(true)
 }
