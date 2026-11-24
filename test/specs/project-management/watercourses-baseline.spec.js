@@ -557,8 +557,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
   // that the cleared units and the nulled field reach the page.
   test.describe(
     'Watercourses baseline — blank encroachment on import',
-    // Its file is cut by fixture-mutations.py, and it asserts the Incomplete
-    // status, which is not asserted for the BNG Service template in this epic.
+    // Its file is cut by fixture-mutations.py. The BNG Service template run
+    // reads its own file's blank encroachment, in its own describe below.
     { tag: ['@regression', LEGACY_ONLY] },
     () => {
       test.use({ storageState: STORAGE_STATE })

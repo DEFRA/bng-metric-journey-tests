@@ -543,8 +543,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
   // (habitat-details-sortable-table.test.js).
   test.describe(
     'Baseline grids — Status column',
-    // Status is not asserted for the BNG Service template in this epic, and
-    // this describe's file is cut by fixture-mutations.py.
+    // Its file is cut by fixture-mutations.py. The BNG Service template run
+    // reads its own file's rows, in its own describe below.
     { tag: ['@regression', LEGACY_ONLY] },
     () => {
       test.use({ storageState: STORAGE_STATE })
