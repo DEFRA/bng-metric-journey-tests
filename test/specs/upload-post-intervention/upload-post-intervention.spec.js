@@ -99,16 +99,16 @@ const CONFLICTING_TIMING_PI_FILE =
   'invalid-timing-conflicting-created-enhanced-post-intervention.gpkg'
 // Unpriced Created features show 0.00: areas and hedgerows since BMD-1048
 // (frontend PR #465), watercourses since BMD-1050 (frontend PR #502). Unpriced
-// Enhanced areas and hedgerows show 0.00 since BMD-1046 (frontend PR #532). An
-// unpriced Enhanced watercourse, which has no edit page, still shows blank.
+// Enhanced areas and hedgerows show 0.00 since BMD-1046 (frontend PR #532),
+// and so do Enhanced watercourses, now that they have an edit page.
 const CONFLICTING_TIMING_ZERO_UNITS = [
   ['area', 'H001'],
   ['area', 'H002'],
   ['hedgerow', 'HG001'],
   ['hedgerow', 'HG002'],
-  ['watercourse', 'R001']
+  ['watercourse', 'R001'],
+  ['watercourse', 'R002']
 ]
-const CONFLICTING_TIMING_BLANK_UNITS = [['watercourse', 'R002']]
 const ZERO_TIMING_HEDGEROW_REF = 'HG003'
 const UNITS_2DP = /^\d+\.\d{2}$/
 const DISTINCTIVENESS_FILE =
@@ -202,9 +202,10 @@ const ERROR_FILE_URL = '/error-file'
 
 // The describes tagged LEGACY_ONLY upload legacy-template files to show the
 // legacy template's own rules and file checks: Lost rows, its timing columns,
-// its error text. The BNG Service template's checks are held by the
-// harness's corpus (npm run test:uploads there); what only its files can get
-// wrong is in describeServiceTemplateChecks below.
+// its error text. Their BNG Service template counterparts upload the
+// template's own files from the harness corpus: describeServiceTemplateImports
+// holds the files the service refuses and those it accepts, and
+// describeServiceTemplateChecks what only the template's files can get wrong.
 
 // The files the happy path uploads, in the run's template: a baseline, then a
 // post-intervention file over it, and an area habitat the second lists.
@@ -912,8 +913,8 @@ function describeConflictingTiming() {
       // feature cannot be priced, so it is saved with null units and status
       // Incomplete. Its Units cell shows 0.00 on a Created area, hedgerow or
       // watercourse (BMD-1048 PO ruling, frontend PRs #465 and #502) and on an
-      // Enhanced area or hedgerow (BMD-1046, frontend PR #532), display only.
-      // It is blank on an Enhanced watercourse.
+      // Enhanced area or hedgerow (BMD-1046, frontend PR #532), and on an
+      // Enhanced watercourse, now that it has an edit page, display only.
       //
       // Sole journey witness that a real GeoPackage with conflicting timing is
       // accepted and left unpriced on every linear and area layer. The rule is
@@ -950,12 +951,6 @@ function describeConflictingTiming() {
             await piUnitsCell(page, id, type, ref),
             `${type} ${ref}`
           ).toHaveText('0.00')
-        }
-        for (const [type, ref] of CONFLICTING_TIMING_BLANK_UNITS) {
-          await expect(
-            await piUnitsCell(page, id, type, ref),
-            `${type} ${ref}`
-          ).toHaveText('')
         }
         await expect(
           await piUnitsCell(page, id, 'hedgerow', ZERO_TIMING_HEDGEROW_REF)
