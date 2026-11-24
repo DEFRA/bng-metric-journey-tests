@@ -61,6 +61,9 @@ export const REDLINE_SELF_INTERSECTING = `${DIR}/self-intersecting-redline-basel
 export const REDLINE_NOT_IN_ENGLAND = `${DIR}/redline-not-in-england-baseline.gpkg`
 // An empty Red Line Boundary table.
 export const REDLINE_MISSING = `${DIR}/redline-missing-baseline.gpkg`
+// A Red Line Boundary table holding two boundaries: the default site's one,
+// copied.
+export const REDLINE_MULTIPLE = `${DIR}/redline-multiple-baseline.gpkg`
 // Habitat parcels that do not tile the red line boundary.
 export const AREA_SUM_MISMATCH = `${DIR}/area-sum-mismatch-baseline.gpkg`
 // H002, drawn as a bowtie.

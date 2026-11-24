@@ -36,6 +36,7 @@ import {
   PARCEL_TOO_SMALL,
   PUNCTUATED_NAME_BASELINE,
   REDLINE_MISSING,
+  REDLINE_MULTIPLE,
   REDLINE_NOT_IN_ENGLAND,
   REDLINE_SELF_INTERSECTING,
   SMALL_SITE_BASELINE,
@@ -1059,13 +1060,16 @@ const SINGLE_ERROR_CASES = [
     body: `${NATURAL_ENGLAND_MISMATCH_COPY}. Rename the layers and columns and`
   },
   {
-    // KEEP — this is the ONLY test anywhere that proves the backend rejects a
-    // GeoPackage carrying more than one red line boundary polygon.
+    // KEEP — the legacy template's only journey proof that the service refuses
+    // a GeoPackage carrying more than one red line boundary polygon. Its BNG
+    // Service template counterpart is 'a file with two red line boundaries
+    // shows the "multiple red line boundaries" page', below.
     // GPKG_RLB_TOO_MANY_POLYGONS is raised in the parse layer
-    // (src/validation/geopackage/geopackage-internals-validate-features.js) and
-    // has no backend unit test, no integration fixture, and no PostGIS test —
-    // the integration suite only ships baseline-no-rlb.gpkg for the *missing*
-    // case. The frontend unit test covers the copy for this code but is handed a
+    // (src/validation/geopackage/geopackage-internals-validate-features.js).
+    // The backend's unit test (validate-and-read-gpkg.test.js) builds its
+    // file in code, and the integration suite has no fixture with more than
+    // one boundary: it ships baseline-no-rlb.gpkg for the *missing* case only.
+    // The frontend unit test covers the copy for this code but is handed a
     // hand-written error object, so it cannot prove the code is ever emitted.
     // Do not delete without adding a >1-polygon RLB fixture to
     // ../bng-metric-backend/integration-tests/fixtures/ first.
@@ -1282,6 +1286,8 @@ const ST_AREA_HABITATS_MISMATCH =
   'Layer "Area Habitats Baseline" does not match the BNG Service template'
 const ST_REDLINE_MISSING_BODY =
   'The redline boundary is missing. Draw the red line boundary and'
+const ST_REDLINE_MULTIPLE_BODY =
+  'This file contains multiple red line boundaries. Draw the red line boundary again and'
 const ST_AREA_SUM_MISMATCH =
   'Sum of area habitat polygons (11600.00 sq m) does not equal redline boundary area (160000.00 sq m)'
 const ST_IRREPLACEABLE_TREE_HEADING =
@@ -1529,9 +1535,38 @@ function describeServiceTemplateChecks() {
         )
       })
 
-      // The template's checks never count the red line boundary's polygons:
-      // a second copy of it only leaves the parcels short of its area, so
-      // this is how the service sees a file with several.
+      // Its only problem: the template's checks refuse a second boundary
+      // before any shape is read, as the legacy template's do (BMD-1172), so
+      // the parcels falling short of its area are never reported. The
+      // legacy test it matches is the only other journey proof of this
+      // refusal.
+      test('a file with two red line boundaries shows the "multiple red line boundaries" page', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        const id = await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            page
+          },
+          REDLINE_MULTIPLE
+        )
+
+        await expect(errorFilePage.geopackageErrorHeading).toBeVisible()
+        await expect(errorFilePage.errorSummary).not.toBeVisible()
+        await expect(page.getByText(ST_REDLINE_MULTIPLE_BODY)).toBeVisible()
+        await expect(errorFilePage.uploadDifferentFileLink).not.toBeVisible()
+        await errorFilePage.uploadNewFileLink.click()
+        await expect(page).toHaveURL(
+          new RegExp(`/projects/${id}/upload-baseline-file`)
+        )
+      })
+
       test('habitat parcels that do not cover the redline boundary are refused, giving both areas', async ({
         createProjectFlow,
         projectDashboardPage,
