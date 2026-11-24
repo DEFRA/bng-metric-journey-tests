@@ -247,9 +247,10 @@ Every GET step below shares this contract, so it is stated once rather than repe
   habitat**, **Habitat type**, **Distinctiveness**, **Condition**, **Strategic significance**,
   **Supporting information** (BMD-1187). Then the "View baseline details" link, the bordered **"Habitat units delivered"** row, and
   **Save** and **Cancel** (Step 12). There is **no "Units in this habitat" row** (replaced by the
-  units summary row) and no trading-rules row. An individual tree (BMD-1172) adds **Tree size** and
-  **Number of trees** after Size and has **no** "View baseline details" link (BMD-1184); journey check in `post-intervention-habitat-details.spec.js` ›
-  _retained individual tree_. Size uses `formatAreaHectaresValue`
+  units summary row) and no trading-rules row. An individual tree (BMD-1172) adds **Tree size** after Size,
+  and a legacy tree **Number of trees** after that; a BNG Service template tree has no Count, so shows
+  no number of trees. A tree has **no** "View baseline details" link (BMD-1184); journey checks in
+  `post-intervention-habitat-details.spec.js` › _retained individual tree_ (legacy and BNG Service template). Size uses `formatAreaHectaresValue`
   (10 significant figures, **no `ha` suffix** — the label carries the unit). Broad habitat
   and habitat type read `proposed.broadType` / `proposed.type`. Back link to
   the area habitats post-intervention page (see Back link above).
