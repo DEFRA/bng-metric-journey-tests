@@ -6,7 +6,7 @@ After uploading a baseline file — or by clicking the project name on the dashb
 
 Added by **BMD-870** (frontend PR#219, 2026-08-14), which built the baseline-only variant. **BMD-852** (PR#227, 2026-08-18) added the post-intervention variant and widened the guard so a project carrying both documents renders here instead of being redirected to the task list. BMD-870 states the page **replaces the project task list (`/add-project-details/{id}`) and the summary section of the baseline habitat list**. **BMD-1043** (frontend PR#352, 2026-10-06) completed that: it removed the task list and both habitat lists, made the summary render for a project with **no** baseline, and pointed every dashboard row and every successful upload — baseline and post-intervention — here. **BMD-1076** (frontend PR#396, 2026-10-16) reversed the no-baseline part: a project with no baseline is now redirected to the upload-type page (Step 2), so the summary again only ever renders for a project that has a baseline.
 
-**Three further tickets have since changed this page** — check the [Deferred elements](#deferred-elements) and [Known deviations](#known-deviations-from-the-design) sections before trusting any older assertion about it:
+**Further tickets have since changed this page** — check the [Deferred elements](#deferred-elements) and [Known deviations](#known-deviations-from-the-design) sections before trusting any older assertion about it:
 
 | Ticket          | PR   | Date       | Effect on this page                                                                                                                               |
 | --------------- | ---- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -18,8 +18,11 @@ Added by **BMD-870** (frontend PR#219, 2026-08-14), which built the baseline-onl
 | **BMD-1002**    | #327 | 2026-09-25 | The **Watercourses** Trading Rules tile gained the same tag, read from `tradingRuleStatuses.watercourses.overall`; hedgerows still have none      |
 | **BMD-1003**    | #362 | 2026-10-06 | The **Hedgerows** Trading Rules tile gained the same tag, read from `tradingRuleStatuses.hedgerows.overall` (backend PR#453)                      |
 | **BMD-1076**    | #396 | 2026-10-16 | A project with no baseline is redirected to `/upload-file` instead of rendering the upload prompt; the prompt and `hasBaseline` were removed      |
+| **BMD-849**     | #514 | 2026-11-19 | A "Project details" item in the left navigation, just before Reports, links to `/project-details/{id}` with `returnUrl`                           |
+| **BMD-849**     | #545 | 2026-11-23 | The "View project details" section at the foot of the page was removed (PO review); the nav item is the way in                                    |
 
-The project-details clickthrough remains a separate ticket and is still `[PLANNED]` here.
+BMD-849 did not make the "View project details" section a link: the left navigation's
+"Project details" item replaced it, and PR#545 removed the section.
 The "View trading rules" clickthrough did not ship with BMD-1008 (status tag only); it
 landed per unit type in BMD-1025 (area), BMD-1026 (watercourses) and BMD-1027 (hedgerows).
 The tile now holds both.
@@ -125,7 +128,7 @@ the API response and are rendered **nowhere** — do not expect to assert them f
 
   **BMD-897** (2026-08-25) is the ticket that states this variant as acceptance criteria — one AC per linear unit type, each enumerating all five tiles. Validated against the shipped page on 2026-09-02: both pass. Two questions the ACs raise are flagged "CONFIRM WITH UCD" and remain open — whether "View trading rules" should appear at all when no trading is possible, and whether the trading-rules status should read something rather than nothing.
 
-  **"View project details"** — a closing `<section aria-labelledby="project-details-heading">` with `<h2>View project details</h2>` and the body text "View and amend your project details, including project name and target percentage". No link.
+  The Watercourses section (or the last unit-type section shown) is the last thing on the page. The closing **"View project details"** section (`<h2>View project details</h2>` and "View and amend your project details, including project name and target percentage", never a link) and its `app-project-summary__actions` wrapper were removed by BMD-849 (frontend PR#545, 2026-11-23) after the PO review. The left navigation's "Project details" item is the way in. The last section's bottom border now sits alone above the footer.
 
   There is **no back link** on this page.
 
@@ -192,7 +195,7 @@ the API response and are rendered **nowhere** — do not expect to assert them f
 
 ## Deferred elements
 
-Out of scope for BMD-870 per the ticket. Four of the seven have since shipped — **BMD-854** (PR#237, 2026-08-25) built the drill-down pages and wired the navigation, **BMD-857** (PR#244) the area baseline page, **BMD-855/919** (PR#249) the hedgerows page, and **BMD-859/861** (PR#258, 2026-09-02) the hedgerow and watercourse baseline pages. What remains is inert text rather than links.
+Out of scope for BMD-870 per the ticket. Four of the seven have since shipped — **BMD-854** (PR#237, 2026-08-25) built the drill-down pages and wired the navigation, **BMD-857** (PR#244) the area baseline page, **BMD-855/919** (PR#249) the hedgerows page, and **BMD-859/861** (PR#258, 2026-09-02) the hedgerow and watercourse baseline pages. Only submitting the metric remains, and it is not rendered.
 
 | Element                                                          | Current state                                                                                                                                                                                                                                                                                                                      | Marker          |
 | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
@@ -207,7 +210,7 @@ Out of scope for BMD-870 per the ticket. Four of the seven have since shipped �
 | "View on-site post intervention" — **hedgerows**                 | **link** to `/projects/{id}/hedgerows-post-intervention` (BMD-860)                                                                                                                                                                                                                                                                 | `[IMPLEMENTED]` |
 | "View on-site area post intervention" — **areas**                | **link** to `/projects/{id}/area-post-intervention` (BMD-858, PR#350)                                                                                                                                                                                                                                                              | `[IMPLEMENTED]` |
 | "View on-site watercourses post intervention" — **watercourses** | **link** to `/projects/{id}/watercourses-post-intervention` (BMD-862, PR#285)                                                                                                                                                                                                                                                      | `[IMPLEMENTED]` |
-| "View project details" clickthrough                              | heading + body text only, no link                                                                                                                                                                                                                                                                                                  | `[PLANNED]`     |
+| "View project details" section                                   | **removed** (BMD-849, frontend PR#545); the left navigation's "Project details" item links to the page (PR#514)                                                                                                                                                                                                                    | `[IMPLEMENTED]` |
 | Submitting the metric                                            | not rendered                                                                                                                                                                                                                                                                                                                       | `[PLANNED]`     |
 
 All three Trading Rules links are **clicked** (not just href-checked) in `project-summary.spec.js` → "Project summary — post-intervention variant", on the shared all-unit-types post-intervention project. They are the `@happy-path` witnesses for the three trading summary pages (added 2026-10-15), so the CDP run reaches those pages without another upload.
