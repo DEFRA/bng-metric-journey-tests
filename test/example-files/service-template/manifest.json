@@ -1,6 +1,6 @@
 {
   "description": "Each file here is a copy of a file in bng-metric-harness/example-files/service-template/ (source), built by the harness's corpus recipes or bng-library's generator; its README says how. Refresh them with npm run check:fixtures -- --sync, never by hand.",
-  "harnessCommit": "95a03c9c2ee025b025a70448d043eca02a62c8c9",
+  "harnessCommit": "2c1ae33ad1a5f8a2aaaf8ce6549c6899a6d0fee4",
   "files": [
     {
       "file": "small-site-baseline.gpkg",
@@ -289,6 +289,12 @@
       "source": "valid/watercourse-enhanced-encroachment-reduced.gpkg",
       "sha256": "2502476dd07e1d1a737fce92fb34848c40a48ed424941d19caf53cf81b735f8c",
       "for": "The default site with the Enhanced R006's encroachments reduced to Minor and No Encroachment/No Encroachment, against its baseline Major and Moderate/Minor: accepted"
+    },
+    {
+      "file": "area-enhanced-significance-blank.gpkg",
+      "source": "incomplete/area-enhanced-significance-blank.gpkg",
+      "sha256": "05b6f4a548916e3ec1432cacbd3092b45177ecef2bbaa39fe89c9865892bba17",
+      "for": "The default site with the Enhanced H006 given no Proposed Strategic Significance: accepted, H006 Incomplete and unpriced, its proposed condition and years kept"
     }
   ]
 }

@@ -8,6 +8,7 @@ import { isServiceTemplateRun } from '@utils/template-run.js'
 import {
   AREA_CREATED_INCOMPLETE,
   AREA_ENHANCED_INCOMPLETE,
+  AREA_ENHANCED_SIGNIFICANCE_BLANK,
   AREA_TRADING_DEFICIT,
   AREA_TRADING_DEFICIT_BASELINE,
   BASELINE_STAGE_INCOMPLETE,
@@ -549,5 +550,16 @@ export function getServiceTemplateHedgerowSignificanceBlankProject(browser) {
   return getServiceTemplatePostInterventionProject(
     browser,
     HEDGEROW_SIGNIFICANCE_BLANK
+  )
+}
+
+/**
+ * The default site with the Enhanced H006 given no proposed strategic
+ * significance alone: area-enhanced-significance-blank.gpkg.
+ */
+export function getServiceTemplateAreaSignificanceBlankProject(browser) {
+  return getServiceTemplatePostInterventionProject(
+    browser,
+    AREA_ENHANCED_SIGNIFICANCE_BLANK
   )
 }

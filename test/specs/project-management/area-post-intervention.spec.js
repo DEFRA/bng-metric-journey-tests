@@ -13,6 +13,7 @@ import {
   getRunNoRetainedAreaProject,
   getRunRetainedSignificanceProject,
   getRunTreesPostInterventionProject,
+  getServiceTemplateAreaSignificanceBlankProject,
   getServiceTemplateCreatedIncompleteProject,
   getServiceTemplateHedgerowInvalidEnhancementProject,
   getServiceTemplateIncompleteEnhancementsProject,
@@ -417,6 +418,14 @@ const CREATED_INCOMPLETE_REF = 'H005'
 // invalid-data-incomplete.gpkg's H004: Enhanced with no Proposed Condition or
 // Proposed Strategic Significance.
 const ENHANCED_UNPRICED_REF = 'H004'
+// area-enhanced-significance-blank.gpkg's H006: Enhanced from Fairly Poor to
+// Moderate, with no years in advance or delay, and no Proposed Strategic
+// Significance alone.
+const SIGNIFICANCE_BLANK_REF = 'H006'
+const SIGNIFICANCE_BLANK_KEPT = {
+  targetCondition: 'Moderate',
+  years: '0 years'
+}
 // long-and-padded-refs.gpkg: Retained area habitats whose refs, in both
 // stages, are longer than 10 characters, and '   H034   ', which the import
 // trims.
@@ -1431,6 +1440,33 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         expect(row.Distinctiveness).toBe('')
         expect(row['Strategic significance']).toBe('')
         expect(row['Target condition']).toBe('')
+        expect(row['Standard difficulty']).toBe('')
+      })
+
+      // A strategic significance missing on its own: the condition is valid,
+      // so only the missing significance can leave the parcel unpriced. The
+      // grid shows the condition the file gives, with no score, since nothing
+      // was priced.
+      test('an Enhanced parcel with only its proposed strategic significance blank is left unpriced, keeping its condition', async ({
+        browser,
+        areaPostInterventionPage
+      }) => {
+        const blankProject =
+          await getServiceTemplateAreaSignificanceBlankProject(browser)
+        const grid = areaPostInterventionPage
+        await grid.open(blankProject.id)
+        await grid.tab(ENHANCED).click()
+
+        const row = await grid.rowByRef(ENHANCED, SIGNIFICANCE_BLANK_REF)
+        expect(row.Units).toBe('0.00')
+        expect(row.Status).toBe(STATUS_INCOMPLETE)
+        expect(row['Strategic significance']).toBe('')
+        expect(row['Target condition']).toBe(
+          SIGNIFICANCE_BLANK_KEPT.targetCondition
+        )
+        expect(row.Advance).toBe(SIGNIFICANCE_BLANK_KEPT.years)
+        expect(row.Delay).toBe(SIGNIFICANCE_BLANK_KEPT.years)
+        expect(row.Distinctiveness).toBe('')
         expect(row['Standard difficulty']).toBe('')
       })
     }
