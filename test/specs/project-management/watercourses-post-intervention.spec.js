@@ -961,7 +961,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         )
       })
 
-      test('a null proposed encroachment lists an Enhanced watercourse without units and a Created one at zero', async ({
+      test('a null proposed encroachment lists an Enhanced and a Created watercourse at zero', async ({
         watercoursesPostInterventionPage
       }) => {
         const grid = watercoursesPostInterventionPage
@@ -973,7 +973,7 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await grid.open(project.id)
 
         // The control: untouched, and priced from its baseline encroachments.
-        // Without it a blank assertion would pass on a grid that rendered
+        // Without it a zero assertion would pass on a grid that priced
         // nothing.
         expect(await unitsOf(RETAINED, MIX_RETAINED_REF)).toMatch(
           GRID_UNITS_2DP
@@ -981,11 +981,12 @@ test.describe('project-management', { tag: '@project-management' }, () => {
 
         await grid.tab(ENHANCED).click()
         await expect(grid.featureRow(ENHANCED, MIX_ENHANCED_REF)).toBeVisible()
-        expect(await unitsOf(ENHANCED, MIX_ENHANCED_REF)).toBe('')
+        expect(await unitsOf(ENHANCED, MIX_ENHANCED_REF)).toBe('0.00')
 
         // An Incomplete Created watercourse lists 0.00, as a Created area does
-        // (BMD-1050 AC11 Scenario B, frontend PR #502); its stored units stay
-        // null, so this is display only.
+        // (BMD-1050 AC11 Scenario B, frontend PR #502), and so does an
+        // Incomplete Enhanced one, now that it has an edit page. Their stored
+        // units stay null, so this is display only.
         await grid.tab(CREATED).click()
         await expect(grid.featureRow(CREATED, MIX_CREATED_REF)).toBeVisible()
         expect(await unitsOf(CREATED, MIX_CREATED_REF)).toBe('0.00')

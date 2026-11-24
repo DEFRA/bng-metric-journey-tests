@@ -1301,6 +1301,13 @@ async function expectProblemsList(errorFilePage, id, headings) {
   )
 }
 
+// The problems list's heading for a parcel outside the redline boundary, and
+// the one for the slivers it leaves, which the page leaves out beside it.
+const OUTSIDE_REDLINE_HEADING =
+  'One or more area habitat polygons are not entirely within the redline boundary'
+const SLIVERS_HEADING =
+  'Baseline file contains habitat parcel parts outside the redline boundary'
+
 // The bullet the problems list names a habitat or a fault by.
 function listItem(page, text) {
   return page.getByRole('listitem').filter({ hasText: text })
@@ -1666,12 +1673,20 @@ function describeServiceTemplateChecks() {
           PARCEL_OUTSIDE_REDLINE
         )
 
-        await expectProblemsList(errorFilePage, id, [
-          'One or more area habitat polygons are not entirely within the redline boundary'
-        ])
-        await expect(errorFilePage.errorSummary).not.toContainText(
-          'Baseline file contains habitat parcel parts outside the redline boundary'
-        )
+        await expectProblemsList(errorFilePage, id, [OUTSIDE_REDLINE_HEADING])
+        // Each problem is in the summary and has a heading above its rows.
+        const main = page.getByRole('main')
+        await expect(
+          errorFilePage.errorSummary.getByText(OUTSIDE_REDLINE_HEADING)
+        ).toHaveCount(1)
+        await expect(
+          main.getByRole('heading', { level: 2, name: OUTSIDE_REDLINE_HEADING })
+        ).toHaveCount(1)
+        await expect(listItem(page, 'Feature Ref H002')).toHaveCount(1)
+        // A sliver's row also reads "~… sq m near …", with no feature ref:
+        // H002's row is the only one with an area and a place.
+        await expect(listItem(page, 'sq m near')).toHaveCount(1)
+        await expect(main.getByText(SLIVERS_HEADING)).toHaveCount(0)
       })
 
       // Two habitats, H001 and H002, are out of scope, and the page has no

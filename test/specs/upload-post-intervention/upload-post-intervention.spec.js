@@ -2092,9 +2092,11 @@ function describeServiceTemplateImports() {
             `${type} ${ref}`
           ).toHaveText('0.00')
         }
-        await expect(
-          await piUnitsCell(page, id, 'area', ST_PRICED_AREA_REF)
-        ).toHaveText(UNITS_2DP)
+        // The control is priced, not merely shown to two places: zero would
+        // also match the format.
+        const priced = await piUnitsCell(page, id, 'area', ST_PRICED_AREA_REF)
+        await expect(priced).toHaveText(UNITS_2DP)
+        expect(Number(await priced.textContent())).toBeGreaterThan(0)
       })
 
       // The upload saves the file's own Baseline tables as the baseline, Lost
