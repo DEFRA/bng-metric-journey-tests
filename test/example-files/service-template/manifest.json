@@ -165,6 +165,12 @@
       "for": "An empty Red Line Boundary table: refused (NO_REDLINE)"
     },
     {
+      "file": "redline-multiple-baseline.gpkg",
+      "source": "spatial-problems/redline-multiple-baseline.gpkg",
+      "sha256": "de171421ceb3af8cd382fc6da08715ed3cd3261a3107350a893f6866d53741c4",
+      "for": "A Red Line Boundary table holding two boundaries: refused (GPKG_RLB_TOO_MANY_POLYGONS)"
+    },
+    {
       "file": "area-sum-mismatch-baseline.gpkg",
       "source": "spatial-problems/area-sum-mismatch-baseline.gpkg",
       "sha256": "e506a621935921a2549afe0d650c72c4fe03d72541ae6ce35491b36dfc9c26a8",
