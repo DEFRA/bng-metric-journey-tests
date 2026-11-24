@@ -5957,6 +5957,7 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         postInterventionHabitatDetailsPage: details
       }) => {
         expect(await areaRowByRef(page, projectId, ref)).toMatchObject({
+          Status: STATUS_INCOMPLETE,
           Units: '0.00',
           Distinctiveness: 'Low (2)',
           'Strategic significance': 'High (1.15)'
@@ -6039,6 +6040,10 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         postInterventionHabitatDetailsPage: details
       }) => {
         const ref = SERVICE_TEMPLATE_INCOMPLETE_ENHANCED_AREA
+        expect(await areaRowByRef(page, projectId, ref)).toMatchObject({
+          Status: STATUS_INCOMPLETE,
+          Units: '0.00'
+        })
         await openPiFeatureDetails(page, projectId, 'area', ref)
 
         await expect(details.habitatReferenceInput).toHaveValue(ref)
