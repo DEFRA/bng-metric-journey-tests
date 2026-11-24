@@ -1,6 +1,6 @@
 {
   "description": "Each file here is a copy of a file in bng-metric-harness/example-files/service-template/ (source), built by the harness's corpus recipes or bng-library's generator; its README says how. Refresh them with npm run check:fixtures -- --sync, never by hand.",
-  "harnessCommit": "95a03c9c2ee025b025a70448d043eca02a62c8c9",
+  "harnessCommit": "86d903b0a875b846508e3854384db951cc5ff876",
   "files": [
     {
       "file": "small-site-baseline.gpkg",
@@ -417,10 +417,52 @@
       "for": "R003 Enhanced on a course 20 m shorter than its parent: watercourses gain 2.7%, above zero and below the 10% target"
     },
     {
+      "file": "invalid-hedgerow-medium-type-change.gpkg",
+      "source": "permutations/invalid-interventions/invalid-hedgerow-medium-type-change.gpkg",
+      "sha256": "48aad56e051fc54565c63f97809a8c9abcee1b3e58cfc13e306f4f3a9ac292cb",
+      "for": "HG001 Enhanced into a hedgerow type the metric does not allow: accepted, its proposed values nulled and saved Incomplete; HG002 and HG003 Enhanced and Complete"
+    },
+    {
+      "file": "trading-trade-down.gpkg",
+      "source": "permutations/trading-rules/trading-trade-down.gpkg",
+      "sha256": "a95e67ebffb1da337b7bafe9117bd006bb35cdc5df616b2b09a1e6591114c314",
+      "for": "A Low hedgerow replaced by two Very low ones: hedgerow Low band below zero (-1.38 units), carried down to the Very low band as 0.00"
+    },
+    {
+      "file": "invalid-watercourse-culvert-enhanced.gpkg",
+      "source": "permutations/invalid-interventions/invalid-watercourse-culvert-enhanced.gpkg",
+      "sha256": "3660344dc4ae4172209840eb04c54745acd75f7c0dc91e9bf2ea6934a8b4e767",
+      "for": "R001, a culvert Enhanced in place: accepted and saved Incomplete, so the watercourse Low band falls below zero (-0.63 units) with no Medium surplus"
+    },
+    {
       "file": "long-and-padded-refs-baseline.gpkg",
       "source": "valid/long-and-padded-refs-baseline.gpkg",
       "sha256": "79e2367f33a4f38f79fc77a695f65c502ef1616d5daf2c79fc7c97f963411011",
-      "for": "Baseline area habitats with a padded ref (H034, three spaces each side), a 99-character ref (H050-x…) and two long or non-ASCII ones: accepted, each saved trimmed and whole"
+      "for": "Baseline-stage file for long-and-padded-refs.gpkg: area habitats WOODLAND-NORTH-EDGE, Étang-du-Moulin-Ælfrīc, a 99-character H050- ref and a space-padded H034"
+    },
+    {
+      "file": "baseline-incomplete-every-layer-baseline.gpkg",
+      "source": "incomplete/baseline-incomplete-every-layer-baseline.gpkg",
+      "sha256": "fb4d77942e4d462310806d1b65efa27bbf97d7df58ae4c004fe6f382283a40a7",
+      "for": "A baseline-stage file with H002 and HG001 missing their Baseline Condition and R007 its riparian encroachment: accepted at the baseline upload, those three Incomplete"
+    },
+    {
+      "file": "watercourse-proposed-encroachment-blank.gpkg",
+      "source": "incomplete/watercourse-proposed-encroachment-blank.gpkg",
+      "sha256": "368f6db636e43ccdc5fd58a0385673d61a1f72c338bb3784385035bf6b71b4c5",
+      "for": "The Enhanced R006 with no Proposed Encroachment into Watercourse and the Created R004 with no Proposed Encroachment into riparian zone: accepted, both Incomplete"
+    },
+    {
+      "file": "watercourses-created-only.gpkg",
+      "source": "valid/watercourses-created-only.gpkg",
+      "sha256": "799857cd1ef13054f943d3056ed21819ac30acc95e8ea607c5658ca129e0c880",
+      "for": "No baseline watercourses and one Created post-intervention ditch, R004: watercourses only post intervention"
+    },
+    {
+      "file": "hedgerow-enhanced-significance-blank.gpkg",
+      "source": "incomplete/hedgerow-enhanced-significance-blank.gpkg",
+      "sha256": "b598714d1f5487cec2aaf5bbb40f97a97880dd372001c354e4c1b42775869b54",
+      "for": "The Enhanced HG002 with no Proposed Strategic Significance: accepted, Incomplete and unpriced, its proposed condition and years kept"
     },
     {
       "file": "invalid-hedgerow-low-not-possible.gpkg",
@@ -439,6 +481,12 @@
       "source": "valid/watercourse-enhanced-encroachment-reduced.gpkg",
       "sha256": "2502476dd07e1d1a737fce92fb34848c40a48ed424941d19caf53cf81b735f8c",
       "for": "The default site with the Enhanced R006's encroachments reduced to Minor and No Encroachment/No Encroachment, against its baseline Major and Moderate/Minor: accepted"
+    },
+    {
+      "file": "area-enhanced-significance-blank.gpkg",
+      "source": "incomplete/area-enhanced-significance-blank.gpkg",
+      "sha256": "05b6f4a548916e3ec1432cacbd3092b45177ecef2bbaa39fe89c9865892bba17",
+      "for": "The default site with the Enhanced H006 given no Proposed Strategic Significance: accepted, H006 Incomplete and unpriced, its proposed condition and years kept"
     }
   ]
 }

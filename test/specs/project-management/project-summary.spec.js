@@ -14,10 +14,7 @@ import {
 } from '@utils/access-checks.js'
 import { setupProject } from '@utils/project-helpers.js'
 import { createProjectCache } from '@utils/shared-project.js'
-import {
-  buildPostInterventionProject,
-  getWatercourseGainProject
-} from '@utils/summary-projects.js'
+import { buildPostInterventionProject } from '@utils/summary-projects.js'
 import {
   getRunAllUnitTypesPostInterventionProject,
   getRunAllUnitTypesProject,
@@ -32,12 +29,12 @@ import {
   getRunNoWatercoursesPostInterventionProject,
   getRunNoWatercoursesProject,
   getRunTargetMetProject,
+  getRunWatercourseGainProject,
   getRunWatercourseTradingMetProject,
   getServiceTemplateNetGainMetProject,
   getServiceTemplateWatercourseBelowTargetProject
 } from '@utils/run-projects.js'
 import {
-  LEGACY_ONLY,
   SERVICE_TEMPLATE_ONLY,
   isServiceTemplateRun
 } from '@utils/template-run.js'
@@ -1017,35 +1014,30 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // (baseline-persistence.test.js:51, post-intervention-persistence.test.js:40).
       //
       // Do not delete without moving these assertions onto another
-      // project-summary test built on getWatercourseGainProject.
-      //
-      // Legacy only: no BNG Service template file in the harness corpus has
-      // watercourses only post intervention.
-      test(
-        'watercourses gained from a zero baseline render the same variant',
-        {
-          tag: LEGACY_ONLY
-        },
-        async ({ projectSummaryPage, browser }) => {
-          // 'Baseline - no watercourses.gpkg' + 'Post-intervention - complete
-          // with watercourses.gpkg'. watercourses-summary.spec.js needs the same
-          // pair, and @utils/summary-projects.js caches it per worker, so whichever
-          // of the two runs first pays for the uploads and the other reuses them —
-          // the suite spends one build either way, not two.
-          const watercourseProject = await getWatercourseGainProject(browser)
-          await projectSummaryPage.open(watercourseProject.id)
+      // project-summary test built on getRunWatercourseGainProject.
+      test('watercourses gained from a zero baseline render the same variant', async ({
+        projectSummaryPage,
+        browser
+      }) => {
+        // Legacy: 'Baseline - no watercourses.gpkg' + 'Post-intervention -
+        // complete with watercourses.gpkg'. BNG Service template:
+        // watercourses-created-only.gpkg. watercourses-summary.spec.js needs
+        // the same project, and the cache keeps it per worker, so whichever
+        // of the two runs first pays for the uploads and the other reuses
+        // them — the suite spends one build either way, not two.
+        const watercourseProject = await getRunWatercourseGainProject(browser)
+        await projectSummaryPage.open(watercourseProject.id)
 
-          await expectPostInterventionOnlySuppressedTiles(
-            projectSummaryPage,
-            WATERCOURSES
-          )
-          await expectPostInterventionOnlyGain(
-            projectSummaryPage,
-            WATERCOURSES,
-            watercourseProject.id
-          )
-        }
-      )
+        await expectPostInterventionOnlySuppressedTiles(
+          projectSummaryPage,
+          WATERCOURSES
+        )
+        await expectPostInterventionOnlyGain(
+          projectSummaryPage,
+          WATERCOURSES,
+          watercourseProject.id
+        )
+      })
     }
   )
 

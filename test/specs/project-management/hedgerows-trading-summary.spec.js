@@ -6,6 +6,7 @@ import {
   getRunHedgerowShortfallProject,
   getRunHedgerowTradingAllMetProject,
   getRunLinearInterventionTypesProject,
+  getServiceTemplateHedgerowLowDeficitProject,
   getServiceTemplateVeryLowDeficitProject
 } from '@utils/run-projects.js'
 import {
@@ -377,8 +378,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
       // A Low cumulative deficit (-1.55) is never carried down, so "available"
       // reads 0.00. That alone cannot tell which figure the page passes — any
       // negative input floors to 0.00 — hence the all-met test below.
-      // Legacy only: no BNG Service template corpus file has a Low deficit and
-      // a Very low band. That run's Very low section is the test below.
+      // Legacy only: the BNG Service template run reads the same carry-down on
+      // trading-trade-down.gpkg, in its own describe below.
       test(
         'the Very low section shows a Low deficit carried down as 0.00 and its hedgerow type with a total',
         { tag: LEGACY_ONLY },
@@ -475,10 +476,11 @@ test.describe('project-management', { tag: '@project-management' }, () => {
   // ─── BNG Service template bands (BMD-1088) ────────────────────────────────────
   //
   // The legacy run's band tests read Low and Very low below zero on one
-  // project, and a Low deficit carried down as 0.00. No BNG Service template
-  // corpus file has those, so this run reads each band's Not met on its own
-  // project, and the Very low section with a Low surplus carried down. The
-  // figures are the backend's for these corpus files (harness 95b3ff2).
+  // project. No BNG Service template corpus file has both, so this run reads
+  // each band's Not met on its own project. It reads the Very low section with
+  // a Low surplus carried down, and with a Low deficit carried down as 0.00.
+  // The figures are the backend's for these corpus files (harness 95b3ff2, and
+  // ebe73bf for trading-trade-down.gpkg).
 
   test.describe(
     'Hedgerows trading summary — BNG Service template bands',
@@ -549,6 +551,50 @@ test.describe('project-management', { tag: '@project-management' }, () => {
           rows: [
             ['Non-native and ornamental hedgerow', '0.96'],
             [TOTAL_UNIT_CHANGE, '0.96']
+          ]
+        })
+      })
+
+      // trading-trade-down.gpkg: a Low hedgerow (-1.38 units) is replaced by
+      // two Very low ones (+0.68), with no Medium hedgerow. The Low running
+      // total is below zero, so nothing is carried down: "available" reads
+      // 0.00, where passing the Low figure on would give -1.38 and a Very low
+      // total of -0.70.
+      test('the Very low section shows a Low deficit carried down as 0.00 and its hedgerow type with a total', async ({
+        browser,
+        hedgerowsTradingSummaryPage
+      }) => {
+        const project =
+          await getServiceTemplateHedgerowLowDeficitProject(browser)
+        await hedgerowsTradingSummaryPage.open(project.id)
+
+        expect(await hedgerowsTradingSummaryPage.bandNames()).toEqual([
+          LOW,
+          VERY_LOW
+        ])
+        expect(
+          await hedgerowsTradingSummaryPage.bandTileValue(
+            LOW,
+            CUMULATIVE_SURPLUS_TILE
+          )
+        ).toBe('-1.38 units')
+        await expectStatusTag(
+          hedgerowsTradingSummaryPage.statusTag(LOW),
+          STATUS_NOT_MET
+        )
+        expect(
+          await hedgerowsTradingSummaryPage.bandTileValues(
+            VERY_LOW,
+            VERY_LOW_TILES
+          )
+        ).toEqual(['0.68 units', '0.00 units', '0.68 units'])
+        expect(
+          await hedgerowsTradingSummaryPage.readBandGrid(VERY_LOW)
+        ).toEqual({
+          headers: UNIT_CHANGE_COLUMNS,
+          rows: [
+            ['Non-native and ornamental hedgerow', '0.68'],
+            [TOTAL_UNIT_CHANGE, '0.68']
           ]
         })
       })

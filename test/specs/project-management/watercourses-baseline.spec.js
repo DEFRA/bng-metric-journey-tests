@@ -6,9 +6,14 @@ import { buildBaselineOnlyProject } from '@utils/summary-projects.js'
 import {
   getRunAllUnitTypesProject,
   getRunBaselineProject,
-  getRunTargetMetProject
+  getRunTargetMetProject,
+  getServiceTemplateIncompleteBaselineProject
 } from '@utils/run-projects.js'
-import { LEGACY_ONLY, isServiceTemplateRun } from '@utils/template-run.js'
+import {
+  LEGACY_ONLY,
+  SERVICE_TEMPLATE_ONLY,
+  isServiceTemplateRun
+} from '@utils/template-run.js'
 import { expectStatusTag, STATUS_MET } from '@utils/unit-type-tiles.js'
 import {
   AREA_HABITATS,
@@ -35,6 +40,10 @@ const LEGACY_BASELINE_PATH = 'watercourses-baseline'
 // test/example-files/fixture-mutations.py.
 const BLANK_RIPARIAN_FILE = 'Baseline - blank riparian encroachment.gpkg'
 const BLANK_RIPARIAN_REF = 'R002'
+// baseline-incomplete-every-layer-baseline.gpkg: R007, a ditch with No
+// Encroachment into the watercourse and no riparian encroachment.
+const SERVICE_TEMPLATE_BLANK_RIPARIAN_REF = 'R007'
+const SERVICE_TEMPLATE_WATERCOURSE_ENCROACHMENT = 'No Encroachment'
 
 const UNITS_2DP = /^\d+\.\d{2}$/
 const KILOMETRES = /^\d+(\.\d+)?km$/
@@ -548,8 +557,8 @@ test.describe('project-management', { tag: '@project-management' }, () => {
   // that the cleared units and the nulled field reach the page.
   test.describe(
     'Watercourses baseline — blank encroachment on import',
-    // Its file is cut by fixture-mutations.py, and it asserts the Incomplete
-    // status, which is not asserted for the BNG Service template in this epic.
+    // Its file is cut by fixture-mutations.py. The BNG Service template run
+    // reads its own file's blank encroachment, in its own describe below.
     { tag: ['@regression', LEGACY_ONLY] },
     () => {
       test.use({ storageState: STORAGE_STATE })
@@ -608,6 +617,71 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         await expect(
           baselineHabitatDetailsPage.watercourseEncroachmentSelect
         ).toHaveValue('Major')
+      })
+    }
+  )
+
+  // The same rule in the BNG Service template run, on the corpus file with one
+  // incomplete baseline habitat per layer.
+  test.describe(
+    'Watercourses baseline — BNG Service template blank encroachment',
+    { tag: ['@regression', SERVICE_TEMPLATE_ONLY] },
+    () => {
+      test.use({ storageState: STORAGE_STATE })
+      test.skip(skipInE2e(STORAGE_STATE), E2E_SKIP_REASON)
+
+      let project
+      test.beforeAll(async ({ browser }) => {
+        project = await getServiceTemplateIncompleteBaselineProject(browser)
+      })
+
+      test('a watercourse with a blank riparian encroachment is listed without units and asks for the value', async ({
+        page,
+        watercoursesBaselinePage,
+        baselineHabitatDetailsPage
+      }) => {
+        await watercoursesBaselinePage.open(project.id)
+
+        const refs = await watercoursesBaselinePage.columnValues('ref')
+        const units = await watercoursesBaselinePage.columnValues('units')
+        const status = await watercoursesBaselinePage.columnValues('status')
+        const index = refs.indexOf(SERVICE_TEMPLATE_BLANK_RIPARIAN_REF)
+        expect(index).toBeGreaterThan(-1)
+
+        expect(units[index].trim()).toBe('')
+        expect(status[index]).toBe(STATUS_INCOMPLETE)
+        const otherStatus = status.filter((_, i) => i !== index)
+        expect(otherStatus.length).toBeGreaterThan(0)
+        for (const value of otherStatus) {
+          expect(value).toBe(STATUS_COMPLETE)
+        }
+        const others = units.filter((_, i) => i !== index)
+        for (const value of others) {
+          expect(value).toMatch(UNITS_2DP)
+        }
+
+        // The cleared units are not counted: the total is the others'.
+        const totalsUnits = Number(
+          await watercoursesBaselinePage.totalsCell('units').innerText()
+        )
+        expect(totalsUnits).toBeCloseTo(
+          others.reduce((sum, value) => sum + Number(value), 0),
+          1
+        )
+
+        await watercoursesBaselinePage
+          .refLink(SERVICE_TEMPLATE_BLANK_RIPARIAN_REF)
+          .click()
+        await page.waitForURL(/\/baseline-habitat-details\?/)
+
+        // Only the blank field is nulled: the watercourse encroachment the
+        // file gives survives the import.
+        await expect(
+          baselineHabitatDetailsPage.riparianEncroachmentSelect
+        ).toHaveValue('')
+        await expect(
+          baselineHabitatDetailsPage.watercourseEncroachmentSelect
+        ).toHaveValue(SERVICE_TEMPLATE_WATERCOURSE_ENCROACHMENT)
       })
     }
   )
