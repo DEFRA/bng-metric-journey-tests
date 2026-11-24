@@ -6,13 +6,22 @@
 // cache, so a project either module builds is built once per worker.
 import { isServiceTemplateRun } from '@utils/template-run.js'
 import {
+  AREA_CREATED_INCOMPLETE,
+  AREA_ENHANCED_INCOMPLETE,
+  AREA_ENHANCED_SIGNIFICANCE_BLANK,
   AREA_TRADING_DEFICIT,
   AREA_TRADING_DEFICIT_BASELINE,
+  BASELINE_STAGE_INCOMPLETE,
   BASELINE_SIGNIFICANCE_HIGH,
   DATA_COMPLETE,
   DEFAULT_SITE,
   DEFAULT_SITE_BASELINE,
   EVERY_VERTICAL_RETENTION,
+  HEDGEROW_INVALID_ENHANCEMENT,
+  HEDGEROW_LOW_DEFICIT_VERY_LOW,
+  HEDGEROW_SIGNIFICANCE_BLANK,
+  LONG_AND_PADDED_REFS,
+  LONG_PADDED_REFS_BASELINE,
   LOW_LOSS_COVERED,
   NET_GAIN_MET,
   NO_RETAINED_AREA,
@@ -24,7 +33,10 @@ import {
   WATERCOURSE_DEGRADED,
   WATERCOURSE_DEGRADED_BASELINE,
   WATERCOURSE_ENHANCED_SHORTER,
-  WATERCOURSE_REMEANDERED
+  WATERCOURSE_LOW_DEFICIT,
+  WATERCOURSE_PROPOSED_ENCROACHMENT_BLANK,
+  WATERCOURSE_REMEANDERED,
+  WATERCOURSES_CREATED_ONLY
 } from '@utils/service-template-files.js'
 import {
   buildBaselineOnlyProject,
@@ -48,6 +60,7 @@ import {
   getNoWatercoursesProject,
   getTargetMetProject,
   getTreesPostInterventionProject,
+  getWatercourseGainProject,
   getWatercourseInterventionTypesProject
 } from '@utils/summary-projects.js'
 
@@ -414,5 +427,139 @@ export function getServiceTemplateWatercourseBelowTargetProject(browser) {
   return getServiceTemplatePostInterventionProject(
     browser,
     WATERCOURSE_ENHANCED_SHORTER
+  )
+}
+
+/**
+ * Projects only the BNG Service template run uses, for the grids' Status
+ * column and the unpriced rows an import leaves Incomplete, and for trading
+ * bands below zero:
+ *
+ * - area habitats Enhanced, three Complete and three Incomplete with no
+ *   proposed condition or strategic significance: invalid-data-incomplete.gpkg;
+ * - a hedgerow Enhanced into a type the metric does not allow, beside two
+ *   Complete Enhanced hedgerows: invalid-hedgerow-medium-type-change.gpkg;
+ * - a hedgerow Low band below zero over a Very low band:
+ *   trading-trade-down.gpkg;
+ * - a watercourse Low band below zero with no Medium surplus:
+ *   invalid-watercourse-culvert-enhanced.gpkg.
+ */
+export function getServiceTemplateIncompleteEnhancementsProject(browser) {
+  return getServiceTemplatePostInterventionProject(
+    browser,
+    AREA_ENHANCED_INCOMPLETE
+  )
+}
+
+/**
+ * The default site with H005, one of its many Created area habitats, saved
+ * Incomplete: area-created-no-condition-or-timing.gpkg.
+ */
+export function getServiceTemplateCreatedIncompleteProject(browser) {
+  return getServiceTemplatePostInterventionProject(
+    browser,
+    AREA_CREATED_INCOMPLETE
+  )
+}
+
+/** @see getServiceTemplateIncompleteEnhancementsProject */
+export function getServiceTemplateHedgerowInvalidEnhancementProject(browser) {
+  return getServiceTemplatePostInterventionProject(
+    browser,
+    HEDGEROW_INVALID_ENHANCEMENT
+  )
+}
+
+/** @see getServiceTemplateIncompleteEnhancementsProject */
+export function getServiceTemplateHedgerowLowDeficitProject(browser) {
+  return getServiceTemplatePostInterventionProject(
+    browser,
+    HEDGEROW_LOW_DEFICIT_VERY_LOW
+  )
+}
+
+/** @see getServiceTemplateIncompleteEnhancementsProject */
+export function getServiceTemplateWatercourseLowDeficitProject(browser) {
+  return getServiceTemplatePostInterventionProject(
+    browser,
+    WATERCOURSE_LOW_DEFICIT
+  )
+}
+
+/**
+ * Watercourses only post intervention, from a baseline with none: the legacy
+ * watercourse gain pair, or watercourses-created-only.gpkg, whose one
+ * watercourse is a Created ditch with no parent.
+ *
+ * @param {import('@playwright/test').Browser} browser
+ * @returns {Promise<{id: string, name: string}>}
+ */
+export function getRunWatercourseGainProject(browser) {
+  return isServiceTemplateRun()
+    ? getServiceTemplatePostInterventionProject(
+        browser,
+        WATERCOURSES_CREATED_ONLY
+      )
+    : getWatercourseGainProject(browser)
+}
+
+/**
+ * More projects only the BNG Service template run uses, each from a corpus
+ * file made for one edge case:
+ *
+ * - long, non-ASCII and space-padded Habitat Refs on four Retained area
+ *   habitats: long-and-padded-refs.gpkg, and its baseline-stage file;
+ * - one incomplete baseline habitat per layer, at a baseline upload:
+ *   baseline-incomplete-every-layer-baseline.gpkg;
+ * - an Enhanced and a Created watercourse each missing a proposed
+ *   encroachment: watercourse-proposed-encroachment-blank.gpkg;
+ * - an Enhanced hedgerow with no proposed strategic significance:
+ *   hedgerow-enhanced-significance-blank.gpkg.
+ */
+export function getServiceTemplateLongRefsProject(browser) {
+  return getServiceTemplatePostInterventionProject(
+    browser,
+    LONG_AND_PADDED_REFS
+  )
+}
+
+/** @see getServiceTemplateLongRefsProject */
+export function getServiceTemplateLongRefsBaselineProject(browser) {
+  return getOrBuildProject(projectKey(LONG_PADDED_REFS_BASELINE), () =>
+    buildBaselineOnlyProject(browser, LONG_PADDED_REFS_BASELINE)
+  )
+}
+
+/** @see getServiceTemplateLongRefsProject */
+export function getServiceTemplateIncompleteBaselineProject(browser) {
+  return getOrBuildProject(projectKey(BASELINE_STAGE_INCOMPLETE), () =>
+    buildBaselineOnlyProject(browser, BASELINE_STAGE_INCOMPLETE)
+  )
+}
+
+/** @see getServiceTemplateLongRefsProject */
+export function getServiceTemplateBlankProposedEncroachmentProject(browser) {
+  return getServiceTemplatePostInterventionProject(
+    browser,
+    WATERCOURSE_PROPOSED_ENCROACHMENT_BLANK
+  )
+}
+
+/** @see getServiceTemplateLongRefsProject */
+export function getServiceTemplateHedgerowSignificanceBlankProject(browser) {
+  return getServiceTemplatePostInterventionProject(
+    browser,
+    HEDGEROW_SIGNIFICANCE_BLANK
+  )
+}
+
+/**
+ * The default site with the Enhanced H006 given no proposed strategic
+ * significance alone: area-enhanced-significance-blank.gpkg.
+ */
+export function getServiceTemplateAreaSignificanceBlankProject(browser) {
+  return getServiceTemplatePostInterventionProject(
+    browser,
+    AREA_ENHANCED_SIGNIFICANCE_BLANK
   )
 }

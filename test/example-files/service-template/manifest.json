@@ -1,6 +1,6 @@
 {
   "description": "Each file here is a copy of a file in bng-metric-harness/example-files/service-template/ (source), built by the harness's corpus recipes or bng-library's generator; its README says how. Refresh them with npm run check:fixtures -- --sync, never by hand.",
-  "harnessCommit": "95a03c9c2ee025b025a70448d043eca02a62c8c9",
+  "harnessCommit": "86d903b0a875b846508e3854384db951cc5ff876",
   "files": [
     {
       "file": "small-site-baseline.gpkg",
@@ -13,6 +13,18 @@
       "source": "valid/small-site.gpkg",
       "sha256": "600476fb2ee0eed394793fb96b58a860c7309ff9976ab26988a4032ef29b126b",
       "for": "The same site holding both stages: a baseline + post-intervention upload"
+    },
+    {
+      "file": "(Copy) small-site-baseline.gpkg",
+      "source": "valid/small-site-baseline.gpkg",
+      "sha256": "034ff78851968b67d0957f4571aa6cfb4999e0681afbb8e378fef1d4cd7428aa",
+      "for": "small-site-baseline.gpkg under a name that starts with punctuation and holds brackets: accepted, as the filename rule allows both"
+    },
+    {
+      "file": "duplicate-habitat-ref.gpkg",
+      "source": "valid/duplicate-habitat-ref.gpkg",
+      "sha256": "0e935ad08f5747183e622b830fab6999a43a5422f5076768fd758e1833548c2c",
+      "for": "Two area habitats share the Habitat Ref DUP-1: accepted, as habitats may share a reference"
     },
     {
       "file": "default-site-baseline.gpkg",
@@ -37,6 +49,186 @@
       "source": "attribute-problems/degrade-hedgerow-advance-missing.gpkg",
       "sha256": "42d5b1f9552487e5ddcf6a087074560d0fa9daf6c7a1a74022430da617ea7557",
       "for": "A hedgerow that gets worse without 30+ years created in advance: refused (STAGED_HABITAT_DEGRADE_NOT_VALID)"
+    },
+    {
+      "file": "habitat-ref-invalid-characters.gpkg",
+      "source": "attribute-problems/habitat-ref-invalid-characters.gpkg",
+      "sha256": "7c03250894d4a1e5dbc3433af495f1588e522fe0915f7f0afe9ea8b3e23066fc",
+      "for": "A baseline area habitat whose Habitat Ref holds the character a decoder puts in place of invalid UTF-8: refused (HABITAT_REF_INVALID_CHARACTERS)"
+    },
+    {
+      "file": "missing-habitat-ref-every-layer.gpkg",
+      "source": "attribute-problems/missing-habitat-ref-every-layer.gpkg",
+      "sha256": "1d67e8e5aa9e08dd9eb00df17a88ae43e955e8cc11e8144b9da6f5ba2369b49f",
+      "for": "A baseline area habitat, hedgerow (HG004) and watercourse (R002) with no Habitat Ref: refused as one HABITAT_REF_MISSING error"
+    },
+    {
+      "file": "missing-habitat-ref-and-comment-invalid.gpkg",
+      "source": "attribute-problems/missing-habitat-ref-and-comment-invalid.gpkg",
+      "sha256": "f4591dbdffa604a4cb5ee9ba779ddaca666f71ea59c354b1774c5ef6ac190870",
+      "for": "A habitat with no Habitat Ref, in both stages, and a comment holding U+FFFD: refused at the baseline + post-intervention upload (HABITAT_REF_MISSING and COMMENT_INVALID_CHARACTERS)"
+    },
+    {
+      "file": "comment-too-long.gpkg",
+      "source": "attribute-problems/comment-too-long.gpkg",
+      "sha256": "31f4f4a51d7a23c654d8c8acdc0a6c447a0f2c40e949cdb71fb0e468d3847b48",
+      "for": "H005's post-intervention Comment is 1,151 characters: refused (TEXT_TOO_LONG)"
+    },
+    {
+      "file": "comment-invalid-characters.gpkg",
+      "source": "attribute-problems/comment-invalid-characters.gpkg",
+      "sha256": "2a883feda3f284d5da9aa7bd6ec1719dee786a1fc7f1b3fc1398bd0e7a54023b",
+      "for": "H005's post-intervention Comment holds U+FFFD: refused (COMMENT_INVALID_CHARACTERS)"
+    },
+    {
+      "file": "baseline-area-incomplete.gpkg",
+      "source": "attribute-problems/baseline-area-incomplete.gpkg",
+      "sha256": "a38ef698d77305edd051817b03898d2520715e5439c3ce7a50c1605543623791",
+      "for": "H002 with no Baseline Condition in both stages: refused at the baseline + post-intervention upload (BASELINE_HABITATS_INCOMPLETE naming H002)"
+    },
+    {
+      "file": "baseline-incomplete-every-layer.gpkg",
+      "source": "attribute-problems/baseline-incomplete-every-layer.gpkg",
+      "sha256": "d06c7604c35615d8aa104fa137c86fb7e5844d768a20294f2b03a47c83a76b58",
+      "for": "H002, HG001 and R007 incomplete in both stages: refused at the baseline + post-intervention upload (BASELINE_HABITATS_INCOMPLETE, count 3)"
+    },
+    {
+      "file": "distinctiveness-post-intervention-only.gpkg",
+      "source": "attribute-problems/distinctiveness-post-intervention-only.gpkg",
+      "sha256": "174d90b5931c0ba4b2af1f01b5269483ddeb7f1cf462901d96f2bce33f1b8440",
+      "for": "H005, Created as Lowland meadows (Very High) in its post-intervention row only: refused (HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE)"
+    },
+    {
+      "file": "degrade-habitat-ref-blank.gpkg",
+      "source": "attribute-problems/degrade-habitat-ref-blank.gpkg",
+      "sha256": "e50f0ca2d3d7c714a266f1c17dc96cfb29dc953c07a9f6e519761c1218afe754",
+      "for": "An area habitat that gets worse with no Habitat Ref on its post-intervention row only: refused at the baseline + post-intervention upload (HABITAT_REF_MISSING)"
+    },
+    {
+      "file": "distinctiveness-out-of-scope.gpkg",
+      "source": "attribute-problems/distinctiveness-out-of-scope.gpkg",
+      "sha256": "46434897ad8d31e9dad6c71aa3b3aec6e64665937e178e38f72bc8dc1d831ce4",
+      "for": "High and Very High distinctiveness area habitats in both stages: refused (HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE), once for each stage at the baseline + post-intervention upload"
+    },
+    {
+      "file": "irreplaceable-tree.gpkg",
+      "source": "attribute-problems/irreplaceable-tree.gpkg",
+      "sha256": "008fba644b4dceabdafde506ab0e244abc811a1775ae28dec833028589d3ef9d",
+      "for": "T025, a Retained tree marked irreplaceable in both stages: refused (IRREPLACEABLE_TREE)"
+    },
+    {
+      "file": "advance-delay-both-set-every-layer.gpkg",
+      "source": "incomplete/advance-delay-both-set-every-layer.gpkg",
+      "sha256": "2a632bece3b30515a71c1e303fb6cf63eb27ba1b107134a2c5a075f1e7a28ee5",
+      "for": "Advance and delay both set on H005, HG009 and R003 (Created) and H001, HG002 and R006 (Enhanced): accepted, those saved Incomplete"
+    },
+    {
+      "file": "tree-enhanced-from-good.gpkg",
+      "source": "attribute-problems/tree-enhanced-from-good.gpkg",
+      "sha256": "04be27691f350a4dbb6a4f1e885ebb5165697514dd230481865f51e3781cb69b",
+      "for": "T008, a tree in Good condition, Enhanced: refused (TREE_NOT_ENHANCEABLE)"
+    },
+    {
+      "file": "invalid-area-medium-good-enhanced.gpkg",
+      "source": "permutations/invalid-interventions/invalid-area-medium-good-enhanced.gpkg",
+      "sha256": "b15b8431458e9e3777abde46d98e41713c1986e60e957001d7a3f0898ef657ad",
+      "for": "H001, a Medium area habitat in Good condition, Enhanced: refused (BASELINE_NOT_ENHANCEABLE)"
+    },
+    {
+      "file": "invalid-watercourse-medium-good-enhanced.gpkg",
+      "source": "permutations/invalid-interventions/invalid-watercourse-medium-good-enhanced.gpkg",
+      "sha256": "54eefd80f6905053de184d280253637dd55ed10cc77b75c3a05646c4a1c99443",
+      "for": "R001, a Medium distinctiveness watercourse in Good condition, Enhanced: refused (BASELINE_NOT_ENHANCEABLE)"
+    },
+    {
+      "file": "invalid-hedgerow-very-low-enhanced.gpkg",
+      "source": "permutations/invalid-interventions/invalid-hedgerow-very-low-enhanced.gpkg",
+      "sha256": "230ac94a13c1f73ed4954ed3c48378d4e87812a661420ef7eab3fdd8d1843681",
+      "for": "HG001, a Very Low distinctiveness hedgerow, Enhanced: refused (BASELINE_NOT_ENHANCEABLE)"
+    },
+    {
+      "file": "self-intersecting-redline-baseline.gpkg",
+      "source": "spatial-problems/self-intersecting-redline-baseline.gpkg",
+      "sha256": "c0d2c14c86389016ad6d5fef17a4d89c889b4a0910167d44d281149980c4473a",
+      "for": "A red line boundary drawn as a bowtie: refused (REDLINE_INVALID_GEOMETRY, with the parcel and area checks it sets off)"
+    },
+    {
+      "file": "redline-not-in-england-baseline.gpkg",
+      "source": "spatial-problems/redline-not-in-england-baseline.gpkg",
+      "sha256": "269c357527009af086b3123773fb93d04fd8fe6c3fbe617316446bd791dc5fd2",
+      "for": "A red line boundary in Wales: refused (REDLINE_OUTSIDE_ENGLAND and AREA_SUM_MISMATCH)"
+    },
+    {
+      "file": "redline-missing-baseline.gpkg",
+      "source": "spatial-problems/redline-missing-baseline.gpkg",
+      "sha256": "6c7ca80c029e5547c6e09f7a0b3643f43d75c0dab1ea69aebb48b42b4a2c286b",
+      "for": "An empty Red Line Boundary table: refused (NO_REDLINE)"
+    },
+    {
+      "file": "area-sum-mismatch-baseline.gpkg",
+      "source": "spatial-problems/area-sum-mismatch-baseline.gpkg",
+      "sha256": "e506a621935921a2549afe0d650c72c4fe03d72541ae6ce35491b36dfc9c26a8",
+      "for": "Habitat parcels that do not tile the red line boundary: refused (AREA_SUM_MISMATCH)"
+    },
+    {
+      "file": "bowtie-parcel-baseline.gpkg",
+      "source": "spatial-problems/bowtie-parcel-baseline.gpkg",
+      "sha256": "6d3c9efdf6fcb106f59d36dbb2e46ca618923789e2b6126eebde50b93e77ffe8",
+      "for": "H002, an area habitat drawn as a bowtie: refused (AREA_PARCELS_INVALID_GEOMETRY and AREA_SUM_MISMATCH)"
+    },
+    {
+      "file": "overlapping-parcels-baseline.gpkg",
+      "source": "spatial-problems/overlapping-parcels-baseline.gpkg",
+      "sha256": "9df22000021198e041ca3dc57a8f77f7b0a78d8050116960a8c99a70bf61c886",
+      "for": "H002 and H003 overlap: refused (PARCEL_OVERLAPS and AREA_SUM_MISMATCH)"
+    },
+    {
+      "file": "parcel-too-small-baseline.gpkg",
+      "source": "spatial-problems/parcel-too-small-baseline.gpkg",
+      "sha256": "e564fbb80f49166c5e40904e0beaefed4e7b2989e0f352129662e8b95c7c0713",
+      "for": "H002, an area habitat of 0.81 square metres: refused (AREA_PARCELS_TOO_SMALL and AREA_SUM_MISMATCH)"
+    },
+    {
+      "file": "parcel-outside-redline-baseline.gpkg",
+      "source": "spatial-problems/parcel-outside-redline-baseline.gpkg",
+      "sha256": "b22a9ab33d9809d1324d35302e17c24e90307fa8a5a546d0c4db1cfeafaafad3",
+      "for": "H002, an area habitat outside the red line boundary: refused (AREA_PARCELS_OUTSIDE_REDLINE and AREA_SUM_MISMATCH; the SLIVERS_OUTSIDE_REDLINE it also raises is not shown)"
+    },
+    {
+      "file": "no-area-habitats-baseline-table.gpkg",
+      "source": "invalid-schema/no-area-habitats-baseline-table.gpkg",
+      "sha256": "c5b5f137533e1b2f6b53763d69186de785bff82754d72b947f17ce9c589c326f",
+      "for": "No Area Habitats Baseline table: refused (GPKG_MISSING_LAYER), on the catch-all page"
+    },
+    {
+      "file": "missing-columns-in-area-habitats.gpkg",
+      "source": "invalid-schema/missing-columns-in-area-habitats.gpkg",
+      "sha256": "7494357e4436055a5e32924410458f42487a942d2e815d392bac073797ed3a4a",
+      "for": "Area Habitats Baseline has no Baseline Condition or Area column: refused (GPKG_BASELINE_MISSING_COLUMN, once for each)"
+    },
+    {
+      "file": "wrong-geometry-type-in-area-habitats.gpkg",
+      "source": "invalid-schema/wrong-geometry-type-in-area-habitats.gpkg",
+      "sha256": "7192bc12ae96e0f5c46c9a6f3c7c795d819e01d1da66f8296cf9b159741e66f2",
+      "for": "Area Habitats Baseline declares LINESTRING geometry: refused (GPKG_BASELINE_GEOMETRY_TYPE_NAME and GPKG_BASELINE_COLUMN_SQLITE_TYPE)"
+    },
+    {
+      "file": "no-geometry-column-in-red-line-boundary.gpkg",
+      "source": "invalid-schema/no-geometry-column-in-red-line-boundary.gpkg",
+      "sha256": "081ccc33d62b645ab41fad88ba893541bf7a38f6298b6b3b67a4ca0f481e348c",
+      "for": "Red Line Boundary has no geometry column: refused (GPKG_RLB_NO_GEOMETRY_COLUMN), on the catch-all page"
+    },
+    {
+      "file": "multiple-geometry-columns-in-red-line-boundary.gpkg",
+      "source": "invalid-schema/multiple-geometry-columns-in-red-line-boundary.gpkg",
+      "sha256": "fcefd7ebb4064b6245316274ddbad2db9484b51fa41117e92aa44d3ec32b7b82",
+      "for": "Red Line Boundary registers a second geometry column: refused (GPKG_BASELINE_MULTIPLE_GEOMETRY_COLUMNS), on the catch-all page"
+    },
+    {
+      "file": "wrong-geometry-type-in-red-line-boundary.gpkg",
+      "source": "invalid-schema/wrong-geometry-type-in-red-line-boundary.gpkg",
+      "sha256": "50f0a57d6614c3edcab1bee89d5ec1a92ae560cc6cb84012f043cfb53e19e6b9",
+      "for": "Red Line Boundary declares POINT geometry: refused (GPKG_BASELINE_GEOMETRY_TYPE_NAME and GPKG_BASELINE_COLUMN_SQLITE_TYPE)"
     },
     {
       "file": "watercourse-degraded-baseline.gpkg",
@@ -201,6 +393,18 @@
       "for": "Every field filled: area habitats +34.9% and trading Met, while hedgerows (-24.1%) and watercourses (-77.9%) are Not met"
     },
     {
+      "file": "invalid-data-incomplete.gpkg",
+      "source": "permutations/data-completeness/invalid-data-incomplete.gpkg",
+      "sha256": "10912578eb69cfa32160c6fba1d65fa46dafd6ec56ac6cbaf588050b282d38ec",
+      "for": "H004 to H006, Enhanced Other neutral grassland with no target condition or strategic significance: accepted, each saved Incomplete with zero units"
+    },
+    {
+      "file": "long-and-padded-refs.gpkg",
+      "source": "valid/long-and-padded-refs.gpkg",
+      "sha256": "5cd1016d4d4eb88a9ea98b514a4b8136c11ef0063a4b021aae0595275aab5b09",
+      "for": "The default site with four Retained area habitats renamed in both stages, H034 padded with three spaces each side and H029 a ref with letters outside ASCII: accepted, the padded ref saved trimmed and the others whole"
+    },
+    {
       "file": "net-gain-met.gpkg",
       "source": "permutations/net-gain/met.gpkg",
       "sha256": "a2638545348d88d52792f7a6282c63cd48340991791066a2dc57176f8147c1e4",
@@ -213,10 +417,52 @@
       "for": "R003 Enhanced on a course 20 m shorter than its parent: watercourses gain 2.7%, above zero and below the 10% target"
     },
     {
+      "file": "invalid-hedgerow-medium-type-change.gpkg",
+      "source": "permutations/invalid-interventions/invalid-hedgerow-medium-type-change.gpkg",
+      "sha256": "48aad56e051fc54565c63f97809a8c9abcee1b3e58cfc13e306f4f3a9ac292cb",
+      "for": "HG001 Enhanced into a hedgerow type the metric does not allow: accepted, its proposed values nulled and saved Incomplete; HG002 and HG003 Enhanced and Complete"
+    },
+    {
+      "file": "trading-trade-down.gpkg",
+      "source": "permutations/trading-rules/trading-trade-down.gpkg",
+      "sha256": "a95e67ebffb1da337b7bafe9117bd006bb35cdc5df616b2b09a1e6591114c314",
+      "for": "A Low hedgerow replaced by two Very low ones: hedgerow Low band below zero (-1.38 units), carried down to the Very low band as 0.00"
+    },
+    {
+      "file": "invalid-watercourse-culvert-enhanced.gpkg",
+      "source": "permutations/invalid-interventions/invalid-watercourse-culvert-enhanced.gpkg",
+      "sha256": "3660344dc4ae4172209840eb04c54745acd75f7c0dc91e9bf2ea6934a8b4e767",
+      "for": "R001, a culvert Enhanced in place: accepted and saved Incomplete, so the watercourse Low band falls below zero (-0.63 units) with no Medium surplus"
+    },
+    {
       "file": "long-and-padded-refs-baseline.gpkg",
       "source": "valid/long-and-padded-refs-baseline.gpkg",
       "sha256": "79e2367f33a4f38f79fc77a695f65c502ef1616d5daf2c79fc7c97f963411011",
-      "for": "Baseline area habitats with a padded ref (H034, three spaces each side), a 99-character ref (H050-x…) and two long or non-ASCII ones: accepted, each saved trimmed and whole"
+      "for": "Baseline-stage file for long-and-padded-refs.gpkg: area habitats WOODLAND-NORTH-EDGE, Étang-du-Moulin-Ælfrīc, a 99-character H050- ref and a space-padded H034"
+    },
+    {
+      "file": "baseline-incomplete-every-layer-baseline.gpkg",
+      "source": "incomplete/baseline-incomplete-every-layer-baseline.gpkg",
+      "sha256": "fb4d77942e4d462310806d1b65efa27bbf97d7df58ae4c004fe6f382283a40a7",
+      "for": "A baseline-stage file with H002 and HG001 missing their Baseline Condition and R007 its riparian encroachment: accepted at the baseline upload, those three Incomplete"
+    },
+    {
+      "file": "watercourse-proposed-encroachment-blank.gpkg",
+      "source": "incomplete/watercourse-proposed-encroachment-blank.gpkg",
+      "sha256": "368f6db636e43ccdc5fd58a0385673d61a1f72c338bb3784385035bf6b71b4c5",
+      "for": "The Enhanced R006 with no Proposed Encroachment into Watercourse and the Created R004 with no Proposed Encroachment into riparian zone: accepted, both Incomplete"
+    },
+    {
+      "file": "watercourses-created-only.gpkg",
+      "source": "valid/watercourses-created-only.gpkg",
+      "sha256": "799857cd1ef13054f943d3056ed21819ac30acc95e8ea607c5658ca129e0c880",
+      "for": "No baseline watercourses and one Created post-intervention ditch, R004: watercourses only post intervention"
+    },
+    {
+      "file": "hedgerow-enhanced-significance-blank.gpkg",
+      "source": "incomplete/hedgerow-enhanced-significance-blank.gpkg",
+      "sha256": "b598714d1f5487cec2aaf5bbb40f97a97880dd372001c354e4c1b42775869b54",
+      "for": "The Enhanced HG002 with no Proposed Strategic Significance: accepted, Incomplete and unpriced, its proposed condition and years kept"
     },
     {
       "file": "invalid-hedgerow-low-not-possible.gpkg",
@@ -243,10 +489,10 @@
       "for": "R001, a Culvert (Low) enhanced to Ditches Moderate: a Culvert baseline offers Ditches and Canals at every condition, over 10 years (BMD-1047)"
     },
     {
-      "file": "watercourse-proposed-encroachment-blank.gpkg",
-      "source": "incomplete/watercourse-proposed-encroachment-blank.gpkg",
-      "sha256": "368f6db636e43ccdc5fd58a0385673d61a1f72c338bb3784385035bf6b71b4c5",
-      "for": "The default site with the Enhanced R006's proposed watercourse encroachment blank: saved Incomplete (BMD-1047)"
+      "file": "area-enhanced-significance-blank.gpkg",
+      "source": "incomplete/area-enhanced-significance-blank.gpkg",
+      "sha256": "05b6f4a548916e3ec1432cacbd3092b45177ecef2bbaa39fe89c9865892bba17",
+      "for": "The default site with the Enhanced H006 given no Proposed Strategic Significance: accepted, H006 Incomplete and unpriced, its proposed condition and years kept"
     }
   ]
 }

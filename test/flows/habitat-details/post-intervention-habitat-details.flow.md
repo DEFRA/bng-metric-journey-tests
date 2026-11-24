@@ -600,7 +600,9 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
   "View baseline details" (AC1, AC11). R001 of `watercourse-enhanced-culvert.gpkg` covers a
   Culvert baseline's lists and the previews as Habitat type, Target condition and Advance /
   Delay change (AC1, AC3-AC6, AC10). R006 of `watercourse-proposed-encroachment-blank.gpkg`
-  covers the incomplete form and list (AC2). The save is in Step 11. Significance, the
+  covers the incomplete form's lists and `0.00` units (AC2); the same project's list row and
+  saved selections are checked in `watercourses-post-intervention.spec.js` (BNG Service template
+  blank proposed encroachment, BMD-1088). The save is in Step 11. Significance, the
   encroachments, Cancel, validation and Upload file (AC7-AC9, AC13-AC15) share the Created
   watercourse form and are left to the Step 8 tests. On the legacy run, the all-unit-types R007
   and mixed-retention WC2 tests check the same form.
@@ -696,7 +698,7 @@ type`, `Choose target condition`, `Choose strategic significance`, `Choose advan
 - **Journey coverage (BMD-1047, Enhanced watercourse):** "BNG Service template watercourses"
   covers a complete save that changes R006's condition and both encroachments (AC12 Scenario A:
   row, units and total). Scenario B, Cancel, validation and Upload file share the Created
-  watercourse code and tests, and the `0.00` display is witnessed by the Step 9 incomplete test.
+  watercourse code and tests, and the `0.00` display is witnessed by the Step 9 incomplete tests.
 - **Journey coverage (BMD-1045, Enhanced area):** "Enhanced area habitats — editing" covers a
   complete save that changes the habitat type, condition, significance and delay (AC12
   Scenario A: row, units and total). Scenario B awaits the list-display ruling above. Cancel,
