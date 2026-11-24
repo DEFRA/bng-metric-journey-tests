@@ -83,10 +83,12 @@ const DUPLICATE_REF_FILE = 'Baseline - duplicate habitat ref.gpkg'
 const DUPLICATE_REF = 'DUP-1'
 const NATURAL_ENGLAND_MISMATCH_COPY =
   'The layer names and column names do not match what is required by Natural England'
+const SERVICE_TEMPLATE_MISMATCH_COPY =
+  'The layer names and column names do not match the BNG Service template'
 // The catch-all for a file whose layers or columns do not match, as the run's
 // template words it: what a misrouted refusal would fall through to.
 const CATCH_ALL_MISMATCH_COPY = isServiceTemplateRun()
-  ? 'The layer names and column names do not match the BNG Service template'
+  ? SERVICE_TEMPLATE_MISMATCH_COPY
   : NATURAL_ENGLAND_MISMATCH_COPY
 
 // A valid baseline in the template this run tests.
@@ -1275,11 +1277,9 @@ function describeIrreplaceableHabitat() {
 // leave the parcels short of the red line boundary, so AREA_SUM_MISMATCH comes
 // with them and the page lists both rather than showing one problem's page.
 const ST_SUMMARY_TITLE = 'There is a problem with your file'
-const ST_CATCH_ALL_BODY =
-  'The layer names and column names do not match the BNG Service template. Rename the layers and columns and'
+const ST_CATCH_ALL_BODY = `${SERVICE_TEMPLATE_MISMATCH_COPY}. Rename the layers and columns and`
 const ST_AREA_HABITATS_MISMATCH =
   'Layer "Area Habitats Baseline" does not match the BNG Service template'
-const ST_DUPLICATE_REF = 'DUP-1'
 const ST_REDLINE_MISSING_BODY =
   'The redline boundary is missing. Draw the red line boundary and'
 const ST_AREA_SUM_MISMATCH =
@@ -1346,7 +1346,7 @@ function describeServiceTemplateChecks() {
         )
 
         await areaBaselinePage.open(id)
-        await expect(areaBaselinePage.refLink(ST_DUPLICATE_REF)).toHaveCount(2)
+        await expect(areaBaselinePage.refLink(DUPLICATE_REF)).toHaveCount(2)
       })
 
       // The page is the same text page as the legacy template's, one error

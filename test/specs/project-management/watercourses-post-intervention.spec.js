@@ -975,9 +975,9 @@ test.describe('project-management', { tag: '@project-management' }, () => {
         // The control: untouched, and priced from its baseline encroachments.
         // Without it a zero assertion would pass on a grid that priced
         // nothing.
-        expect(await unitsOf(RETAINED, MIX_RETAINED_REF)).toMatch(
-          GRID_UNITS_2DP
-        )
+        const retainedUnits = await unitsOf(RETAINED, MIX_RETAINED_REF)
+        expect(retainedUnits).toMatch(GRID_UNITS_2DP)
+        expect(Number(retainedUnits)).toBeGreaterThan(0)
 
         await grid.tab(ENHANCED).click()
         await expect(grid.featureRow(ENHANCED, MIX_ENHANCED_REF)).toBeVisible()

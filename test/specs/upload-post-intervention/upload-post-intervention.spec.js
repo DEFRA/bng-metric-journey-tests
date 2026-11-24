@@ -17,6 +17,7 @@ import { getRunAllUnitTypesPostInterventionProject } from '@utils/run-projects.j
 import {
   AREA_HABITATS,
   HEDGEROWS,
+  STATUS_INCOMPLETE,
   TILE_BASELINE
 } from '@utils/unit-type-labels.js'
 import {
@@ -890,15 +891,20 @@ function describeContentValidationErrors() {
 
 // ─── Conflicting advance and delay timing ────────────────────────────────────
 
-// The Units cell of `ref` in whichever intervention tab holds it.
-async function piUnitsCell(page, projectId, type, ref) {
+// The `column` cell of `ref` in whichever intervention tab holds it.
+async function piCell(page, projectId, type, ref, column) {
   const { unitPage, label } = await openPiTabFor(page, projectId, type, ref)
-  const index = await unitPage.columnIndex(label, 'Units')
+  const index = await unitPage.columnIndex(label, column)
   return unitPage
     .featureRows(label)
     .filter({ has: page.getByRole('link', { name: ref, exact: true }) })
     .locator('td')
     .nth(index)
+}
+
+// The Units cell of `ref` in whichever intervention tab holds it.
+function piUnitsCell(page, projectId, type, ref) {
+  return piCell(page, projectId, type, ref, 'Units')
 }
 
 function describeConflictingTiming() {
@@ -2068,14 +2074,18 @@ function describeServiceTemplateImports() {
     { tag: ['@regression', SERVICE_TEMPLATE_ONLY] },
     () => {
       // Advance 2 and delay 3 on a Created and an Enhanced feature of each
-      // layer: accepted, both cleared, and left unpriced, which each grid
-      // shows as 0.00. H006, Enhanced with neither, is the control: priced.
+      // layer: accepted, both cleared, and left unpriced and Incomplete, which
+      // each grid shows as 0.00. Their edit forms show no years either way.
+      // H006, Enhanced with neither, is the control: priced.
       test('a file whose Created and Enhanced features set both advance and delay is accepted and those features are left unpriced', async ({
         createProjectFlow,
         projectDashboardPage,
         uploadPostInterventionFileFlow,
+        postInterventionHabitatDetailsPage: details,
         page
       }) => {
+        // An upload, then each feature's grid row and edit form.
+        test.setTimeout(UPLOAD_TIMEOUT * 2)
         const { id } = await setupProject(
           createProjectFlow,
           projectDashboardPage,
@@ -2087,10 +2097,19 @@ function describeServiceTemplateImports() {
         )
 
         for (const [type, ref] of ST_CONFLICTING_TIMING_REFS) {
+          const feature = `${type} ${ref}`
           await expect(
             await piUnitsCell(page, id, type, ref),
-            `${type} ${ref}`
+            feature
           ).toHaveText('0.00')
+          await expect(
+            await piCell(page, id, type, ref, 'Status'),
+            feature
+          ).toHaveText(STATUS_INCOMPLETE)
+          const { unitPage, label } = await openPiTabFor(page, id, type, ref)
+          await unitPage.refLink(label, ref).click()
+          await expect(details.advanceYearsSelect, feature).toHaveValue('')
+          await expect(details.delayYearsSelect, feature).toHaveValue('')
         }
         // The control is priced, not merely shown to two places: zero would
         // also match the format.
