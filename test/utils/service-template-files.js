@@ -69,7 +69,7 @@ export const BOWTIE_PARCEL = `${DIR}/bowtie-parcel-baseline.gpkg`
 export const OVERLAPPING_PARCELS = `${DIR}/overlapping-parcels-baseline.gpkg`
 // H002, 0.81 square metres.
 export const PARCEL_TOO_SMALL = `${DIR}/parcel-too-small-baseline.gpkg`
-// H001, outside the red line boundary.
+// H002, outside the red line boundary.
 export const PARCEL_OUTSIDE_REDLINE = `${DIR}/parcel-outside-redline-baseline.gpkg`
 export const NO_AREA_HABITATS_TABLE = `${DIR}/no-area-habitats-baseline-table.gpkg`
 // Area Habitats Baseline has no Baseline Condition or Area column.

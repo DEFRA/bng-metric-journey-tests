@@ -192,7 +192,7 @@
       "file": "parcel-outside-redline-baseline.gpkg",
       "source": "spatial-problems/parcel-outside-redline-baseline.gpkg",
       "sha256": "b22a9ab33d9809d1324d35302e17c24e90307fa8a5a546d0c4db1cfeafaafad3",
-      "for": "H001, an area habitat outside the red line boundary: refused (AREA_PARCELS_OUTSIDE_REDLINE and AREA_SUM_MISMATCH; the SLIVERS_OUTSIDE_REDLINE it also raises is not shown)"
+      "for": "H002, an area habitat outside the red line boundary: refused (AREA_PARCELS_OUTSIDE_REDLINE and AREA_SUM_MISMATCH; the SLIVERS_OUTSIDE_REDLINE it also raises is not shown)"
     },
     {
       "file": "no-area-habitats-baseline-table.gpkg",
