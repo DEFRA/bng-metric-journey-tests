@@ -10,7 +10,8 @@ BMD-276 introduced:
   page that shows the navigation (project summary, the area, hedgerow and watercourse summaries
   and their Baseline, Post intervention and Trading rules pages, and Reports). The link carries
   the page it was followed from as `returnUrl`. The page is still reachable by URL. The project
-  summary's "View project details" section is still unlinked, which is out of scope.
+  summary's unlinked "View project details" section was removed after the PO review (frontend
+  PR#545, 2026-11-23), so the navigation item is the only way in.
 - **Save and Cancel** both return to `returnUrl`. A missing or off-site one (anything but a
   same-site path) falls back to the project summary. A project with no baseline is passed on
   from the summary to `/upload-file` (BMD-1076).

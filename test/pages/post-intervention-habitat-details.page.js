@@ -89,15 +89,19 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     // the back link. Without this scope every index is shifted by the chrome.
     this.stackedValues = page.getByRole('main').getByRole('paragraph')
     // Read-only stacked pages put Size after Intervention, with the baseline
-    // link after the section. Created forms put the baseline link before those
-    // rows, so use the text-based Created length locator on their edit form.
+    // link after the section. An Enhanced edit form puts the baseline link
+    // before those rows (pass `baselineLink: true` to createdFormValue); a
+    // Created form never shows it. Use the text-based Created length locator
+    // on the edit forms.
     this.stackedSizeValue = this.stackedValues.nth(1)
     this.createdLengthValue = page
       .getByRole('main')
       .getByText(/^\s*[\d.]+km\s*$/)
 
-    // Shown only when a baseline feature shares the parcel ref (the baseline
-    // and post-intervention uploads have independent featureIds).
+    // Shown only on a Retained or Enhanced feature's page, never a Created
+    // one's (BMD-1218), and only when its baseline feature is found: by the
+    // parent a BNG Service template feature names, else by a baseline feature
+    // sharing the parcel ref (the two uploads have independent featureIds).
     this.viewBaselineLink = page.getByRole('link', {
       name: 'View baseline details'
     })
