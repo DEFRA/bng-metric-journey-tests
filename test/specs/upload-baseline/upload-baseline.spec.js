@@ -23,9 +23,11 @@ import {
   AREA_HABITATS_WRONG_GEOMETRY_TYPE,
   AREA_SUM_MISMATCH,
   BOWTIE_PARCEL,
+  CROSSED_PARCEL_ALONE,
   DEFAULT_SITE,
   DEFAULT_SITE_BASELINE,
   DISTINCTIVENESS_OUT_OF_SCOPE,
+  DISTINCTIVENESS_OUT_OF_SCOPE_AND_COMMENT_INVALID,
   DUPLICATE_HABITAT_REF,
   HABITAT_REF_INVALID_CHARACTERS,
   HABITAT_REF_MISSING_EVERY_LAYER,
@@ -1293,6 +1295,21 @@ const ST_AREA_SUM_MISMATCH =
 const ST_IRREPLACEABLE_TREE_HEADING =
   'Irreplaceable Habitat must be "No" for every tree, because the service does not accept irreplaceable trees, such as ancient and veteran trees. These trees have Irreplaceable Habitat "Yes", blank or another value'
 const ST_IRREPLACEABLE_TREE_ROW = 'Individual Trees Baseline Habitat Ref T025'
+const ST_CROSSED_PARCEL_HEADING = 'This parcel H002 contains an error'
+const ST_CROSSED_PARCEL_BODY =
+  'This parcel is overlapping itself. Draw the parcel again and'
+const ST_DISTINCTIVENESS_HEADING =
+  'One or more habitats have a distinctiveness that is out of scope for the BNG Beta service'
+const ST_COMMENT_INVALID_HEADING =
+  'One or more comments contain characters that are not valid UTF-8'
+const ST_OUT_OF_SCOPE_HABITATS = [
+  'Feature Ref H001 — Grassland - Lowland meadows (Very high)',
+  'Feature Ref H002 — Grassland - Traditional orchards (High)'
+]
+// H004's baseline row.
+const ST_COMMENT_INVALID_ROW = 'fid 4'
+const ST_ALLOWED_DISTINCTIVENESS =
+  'Allowed distinctiveness: Medium, Low and Very low.'
 
 // A refusal listed with others: the problems list, with the way back.
 async function expectProblemsList(errorFilePage, id, headings) {
@@ -1637,6 +1654,39 @@ function describeServiceTemplateChecks() {
         ).toBeVisible()
       })
 
+      // The same fault with nothing else wrong: H002's outline crosses itself
+      // in place, so the parcels still tile the red line boundary, and the
+      // page is the one that names the parcel.
+      test('a self-intersecting parcel alone shows the page that names it', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        const id = await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            page
+          },
+          CROSSED_PARCEL_ALONE
+        )
+
+        await expect(errorFilePage.errorSummary).not.toBeVisible()
+        await expect(
+          errorFilePage.singleErrorHeading(ST_CROSSED_PARCEL_HEADING)
+        ).toBeVisible()
+        await expect(page.getByText(ST_CROSSED_PARCEL_BODY)).toBeVisible()
+        await expect(errorFilePage.uploadDifferentFileLink).not.toBeVisible()
+        await expect(errorFilePage.backToProjectLink).not.toBeVisible()
+        await errorFilePage.uploadNewFileLink.click()
+        await expect(page).toHaveURL(
+          new RegExp(`/projects/${id}/upload-baseline-file`)
+        )
+      })
+
       test('overlapping parcels are refused in the problems list, naming both, with the ways back', async ({
         createProjectFlow,
         projectDashboardPage,
@@ -1755,6 +1805,43 @@ function describeServiceTemplateChecks() {
         )
         await expect(errorFilePage.uploadDifferentFileLink).not.toBeVisible()
         await expect(errorFilePage.backToProjectLink).not.toBeVisible()
+      })
+
+      // The same habitats with a second problem, a comment that is not valid
+      // UTF-8: the problems list, where the out-of-scope habitats are listed
+      // under the distinctiveness bands the service allows.
+      test('High/Very High distinctiveness habitats among other problems are listed with the distinctiveness allowed', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        errorFilePage,
+        page
+      }) => {
+        const id = await uploadToErrorFile(
+          {
+            createProjectFlow,
+            projectDashboardPage,
+            uploadBaselineFileFlow,
+            page
+          },
+          DISTINCTIVENESS_OUT_OF_SCOPE_AND_COMMENT_INVALID
+        )
+
+        await expectProblemsList(errorFilePage, id, [
+          ST_DISTINCTIVENESS_HEADING,
+          ST_COMMENT_INVALID_HEADING
+        ])
+        await expect(errorFilePage.errorSummary).toContainText(
+          ST_ALLOWED_DISTINCTIVENESS
+        )
+        for (const habitat of ST_OUT_OF_SCOPE_HABITATS) {
+          await expect(listItem(page, habitat)).toBeVisible()
+        }
+        await expect(listItem(page, ST_COMMENT_INVALID_ROW)).toBeVisible()
+        await expect(errorFilePage.backToProjectLink).toHaveAttribute(
+          'href',
+          `/projects/${id}/project-summary`
+        )
       })
 
       // The service does not accept irreplaceable habitats. A tree is the one

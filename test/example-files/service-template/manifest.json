@@ -1,6 +1,6 @@
 {
   "description": "Each file here is a copy of a file in bng-metric-harness/example-files/service-template/ (source), built by the harness's corpus recipes or bng-library's generator; its README says how. Refresh them with npm run check:fixtures -- --sync, never by hand.",
-  "harnessCommit": "86d903b0a875b846508e3854384db951cc5ff876",
+  "harnessCommit": "615ad0bd4134fc7781613edc0212a9add9225870",
   "files": [
     {
       "file": "small-site-baseline.gpkg",
@@ -111,6 +111,12 @@
       "for": "High and Very High distinctiveness area habitats in both stages: refused (HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE), once for each stage at the baseline + post-intervention upload"
     },
     {
+      "file": "distinctiveness-out-of-scope-and-comment-invalid.gpkg",
+      "source": "attribute-problems/distinctiveness-out-of-scope-and-comment-invalid.gpkg",
+      "sha256": "8be59c2bd538d2f9b489b88c0370e5dc4d8397ea7f2d3b4319a69cfc2bfcc240",
+      "for": "The out-of-scope habitats with a second problem, H004's baseline comment holding U+FFFD: refused in the problems list (HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE and COMMENT_INVALID_CHARACTERS), under the distinctiveness bands the service allows"
+    },
+    {
       "file": "irreplaceable-tree.gpkg",
       "source": "attribute-problems/irreplaceable-tree.gpkg",
       "sha256": "008fba644b4dceabdafde506ab0e244abc811a1775ae28dec833028589d3ef9d",
@@ -181,6 +187,12 @@
       "source": "spatial-problems/bowtie-parcel-baseline.gpkg",
       "sha256": "6d3c9efdf6fcb106f59d36dbb2e46ca618923789e2b6126eebde50b93e77ffe8",
       "for": "H002, an area habitat drawn as a bowtie: refused (AREA_PARCELS_INVALID_GEOMETRY and AREA_SUM_MISMATCH)"
+    },
+    {
+      "file": "crossed-parcel-alone-baseline.gpkg",
+      "source": "spatial-problems/crossed-parcel-alone-baseline.gpkg",
+      "sha256": "1121504b59678bf11efc9ffbd861277dfe4674b2a0e7ba9796d264a069f6c0d4",
+      "for": "H002's outline crossing itself, with nothing else wrong: refused on the page that names the parcel (AREA_PARCELS_INVALID_GEOMETRY alone)"
     },
     {
       "file": "overlapping-parcels-baseline.gpkg",
