@@ -1635,7 +1635,12 @@ const ST_BASELINE_WATERCOURSE_REFS = [
   'R006',
   'R007'
 ]
-const ST_LOST_WATERCOURSE_REF = 'R002'
+const ST_LOST_WATERCOURSE = {
+  ref: 'R002',
+  habitatType: 'Ditches',
+  condition: 'Fairly Good (2.5)',
+  km: 0.504
+}
 const ST_CREATED_WATERCOURSE_REF = 'R003'
 const ST_LOST_TREE_REFS = [
   'T002',
@@ -1649,6 +1654,12 @@ const ST_LOST_TREE_REFS = [
 ]
 const ST_BASELINE_TREE_COUNT = 24
 const ST_CREATED_TREE_REF = 'T005'
+// A Small tree's size is the band's fixed area.
+const ST_LOST_TREE = {
+  ref: 'T018',
+  size: '0.0041ha',
+  condition: 'Good (3)'
+}
 
 function describeServiceTemplateImports() {
   test.describe(
@@ -2122,8 +2133,9 @@ function describeServiceTemplateImports() {
       // The upload saves the file's own Baseline tables as the baseline, Lost
       // features among them, and its Post-Intervention tables as the
       // post-intervention document, Created features among them. Read off the
-      // shared default-site project, which no test edits. That a Lost feature
-      // is on no post-intervention tab is the post-intervention grids' specs'.
+      // shared default-site project, which no test edits. That a Lost
+      // hedgerow or watercourse is on no post-intervention tab is the
+      // post-intervention grids' specs'; a Lost tree's is this test's.
       test('Lost features are in the baseline the file brings, and Created ones only in the post-intervention grids', async ({
         browser,
         hedgerowsBaselinePage,
@@ -2156,8 +2168,12 @@ function describeServiceTemplateImports() {
         expect([...watercourseRefs].sort()).toEqual(
           ST_BASELINE_WATERCOURSE_REFS
         )
-        expect(watercourseRefs).toContain(ST_LOST_WATERCOURSE_REF)
+        expect(watercourseRefs).toContain(ST_LOST_WATERCOURSE.ref)
         expect(watercourseRefs).not.toContain(ST_CREATED_WATERCOURSE_REF)
+        expectLinearRowMatchesFile(
+          await watercoursesBaselinePage.rowValues(ST_LOST_WATERCOURSE.ref),
+          ST_LOST_WATERCOURSE
+        )
 
         await areaBaselinePage.open(id)
         const treeRefs = (await areaBaselinePage.columnValues('ref')).filter(
@@ -2166,12 +2182,23 @@ function describeServiceTemplateImports() {
         expect(treeRefs).toHaveLength(ST_BASELINE_TREE_COUNT)
         expect(treeRefs).toEqual(expect.arrayContaining(ST_LOST_TREE_REFS))
         expect(treeRefs).not.toContain(ST_CREATED_TREE_REF)
+        const tree = await areaBaselinePage.rowValues(ST_LOST_TREE.ref)
+        expect(tree.size).toBe(ST_LOST_TREE.size)
+        expect(tree.condition).toBe(ST_LOST_TREE.condition)
 
+        // The Created tree reaches the Created grid, and no Lost tree reaches
+        // any grid.
         await areaPostInterventionPage.open(id)
-        await areaPostInterventionPage.tab('Created').click()
-        expect(
-          await areaPostInterventionPage.columnValues('Created', 'Ref')
-        ).toContain(ST_CREATED_TREE_REF)
+        for (const label of ['Retained', 'Enhanced', 'Created']) {
+          await areaPostInterventionPage.tab(label).click()
+          const refs = await areaPostInterventionPage.columnValues(label, 'Ref')
+          for (const ref of ST_LOST_TREE_REFS) {
+            expect(refs, `Lost ${ref} in the ${label} grid`).not.toContain(ref)
+          }
+          if (label === 'Created') {
+            expect(refs).toContain(ST_CREATED_TREE_REF)
+          }
+        }
       })
     }
   )
