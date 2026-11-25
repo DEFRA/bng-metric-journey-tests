@@ -214,6 +214,12 @@ const ST_RETAINED_HEDGEROW_BASELINE_COMMENT = 'Cut annually'
 const ST_RETAINED_TREE = 'T008'
 const ST_RETAINED_WATERCOURSE = 'R007'
 const ST_RETAINED_WATERCOURSE_NO_COMMENT = 'R001'
+// H003 is Retained in two pieces, each showing its parent's imported comment.
+// H039's parent has none; its own copy in the file is "Seeded with a local
+// mix".
+const ST_RETAINED_AREA = 'H003'
+const ST_RETAINED_AREA_BASELINE_COMMENT = 'Grazed by sheep'
+const ST_RETAINED_AREA_NO_COMMENT = 'H039'
 // Baseline features with no comment: H001 (Enhanced) for the refusal, R002
 // (Lost) for the 999-character comment.
 const ST_REFUSED_COMMENT_AREA = 'H001'
@@ -3398,6 +3404,47 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
         await openFromGrid(page, 'watercourse', ST_LONG_COMMENT_WATERCOURSE)
         await expect(details.commentInput).toHaveValue(comment)
+      })
+
+      // The area habitat layer's witness, and the Retained page's layout: the
+      // imported comment is the last row of the section, above the "View
+      // baseline details" link.
+      test("shows a Retained area habitat's imported baseline comment read-only, and No data without one, never its own", async ({
+        postInterventionHabitatDetailsPage: details,
+        page
+      }) => {
+        // Either of H003's two pieces shows its parent's comment.
+        const { unitPage, label } = await openPiTabFor(
+          page,
+          projectId,
+          'area',
+          ST_RETAINED_AREA
+        )
+        expect(label).toBe(RETAINED)
+        await unitPage.refLink(RETAINED, ST_RETAINED_AREA).first().click()
+        await expect(page).toHaveURL(/\/post-intervention-habitat-details/)
+        await expect(details.supportingInformationValue).toHaveText(
+          ST_RETAINED_AREA_BASELINE_COMMENT
+        )
+        await expect(details.commentInput).toHaveCount(0)
+        await expect(details.stackedFieldLabels).toHaveText(
+          RETAINED_SECTION_LABELS
+        )
+        await details.assertRetainedRefForm({ ref: ST_RETAINED_AREA })
+        await expect(details.habitatUnitsValue).toHaveText(UNITS_TWO_DP_PATTERN)
+        const valueBox = await details.supportingInformationValue.boundingBox()
+        const linkBox = await details.viewBaselineLink.boundingBox()
+        expect(valueBox.y).toBeLessThan(linkBox.y)
+
+        await openRetainedPiDetails(
+          page,
+          projectId,
+          'area',
+          ST_RETAINED_AREA_NO_COMMENT
+        )
+        await expect(details.supportingInformationValue).toHaveText(
+          NO_SUPPORTING_INFORMATION
+        )
       })
 
       // The Retained HG010's page shows its parent's comment as edited, with
