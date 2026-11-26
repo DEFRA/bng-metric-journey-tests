@@ -3,8 +3,11 @@ import { BasePage } from './base.page.js'
 export class BaselineHabitatDetailsPage extends BasePage {
   constructor(page) {
     super(page)
-    // Heading is dynamic: "Habitat {ref}", "Hedgerow {ref}" or "Watercourse {ref}"
+    // Heading is dynamic: "Habitat {ref}", "Hedgerow {ref}" or "Watercourse {ref}".
+    // Level 1 only: a locked page's labels ("Habitat reference", "Habitat
+    // type") are headings too.
     this.heading = page.getByRole('heading', {
+      level: 1,
       name: /^(Habitat|Hedgerow|Watercourse)/
     })
     // The appHeading macro's <h1>, on this page and on the post-intervention
@@ -62,9 +65,27 @@ export class BaselineHabitatDetailsPage extends BasePage {
     })
     this.commentHint = page.locator('#comment-hint')
 
+    // Once the project has post-intervention data the page is locked
+    // (BMD-1194, frontend PR#556): every value is text under its label, the
+    // comment in full under a "Supporting information" heading, and there is
+    // no form or Save button.
+    this.lockedComment = page
+      .getByRole('heading', { level: 2, name: 'Supporting information' })
+      .locator('xpath=following-sibling::p[1]')
+
     // A refused save re-renders the form with a GOV.UK error summary.
     this.errorSummary = page.getByRole('alert')
     this.errorSummaryLinks = this.errorSummary.getByRole('link')
+  }
+
+  /** A locked page's read-only value under its label, e.g. 'Habitat reference'. */
+  lockedValue(label) {
+    return this.page
+      .locator('.app-stacked-fields__item')
+      .filter({
+        has: this.page.getByRole('heading', { name: label, exact: true })
+      })
+      .getByRole('paragraph')
   }
 
   errorSummaryLink(text) {
