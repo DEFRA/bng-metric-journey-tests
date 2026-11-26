@@ -1834,8 +1834,22 @@ function describeServiceTemplateChecks() {
         await expect(errorFilePage.errorSummary).toContainText(
           ST_ALLOWED_DISTINCTIVENESS
         )
+        // The note also heads the out-of-scope habitats: straight after their
+        // heading, with the list of them straight after it.
+        const distinctivenessHeading = page.getByRole('heading', {
+          level: 2,
+          name: ST_DISTINCTIVENESS_HEADING
+        })
+        await expect(
+          distinctivenessHeading.locator('xpath=following-sibling::*[1]')
+        ).toHaveText(ST_ALLOWED_DISTINCTIVENESS)
+        const outOfScopeList = distinctivenessHeading.locator(
+          'xpath=following-sibling::*[2]'
+        )
         for (const habitat of ST_OUT_OF_SCOPE_HABITATS) {
-          await expect(listItem(page, habitat)).toBeVisible()
+          await expect(
+            outOfScopeList.getByRole('listitem').filter({ hasText: habitat })
+          ).toBeVisible()
         }
         await expect(listItem(page, ST_COMMENT_INVALID_ROW)).toBeVisible()
         await expect(errorFilePage.backToProjectLink).toHaveAttribute(
