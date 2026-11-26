@@ -123,15 +123,19 @@ const RETAINED_ON_SITE_NON_LOW_REFS = isServiceTemplateRun()
 const ENHANCED_REJECTED_REF = 'H086'
 
 // Column sets from `buildColumns` in post-intervention-habitat-grid.js, with
-// the area page's Broad habitat column inserted after Size. Headings render in
+// the area page's Broad habitat column inserted after Size, and Tree size
+// after it on a tab that lists a tree (BMD-1172): every tab of the BNG
+// Service template's project, and none of the legacy one's. Headings render in
 // GOV.UK sentence case where the ticket's AC4 table title-cases "Standard
 // Difficulty".
+const TREE_SIZE_COLUMN = isServiceTemplateRun() ? ['Tree size'] : []
 const RETAINED_COLUMNS = [
   'Ref',
   'Status',
   'Units',
   'Size',
   'Broad habitat',
+  ...TREE_SIZE_COLUMN,
   'Habitat type',
   'Distinctiveness',
   'Condition',
@@ -143,6 +147,7 @@ const TARGET_COLUMNS = [
   'Units',
   'Size',
   'Broad habitat',
+  ...TREE_SIZE_COLUMN,
   'Habitat type',
   'Distinctiveness',
   'Strategic significance',
