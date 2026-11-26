@@ -7,6 +7,7 @@ import {
 } from '@utils/env.js'
 import { setupProject } from '@utils/project-helpers.js'
 import { AreaBaselinePage } from '@pages/area-baseline.page.js'
+import { BaselineHabitatDetailsPage } from '@pages/baseline-habitat-details.page.js'
 import { HedgerowsBaselinePage } from '@pages/hedgerows-baseline.page.js'
 import { WatercoursesBaselinePage } from '@pages/watercourses-baseline.page.js'
 import {
@@ -29,7 +30,8 @@ import { getRunAllUnitTypesProject } from '@utils/run-projects.js'
 import {
   DEFAULT_SITE,
   DEFAULT_SITE_BASELINE,
-  LONG_PADDED_REFS_BASELINE
+  LONG_PADDED_REFS_BASELINE,
+  SMALL_SITE
 } from '@utils/service-template-files.js'
 import {
   LEGACY_ONLY,
@@ -176,12 +178,12 @@ const SERVICE_TEMPLATE_BASELINE_COMMENTS = [
   ['area', 'H001', ''],
   ['watercourse', 'R002', '']
 ]
-// A Retained area habitat on the default site, measured against the baseline
-// habitat of the same ref.
+// The default site's Retained woodland, whose baseline habitat a
+// post-intervention upload locks.
 const SERVICE_TEMPLATE_RETAINED_AREA_REF = 'H002'
-// A hedgerow renamed onto a watercourse's ref on the default site, which a
-// BNG Service template project allows: its features are joined by parent, not
-// by ref.
+// A hedgerow renamed onto a watercourse's ref on the default site's baseline,
+// which a BNG Service template project allows: its features are joined by
+// parent, not by ref.
 const SERVICE_TEMPLATE_RENAMED_HEDGEROW = 'HG001'
 const SERVICE_TEMPLATE_WATERCOURSE_REF = 'R001'
 // A baseline area habitat renamed by typing, padded and then at the limit.
@@ -207,11 +209,18 @@ function getUploadedRefsProject(browser) {
 // The default site's features the supporting information tests read and edit.
 // A Retained feature's page shows its baseline parent's comment, never the
 // copy the file gave the Retained feature itself: HG010's baseline comment is
-// "Cut annually" and its own "Gaps planted up"; T008 and R007 have none at
-// baseline and their own "Guarded and staked" and "Shorter: …".
+// "Cut annually" and its own "Gaps planted up"; T010's "Ivy on the trunk" and
+// its own "Guarded and staked"; T008 and R007 have none at baseline and their
+// own "Guarded and staked" and "Shorter: …".
 const ST_RETAINED_HEDGEROW = 'HG010'
 const ST_RETAINED_HEDGEROW_BASELINE_COMMENT = 'Cut annually'
 const ST_RETAINED_TREE = 'T008'
+const ST_RETAINED_TREE_WITH_COMMENT = 'T010'
+const ST_RETAINED_TREE_BASELINE_COMMENT = 'Ivy on the trunk'
+// The small site's Retained R001, whose baseline watercourse has a comment
+// and which has none of its own: the default site has no such watercourse.
+const ST_SMALL_SITE_RETAINED_WATERCOURSE = 'R001'
+const ST_SMALL_SITE_WATERCOURSE_COMMENT = 'Banks poached by livestock'
 const ST_RETAINED_WATERCOURSE = 'R007'
 const ST_RETAINED_WATERCOURSE_NO_COMMENT = 'R001'
 // Baseline features with no comment: H001 (Enhanced) for the refusal, R002
@@ -3141,41 +3150,77 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         }
       })
 
-      test("saves a new reference without changing its Retained post-intervention habitat's own", async ({
-        browser,
+      // Once a project has post-intervention data its baseline is locked
+      // (BMD-1194): the page shows each value as text, with no form, and a
+      // save from a page opened before the upload changes nothing.
+      test('locks a baseline habitat once post-intervention data is uploaded, saving nothing from a page opened before it', async ({
+        createProjectFlow,
+        projectDashboardPage,
+        uploadBaselineFileFlow,
+        uploadPostInterventionFileFlow,
         baselineHabitatDetailsPage,
         page
       }) => {
-        // Ten characters at most, so the grids show it whole rather than cut.
+        // Ten characters at most, so the grids would show it whole.
         const newRef = `${SERVICE_TEMPLATE_RETAINED_AREA_REF}-NEW`
-        // Its own project: the save renames a habitat.
-        const { id: projectId } = await buildPostInterventionOnlyProject(
-          browser,
+        const { id: projectId } = await setupProject(
+          createProjectFlow,
+          projectDashboardPage,
+          PROJECT_LABEL
+        )
+        await uploadBaselineFileFlow.uploadFileAndWaitForSummary(
+          projectId,
+          DEFAULT_SITE_BASELINE
+        )
+
+        // A page opened while the baseline could still be edited.
+        const stalePage = await page.context().newPage()
+        const stale = new BaselineHabitatDetailsPage(stalePage)
+        await openBaselineDetailsFromGrid(
+          stalePage,
+          projectId,
+          'area',
+          SERVICE_TEMPLATE_RETAINED_AREA_REF
+        )
+        await expect(stale.habitatReferenceInput).toHaveValue(
+          SERVICE_TEMPLATE_RETAINED_AREA_REF
+        )
+
+        await uploadPostInterventionFileFlow.uploadFileAndWaitForSummary(
+          projectId,
           DEFAULT_SITE
         )
 
-        const grid = await openBaselineGrid(page, projectId, 'area')
-        await grid.refLink(SERVICE_TEMPLATE_RETAINED_AREA_REF).click()
-        await baselineHabitatDetailsPage.habitatReferenceInput.fill(newRef)
-        await baselineHabitatDetailsPage.saveButton.click()
+        await stale.habitatReferenceInput.fill(newRef)
+        await stale.saveButton.click()
+        await expect(stale.lockedValue('Habitat reference')).toHaveText(
+          SERVICE_TEMPLATE_RETAINED_AREA_REF
+        )
+        await expect(stale.saveButton).toHaveCount(0)
+        await stalePage.close()
 
-        await expect(page).toHaveURL(baselinePageUrl(projectId, 'area'))
-        await expect(grid.refLink(newRef)).toBeVisible()
+        const grid = await openBaselineGrid(page, projectId, 'area')
         await expect(
           grid.refLink(SERVICE_TEMPLATE_RETAINED_AREA_REF)
-        ).toHaveCount(0)
+        ).toBeVisible()
+        await expect(grid.refLink(newRef)).toHaveCount(0)
 
-        expect(
-          (
-            await findPiRef(
-              page,
-              projectId,
-              'area',
-              SERVICE_TEMPLATE_RETAINED_AREA_REF
-            )
-          )?.label
-        ).toBe(RETAINED)
-        expect(await findPiRef(page, projectId, 'area', newRef)).toBeNull()
+        await grid.refLink(SERVICE_TEMPLATE_RETAINED_AREA_REF).click()
+        await expect(page).toHaveURL(/\/baseline-habitat-details/)
+        await expect(
+          baselineHabitatDetailsPage.lockedValue('Habitat reference')
+        ).toHaveText(SERVICE_TEMPLATE_RETAINED_AREA_REF)
+        await expect(
+          baselineHabitatDetailsPage.habitatReferenceInput
+        ).toHaveCount(0)
+        await expect(baselineHabitatDetailsPage.conditionSelect).toHaveCount(0)
+        await expect(baselineHabitatDetailsPage.commentInput).toHaveCount(0)
+        await expect(baselineHabitatDetailsPage.lockedComment).toHaveText(
+          NO_SUPPORTING_INFORMATION
+        )
+        await expect(baselineHabitatDetailsPage.saveButton).toHaveCount(0)
+        await expect(baselineHabitatDetailsPage.backLink).toBeVisible()
+        await expect(baselineHabitatDetailsPage.cancelLink).toBeVisible()
       })
 
       // The edit route cleans a typed ref as an upload does: it trims the
@@ -3222,19 +3267,18 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
       // A legacy project refuses this rename (the refusals describe above).
       // A BNG Service template project allows it: each post-intervention
-      // feature names its baseline parent by id, so the repeated ref joins
-      // neither Retained child to the other's parent, and HG001's child,
-      // whose own ref stays HG001, still finds its renamed parent.
-      test("lets a hedgerow take a watercourse's reference, each Retained child keeping its own parent", async ({
+      // feature names its baseline parent by id, so a repeated ref joins no
+      // feature to another's parent. The rename is made on a baseline-stage
+      // project, as a post-intervention upload locks the baseline (BMD-1194).
+      test("lets a hedgerow take a watercourse's reference", async ({
         browser,
         baselineHabitatDetailsPage,
-        postInterventionHabitatDetailsPage: details,
         page
       }) => {
         // Its own project: the save renames a hedgerow.
-        const { id: projectId } = await buildPostInterventionOnlyProject(
+        const { id: projectId } = await buildBaselineOnlyProject(
           browser,
-          DEFAULT_SITE
+          DEFAULT_SITE_BASELINE
         )
 
         const grid = await openBaselineGrid(page, projectId, 'hedgerow')
@@ -3259,26 +3303,6 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(
           watercourses.refLink(SERVICE_TEMPLATE_WATERCOURSE_REF)
         ).toBeVisible()
-
-        for (const [type, childRef, parentHeading] of [
-          [
-            'hedgerow',
-            SERVICE_TEMPLATE_RENAMED_HEDGEROW,
-            `Hedgerow ${SERVICE_TEMPLATE_WATERCOURSE_REF}`
-          ],
-          [
-            'watercourse',
-            SERVICE_TEMPLATE_WATERCOURSE_REF,
-            `Watercourse ${SERVICE_TEMPLATE_WATERCOURSE_REF}`
-          ]
-        ]) {
-          await openRetainedPiDetails(page, projectId, type, childRef)
-          await details.viewBaselineLink.click()
-          await expect(page).toHaveURL(/\/baseline-habitat-details/)
-          await expect(baselineHabitatDetailsPage.heading, childRef).toHaveText(
-            parentHeading
-          )
-        }
       })
     }
   )
@@ -3287,9 +3311,14 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
   // template project. Its files carry a Comment on every table, so a Created
   // or Enhanced feature's own comment is the file's, and a Retained feature
   // keeps a copy of its own that its page never shows: the page shows the
-  // comment saved on the baseline parent it names, as edited.
+  // comment of the baseline parent it names.
   //
-  // Serial pins the edits to one worker, on one copy of the default site.
+  // A post-intervention upload locks the baseline (BMD-1194), so the baseline
+  // comments are edited on the default site's baseline-stage file, and the
+  // post-intervention pages read on the default site, where each baseline
+  // comment is the file's.
+  //
+  // Serial pins the edits to one worker, on one copy of each.
   // Each test uses its own features, except HG009 and HG005: the box test
   // reads their empty comment and a later test edits it, ending with the
   // comment cleared, so the read holds whichever runs first.
@@ -3305,23 +3334,31 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         timeout: SHARED_PAIR_BUILD_TIMEOUT
       })
 
+      // The default site, with both stages, and its baseline-stage file.
       let projectId
+      let baselineProjectId
 
       test.beforeAll(async ({ browser }) => {
         ;({ id: projectId } = await buildPostInterventionOnlyProject(
           browser,
           DEFAULT_SITE
         ))
+        ;({ id: baselineProjectId } = await buildBaselineOnlyProject(
+          browser,
+          DEFAULT_SITE_BASELINE
+        ))
       })
 
+      // A baseline habitat's page on the baseline-stage project, which can
+      // still be edited.
       const openFromGrid = (page, type, ref) =>
-        openBaselineDetailsFromGrid(page, projectId, type, ref)
+        openBaselineDetailsFromGrid(page, baselineProjectId, type, ref)
 
       async function saveBaselineComment(page, details, type, ref, comment) {
         await openFromGrid(page, type, ref)
         await details.commentInput.fill(comment)
         await details.saveButton.click()
-        await expect(page).toHaveURL(baselinePageUrl(projectId, type))
+        await expect(page).toHaveURL(baselinePageUrl(baselineProjectId, type))
       }
 
       // Save a post-intervention feature's own comment from its edit page,
@@ -3394,32 +3431,22 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await openFromGrid(page, 'watercourse', ST_LONG_COMMENT_WATERCOURSE)
         await expect(details.commentInput).toHaveValue(comment)
         await details.saveButton.click()
-        await expect(page).toHaveURL(baselinePageUrl(projectId, 'watercourse'))
+        await expect(page).toHaveURL(
+          baselinePageUrl(baselineProjectId, 'watercourse')
+        )
 
         await openFromGrid(page, 'watercourse', ST_LONG_COMMENT_WATERCOURSE)
         await expect(details.commentInput).toHaveValue(comment)
       })
 
-      // The Retained HG010's page shows its parent's comment as edited, with
-      // its line breaks, and "No data" once that is cleared: never the
-      // Retained hedgerow's own copy in the file.
-      test("shows a Retained hedgerow's edited baseline comment with its line breaks, and No data once cleared, never its own", async ({
+      // The Retained HG010's page shows its parent's imported comment, never
+      // the Retained hedgerow's own copy in the file, and so does the parent's
+      // own page, which the upload locked.
+      test("shows a Retained hedgerow's imported baseline comment, never its own, as its locked parent does", async ({
         baselineHabitatDetailsPage,
         postInterventionHabitatDetailsPage: details,
         page
       }) => {
-        const comment = [
-          'Hedgerow retained along the northern boundary.',
-          'Gaps to be planted up in winter 2027.',
-          '',
-          'See the landscape plan, drawing LP-04.'
-        ].join('\n')
-        const rowBefore = await retainedPiRow(
-          page,
-          projectId,
-          'hedgerow',
-          ST_RETAINED_HEDGEROW
-        )
         await openRetainedPiDetails(
           page,
           projectId,
@@ -3431,60 +3458,24 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         )
         await expect(details.commentInput).toHaveCount(0)
 
-        await saveBaselineComment(
-          page,
-          baselineHabitatDetailsPage,
-          'hedgerow',
-          ST_RETAINED_HEDGEROW,
-          comment
+        await details.viewBaselineLink.click()
+        await expect(page).toHaveURL(/\/baseline-habitat-details/)
+        await expect(baselineHabitatDetailsPage.lockedComment).toHaveText(
+          ST_RETAINED_HEDGEROW_BASELINE_COMMENT
         )
-        await openRetainedPiDetails(
-          page,
-          projectId,
-          'hedgerow',
-          ST_RETAINED_HEDGEROW
-        )
-        // innerText follows the rendered white-space, so it holds the line
-        // breaks, blank line included, only if the page shows them.
-        expect(await details.supportingInformationValue.innerText()).toBe(
-          comment
-        )
-
-        await saveBaselineComment(
-          page,
-          baselineHabitatDetailsPage,
-          'hedgerow',
-          ST_RETAINED_HEDGEROW,
-          ''
-        )
-        // A comment, or its absence, leaves status and units alone.
-        expect(
-          await retainedPiRow(page, projectId, 'hedgerow', ST_RETAINED_HEDGEROW)
-        ).toEqual(rowBefore)
-        await openRetainedPiDetails(
-          page,
-          projectId,
-          'hedgerow',
-          ST_RETAINED_HEDGEROW
-        )
-        await expect(details.supportingInformationValue).toHaveText(
-          NO_SUPPORTING_INFORMATION
-        )
+        await expect(baselineHabitatDetailsPage.commentInput).toHaveCount(0)
       })
 
-      // The tree layer's witness: a baseline tree's comment saved, and shown
-      // on its Retained tree in place of the tree's own copy in the file.
-      test("saves an individual tree's comment trimmed, and shows it on the Retained tree in place of the tree's own", async ({
+      // The tree layer's witness: a baseline tree's comment saved trimmed on
+      // the baseline-stage project, and on the default site the Retained
+      // T010 showing its parent's comment, and T008, whose parent has none,
+      // No data: neither shows its own.
+      test("saves an individual tree's comment trimmed, and a Retained tree shows its parent's comment, never its own", async ({
         baselineHabitatDetailsPage,
         postInterventionHabitatDetailsPage: details,
         page
       }) => {
         const comment = 'Veteran features noted on the north side.'
-        await openRetainedPiDetails(page, projectId, 'area', ST_RETAINED_TREE)
-        await expect(details.supportingInformationValue).toHaveText(
-          NO_SUPPORTING_INFORMATION
-        )
-
         await saveBaselineComment(
           page,
           baselineHabitatDetailsPage,
@@ -3497,48 +3488,54 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           comment
         )
 
-        await openRetainedPiDetails(page, projectId, 'area', ST_RETAINED_TREE)
-        await expect(details.supportingInformationValue).toHaveText(comment)
+        await openRetainedPiDetails(
+          page,
+          projectId,
+          'area',
+          ST_RETAINED_TREE_WITH_COMMENT
+        )
+        await expect(details.supportingInformationValue).toHaveText(
+          ST_RETAINED_TREE_BASELINE_COMMENT
+        )
         await expect(details.commentInput).toHaveCount(0)
-      })
 
-      // The watercourse layer's witness, and the layout's: a long comment
-      // wraps inside the content column, unbroken word included, with nothing
-      // cut off.
-      test('shows a long comment in full on a Retained watercourse, wrapping within the column, and No data without one', async ({
-        baselineHabitatDetailsPage,
-        postInterventionHabitatDetailsPage: details,
-        page
-      }) => {
-        const longWord = 'Supercalifragilisticexpialidocious'.repeat(4)
-        const comment = `${'The watercourse is retained in full and protected by a ten metre buffer throughout construction. '.repeat(8)}Reference ${longWord} ends here.`
-        expect(comment.length).toBeLessThanOrEqual(MAX_COMMENT_LENGTH)
-
-        await saveBaselineComment(
-          page,
-          baselineHabitatDetailsPage,
-          'watercourse',
-          ST_RETAINED_WATERCOURSE,
-          comment
-        )
-        await openRetainedPiDetails(
-          page,
-          projectId,
-          'watercourse',
-          ST_RETAINED_WATERCOURSE
-        )
-        await expect(details.supportingInformationValue).toHaveText(comment)
-        await expectWrapsWithinColumn(details.supportingInformationValue)
-
-        await openRetainedPiDetails(
-          page,
-          projectId,
-          'watercourse',
-          ST_RETAINED_WATERCOURSE_NO_COMMENT
-        )
+        await openRetainedPiDetails(page, projectId, 'area', ST_RETAINED_TREE)
         await expect(details.supportingInformationValue).toHaveText(
           NO_SUPPORTING_INFORMATION
         )
+      })
+
+      // The watercourse layer's witness: the small site's Retained R001 shows
+      // its parent's comment. On the default site R007's parent has none, so
+      // its page shows No data, never its own copy in the file, as R001's does.
+      test("shows a Retained watercourse's parent's comment, and No data where the parent has none, never its own", async ({
+        browser,
+        postInterventionHabitatDetailsPage: details,
+        page
+      }) => {
+        const { id: smallSiteId } = await buildPostInterventionOnlyProject(
+          browser,
+          SMALL_SITE
+        )
+        await openRetainedPiDetails(
+          page,
+          smallSiteId,
+          'watercourse',
+          ST_SMALL_SITE_RETAINED_WATERCOURSE
+        )
+        await expect(details.supportingInformationValue).toHaveText(
+          ST_SMALL_SITE_WATERCOURSE_COMMENT
+        )
+
+        for (const ref of [
+          ST_RETAINED_WATERCOURSE,
+          ST_RETAINED_WATERCOURSE_NO_COMMENT
+        ]) {
+          await openRetainedPiDetails(page, projectId, 'watercourse', ref)
+          await expect(details.supportingInformationValue, ref).toHaveText(
+            NO_SUPPORTING_INFORMATION
+          )
+        }
       })
 
       test("shows a Created or Enhanced feature's own comment in an editable box, and an empty box without one", async ({
@@ -3617,15 +3614,14 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       })
 
       // The Enhanced area's comment is saved through the areas route, and its
-      // baseline habitat's comment stays out of its box. Ends with both
-      // comments cleared.
+      // baseline habitat, which has none and is locked, gains none. Ends with
+      // the comment cleared.
       test("saves an Enhanced area's own comment trimmed, apart from its baseline habitat's comment", async ({
         baselineHabitatDetailsPage,
         postInterventionHabitatDetailsPage: details,
         page
       }) => {
         const enhanced = { type: 'area', ref: ST_ENHANCED_AREA, tab: ENHANCED }
-        const baselineComment = 'Green roof inspected twice a year.'
         const comment = [
           'Enhancement agreed with the ecologist.',
           '  Indented line kept as typed.',
@@ -3633,13 +3629,6 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           'Monitoring report due in year 5.'
         ].join('\n')
 
-        await saveBaselineComment(
-          page,
-          baselineHabitatDetailsPage,
-          'area',
-          ST_ENHANCED_AREA,
-          baselineComment
-        )
         const rowBefore = await piRowUnits(
           page,
           projectId,
@@ -3656,22 +3645,14 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await openPiDetails(page, projectId, 'area', ST_ENHANCED_AREA, ENHANCED)
         await expect(details.commentInput).toHaveValue(comment)
         await details.viewBaselineLink.click()
-        await expect(baselineHabitatDetailsPage.commentInput).toHaveValue(
-          baselineComment
+        await expect(baselineHabitatDetailsPage.lockedComment).toHaveText(
+          NO_SUPPORTING_INFORMATION
         )
 
         // Whitespace alone saves as no comment.
         await savePiComment(page, details, enhanced, '  \n \n  ')
         await openPiDetails(page, projectId, 'area', ST_ENHANCED_AREA, ENHANCED)
         await expect(details.commentInput).toHaveValue('')
-
-        await saveBaselineComment(
-          page,
-          baselineHabitatDetailsPage,
-          'area',
-          ST_ENHANCED_AREA,
-          ''
-        )
       })
 
       // Ends with HG005's comment cleared, so the read in the box test holds
@@ -3790,9 +3771,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
       })
 
       // The Enhanced tree's own comment, the file's, is replaced through the
-      // trees route; its baseline tree keeps its own. The baseline tree is
-      // read from the grid, though the form links to it with "View baseline
-      // details".
+      // trees route; its baseline tree, locked, keeps its own. The baseline
+      // tree is read from the grid, though the form links to it with "View
+      // baseline details".
       test("saves an Enhanced tree's own comment trimmed, apart from its baseline tree's comment", async ({
         baselineHabitatDetailsPage,
         postInterventionHabitatDetailsPage: details,
@@ -3818,8 +3799,13 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await openPiDetails(page, projectId, 'area', ST_ENHANCED_TREE, ENHANCED)
         await expect(details.commentInput).toHaveValue(comment)
 
-        await openFromGrid(page, 'area', ST_ENHANCED_TREE)
-        await expect(baselineHabitatDetailsPage.commentInput).toHaveValue(
+        await openBaselineDetailsFromGrid(
+          page,
+          projectId,
+          'area',
+          ST_ENHANCED_TREE
+        )
+        await expect(baselineHabitatDetailsPage.lockedComment).toHaveText(
           ST_ENHANCED_TREE_BASELINE_COMMENT
         )
       })
