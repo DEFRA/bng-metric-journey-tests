@@ -20,6 +20,10 @@ const CREATED_FORM_VALUE_INDEX = {
   finalTime: 6,
   applied: 7
 }
+// An Enhanced edit form's "View baseline details" paragraph comes straight
+// after the Strategic significance drop-down (frontend PR#557), so it shifts
+// only the values after Distinctiveness.
+const FIRST_VALUE_AFTER_BASELINE_LINK = CREATED_FORM_VALUE_INDEX.standardTime
 
 // The /post-intervention-habitat-details route renders a page for every
 // feature, picked by feature type *and* retention category, plus an
@@ -90,9 +94,9 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     this.stackedValues = page.getByRole('main').getByRole('paragraph')
     // Read-only stacked pages put Size after Intervention, with the baseline
     // link after the section. An Enhanced edit form puts the baseline link
-    // before those rows (pass `baselineLink: true` to createdFormValue); a
-    // Created form never shows it. Use the text-based Created length locator
-    // on the edit forms.
+    // below Strategic significance, before the time and difficulty rows (pass
+    // `baselineLink: true` to createdFormValue); a Created form never shows
+    // it. Use the text-based Created length locator on the edit forms.
     this.stackedSizeValue = this.stackedValues.nth(1)
     this.createdLengthValue = page
       .getByRole('main')
@@ -229,9 +233,9 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
    * 'distinctiveness', 'standardTime', 'difficulty', 'finalTime' or 'applied'.
    */
   createdFormValue(name, { baselineLink = false } = {}) {
-    return this.stackedValues.nth(
-      CREATED_FORM_VALUE_INDEX[name] + (baselineLink ? 1 : 0)
-    )
+    const index = CREATED_FORM_VALUE_INDEX[name]
+    const afterLink = baselineLink && index >= FIRST_VALUE_AFTER_BASELINE_LINK
+    return this.stackedValues.nth(index + (afterLink ? 1 : 0))
   }
 
   async open(projectId, featureId) {
