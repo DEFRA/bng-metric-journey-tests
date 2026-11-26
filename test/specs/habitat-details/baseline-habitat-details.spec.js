@@ -227,6 +227,7 @@ const ST_RETAINED_WATERCOURSE_NO_COMMENT = 'R001'
 // H039's parent has none; its own copy in the file is "Seeded with a local
 // mix".
 const ST_RETAINED_AREA = 'H003'
+const ST_RETAINED_AREA_PIECES = 2
 const ST_RETAINED_AREA_BASELINE_COMMENT = 'Grazed by sheep'
 const ST_RETAINED_AREA_NO_COMMENT = 'H039'
 // Baseline features with no comment: H001 (Enhanced) for the refusal, R002
@@ -3452,19 +3453,25 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         postInterventionHabitatDetailsPage: details,
         page
       }) => {
-        // Either of H003's two pieces shows its parent's comment.
-        const { unitPage, label } = await openPiTabFor(
-          page,
-          projectId,
-          'area',
-          ST_RETAINED_AREA
-        )
-        expect(label).toBe(RETAINED)
-        await unitPage.refLink(RETAINED, ST_RETAINED_AREA).first().click()
-        await expect(page).toHaveURL(/\/post-intervention-habitat-details/)
-        await expect(details.supportingInformationValue).toHaveText(
-          ST_RETAINED_AREA_BASELINE_COMMENT
-        )
+        // Each of H003's two pieces shows its parent's comment. The first's
+        // page is the one whose layout is checked below.
+        for (const piece of [1, 0]) {
+          const { unitPage, label } = await openPiTabFor(
+            page,
+            projectId,
+            'area',
+            ST_RETAINED_AREA
+          )
+          expect(label).toBe(RETAINED)
+          const pieces = unitPage.refLink(RETAINED, ST_RETAINED_AREA)
+          await expect(pieces).toHaveCount(ST_RETAINED_AREA_PIECES)
+          await pieces.nth(piece).click()
+          await expect(page).toHaveURL(/\/post-intervention-habitat-details/)
+          await expect(
+            details.supportingInformationValue,
+            `piece ${piece}`
+          ).toHaveText(ST_RETAINED_AREA_BASELINE_COMMENT)
+        }
         await expect(details.commentInput).toHaveCount(0)
         await expect(details.stackedFieldLabels).toHaveText(
           RETAINED_SECTION_LABELS
