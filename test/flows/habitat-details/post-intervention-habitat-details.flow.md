@@ -313,11 +313,12 @@ Every GET step below shares this contract, so it is stated once rather than repe
   file"** button in the header (to the upload-file page) and a GOV.UK error summary when
   Step 11 re-renders it with errors. Values come from `feature.proposed`.
   - **Section 1 — "Post-intervention habitat details":** a **Habitat reference** text input,
-    the **"View baseline details"** link (Enhanced only, when resolved; never on a Created
-    form, BMD-1218), read-only **Intervention** and
+    read-only **Intervention** and
     **"Size (hectares)"** (value without a unit suffix), the **Broad habitat** and **Habitat
-    type** dropdowns, read-only **"Distinctiveness (multiplier)"**, and the **Strategic
-    significance** dropdown.
+    type** dropdowns, read-only **"Distinctiveness (multiplier)"**, the **Strategic
+    significance** dropdown, then the **"View baseline details"** link (Enhanced only, when
+    resolved; never on a Created form, BMD-1218; below Strategic significance since frontend
+    PR#557).
   - **Section 2 — "Time to target / difficulty":** the **Target condition** dropdown,
     read-only Standard time to target condition and Standard difficulty, an **"Advance or
     delay?"** fieldset holding the "Habitat created in advance (years)" and "Delay in
