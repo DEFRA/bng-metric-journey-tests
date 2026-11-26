@@ -30,7 +30,8 @@ import { getRunAllUnitTypesProject } from '@utils/run-projects.js'
 import {
   DEFAULT_SITE,
   DEFAULT_SITE_BASELINE,
-  LONG_PADDED_REFS_BASELINE
+  LONG_PADDED_REFS_BASELINE,
+  SMALL_SITE
 } from '@utils/service-template-files.js'
 import {
   LEGACY_ONLY,
@@ -208,11 +209,18 @@ function getUploadedRefsProject(browser) {
 // The default site's features the supporting information tests read and edit.
 // A Retained feature's page shows its baseline parent's comment, never the
 // copy the file gave the Retained feature itself: HG010's baseline comment is
-// "Cut annually" and its own "Gaps planted up"; T008 and R007 have none at
-// baseline and their own "Guarded and staked" and "Shorter: …".
+// "Cut annually" and its own "Gaps planted up"; T010's "Ivy on the trunk" and
+// its own "Guarded and staked"; T008 and R007 have none at baseline and their
+// own "Guarded and staked" and "Shorter: …".
 const ST_RETAINED_HEDGEROW = 'HG010'
 const ST_RETAINED_HEDGEROW_BASELINE_COMMENT = 'Cut annually'
 const ST_RETAINED_TREE = 'T008'
+const ST_RETAINED_TREE_WITH_COMMENT = 'T010'
+const ST_RETAINED_TREE_BASELINE_COMMENT = 'Ivy on the trunk'
+// The small site's Retained R001, whose baseline watercourse has a comment
+// and which has none of its own: the default site has no such watercourse.
+const ST_SMALL_SITE_RETAINED_WATERCOURSE = 'R001'
+const ST_SMALL_SITE_WATERCOURSE_COMMENT = 'Banks poached by livestock'
 const ST_RETAINED_WATERCOURSE = 'R007'
 const ST_RETAINED_WATERCOURSE_NO_COMMENT = 'R001'
 // Baseline features with no comment: H001 (Enhanced) for the refusal, R002
@@ -3460,7 +3468,8 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
 
       // The tree layer's witness: a baseline tree's comment saved trimmed on
       // the baseline-stage project, and on the default site the Retained
-      // T008, whose parent has no comment, showing No data rather than its own.
+      // T010 showing its parent's comment, and T008, whose parent has none,
+      // No data: neither shows its own.
       test("saves an individual tree's comment trimmed, and a Retained tree shows its parent's comment, never its own", async ({
         baselineHabitatDetailsPage,
         postInterventionHabitatDetailsPage: details,
@@ -3479,20 +3488,45 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
           comment
         )
 
+        await openRetainedPiDetails(
+          page,
+          projectId,
+          'area',
+          ST_RETAINED_TREE_WITH_COMMENT
+        )
+        await expect(details.supportingInformationValue).toHaveText(
+          ST_RETAINED_TREE_BASELINE_COMMENT
+        )
+        await expect(details.commentInput).toHaveCount(0)
+
         await openRetainedPiDetails(page, projectId, 'area', ST_RETAINED_TREE)
         await expect(details.supportingInformationValue).toHaveText(
           NO_SUPPORTING_INFORMATION
         )
-        await expect(details.commentInput).toHaveCount(0)
       })
 
-      // The watercourse layer's witness: R007's parent has no comment, so its
-      // page shows No data, never the Retained watercourse's own copy in the
-      // file, and so does R001's.
-      test('shows No data on a Retained watercourse whose parent has no comment, never its own', async ({
+      // The watercourse layer's witness: the small site's Retained R001 shows
+      // its parent's comment. On the default site R007's parent has none, so
+      // its page shows No data, never its own copy in the file, as R001's does.
+      test("shows a Retained watercourse's parent's comment, and No data where the parent has none, never its own", async ({
+        browser,
         postInterventionHabitatDetailsPage: details,
         page
       }) => {
+        const { id: smallSiteId } = await buildPostInterventionOnlyProject(
+          browser,
+          SMALL_SITE
+        )
+        await openRetainedPiDetails(
+          page,
+          smallSiteId,
+          'watercourse',
+          ST_SMALL_SITE_RETAINED_WATERCOURSE
+        )
+        await expect(details.supportingInformationValue).toHaveText(
+          ST_SMALL_SITE_WATERCOURSE_COMMENT
+        )
+
         for (const ref of [
           ST_RETAINED_WATERCOURSE,
           ST_RETAINED_WATERCOURSE_NO_COMMENT

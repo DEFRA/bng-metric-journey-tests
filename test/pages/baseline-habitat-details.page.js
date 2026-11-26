@@ -109,11 +109,7 @@ export class BaselineHabitatDetailsPage extends BasePage {
 
   async optionValues(select) {
     const options = await select.getByRole('option').all()
-    const values = []
-    for (const option of options) {
-      values.push(await option.getAttribute('value'))
-    }
-    return values
+    return Promise.all(options.map((option) => option.getAttribute('value')))
   }
 
   async conditionOptionValues() {

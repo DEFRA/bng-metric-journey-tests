@@ -919,7 +919,8 @@ async function expectRetainedRename(
   expect(new URL(page.url()).searchParams.get('featureId')).toBe(
     baselineFeatureId
   )
-  await expect(details.habitatReferenceInput).toHaveValue(newRef)
+  // Read-only: a project with post-intervention data locks its baseline.
+  await expect(details.lockedValue('Habitat reference')).toHaveText(newRef)
 }
 
 // Baseline + PI hedgerow uploads in one project: retained hedgerows for the

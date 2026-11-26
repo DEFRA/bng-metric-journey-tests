@@ -15,9 +15,10 @@ Once the project has post-intervention data, its baseline is locked (BMD-1194, f
 PR#556): the page shows every value as text under its usual label, the supporting
 information in full with its line breaks (or "No data"), and no form or Save button;
 Back and Cancel stay. A save from a page opened before the upload, or a direct POST,
-saves nothing and renders the locked page. The journey tests edit baselines on
-baseline-stage projects, and check the lock on the default site, including a save from a
-tab opened before its post-intervention upload.
+saves nothing and renders the locked page. The BNG Service template run edits baselines on
+baseline-stage projects, and checks the lock on the default site, including a save from a
+tab opened before its post-intervention upload. The legacy run's baseline edits are still
+made on projects with both stages, so they meet the lock until that run is brought back.
 
 ## Steps
 
