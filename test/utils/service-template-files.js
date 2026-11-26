@@ -55,6 +55,8 @@ export const DISTINCTIVENESS_POST_INTERVENTION_ONLY = `${DIR}/distinctiveness-po
 export const POST_INTERVENTION_HABITAT_REF_BLANK = `${DIR}/degrade-habitat-ref-blank.gpkg`
 // H001 (Very High) and H002 (High), in both stages.
 export const DISTINCTIVENESS_OUT_OF_SCOPE = `${DIR}/distinctiveness-out-of-scope.gpkg`
+// The same, with a baseline comment that is not valid UTF-8 as well.
+export const DISTINCTIVENESS_OUT_OF_SCOPE_AND_COMMENT_INVALID = `${DIR}/distinctiveness-out-of-scope-and-comment-invalid.gpkg`
 // T025, a Retained tree marked irreplaceable.
 export const IRREPLACEABLE_TREE = `${DIR}/irreplaceable-tree.gpkg`
 export const REDLINE_SELF_INTERSECTING = `${DIR}/self-intersecting-redline-baseline.gpkg`
@@ -68,6 +70,8 @@ export const REDLINE_MULTIPLE = `${DIR}/redline-multiple-baseline.gpkg`
 export const AREA_SUM_MISMATCH = `${DIR}/area-sum-mismatch-baseline.gpkg`
 // H002, drawn as a bowtie.
 export const BOWTIE_PARCEL = `${DIR}/bowtie-parcel-baseline.gpkg`
+// H002's outline crossing itself, with nothing else wrong.
+export const CROSSED_PARCEL_ALONE = `${DIR}/crossed-parcel-alone-baseline.gpkg`
 // H002 and H003 overlap.
 export const OVERLAPPING_PARCELS = `${DIR}/overlapping-parcels-baseline.gpkg`
 // H002, 0.81 square metres.
