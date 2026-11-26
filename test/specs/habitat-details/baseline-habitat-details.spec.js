@@ -26,7 +26,10 @@ import {
 } from '@utils/post-intervention-grid.js'
 import { UNITS_TWO_DP_PATTERN } from '@pages/post-intervention-habitat-details.page.js'
 import { STATUS_COMPLETE, STATUS_INCOMPLETE } from '@utils/unit-type-labels.js'
-import { getRunAllUnitTypesProject } from '@utils/run-projects.js'
+import {
+  getRunAllUnitTypesProject,
+  getRunAllUnitTypesPostInterventionProject
+} from '@utils/run-projects.js'
 import {
   DEFAULT_SITE,
   DEFAULT_SITE_BASELINE,
@@ -181,6 +184,49 @@ const SERVICE_TEMPLATE_BASELINE_COMMENTS = [
 // The default site's Retained woodland, whose baseline habitat a
 // post-intervention upload locks.
 const SERVICE_TEMPLATE_RETAINED_AREA_REF = 'H002'
+// The default site's locked baseline parents, one per feature type, each with
+// its values as the file gives them (BMD-1194). H003 and HG010 carry a
+// comment; R006 has none, and is the only parent here with encroachments.
+const SERVICE_TEMPLATE_LOCKED_PARENTS = [
+  {
+    type: 'area',
+    ref: 'H003',
+    heading: 'Habitat H003',
+    size: 'Size (hectares)',
+    values: {
+      'Broad habitat': 'Heathland and shrub',
+      'Habitat type': 'Mixed scrub',
+      Condition: 'Good'
+    },
+    comment: 'Grazed by sheep'
+  },
+  {
+    type: 'hedgerow',
+    ref: 'HG010',
+    heading: 'Hedgerow HG010',
+    size: 'Length (km)',
+    values: {
+      'Habitat type': 'Native hedgerow with trees',
+      Condition: 'Moderate'
+    },
+    comment: 'Cut annually'
+  },
+  {
+    type: 'watercourse',
+    ref: 'R006',
+    heading: 'Watercourse R006',
+    size: 'Length (km)',
+    values: {
+      'Habitat type': 'Canals',
+      Condition: 'Fairly Poor',
+      'Watercourse encroachment': 'Major',
+      'Riparian encroachment': 'Moderate/Minor'
+    },
+    comment: NO_SUPPORTING_INFORMATION
+  }
+]
+// What a locked page must not show: a message saying why it cannot be edited.
+const LOCK_MESSAGE_TEXT = /locked|cannot be (changed|edited)/i
 // A hedgerow renamed onto a watercourse's ref on the default site's baseline,
 // which a BNG Service template project allows: its features are joined by
 // parent, not by ref.
@@ -3221,6 +3267,69 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
         await expect(baselineHabitatDetailsPage.saveButton).toHaveCount(0)
         await expect(baselineHabitatDetailsPage.backLink).toBeVisible()
         await expect(baselineHabitatDetailsPage.cancelLink).toBeVisible()
+      })
+
+      // The locked page for each feature type (BMD-1194 AC2–AC4), on the
+      // shared default site, which this test only reads. Every field the
+      // type locks is text under its label, the display-only values are
+      // still shown, the comment is shown in full without its hint, and
+      // nothing on the page can be changed or says why. Back and Cancel keep
+      // their targets: both return to the grid the page was opened from.
+      test('shows a locked area, hedgerow and watercourse as text, with no form, hint or message', async ({
+        browser,
+        baselineHabitatDetailsPage: details,
+        page
+      }) => {
+        const { id: projectId } =
+          await getRunAllUnitTypesPostInterventionProject(browser)
+        const main = page.getByRole('main')
+
+        for (const parent of SERVICE_TEMPLATE_LOCKED_PARENTS) {
+          const { type, ref } = parent
+          await openBaselineDetailsFromGrid(page, projectId, type, ref)
+          await expect(details.headingTitle, ref).toHaveText(parent.heading)
+
+          await expect(
+            details.lockedValue('Habitat reference'),
+            ref
+          ).toHaveText(ref)
+          for (const [label, value] of Object.entries(parent.values)) {
+            await expect(
+              details.lockedValue(label),
+              `${ref} ${label}`
+            ).toContainText(value)
+          }
+          for (const label of [
+            parent.size,
+            'Distinctiveness',
+            'Strategic significance',
+            'Required action to meet trading rules'
+          ]) {
+            await expect(
+              details.lockedValue(label),
+              `${ref} ${label}`
+            ).not.toBeEmpty()
+          }
+          await expect(details.habitatUnitsKey, ref).toBeVisible()
+
+          await expect(details.lockedComment, ref).toHaveText(parent.comment)
+          await expect(details.commentInput, ref).toHaveCount(0)
+          await expect(main.getByText(COMMENT_HINT), ref).toHaveCount(0)
+
+          await expect(main.getByRole('textbox'), ref).toHaveCount(0)
+          await expect(main.getByRole('combobox'), ref).toHaveCount(0)
+          await expect(details.saveButton, ref).toHaveCount(0)
+          await expect(main.getByRole('alert'), ref).toHaveCount(0)
+          await expect(main.getByText(LOCK_MESSAGE_TEXT), ref).toHaveCount(0)
+
+          const gridPath = baselinePagePath(projectId, type)
+          await expect(details.backLink, ref).toHaveAttribute(
+            'href',
+            new RegExp(`^${gridPath}(?:[?#]|$)`)
+          )
+          await details.cancelLink.click()
+          await expect(page, ref).toHaveURL(baselinePageUrl(projectId, type))
+        }
       })
 
       // The edit route cleans a typed ref as an upload does: it trims the
