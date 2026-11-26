@@ -17,7 +17,9 @@ information in full with its line breaks (or "No data"), and no form or Save but
 Back and Cancel stay. A save from a page opened before the upload, or a direct POST,
 saves nothing and renders the locked page. The BNG Service template run edits baselines on
 baseline-stage projects, and checks the lock on the default site, including a save from a
-tab opened before its post-intervention upload. The legacy run's baseline edits are still
+tab opened before its post-intervention upload, and the locked page of an area (H003),
+hedgerow (HG010) and watercourse (R006, with its encroachments): no input, dropdown, hint
+or message, and Back and Cancel returning to the grid. The legacy run's baseline edits are still
 made on projects with both stages, so they meet the lock until that run is brought back.
 
 ## Steps
