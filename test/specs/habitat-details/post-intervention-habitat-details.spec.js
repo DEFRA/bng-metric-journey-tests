@@ -919,7 +919,8 @@ async function expectRetainedRename(
   expect(new URL(page.url()).searchParams.get('featureId')).toBe(
     baselineFeatureId
   )
-  await expect(details.habitatReferenceInput).toHaveValue(newRef)
+  // Read-only: a project with post-intervention data locks its baseline.
+  await expect(details.lockedValue('Habitat reference')).toHaveText(newRef)
 }
 
 // Baseline + PI hedgerow uploads in one project: retained hedgerows for the
@@ -1573,9 +1574,11 @@ async function expectServiceTemplateRetainedRename(
   await expect(details.habitatUnitsValue).toHaveText(before.Units)
   await expect(details.viewBaselineLink).toHaveAttribute('href', baselineHref)
 
+  // The parent keeps its ref, shown read-only: a project with
+  // post-intervention data locks its baseline (BMD-1194).
   await details.viewBaselineLink.click()
   await expect(page).toHaveURL(BASELINE_DETAILS_URL_PATTERN)
-  await expect(details.habitatReferenceInput).toHaveValue(ref)
+  await expect(details.lockedValue('Habitat reference')).toHaveText(ref)
 }
 
 // Clicking Upload file leaves the page with no prompt, and saves nothing.
@@ -6356,9 +6359,9 @@ test.describe('habitat-details', { tag: '@habitat-details' }, () => {
             `Habitat ${ref}`
           )
           await expect(
-            baselineHabitatDetailsPage.habitatReferenceInput,
+            baselineHabitatDetailsPage.lockedValue('Habitat reference'),
             ref
-          ).toHaveValue(ref)
+          ).toHaveText(ref)
         }
       })
     }
