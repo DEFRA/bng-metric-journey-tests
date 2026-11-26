@@ -95,8 +95,8 @@ export class PostInterventionHabitatDetailsPage extends BaselineHabitatDetailsPa
     // Read-only stacked pages put Size after Intervention, with the baseline
     // link after the section. An Enhanced edit form puts the baseline link
     // below Strategic significance, before the time and difficulty rows (pass
-    // `baselineLink: true` to createdFormValue); a Created form never shows it. Use the text-based Created length locator
-    // on the edit forms.
+    // `baselineLink: true` to createdFormValue); a Created form never shows
+    // it. Use the text-based Created length locator on the edit forms.
     this.stackedSizeValue = this.stackedValues.nth(1)
     this.createdLengthValue = page
       .getByRole('main')
