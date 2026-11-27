@@ -118,6 +118,8 @@ const COLUMN_HEADINGS = [
   'Units',
   'Size',
   'Broad habitat',
+  // BMD-1172: shown because the grid lists trees, in both runs.
+  'Tree size',
   'Habitat type',
   'Distinctiveness',
   'Condition',

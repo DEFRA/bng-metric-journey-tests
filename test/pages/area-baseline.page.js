@@ -1,4 +1,4 @@
-import { rowValuesByRef } from '@utils/row-values.js'
+import { cellSelector, rowValuesByRef } from '@utils/row-values.js'
 import { readTileUnits, readTileValue } from '@utils/tile-value.js'
 import {
   areaTradingRulesLink,
@@ -11,17 +11,19 @@ import {
   VIEW_ON_SITE_AREA_BASELINE
 } from '@utils/unit-type-labels.js'
 
-// Column order is fixed by COLUMNS in area-baseline/controller.js.
+// Column order is fixed by buildColumns in baseline-habitat-grid.js. A Tree
+// size column follows Broad habitat on a grid that lists a tree (BMD-1172),
+// so the columns after it are counted from the row's end (see cellSelector).
 const COLUMN = {
   ref: 0,
   status: 1,
   units: 2,
   size: 3,
   broadHabitat: 4,
-  habitatType: 5,
-  distinctiveness: 6,
-  condition: 7,
-  strategicSignificance: 8
+  habitatType: -4,
+  distinctiveness: -3,
+  condition: -2,
+  strategicSignificance: -1
 }
 
 /**
@@ -134,7 +136,7 @@ export class AreaBaselinePage extends BasePage {
   }
 
   columnHeader(column) {
-    return this.columnHeaders().nth(COLUMN[column])
+    return this.table().locator(`thead ${cellSelector(COLUMN[column], 'th')}`)
   }
 
   /** A column heading's sort button, injected by the MOJ component. */
@@ -154,15 +156,14 @@ export class AreaBaselinePage extends BasePage {
   async cellText(rowIndex, column) {
     return this.featureRows()
       .nth(rowIndex)
-      .locator('td')
-      .nth(COLUMN[column])
+      .locator(cellSelector(COLUMN[column]))
       .innerText()
   }
 
   /** Every value in a named column, in rendered order. */
   async columnValues(column) {
     return this.featureRows()
-      .locator(`td:nth-child(${COLUMN[column] + 1})`)
+      .locator(cellSelector(COLUMN[column]))
       .allInnerTexts()
   }
 
@@ -172,7 +173,7 @@ export class AreaBaselinePage extends BasePage {
   }
 
   totalsCell(column) {
-    return this.totalsRow().locator('td').nth(COLUMN[column])
+    return this.totalsRow().locator(cellSelector(COLUMN[column]))
   }
 
   refLink(reference) {

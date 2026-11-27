@@ -19,6 +19,7 @@ import {
   getLongPaddedRefsProject
 } from '@utils/summary-projects.js'
 import { gridRefName } from '@utils/habitat-ref-display.js'
+import { cellSelector } from '@utils/row-values.js'
 import {
   findPiRef,
   openPiTabFor,
@@ -412,9 +413,9 @@ function gridRow(page, type, ref) {
 }
 
 function gridCell(page, type, ref, column) {
-  return gridRow(page, type, ref)
-    .locator('td')
-    .nth(BASELINE_PAGES[type].Page.COLUMN[column])
+  return gridRow(page, type, ref).locator(
+    cellSelector(BASELINE_PAGES[type].Page.COLUMN[column])
+  )
 }
 
 // The grid renders condition as label and score — "Good (3)" — where the
@@ -535,9 +536,8 @@ async function readGridFeatures(page, projectId, type) {
     if ((await link.count()) === 0) {
       continue
     }
-    const cells = row.locator('td')
     const text = async (column) =>
-      (await cells.nth(columns[column]).textContent()).trim()
+      (await row.locator(cellSelector(columns[column])).textContent()).trim()
     features.push({
       ...(await refAndFeatureIdFromLink(link)),
       size: (await text('size')).replace(/km$/, ''),
